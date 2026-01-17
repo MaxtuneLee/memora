@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+.root {
+  isolation: isolate;
+}
+
+body {
+  position: relative;
+}
