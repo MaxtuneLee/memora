@@ -1,5 +1,4 @@
 import {
-  BooksIcon,
   ChatCircleIcon,
   FilesIcon,
   GearIcon,

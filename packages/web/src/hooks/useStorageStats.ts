@@ -78,7 +78,7 @@ const getDirectorySize = async (path: string) => {
   let total = 0;
   const children = await directory.children();
   for (const child of children) {
-    if (child.kind === "file") {
+    if (child.kind === "file" && child.getSize) {
       total += await child.getSize();
       continue;
     }
@@ -105,7 +105,7 @@ const collectSizes = async (
     }
 
     const ext = getExtension(child.name);
-    const size = await child.getSize();
+    const size = child.getSize ? await child.getSize() : 0;
     if (AUDIO_EXTENSIONS.has(ext)) {
       sizes.recordings += size;
     } else if (TRANSCRIPT_EXTENSIONS.has(ext)) {

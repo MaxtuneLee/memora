@@ -75,7 +75,10 @@ export const VideoPlayer = memo(
 
     const effectiveDuration = playerDuration || duration || 0;
     const effectiveDurationRef = useRef(effectiveDuration);
-    effectiveDurationRef.current = effectiveDuration;
+
+    useEffect(() => {
+      effectiveDurationRef.current = effectiveDuration;
+    }, [effectiveDuration]);
 
     useEffect(() => {
       let rafId: number;

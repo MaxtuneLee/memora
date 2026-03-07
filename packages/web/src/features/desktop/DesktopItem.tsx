@@ -7,7 +7,7 @@ import {
   TrashIcon,
   VideoCameraIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { DesktopItem as DesktopItemData } from "./desktopTypes";
 import { GRID_SIZE, ICON_SIZE } from "./desktopTypes";
 import { DesktopFileTip } from "./DesktopFileTip";
@@ -47,17 +47,13 @@ export function DesktopItem({
 }: DesktopItemProps) {
   const wasDraggingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [draftName, setDraftName] = useState(item.name);
 
   useEffect(() => {
-    setDraftName(item.name);
-  }, [item.name]);
-
-  useEffect(() => {
-    if (isRenaming) {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.value = item.name;
       requestAnimationFrame(() => inputRef.current?.focus());
     }
-  }, [isRenaming]);
+  }, [isRenaming, item.name]);
 
   const isAbsoluteLayout = layout === "desktop" || layout === "grid";
   const isListLayout = layout === "list";
@@ -74,10 +70,11 @@ export function DesktopItem({
     disabled: !allowDrop,
   });
 
-  // Track if we were dragging to prevent navigation on drag end
-  if (isDragging) {
-    wasDraggingRef.current = true;
-  }
+  useEffect(() => {
+    if (isDragging) {
+      wasDraggingRef.current = true;
+    }
+  }, [isDragging]);
 
   const style: React.CSSProperties = isAbsoluteLayout
     ? {
@@ -131,15 +128,15 @@ export function DesktopItem({
     onOpenItem(item);
   };
 
-  const handleRenameSubmit = () => {
-    const trimmed = draftName.trim();
+  const handleRenameSubmit = useCallback(() => {
+    const trimmed = (inputRef.current?.value ?? "").trim();
     if (!trimmed) {
       onRenameCancel?.(item.id);
-      setDraftName(item.name);
+      if (inputRef.current) inputRef.current.value = item.name;
       return;
     }
     onRenameCommit?.(item.id, trimmed);
-  };
+  }, [item.id, item.name, onRenameCancel, onRenameCommit]);
 
   const getIcon = (): JSX.Element => {
     if (item.type === "folder") {
@@ -206,8 +203,7 @@ export function DesktopItem({
       {isRenaming ? (
         <input
           ref={inputRef}
-          value={draftName}
-          onChange={(e) => setDraftName(e.target.value)}
+          defaultValue={item.name}
           onBlur={handleRenameSubmit}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -217,7 +213,7 @@ export function DesktopItem({
             if (e.key === "Escape") {
               e.preventDefault();
               onRenameCancel?.(item.id);
-              setDraftName(item.name);
+              if (inputRef.current) inputRef.current.value = item.name;
             }
           }}
           className={

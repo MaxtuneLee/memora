@@ -4,7 +4,7 @@ import { useSettingsDialog } from "@/hooks/useSettingDialog";
 import { useMemo } from "react";
 
 export function StorageWidget() {
-  const { storageUsage, storageQuota, isStoragePersistent, categories } =
+  const { storageQuota, isStoragePersistent, categories } =
     useStorageStats();
   const { openSettings } = useSettingsDialog();
 

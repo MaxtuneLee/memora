@@ -81,7 +81,10 @@ export const AudioPlayer = memo(
 
     const effectiveDuration = playerDuration || duration || 0;
     const effectiveDurationRef = useRef(effectiveDuration);
-    effectiveDurationRef.current = effectiveDuration;
+
+    useEffect(() => {
+      effectiveDurationRef.current = effectiveDuration;
+    }, [effectiveDuration]);
 
     useEffect(() => {
       let rafId: number;
@@ -133,7 +136,14 @@ export const AudioPlayer = memo(
       if (playerDuration > 0) onDurationChange?.(playerDuration);
     }, [playerDuration, onDurationChange]);
 
-    const waveformProgress = effectiveDuration > 0 ? playerTimeRef.current / effectiveDuration : 0;
+    const [waveformProgress, setWaveformProgress] = useState(0);
+
+    useEffect(() => {
+      const id = requestAnimationFrame(() => {
+        setWaveformProgress(effectiveDuration > 0 ? playerTimeRef.current / effectiveDuration : 0);
+      });
+      return () => cancelAnimationFrame(id);
+    }, [effectiveDuration, playerTimeRef]);
 
     const handleSeek = useCallback(
       (progressPercent: number) => {

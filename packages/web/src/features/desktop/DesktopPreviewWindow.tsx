@@ -94,20 +94,22 @@ export function DesktopPreviewWindow({
 
   const isFile = item.type === "file";
   const mimeType = isFile ? item.fileMeta.mimeType : "";
+  const fileMetaId = isFile ? item.fileMeta.id : null;
+  const fileMetaType = isFile ? item.fileMeta.type : null;
+  const fileMeta = isFile ? item.fileMeta : null;
 
   const previewLabel = useMemo(() => {
     if (!isFile) return "Folder";
-    return item.fileMeta.type;
-  }, [isFile, item.type === "file" ? item.fileMeta.type : null]);
+    return fileMetaType;
+  }, [isFile, fileMetaType]);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadPreview = async () => {
-      if (!isFile) return;
+      if (!isFile || !fileMeta) return;
       try {
-        if (item.type !== "file") return;
-        const file = await resolveRecordingFile(item.fileMeta);
+        const file = await resolveRecordingFile(fileMeta);
         if (!isMounted || !file) return;
         if (revokeUrlRef.current) {
           URL.revokeObjectURL(revokeUrlRef.current);
@@ -116,7 +118,7 @@ export function DesktopPreviewWindow({
         revokeUrlRef.current = url;
         setPreviewUrl(url);
 
-        if (item.fileMeta.type === "document") {
+        if (fileMetaType === "document") {
           const effectiveMime = file.type || mimeType || "";
           if (isTextMime(effectiveMime)) {
             setTextStatus("loading");
@@ -149,7 +151,7 @@ export function DesktopPreviewWindow({
         revokeUrlRef.current = null;
       }
     };
-  }, [isFile, item.type === "file" ? item.fileMeta.id : null, mimeType]);
+  }, [isFile, fileMetaId, fileMetaType, fileMeta, mimeType]);
 
   const getIcon = (): JSX.Element => {
     if (item.type === "folder") {

@@ -111,12 +111,12 @@ export const useFileTranscription = () => {
       const sampleRate = 16000;
       const frameCount = Math.ceil(duration * sampleRate);
       const offlineContext = new OfflineAudioContext(1, frameCount, sampleRate);
-      const source = offlineContext.createMediaElementSource(video);
+      const source = (offlineContext as unknown as AudioContext).createMediaElementSource(video);
       source.connect(offlineContext.destination);
 
       try {
         await video.play();
-      } catch (error) {
+      } catch (_error) {
         throw new Error("Video playback was blocked. Click play then retry.");
       }
 

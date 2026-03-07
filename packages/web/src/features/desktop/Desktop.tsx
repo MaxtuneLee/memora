@@ -489,7 +489,7 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
         };
 
         const nextId = folderId ? `folder:${folderId}` : ROOT_WINDOW_ID;
-        const nextWindows = [
+        const nextWindows: FolderWindowState[] = [
           ...prev,
           {
             id: nextId,
@@ -497,7 +497,7 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
             position,
             size: DEFAULT_WINDOW_SIZE,
             zIndex: WINDOW_Z_BASE,
-            viewMode: "grid",
+            viewMode: "grid" as const,
           },
         ];
 
@@ -526,7 +526,7 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
         y: 120 + offsetCount * WINDOW_OFFSET,
       };
 
-      const nextWindows = [
+      const nextWindows: FolderWindowState[] = [
         ...prev,
         {
           id: TRASH_WINDOW_ID,
@@ -534,7 +534,7 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
           position,
           size: DEFAULT_WINDOW_SIZE,
           zIndex: WINDOW_Z_BASE,
-          viewMode: "list",
+          viewMode: "list" as const,
         },
       ];
 
