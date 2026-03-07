@@ -7,7 +7,7 @@ import {
   file as opfsFile,
   write as opfsWrite,
   dir as opfsDir,
-} from "opfs-tools";
+} from "@memora/fs";
 
 const WHISPER_TIMESTAMPED_MODEL = "onnx-community/whisper-base_timestamped";
 

@@ -20,6 +20,9 @@ export interface RecordingMeta {
   storageType: StorageType;
   storagePath: string;
   metaPath: string;
+  parentId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
   createdAt: number;
   updatedAt: number;
   durationSec?: number | null;

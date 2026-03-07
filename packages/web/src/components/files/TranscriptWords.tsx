@@ -1,5 +1,5 @@
-import { Button } from "@base-ui/react/button";
-import type { RecordingWord } from "../../lib/files";
+import { memo, useMemo } from "react";
+import type { RecordingWord } from "@/lib/files";
 
 interface TranscriptWordsProps {
   words: RecordingWord[];
@@ -7,11 +7,82 @@ interface TranscriptWordsProps {
   onSeek: (time: number) => void;
 }
 
+const CHUNK_SIZE = 200;
+
+interface WordsChunkProps {
+  chunk: RecordingWord[];
+  baseIdx: number;
+  activeWordIndex: number;
+  allPast: boolean;
+  currentTime: number;
+  onSeek: (time: number) => void;
+}
+
+const WordsChunk = memo(
+  ({ chunk, baseIdx, activeWordIndex, allPast, currentTime, onSeek }: WordsChunkProps) => {
+    return (
+      <span
+        style={
+          activeWordIndex < 0 && !allPast
+            ? { contentVisibility: "auto", containIntrinsicSize: "auto 500px" }
+            : undefined
+        }
+      >
+        {chunk.map((word, j) => {
+          const i = baseIdx + j;
+          const isActive =
+            currentTime >= word.timestamp[0] && currentTime <= word.timestamp[1];
+          const isPast = allPast || currentTime > word.timestamp[1];
+
+          return (
+            <span
+              key={`${word.timestamp[0]}-${i}`}
+              onClick={() => onSeek(word.timestamp[0])}
+              className={`cursor-pointer rounded-sm transition-all duration-200 ${
+                isActive
+                  ? "text-[1.25rem] font-semibold text-zinc-950"
+                  : isPast
+                    ? "text-zinc-950"
+                    : "text-zinc-950/30 hover:text-zinc-950/50"
+              }`}
+              style={
+                isActive
+                  ? {
+                      textShadow: "0 0 8px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1)",
+                    }
+                  : undefined
+              }
+              title={`${word.timestamp[0].toFixed(2)} → ${word.timestamp[1].toFixed(2)}`}
+            >
+              {word.text}
+            </span>
+          );
+        })}
+      </span>
+    );
+  },
+);
+
 export const TranscriptWords = ({
   words,
   currentTime,
   onSeek,
 }: TranscriptWordsProps) => {
+  const activeWordIndex = useMemo(() => {
+    for (let i = words.length - 1; i >= 0; i--) {
+      if (currentTime >= words[i].timestamp[0]) return i;
+    }
+    return -1;
+  }, [words, currentTime]);
+
+  const chunks = useMemo(() => {
+    const result: RecordingWord[][] = [];
+    for (let i = 0; i < words.length; i += CHUNK_SIZE) {
+      result.push(words.slice(i, i + CHUNK_SIZE));
+    }
+    return result;
+  }, [words]);
+
   if (words.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -20,30 +91,28 @@ export const TranscriptWords = ({
     );
   }
 
+  const activeChunkIdx = activeWordIndex >= 0 ? Math.floor(activeWordIndex / CHUNK_SIZE) : -1;
+
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
       <div className="mb-3 flex items-center justify-between text-xs text-zinc-400">
         <span>{words.length} words</span>
         <span>Click a word to jump</span>
       </div>
-      <div className="flex flex-wrap gap-1">
-        {words.map((word, index) => {
-          const isActive =
-            currentTime >= word.timestamp[0] && currentTime <= word.timestamp[1];
-          return (
-            <Button
-              key={`${word.timestamp[0]}-${index}`}
-              className={`rounded px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 ${
-                isActive ? "bg-zinc-900 text-white" : "hover:bg-white"
-              }`}
-              onClick={() => onSeek(word.timestamp[0])}
-              title={`${word.timestamp[0].toFixed(2)} → ${word.timestamp[1].toFixed(2)}`}
-            >
-              {word.text.startsWith(" ") ? " " : ""}
-              {word.text.trim()}
-            </Button>
-          );
-        })}
+      <div className="max-h-96 overflow-y-auto">
+        <div className="text-base leading-[1.8]">
+          {chunks.map((chunk, chunkIdx) => (
+            <WordsChunk
+              key={chunkIdx}
+              chunk={chunk}
+              baseIdx={chunkIdx * CHUNK_SIZE}
+              activeWordIndex={chunkIdx === activeChunkIdx ? activeWordIndex : -1}
+              allPast={activeChunkIdx >= 0 && chunkIdx < activeChunkIdx}
+              currentTime={chunkIdx === activeChunkIdx ? currentTime : -1}
+              onSeek={onSeek}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -2,13 +2,13 @@ import { WarningIcon } from "@phosphor-icons/react";
 import { Dialog } from "@base-ui/react/dialog";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Persona } from "../../components/persona";
-import { LoadingProgressCard } from "../../components/transcript/LoadingProgressCard";
-import { ModelLoadCard } from "../../components/transcript/ModelLoadCard";
-import { TranscriptionHeader } from "../../components/transcript/TranscriptionHeader";
-import { TranscriptionPanel } from "../../components/transcript/TranscriptionPanel";
-import { TranscriptionControls } from "../../components/transcript/TranscriptionControls";
-import { useTranscript } from "../../hooks/useTranscript";
+import { Persona } from "@/components/persona";
+import { LoadingProgressCard } from "@/components/transcript/LoadingProgressCard";
+import { ModelLoadCard } from "@/components/transcript/ModelLoadCard";
+import { TranscriptionHeader } from "@/components/transcript/TranscriptionHeader";
+import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
+import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
+import { useTranscript } from "@/hooks/useTranscript";
 
 export const Component = () => {
   const {
@@ -34,7 +34,6 @@ export const Component = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleFinalizeRecording,
-    handleStopRecording,
     handleReset,
   } = useTranscript();
 
@@ -42,7 +41,7 @@ export const Component = () => {
     "ischeckingCache",
     isCheckingCache,
     "isModelCached",
-    isModelCached
+    isModelCached,
   );
 
   const navigate = useNavigate();
@@ -137,9 +136,8 @@ export const Component = () => {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
       <TranscriptionHeader
-        status={status}
         stream={stream}
         language={language}
         onLanguageChange={updateLanguage}
@@ -154,7 +152,7 @@ export const Component = () => {
               onPause={handlePauseRecording}
               onResume={handleResumeRecording}
               onFinalize={handleFinalizeRecording}
-              onStop={handleStopRecording}
+              isReady={status === "ready"}
             />
           </div>
         }
@@ -172,13 +170,17 @@ export const Component = () => {
       )}
 
       <div className="flex justify-center">
-        <Persona variant="obsidian" state={personaState} className="size-28 opacity-50" />
+        <Persona
+          variant="obsidian"
+          state={personaState}
+          className="size-28 opacity-50"
+        />
       </div>
 
       <Dialog.Root open={shouldShowModal} modal>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 bg-zinc-950/40" />
-          <Dialog.Popup className="fixed left-1/2 top-1/2 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-zinc-950/40" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             {status === null && !isModelCached && !isCheckingCache && (
               <ModelLoadCard disabled={status !== null} onLoad={loadModel} />
             )}

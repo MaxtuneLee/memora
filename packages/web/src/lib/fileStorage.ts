@@ -1,4 +1,4 @@
-import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "opfs-tools";
+import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 import {
   DEFAULT_AUDIO_EXTENSION,
@@ -23,11 +23,15 @@ type LegacyRecordingMeta = {
   mimeType: string;
 };
 
-const buildFileBasePath = (id: string) => `${FILES_DIR}/${id}`;
+const buildFileDirPath = (id: string) => `${FILES_DIR}/${id}`;
 
-const buildMetaPath = (id: string) => `${buildFileBasePath(id)}${FILE_META_SUFFIX}`;
+const buildFileBasePath = (id: string) => `${buildFileDirPath(id)}/${id}`;
 
-const buildTranscriptPath = (id: string) => `${buildFileBasePath(id)}${TRANSCRIPT_SUFFIX}`;
+const buildMetaPath = (id: string) =>
+  `${buildFileDirPath(id)}/${id}${FILE_META_SUFFIX}`;
+
+const buildTranscriptPath = (id: string) =>
+  `${buildFileDirPath(id)}/${id}${TRANSCRIPT_SUFFIX}`;
 
 const ensureFilesDir = async () => {
   const filesDir = opfsDir(FILES_DIR);
@@ -47,6 +51,9 @@ export type SaveFileInput = {
   durationSec?: number | null;
   transcript?: RecordingTranscript | null;
   storageType?: StorageType;
+  parentId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
   createdAt?: number;
 };
 
@@ -64,6 +71,7 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
   await ensureFilesDir();
 
   const id = input.id ?? crypto.randomUUID();
+  const fileDirPath = buildFileDirPath(id);
   const createdAt = input.createdAt ?? Date.now();
   const updatedAt = createdAt;
   const storageType = input.storageType ?? "opfs";
@@ -72,6 +80,8 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
   const storagePath = `${buildFileBasePath(id)}.${extension}`;
   const metaPath = buildMetaPath(id);
   const transcriptPath = buildTranscriptPath(id);
+
+  await opfsDir(fileDirPath).create();
 
   await opfsWrite(storagePath, await input.blob.arrayBuffer(), { overwrite: true });
 
@@ -88,6 +98,9 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
     storageType,
     storagePath,
     metaPath,
+    parentId: input.parentId ?? null,
+    positionX: input.positionX ?? null,
+    positionY: input.positionY ?? null,
     createdAt,
     updatedAt,
     durationSec: input.durationSec ?? null,
@@ -100,23 +113,42 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
   return { id, meta };
 };
 
-export const loadTranscript = async (transcriptPath: string): Promise<RecordingTranscript> => {
-  const transcriptText = await opfsFile(transcriptPath).text();
-  return JSON.parse(transcriptText) as RecordingTranscript;
+export const loadTranscript = async (transcriptPath: string): Promise<RecordingTranscript | null> => {
+  try {
+    const transcriptText = await opfsFile(transcriptPath).text();
+    return JSON.parse(transcriptText) as RecordingTranscript;
+  } catch {
+    return null;
+  }
 };
 
 export const listFilesFromOpfs = async (): Promise<RecordingMeta[]> => {
   await ensureFilesDir();
   const filesDir = opfsDir(FILES_DIR);
   const children = await filesDir.children();
-  const metas = await Promise.all(
-    children
-      .filter((child) => child.kind === "file" && child.name.endsWith(FILE_META_SUFFIX))
-      .map(async (child) => {
+  const metas: RecordingMeta[] = [];
+
+  for (const child of children) {
+    try {
+      if (child.kind === "file" && child.name.endsWith(FILE_META_SUFFIX)) {
         const metaText = await opfsFile(child.path).text();
-        return JSON.parse(metaText) as RecordingMeta;
-      })
-  );
+        metas.push(JSON.parse(metaText) as RecordingMeta);
+        continue;
+      }
+
+      if (child.kind === "dir") {
+        const metaPath = `${child.path}/${child.name}${FILE_META_SUFFIX}`;
+        const metaFile = opfsFile(metaPath);
+        if (await metaFile.exists()) {
+          const metaText = await metaFile.text();
+          metas.push(JSON.parse(metaText) as RecordingMeta);
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
   return metas;
 };
 
@@ -125,6 +157,12 @@ export const deleteFileFromOpfs = async (meta: RecordingMeta) => {
   await opfsFile(meta.storagePath).remove({ force: true });
   if (meta.transcriptPath) {
     await opfsFile(meta.transcriptPath).remove({ force: true });
+  }
+  const dirPath = buildFileDirPath(meta.id);
+  try {
+    await opfsDir(dirPath).remove();
+  } catch {
+    // Ignore if directory is missing or not empty.
   }
 };
 
@@ -172,6 +210,7 @@ export const migrateLegacyRecording = async (
   meta: RecordingMeta,
   transcript?: RecordingTranscript | null
 ) => {
+  await opfsDir(buildFileDirPath(meta.id)).create();
   if (!meta.transcriptPath || !transcript) {
     await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
     return;
@@ -180,13 +219,17 @@ export const migrateLegacyRecording = async (
   await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
 };
 
-export const resolveAudioBlob = async (meta: RecordingMeta) => {
-  const audioFile = opfsFile(meta.storagePath);
-  const originFile = await audioFile.getOriginFile();
-  const blob =
-    originFile ??
-    new Blob([await audioFile.arrayBuffer()], {
-      type: meta.mimeType || DEFAULT_AUDIO_MIME,
-    });
-  return blob;
+export const resolveAudioBlob = async (meta: RecordingMeta): Promise<Blob | null> => {
+  try {
+    const audioFile = opfsFile(meta.storagePath);
+    const originFile = await audioFile.getOriginFile();
+    return (
+      originFile ??
+      new Blob([await audioFile.arrayBuffer()], {
+        type: meta.mimeType || DEFAULT_AUDIO_MIME,
+      })
+    );
+  } catch {
+    return null;
+  }
 };

@@ -156,7 +156,7 @@ export default function SettingsDialog({
               />
             );
           }}
-          className="fixed inset-0 bg-zinc-900/30"
+          className="fixed inset-0 z-40 bg-zinc-900/30"
         />
         <Dialog.Popup
           render={(props, state) => {
@@ -183,7 +183,7 @@ export default function SettingsDialog({
               />
             );
           }}
-          className="fixed left-1/2 top-1/2 w-[min(960px,92vw)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+          className="fixed left-1/2 top-1/2 z-50 w-[min(960px,92vw)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
         >
           <div className="grid min-h-130 grid-cols-[220px_1fr]">
             <div className="border-r border-zinc-200 bg-zinc-50/70 p-4">

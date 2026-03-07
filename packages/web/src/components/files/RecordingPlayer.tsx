@@ -1,7 +1,7 @@
 import { PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { Slider } from "@base-ui/react/slider";
 import { Button } from "@base-ui/react/button";
-import { formatDuration } from "../../lib/format";
+import { formatDuration } from "@/lib/format";
 
 interface RecordingPlayerProps {
   audioRef: React.Ref<HTMLAudioElement>;

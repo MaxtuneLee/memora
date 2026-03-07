@@ -3,12 +3,12 @@ import { Menu } from "@base-ui/react/menu";
 import { GearSixIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { RecordingsGrid } from "../../components/files/RecordingsGrid";
-import { LanguageSelector } from "../../components/LanguageSelector";
-import type { SettingsSectionId } from "../../components/SettingsDialog";
-import { useRecordings } from "../../hooks/useRecordings";
+import { RecordingsGrid } from "@/components/files/RecordingsGrid";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import type { SettingsSectionId } from "@/components/SettingsDialog";
+import { useRecordings } from "@/hooks/useRecordings";
 import { useSettingsDialog } from "@/hooks/useSettingDialog";
-import { TRANSCRIPT_LANGUAGE_STORAGE_KEY } from "../../lib/transcriptUtils";
+import { TRANSCRIPT_LANGUAGE_STORAGE_KEY } from "@/lib/transcriptUtils";
 
 export const Component = () => {
   const { recordings, deleteRecording } = useRecordings();
@@ -39,7 +39,7 @@ export const Component = () => {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6  p-6 md:p-8">
       <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

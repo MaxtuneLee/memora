@@ -1,5 +1,5 @@
-import type { RecordingItem } from "../../lib/files";
-import { RecordingCard } from "./RecordingCard";
+import type { RecordingItem } from "@/lib/files";
+import { FileCard } from "./FileCard";
 
 interface RecordingsGridProps {
   recordings: RecordingItem[];
@@ -18,9 +18,10 @@ export const RecordingsGrid = ({ recordings, onDelete }: RecordingsGridProps) =>
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {recordings.map((recording) => (
-        <RecordingCard
+        <FileCard
           key={recording.id}
-          recording={recording}
+          file={recording}
+          href={`/transcript/file/${recording.id}`}
           onDelete={onDelete}
         />
       ))}

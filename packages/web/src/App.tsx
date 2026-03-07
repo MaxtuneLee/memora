@@ -17,7 +17,7 @@ export default function App() {
     <LiveStoreProvider
       schema={schema}
       adapter={adapter}
-      renderLoading={(_) => <div>Loading LiveStore ({_.stage})...</div>}
+      // renderLoading={(_) => <div>Loading LiveStore ({_.stage})...</div>}
       batchUpdates={batchUpdates}
       storeId={"main"}
       syncPayload={{ authToken: "insecure-token-change-me" }}

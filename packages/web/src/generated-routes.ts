@@ -6,8 +6,8 @@
 import type { RouteObject } from "react-router"
 
 // Imports for page components
-const lazy0 = () => import("./pages/files/index")
-const lazy1 = () => import("./pages/knowledge-base/index")
+const lazy0 = () => import("./pages/chat/index")
+const lazy1 = () => import("./pages/files/index")
 const lazy2 = () => import("./pages/transcript/file/[id]")
 const lazy3 = () => import("./pages/transcript/live")
 const lazy4 = () => import("./pages/transcript/index")
@@ -16,7 +16,7 @@ const lazy5 = () => import("./pages/index")
 // Generated route configuration
 export const routes: RouteObject[] = [
   {
-    "path": "files",
+    "path": "chat",
     "children": [
       {
         "path": "",
@@ -25,7 +25,7 @@ export const routes: RouteObject[] = [
     ]
   },
   {
-    "path": "knowledge-base",
+    "path": "files",
     "children": [
       {
         "path": "",

@@ -4,6 +4,15 @@ type FileType = "audio" | "video" | "image" | "document";
 type StorageType = "opfs" | "s3" | "url";
 type IndexStatus = "pending" | "processing" | "indexed" | "failed";
 
+const FileTypeSchema = Schema.Literal("audio", "video", "image", "document");
+const StorageTypeSchema = Schema.Literal("opfs", "s3", "url");
+const IndexStatusSchema = Schema.Literal(
+  "pending",
+  "processing",
+  "indexed",
+  "failed",
+);
+
 type FileCreatedEvent = {
   id: string;
   name: string;
@@ -12,6 +21,9 @@ type FileCreatedEvent = {
   sizeBytes: number;
   storageType: StorageType;
   storagePath: string;
+  parentId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
   collectionId?: string;
   durationSec?: number;
   createdAt: Date;
@@ -20,6 +32,9 @@ type FileCreatedEvent = {
 type FileUpdatedEvent = {
   id: string;
   name?: string;
+  parentId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
   collectionId?: string | null;
   thumbnailPath?: string | null;
   durationSec?: number | null;
@@ -49,6 +64,11 @@ type FileDeletedEvent = {
   deletedAt: Date;
 };
 
+type FilePurgedEvent = {
+  id: string;
+  purgedAt: Date;
+};
+
 type FileRestoredEvent = {
   id: string;
   updatedAt: Date;
@@ -65,21 +85,40 @@ export const fileTable = State.SQLite.table({
   columns: {
     id: State.SQLite.text({ primaryKey: true }),
     name: State.SQLite.text({ default: "" }),
-    type: State.SQLite.text({ default: "document" }),
+    type: State.SQLite.text({ default: "document", schema: FileTypeSchema }),
     mimeType: State.SQLite.text({ default: "" }),
     sizeBytes: State.SQLite.integer({ default: 0 }),
-    storageType: State.SQLite.text({ default: "opfs" }),
+    storageType: State.SQLite.text({
+      default: "opfs",
+      schema: StorageTypeSchema,
+    }),
     storagePath: State.SQLite.text({ default: "" }),
+    parentId: State.SQLite.text({ nullable: true }),
+    positionX: State.SQLite.integer({ nullable: true }),
+    positionY: State.SQLite.integer({ nullable: true }),
     transcriptPath: State.SQLite.text({ nullable: true }),
-    indexedAt: State.SQLite.integer({ nullable: true, schema: Schema.DateFromNumber }),
-    indexStatus: State.SQLite.text({ default: "pending" }),
+    indexedAt: State.SQLite.integer({
+      nullable: true,
+      schema: Schema.DateFromNumber,
+    }),
+    indexStatus: State.SQLite.text({
+      default: "pending",
+      schema: IndexStatusSchema,
+    }),
     indexSummary: State.SQLite.text({ nullable: true }),
     collectionId: State.SQLite.text({ nullable: true }),
     durationSec: State.SQLite.real({ nullable: true }),
     thumbnailPath: State.SQLite.text({ nullable: true }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     updatedAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
-    deletedAt: State.SQLite.integer({ nullable: true, schema: Schema.DateFromNumber }),
+    deletedAt: State.SQLite.integer({
+      nullable: true,
+      schema: Schema.DateFromNumber,
+    }),
+    purgedAt: State.SQLite.integer({
+      nullable: true,
+      schema: Schema.DateFromNumber,
+    }),
   },
 });
 
@@ -89,11 +128,14 @@ export const fileEvents = {
     schema: Schema.Struct({
       id: Schema.String,
       name: Schema.String,
-      type: Schema.Literal("audio", "video", "image", "document"),
+      type: FileTypeSchema,
       mimeType: Schema.String,
       sizeBytes: Schema.Number,
-      storageType: Schema.Literal("opfs", "s3", "url"),
+      storageType: StorageTypeSchema,
       storagePath: Schema.String,
+      parentId: Schema.optional(Schema.NullOr(Schema.String)),
+      positionX: Schema.optional(Schema.NullOr(Schema.Number)),
+      positionY: Schema.optional(Schema.NullOr(Schema.Number)),
       collectionId: Schema.optional(Schema.String),
       durationSec: Schema.optional(Schema.Number),
       createdAt: Schema.Date,
@@ -104,12 +146,15 @@ export const fileEvents = {
     schema: Schema.Struct({
       id: Schema.String,
       name: Schema.optional(Schema.String),
+      parentId: Schema.optional(Schema.NullOr(Schema.String)),
+      positionX: Schema.optional(Schema.NullOr(Schema.Number)),
+      positionY: Schema.optional(Schema.NullOr(Schema.Number)),
       collectionId: Schema.optional(Schema.NullOr(Schema.String)),
       thumbnailPath: Schema.optional(Schema.NullOr(Schema.String)),
       durationSec: Schema.optional(Schema.NullOr(Schema.Number)),
       mimeType: Schema.optional(Schema.String),
       sizeBytes: Schema.optional(Schema.Number),
-      storageType: Schema.optional(Schema.Literal("opfs", "s3", "url")),
+      storageType: Schema.optional(StorageTypeSchema),
       storagePath: Schema.optional(Schema.String),
       updatedAt: Schema.Date,
     }),
@@ -126,7 +171,7 @@ export const fileEvents = {
     name: "v1.FileIndexed",
     schema: Schema.Struct({
       id: Schema.String,
-      indexStatus: Schema.Literal("pending", "processing", "indexed", "failed"),
+      indexStatus: IndexStatusSchema,
       indexedAt: Schema.optional(Schema.Date),
       indexSummary: Schema.optional(Schema.String),
       updatedAt: Schema.Date,
@@ -137,6 +182,13 @@ export const fileEvents = {
     schema: Schema.Struct({
       id: Schema.String,
       deletedAt: Schema.Date,
+    }),
+  }),
+  filePurged: Events.synced({
+    name: "v1.FilePurged",
+    schema: Schema.Struct({
+      id: Schema.String,
+      purgedAt: Schema.Date,
     }),
   }),
   fileRestored: Events.synced({
@@ -166,6 +218,9 @@ export const fileMaterializers = {
       sizeBytes: event.sizeBytes,
       storageType: event.storageType,
       storagePath: event.storagePath,
+      parentId: event.parentId ?? null,
+      positionX: event.positionX ?? null,
+      positionY: event.positionY ?? null,
       collectionId: event.collectionId ?? null,
       durationSec: event.durationSec ?? null,
       createdAt: event.createdAt,
@@ -175,6 +230,15 @@ export const fileMaterializers = {
     fileTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),
+        ...(event.parentId !== undefined
+          ? { parentId: event.parentId ?? null }
+          : {}),
+        ...(event.positionX !== undefined
+          ? { positionX: event.positionX ?? null }
+          : {}),
+        ...(event.positionY !== undefined
+          ? { positionY: event.positionY ?? null }
+          : {}),
         ...(event.collectionId !== undefined
           ? { collectionId: event.collectionId ?? null }
           : {}),
@@ -185,7 +249,9 @@ export const fileMaterializers = {
           ? { durationSec: event.durationSec ?? null }
           : {}),
         ...(event.mimeType !== undefined ? { mimeType: event.mimeType } : {}),
-        ...(event.sizeBytes !== undefined ? { sizeBytes: event.sizeBytes } : {}),
+        ...(event.sizeBytes !== undefined
+          ? { sizeBytes: event.sizeBytes }
+          : {}),
         ...(event.storageType !== undefined
           ? { storageType: event.storageType }
           : {}),
@@ -217,6 +283,12 @@ export const fileMaterializers = {
         deletedAt: event.deletedAt,
       })
       .where({ id: event.id }),
+  "v1.FilePurged": (event: FilePurgedEvent) =>
+    fileTable
+      .update({
+        purgedAt: event.purgedAt,
+      })
+      .where({ id: event.id }),
   "v1.FileRestored": (event: FileRestoredEvent) =>
     fileTable
       .update({
@@ -232,3 +304,5 @@ export const fileMaterializers = {
       })
       .where({ id: event.id }),
 };
+
+export type file = typeof fileTable.Type;

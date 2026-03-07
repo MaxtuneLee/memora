@@ -2,11 +2,13 @@ import { makeSchema, State } from "@livestore/livestore";
 
 import { collectionEvents, collectionMaterializers, collectionTable } from "./collection";
 import { fileEvents, fileMaterializers, fileTable } from "./file";
+import { folderEvents, folderMaterializers, folderTable } from "./folder";
 import { settingEvents, settingsTable } from "./setting";
 import { uiEvents, uiTable } from "./ui";
 
 const tables = {
   files: fileTable,
+  folders: folderTable,
   collections: collectionTable,
   settings: settingsTable,
   uiState: uiTable,
@@ -14,6 +16,7 @@ const tables = {
 
 const events = {
   ...fileEvents,
+  ...folderEvents,
   ...collectionEvents,
   ...settingEvents,
   ...uiEvents,
@@ -21,6 +24,7 @@ const events = {
 
 const materializers = State.SQLite.materializers(events, {
   ...fileMaterializers,
+  ...folderMaterializers,
   ...collectionMaterializers,
 });
 

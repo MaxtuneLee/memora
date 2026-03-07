@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
+    "@dnd-kit/core": "^6.3.1",
     "@huggingface/transformers": "^3.8.1",
     "@livestore/adapter-web": "^0.3.1",
     "@livestore/devtools-vite": "^0.3.1",
@@ -28,7 +29,7 @@
     "clsx": "^2.1.1",
     "motion": "^12.26.2",
     "onnxruntime-web": "^1.23.2",
-    "opfs-tools": "^0.7.4",
+    "@memora/fs": "workspace:*",
     "postcss": "^8.5.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

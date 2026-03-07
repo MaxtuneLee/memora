@@ -1,5 +1,6 @@
 import {
   BooksIcon,
+  ChatCircleIcon,
   FilesIcon,
   GearIcon,
   HouseIcon,
@@ -112,10 +113,10 @@ export function Sidebar() {
             isActive={currentPath.startsWith("/transcript")}
           />
           <NavItem
-            icon={BooksIcon}
-            label="Knowledge Base"
-            to="/knowledge-base"
-            isActive={currentPath.startsWith("/knowledge-base")}
+            icon={ChatCircleIcon}
+            label="Chat"
+            to="/chat"
+            isActive={currentPath.startsWith("/chat")}
           />
           <NavItem
             icon={FilesIcon}

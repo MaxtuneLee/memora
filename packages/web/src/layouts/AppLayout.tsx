@@ -31,10 +31,10 @@ export default function AppLayout() {
   return (
     <Toast.Provider limit={3}>
       <SettingsDialogContextProvider value={settingsValue}>
-        <div className="flex h-dvh w-full overflow-hidden bg-[#f4f0e8] text-zinc-950 font-sans selection:bg-[#879a4f] selection:text-zinc-950">
+        <div className="flex h-dvh w-full overflow-hidden bg-[#fffbf2] text-zinc-950 font-sans selection:bg-[#879a4f] selection:text-zinc-950">
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-8 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">
               <Outlet />
             </div>
           </main>

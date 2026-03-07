@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "@livestore/react";
 import { MicVAD } from "@ricky0123/vad-web";
+import { dir as opfsDir } from "@memora/fs";
+
 import { saveRecording } from "../lib/fileService";
 import { DEFAULT_AUDIO_MIME, type RecordingWord } from "../lib/files";
+import { fileEvents } from "../livestore/file";
 import {
   TRANSFORMERS_CACHE_DIR,
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
@@ -10,7 +14,6 @@ import {
   buildWordAnimationWords,
   isUsableText,
 } from "../lib/transcriptUtils";
-import { dir as opfsDir } from "opfs-tools";
 
 interface ProgressItem {
   file: string;
@@ -19,6 +22,7 @@ interface ProgressItem {
 }
 
 export const useTranscript = () => {
+  const { store } = useStore();
   const worker = useRef<Worker | null>(null);
   const pendingSegmentsRef = useRef<
     Array<{ audio: Float32Array; startSec: number }>
@@ -70,7 +74,7 @@ export const useTranscript = () => {
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">(
-    "idle"
+    "idle",
   );
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
@@ -127,7 +131,7 @@ export const useTranscript = () => {
       }
       tryProcessNext();
     },
-    [tryProcessNext]
+    [tryProcessNext],
   );
 
   const clearWordAnimations = useCallback(() => {
@@ -142,7 +146,7 @@ export const useTranscript = () => {
   const enqueueWordAnimation = useCallback(
     (
       chunks: Array<{ text: string; timestamp?: [number, number] }>,
-      finalText: string
+      finalText: string,
     ) => {
       const words = buildWordAnimationWords(chunks);
       if (words.length === 0) return;
@@ -166,7 +170,7 @@ export const useTranscript = () => {
             wordAnimationRunningRef.current = false;
             setCurrentSegment("");
             setAccumulatedText((prev) =>
-              prev ? `${prev} ${job.finalText.trim()}` : job.finalText.trim()
+              prev ? `${prev} ${job.finalText.trim()}` : job.finalText.trim(),
             );
             runNext();
             return;
@@ -177,7 +181,7 @@ export const useTranscript = () => {
           index += 1;
           wordAnimationTimeoutRef.current = window.setTimeout(
             step,
-            word.delayMs
+            word.delayMs,
           );
         };
 
@@ -186,7 +190,7 @@ export const useTranscript = () => {
 
       runNext();
     },
-    []
+    [],
   );
 
   const consumeSpeechBuffer = useCallback((count: number) => {
@@ -228,7 +232,7 @@ export const useTranscript = () => {
         }
       }
     },
-    [consumeSpeechBuffer, enqueueSpeech]
+    [consumeSpeechBuffer, enqueueSpeech],
   );
 
   const flushSpeechBuffer = useCallback(() => {
@@ -283,6 +287,39 @@ export const useTranscript = () => {
           createdAt,
         });
 
+        const createdAtDate = new Date(result.meta.createdAt);
+        const events = [
+          fileEvents.fileCreated({
+            id: result.id,
+            name: result.meta.name,
+            type: result.meta.type,
+            mimeType: result.meta.mimeType,
+            sizeBytes: result.meta.sizeBytes,
+            storageType: result.meta.storageType,
+            storagePath: result.meta.storagePath,
+            parentId: result.meta.parentId ?? null,
+            positionX: result.meta.positionX ?? null,
+            positionY: result.meta.positionY ?? null,
+            durationSec: result.meta.durationSec ?? undefined,
+            createdAt: createdAtDate,
+          }),
+          fileEvents.fileTranscribed({
+            id: result.id,
+            transcriptPath: result.meta.transcriptPath ?? "",
+            updatedAt: createdAtDate,
+          }),
+        ];
+        if (result.meta.transcriptPath) {
+          events.push(
+            fileEvents.fileTranscribed({
+              id: result.id,
+              transcriptPath: result.meta.transcriptPath,
+              updatedAt: createdAtDate,
+            }),
+          );
+        }
+        store.commit(...events);
+
         pendingSaveRef.current = false;
         mediaChunksRef.current = [];
         recordingIdRef.current = null;
@@ -299,7 +336,7 @@ export const useTranscript = () => {
           void maybeFinalizeRecording();
         }
       });
-  }, []);
+  }, [store]);
 
   const ensureVAD = useCallback(async () => {
     if (vadRef.current || vadInitializingRef.current) return;
@@ -436,7 +473,7 @@ export const useTranscript = () => {
       "audio/ogg;codecs=opus",
     ];
     const mimeType = mimeCandidates.find((type) =>
-      MediaRecorder.isTypeSupported(type)
+      MediaRecorder.isTypeSupported(type),
     );
 
     const recorder = new MediaRecorder(mediaStream, {
@@ -505,28 +542,6 @@ export const useTranscript = () => {
     maybeFinalizeRecording();
   }, [clearWordAnimations, maybeFinalizeRecording]);
 
-  const handleStopRecording = useCallback(() => {
-    setRecording(false);
-    recordingRef.current = false;
-    setPaused(false);
-    pendingSaveRef.current = true;
-    collectingRef.current = false;
-    speechBufferRef.current = [];
-    speechBufferSizeRef.current = 0;
-    speechBufferOffsetSecRef.current = 0;
-    speechStartTimeRef.current = null;
-    speechStartSecRef.current = null;
-    clearWordAnimations();
-    vadRef.current?.pause();
-    if (
-      mediaRecorderRef.current?.state === "recording" ||
-      mediaRecorderRef.current?.state === "paused"
-    ) {
-      mediaRecorderRef.current.requestData();
-      mediaRecorderRef.current.stop();
-    }
-  }, [clearWordAnimations]);
-
   const handleReset = useCallback(() => {
     setAccumulatedText("");
     setCurrentSegment("");
@@ -546,7 +561,7 @@ export const useTranscript = () => {
         new URL("../workers/whisper.worker.ts", import.meta.url),
         {
           type: "module",
-        }
+        },
       );
     }
 
@@ -566,12 +581,12 @@ export const useTranscript = () => {
                 return { ...item, ...e.data };
               }
               return item;
-            })
+            }),
           );
           break;
         case "done":
           setProgressItems((prev) =>
-            prev.filter((item) => item.file !== e.data.file)
+            prev.filter((item) => item.file !== e.data.file),
           );
           break;
         case "ready":
@@ -615,7 +630,7 @@ export const useTranscript = () => {
             enqueueWordAnimation(chunks, newText);
           } else if (shouldUseText) {
             setAccumulatedText((prev) =>
-              prev ? `${prev} ${newText.trim()}` : newText.trim()
+              prev ? `${prev} ${newText.trim()}` : newText.trim(),
             );
           }
 
@@ -675,7 +690,6 @@ export const useTranscript = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleFinalizeRecording,
-    handleStopRecording,
     handleReset,
   };
 };

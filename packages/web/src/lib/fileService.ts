@@ -1,10 +1,9 @@
-import { file as opfsFile } from "opfs-tools";
+import { file as opfsFile } from "@memora/fs";
 
 import {
   DEFAULT_AUDIO_MIME,
   type FileType,
   type RecordingMeta,
-  type RecordingTranscript,
   type RecordingWord,
   type StorageType,
 } from "./files";
@@ -31,6 +30,9 @@ export type SaveRecordingInput = {
   transcriptText?: string;
   transcriptWords?: RecordingWord[];
   storageType?: StorageType;
+  parentId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
   createdAt?: number;
 };
 
@@ -58,6 +60,9 @@ export const saveRecording = async (input: SaveRecordingInput): Promise<SaveReco
     durationSec: input.durationSec ?? null,
     transcript,
     storageType: input.storageType ?? "opfs",
+    parentId: input.parentId ?? null,
+    positionX: input.positionX ?? null,
+    positionY: input.positionY ?? null,
     createdAt,
   });
 };
@@ -80,8 +85,9 @@ export const deleteRecording = async (meta: RecordingMeta) => {
   await deleteFileFromOpfs(meta);
 };
 
-export const getRecordingAudioUrl = async (meta: RecordingMeta) => {
+export const getRecordingAudioUrl = async (meta: RecordingMeta): Promise<string | null> => {
   const blob = await resolveAudioBlob(meta);
+  if (!blob) return null;
   return URL.createObjectURL(blob);
 };
 
@@ -99,11 +105,59 @@ export const migrateLegacyRecordings = async () => {
   );
 };
 
+export const getMediaDuration = (blob: Blob): Promise<number | null> => {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("video");
+
+    const cleanup = () => {
+      el.removeAttribute("src");
+      el.load();
+      URL.revokeObjectURL(url);
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 10_000);
+
+    el.preload = "metadata";
+
+    el.addEventListener(
+      "loadedmetadata",
+      () => {
+        clearTimeout(timer);
+        const dur = el.duration;
+        cleanup();
+        resolve(Number.isFinite(dur) && dur > 0 ? dur : null);
+      },
+      { once: true },
+    );
+
+    el.addEventListener(
+      "error",
+      () => {
+        clearTimeout(timer);
+        cleanup();
+        resolve(null);
+      },
+      { once: true },
+    );
+
+    el.src = url;
+  });
+};
+
 export const resolveRecordingBlob = async (meta: RecordingMeta) => resolveAudioBlob(meta);
 
-export const resolveRecordingFile = async (meta: RecordingMeta) => {
-  const originFile = await opfsFile(meta.storagePath).getOriginFile();
-  if (originFile) return originFile;
+export const resolveRecordingFile = async (meta: RecordingMeta): Promise<File | null> => {
+  try {
+    const originFile = await opfsFile(meta.storagePath).getOriginFile();
+    if (originFile) return originFile;
+  } catch {
+    // fall through
+  }
   const blob = await resolveRecordingBlob(meta);
+  if (!blob) return null;
   return new File([blob], meta.name, { type: meta.mimeType || DEFAULT_AUDIO_MIME });
 };

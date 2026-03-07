@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
-import { dir as opfsDir } from "opfs-tools";
-import { FILES_DIR, LEGACY_RECORDINGS_DIR } from "../lib/files";
+import { dir as opfsDir } from "@memora/fs";
+import { FILES_DIR } from "../lib/files";
 
 const AUDIO_EXTENSIONS = new Set([
   ".webm",
@@ -9,15 +9,32 @@ const AUDIO_EXTENSIONS = new Set([
   ".m4a",
   ".ogg",
   ".flac",
+  ".mpeg"
 ]);
 
 const TRANSCRIPT_EXTENSIONS = new Set([".json", ".transcript.json"]);
 const TEXT_EXTENSIONS = new Set([".txt", ".md", ".rtf"]);
-const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".m4v", ".mkv", ".avi"]);
+const IMAGE_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".svg",
+  ".heic",
+]);
+const VIDEO_EXTENSIONS = new Set([
+  ".mp4",
+  ".mov",
+  ".qt",
+  ".m4v",
+  ".mkv",
+  ".avi",
+  ".quicktime",
+]);
 
 const SKIP_DIRS = new Set([
-  LEGACY_RECORDINGS_DIR,
-  // "/transformers-cache",
   "/.opfs-tools-temp-dir",
   "/livestore-devtools_0.3.1_main@4",
   "/livestore-main@4",
@@ -28,6 +45,7 @@ export const STORAGE_CATEGORY_CONFIG = [
   { id: "transcripts", label: "Transcripts", color: "bg-orange-400" },
   { id: "models", label: "Models", color: "bg-amber-400" },
   { id: "text", label: "Text files", color: "bg-emerald-400" },
+  { id: "images", label: "Images", color: "bg-indigo-400" },
   { id: "videos", label: "Videos", color: "bg-sky-500" },
 ] as const;
 
@@ -44,7 +62,7 @@ export type StorageCategory = {
 const getExtension = (name: string) => {
   const match = name.match(/\.([^\s;]+)/);
   const ext = match ? "." + match[1] : ""; // ".webm"
-  return ext;
+  return ext.toLowerCase();
 };
 
 const shouldSkipDir = (path: string) =>
@@ -70,7 +88,7 @@ const getDirectorySize = async (path: string) => {
   return total;
 };
 
-const collectMiscSizes = async (
+const collectSizes = async (
   path: string,
   sizes: Record<StorageCategoryId, number>
 ) => {
@@ -82,17 +100,22 @@ const collectMiscSizes = async (
   for (const child of children) {
     if (child.kind === "dir") {
       if (shouldSkipDir(child.path)) continue;
-      await collectMiscSizes(child.path, sizes);
+      await collectSizes(child.path, sizes);
       continue;
     }
 
     const ext = getExtension(child.name);
-    if (TEXT_EXTENSIONS.has(ext)) {
-      sizes.text += await child.getSize();
-      continue;
-    }
-    if (VIDEO_EXTENSIONS.has(ext)) {
-      sizes.videos += await child.getSize();
+    const size = await child.getSize();
+    if (AUDIO_EXTENSIONS.has(ext)) {
+      sizes.recordings += size;
+    } else if (TRANSCRIPT_EXTENSIONS.has(ext)) {
+      sizes.transcripts += size;
+    } else if (VIDEO_EXTENSIONS.has(ext)) {
+      sizes.videos += size;
+    } else if (IMAGE_EXTENSIONS.has(ext)) {
+      sizes.images += size;
+    } else if (TEXT_EXTENSIONS.has(ext)) {
+      sizes.text += size;
     }
   }
 };
@@ -103,27 +126,12 @@ const getStorageBreakdown = async () => {
     transcripts: 0,
     models: 0,
     text: 0,
+    images: 0,
     videos: 0,
   };
 
-  const recordingsDir = opfsDir(FILES_DIR);
-  if (await recordingsDir.exists()) {
-    const children = await recordingsDir.children();
-    for (const child of children) {
-      if (child.kind !== "file") continue;
-      const ext = getExtension(child.name);
-      const size = await child.getSize();
-      if (AUDIO_EXTENSIONS.has(ext)) {
-        sizes.recordings += size;
-      } else if (TRANSCRIPT_EXTENSIONS.has(ext)) {
-        sizes.transcripts += size;
-      }
-    }
-  }
-
+  await collectSizes(FILES_DIR, sizes);
   sizes.models += await getDirectorySize("/transformers-cache");
-  await collectMiscSizes("/", sizes);
-
   return sizes;
 };
 
@@ -139,6 +147,7 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
     transcripts: 0,
     models: 0,
     text: 0,
+    images: 0,
     videos: 0,
   });
 
@@ -167,6 +176,7 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
 
   useEffect(() => {
     if (!autoRefresh) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshStorageState();
   }, [autoRefresh, refreshStorageState]);
 

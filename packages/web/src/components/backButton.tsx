@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { Button } from "@base-ui/react/button";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router";
 
-export const BackButton = () => {
+export const BackButton = memo(() => {
   const navigate = useNavigate();
   return (
     <Button
@@ -13,4 +14,4 @@ export const BackButton = () => {
       <span>Go back</span>
     </Button>
   );
-};
+});

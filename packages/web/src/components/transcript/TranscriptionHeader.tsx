@@ -6,7 +6,6 @@ import {
 import { Button } from "@base-ui/react/button";
 import { Menu } from "@base-ui/react/menu";
 import { useMemo, type ReactNode } from "react";
-import { useNavigate } from "react-router";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import type { SettingsSectionId } from "@/components/SettingsDialog";
@@ -14,7 +13,6 @@ import { useSettingsDialog } from "@/hooks/useSettingDialog";
 import { BackButton } from "@/components/backButton";
 
 interface TranscriptionHeaderProps {
-  status: string | null;
   stream: MediaStream | null;
   language: string;
   onLanguageChange: (language: string) => void;
@@ -28,7 +26,6 @@ interface TranscriptionHeaderProps {
 }
 
 export const TranscriptionHeader = ({
-  status,
   stream,
   language,
   onLanguageChange,
@@ -37,7 +34,6 @@ export const TranscriptionHeader = ({
   hideCreateNew = false,
   modelBadge,
 }: TranscriptionHeaderProps) => {
-  const navigate = useNavigate();
   const { openSettings } = useSettingsDialog();
 
   const settingsItems: Array<{ label: string; section: SettingsSectionId }> =
@@ -46,7 +42,7 @@ export const TranscriptionHeader = ({
         { label: "Model settings", section: "ai-provider" },
         { label: "Language preferences", section: "general" },
       ],
-      []
+      [],
     );
 
   return (
@@ -77,9 +73,6 @@ export const TranscriptionHeader = ({
                 <Menu.Positioner className="z-50" sideOffset={8}>
                   <Menu.Popup className="min-w-[220px] rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
                     <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
-                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
-                        Transcription
-                      </div>
                       <div className="mt-2">
                         <LanguageSelector
                           language={language}
@@ -98,13 +91,6 @@ export const TranscriptionHeader = ({
                         <GearSixIcon className="size-4 text-zinc-400" />
                       </Menu.Item>
                     ))}
-                    <Menu.Separator className="my-2 h-px bg-zinc-100" />
-                    <Menu.Item
-                      onClick={() => navigate("/files")}
-                      className="rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900"
-                    >
-                      View all transcripts
-                    </Menu.Item>
                   </Menu.Popup>
                 </Menu.Positioner>
               </Menu.Portal>

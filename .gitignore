@@ -154,3 +154,8 @@ wheels/
 .opencode/
 .vscode/
 .github/
+
+server/
+
+.agents/
+opencode.json

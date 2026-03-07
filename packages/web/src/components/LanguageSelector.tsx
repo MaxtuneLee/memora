@@ -25,21 +25,21 @@ interface LanguageSelectorProps {
   setLanguage: (language: string) => void;
 }
 
-export function LanguageSelector({ language, setLanguage }: LanguageSelectorProps) {
+export function LanguageSelector({
+  language,
+  setLanguage,
+}: LanguageSelectorProps) {
   return (
-    <Field.Root className="flex items-center gap-2">
-      <Field.Label
-        className="text-sm text-zinc-600"
-        render={<div />}
-      >
-        Language:
+    <Field.Root className="flex items-center gap-2 justify-between">
+      <Field.Label className="text-sm text-zinc-600" render={<div />}>
+        Language
       </Field.Label>
       <Select.Root
         value={language}
         onValueChange={(value) => setLanguage(String(value))}
         items={languageItems}
       >
-        <Select.Trigger className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 shadow-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-zinc-400 data-[popup-open]:border-zinc-300">
+        <Select.Trigger className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none transition-all focus-visible:ring-2 focus-visible:ring-zinc-400 data-[popup-open]:border-zinc-300">
           <Select.Value className="flex-1 text-left" />
           <Select.Icon className="text-zinc-400 data-popup-open:text-zinc-600">
             <CaretUpDownIcon className="size-4" />

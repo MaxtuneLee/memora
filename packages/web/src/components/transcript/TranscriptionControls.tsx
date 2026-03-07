@@ -1,6 +1,5 @@
 import {
   MicrophoneIcon,
-  MicrophoneSlashIcon,
   PauseIcon,
   PlayIcon,
   CheckCircleIcon,
@@ -16,7 +15,7 @@ interface TranscriptionControlsProps {
   onPause: () => void;
   onResume: () => void;
   onFinalize: () => void;
-  onStop: () => void;
+  isReady?: boolean;
 }
 
 export const TranscriptionControls = ({
@@ -28,7 +27,7 @@ export const TranscriptionControls = ({
   onPause,
   onResume,
   onFinalize,
-  onStop,
+  isReady,
 }: TranscriptionControlsProps) => {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -43,7 +42,8 @@ export const TranscriptionControls = ({
       {!recording ? (
         <Button
           onClick={onStart}
-          className="flex items-center gap-2 rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-transform active:scale-95 hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+          className="flex items-center gap-2 rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-transform active:scale-95 hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:bg-red-200 disabled:text-red-700 disabled:cursor-not-allowed"
+          disabled={!isReady}
         >
           <MicrophoneIcon className="size-4" weight="fill" />
           <span>Start Recording</span>
@@ -70,13 +70,6 @@ export const TranscriptionControls = ({
             <span>
               {saveStatus === "saving" ? "Saving..." : "Save Recording"}
             </span>
-          </Button>
-          <Button
-            onClick={onStop}
-            className="flex items-center gap-2 rounded-md bg-zinc-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-transform active:scale-95 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-zinc-700 focus-visible:ring-offset-2"
-          >
-            <MicrophoneSlashIcon className="size-4" weight="fill" />
-            <span>Stop</span>
           </Button>
         </>
       )}
