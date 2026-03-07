@@ -159,3 +159,6 @@ server/
 
 .agents/
 opencode.json
+packages/.DS_Store
+
+.claude/
