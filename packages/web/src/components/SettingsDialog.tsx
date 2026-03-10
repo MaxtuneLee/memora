@@ -1,15 +1,30 @@
 import { Button } from "@base-ui/react/button";
 import { Dialog } from "@base-ui/react/dialog";
 import { Toast } from "@base-ui/react/toast";
-import { XIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  XIcon,
+  PlusIcon,
+  TrashIcon,
+  PencilSimpleIcon,
+  ArrowsClockwiseIcon,
+  CaretDownIcon,
+  CheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore, useClientDocument } from "@livestore/react";
+import { queryDb } from "@livestore/livestore";
 
 import { cn } from "../lib/cn";
 import { formatBytes } from "../lib/format";
 import { useStorageStats } from "../hooks/useStorageStats";
 import ToastStack from "./ToastStack";
+import { providerTable, providerEvents, type provider as ProviderRow } from "../livestore/provider";
+import { settingsTable } from "../livestore/setting";
 
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 export const SETTINGS_SECTIONS = [
   {
@@ -48,12 +63,33 @@ interface SettingsDialogProps {
   onSectionChange: (section: SettingsSectionId) => void;
 }
 
+interface ProviderFormState {
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  apiFormat: "chat-completions" | "responses";
+}
+
+interface ModelInfo {
+  id: string;
+  name?: string;
+}
+
+const providersQuery$ = queryDb(
+  () => providerTable.where({ deletedAt: null }).orderBy("createdAt", "desc"),
+  { label: "settings:providers" },
+);
+
+
 export default function SettingsDialog({
   open,
   onOpenChange,
   activeSection,
   onSectionChange,
 }: SettingsDialogProps) {
+  const { store } = useStore();
+  const providers = store.useQuery(providersQuery$) as ProviderRow[];
+  const [settings, setSettings] = useClientDocument(settingsTable);
   const [isPersistRequesting, setIsPersistRequesting] = useState(false);
   const { add, close } = Toast.useToastManager();
   const {
@@ -65,10 +101,45 @@ export default function SettingsDialog({
     refreshStorageState,
   } = useStorageStats({ autoRefresh: false });
 
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [providerForm, setProviderForm] = useState<ProviderFormState>({
+    name: "",
+    baseUrl: "",
+    apiKey: "",
+    apiFormat: "chat-completions",
+  });
+  const [fetchingModels, setFetchingModels] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
+  const modelSearchInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
     void refreshStorageState();
   }, [open, refreshStorageState]);
+
+  useEffect(() => {
+    if (!open) {
+      setEditingProviderId(null);
+      setIsAddingProvider(false);
+      setShowApiKey(false);
+      setModelDropdownOpen(false);
+      setModelSearchQuery("");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!modelDropdownOpen) {
+      setModelSearchQuery("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      modelSearchInputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [modelDropdownOpen]);
 
   const storageSummary = useMemo(() => {
     if (!storageQuota) return "Storage usage not available.";
@@ -82,7 +153,7 @@ export default function SettingsDialog({
 
   const activeSectionData = useMemo(
     () => SETTINGS_SECTIONS.find((section) => section.id === activeSection),
-    [activeSection]
+    [activeSection],
   );
 
   const handleRequestPersistence = useCallback(async () => {
@@ -117,6 +188,202 @@ export default function SettingsDialog({
     }
   }, [add, isPersistRequesting, refreshStorageState]);
 
+  const handleAddProvider = useCallback(() => {
+    setIsAddingProvider(true);
+    setEditingProviderId(null);
+    setProviderForm({ name: "", baseUrl: "", apiKey: "", apiFormat: "chat-completions" });
+    setShowApiKey(false);
+  }, []);
+
+  const handleEditProvider = useCallback(
+    (provider: ProviderRow) => {
+      setEditingProviderId(provider.id);
+      setIsAddingProvider(false);
+      setProviderForm({
+        name: provider.name,
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey,
+        apiFormat: provider.apiFormat as "chat-completions" | "responses",
+      });
+      setShowApiKey(false);
+    },
+    [],
+  );
+
+  const handleCancelForm = useCallback(() => {
+    setIsAddingProvider(false);
+    setEditingProviderId(null);
+    setShowApiKey(false);
+  }, []);
+
+  const handleSaveProvider = useCallback(() => {
+    if (!providerForm.name.trim() || !providerForm.baseUrl.trim()) {
+      add({ title: "Missing fields", description: "Name and base URL are required.", type: "error" });
+      return;
+    }
+
+    if (isAddingProvider) {
+      const id = crypto.randomUUID();
+      store.commit(
+        providerEvents.providerCreated({
+          id,
+          name: providerForm.name.trim(),
+          baseUrl: providerForm.baseUrl.trim().replace(/\/+$/, ""),
+          apiKey: providerForm.apiKey,
+          apiFormat: providerForm.apiFormat,
+          createdAt: new Date(),
+        }),
+      );
+      add({ title: "Provider added", type: "success" });
+    } else if (editingProviderId) {
+      store.commit(
+        providerEvents.providerUpdated({
+          id: editingProviderId,
+          name: providerForm.name.trim(),
+          baseUrl: providerForm.baseUrl.trim().replace(/\/+$/, ""),
+          apiKey: providerForm.apiKey,
+          apiFormat: providerForm.apiFormat,
+          updatedAt: new Date(),
+        }),
+      );
+      add({ title: "Provider updated", type: "success" });
+    }
+
+    setIsAddingProvider(false);
+    setEditingProviderId(null);
+    setShowApiKey(false);
+  }, [add, editingProviderId, isAddingProvider, providerForm, store]);
+
+  const handleDeleteProvider = useCallback(
+    (id: string) => {
+      store.commit(providerEvents.providerDeleted({ id, deletedAt: new Date() }));
+      if (settings.selectedProviderId === id) {
+        setSettings({ selectedProviderId: "", selectedModel: "" });
+      }
+      if (editingProviderId === id) {
+        setEditingProviderId(null);
+      }
+      add({ title: "Provider removed", type: "success" });
+    },
+    [add, editingProviderId, setSettings, settings, store],
+  );
+
+  const handleFetchModels = useCallback(
+    async (provider: ProviderRow) => {
+      setFetchingModels(provider.id);
+      try {
+        const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+        const headers: Record<string, string> = {};
+        if (provider.apiKey) {
+          headers["Authorization"] = `Bearer ${provider.apiKey}`;
+        }
+
+        const res = await fetch(`${baseUrl}/models`, { headers });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`${res.status}: ${text.slice(0, 200)}`);
+        }
+
+        const json = await res.json();
+        const models: ModelInfo[] = (json.data ?? json.models ?? []).map(
+          (m: { id: string; name?: string }) => ({
+            id: m.id,
+            name: m.name ?? m.id,
+          }),
+        );
+
+        store.commit(
+          providerEvents.providerUpdated({
+            id: provider.id,
+            models: JSON.stringify(models),
+            updatedAt: new Date(),
+          }),
+        );
+
+        add({
+          title: `Fetched ${models.length} model${models.length === 1 ? "" : "s"}`,
+          type: "success",
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        add({
+          title: "Failed to fetch models",
+          description: msg,
+          type: "error",
+        });
+      } finally {
+        setFetchingModels(null);
+      }
+    },
+    [add, store],
+  );
+
+  const handleSelectModel = useCallback(
+    (providerId: string, modelId: string) => {
+      setSettings({ selectedProviderId: providerId, selectedModel: modelId });
+      setModelDropdownOpen(false);
+    },
+    [setSettings],
+  );
+
+  const allModels = useMemo(() => {
+    const result: { providerId: string; providerName: string; model: ModelInfo }[] = [];
+    for (const p of providers) {
+      const models: ModelInfo[] = (() => {
+        try {
+          return JSON.parse(p.models || "[]");
+        } catch {
+          return [];
+        }
+      })();
+      for (const m of models) {
+        result.push({ providerId: p.id, providerName: p.name, model: m });
+      }
+    }
+    return result;
+  }, [providers]);
+
+  const filteredModelGroups = useMemo(() => {
+    const query = modelSearchQuery.trim().toLowerCase();
+    return providers
+      .map((provider) => {
+        const models: ModelInfo[] = (() => {
+          try {
+            return JSON.parse(provider.models || "[]");
+          } catch {
+            return [];
+          }
+        })();
+
+        if (!query) {
+          return { provider, models };
+        }
+
+        const filteredModels = models.filter((model) => {
+          const modelName = (model.name ?? "").toLowerCase();
+          const modelId = model.id.toLowerCase();
+          const providerName = provider.name.toLowerCase();
+          return (
+            modelName.includes(query) ||
+            modelId.includes(query) ||
+            providerName.includes(query)
+          );
+        });
+
+        return { provider, models: filteredModels };
+      })
+      .filter((entry) => entry.models.length > 0);
+  }, [modelSearchQuery, providers]);
+
+  const selectedModelLabel = useMemo(() => {
+    if (!settings.selectedModel) return "Select a model...";
+    const entry = allModels.find(
+      (m) => m.providerId === settings.selectedProviderId && m.model.id === settings.selectedModel,
+    );
+    if (entry) return `${entry.providerName} / ${entry.model.name ?? entry.model.id}`;
+    return settings.selectedModel;
+  }, [allModels, settings.selectedModel, settings.selectedProviderId]);
+
   const toastIconColor = (type?: string) => {
     switch (type) {
       case "success":
@@ -127,6 +394,283 @@ export default function SettingsDialog({
         return "bg-zinc-400";
     }
   };
+
+  const isFormOpen = isAddingProvider || editingProviderId !== null;
+
+  const renderProviderForm = () => (
+    <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-zinc-900">
+          {isAddingProvider ? "Add provider" : "Edit provider"}
+        </h4>
+      </div>
+      <div className="grid gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Name</label>
+          <input
+            type="text"
+            value={providerForm.name}
+            onChange={(e) => setProviderForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="e.g. OpenAI, Anthropic, Local LLM"
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Base URL</label>
+          <input
+            type="text"
+            value={providerForm.baseUrl}
+            onChange={(e) => setProviderForm((p) => ({ ...p, baseUrl: e.target.value }))}
+            placeholder="https://api.openai.com/v1"
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">API Key</label>
+          <div className="relative">
+            <input
+              type={showApiKey ? "text" : "password"}
+              value={providerForm.apiKey}
+              onChange={(e) => setProviderForm((p) => ({ ...p, apiKey: e.target.value }))}
+              placeholder="sk-..."
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+            >
+              {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">API Format</label>
+          <div className="flex gap-2">
+            {(["chat-completions", "responses"] as const).map((fmt) => (
+              <button
+                key={fmt}
+                type="button"
+                onClick={() => setProviderForm((p) => ({ ...p, apiFormat: fmt }))}
+                className={cn(
+                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                  providerForm.apiFormat === fmt
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+                )}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button
+          onClick={handleCancelForm}
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSaveProvider}
+          className="rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+        >
+          {isAddingProvider ? "Add" : "Save"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderAiProviderSection = () => (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-zinc-900">Active model</h4>
+        </div>
+        <div className="relative mt-3">
+          <button
+            type="button"
+            onClick={() => setModelDropdownOpen((v) => !v)}
+            className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 transition hover:border-zinc-300"
+          >
+            <span className={settings.selectedModel ? "" : "text-zinc-400"}>
+              {selectedModelLabel}
+            </span>
+            <CaretDownIcon className="size-4 text-zinc-400" />
+          </button>
+          <AnimatePresence>
+            {modelDropdownOpen && allModels.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.12 }}
+                className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg"
+              >
+                <div className="border-b border-zinc-100 p-2">
+                  <label className="sr-only" htmlFor="model-search-input">
+                    Search models
+                  </label>
+                  <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5">
+                    <MagnifyingGlassIcon className="size-3.5 text-zinc-400" />
+                    <input
+                      id="model-search-input"
+                      ref={modelSearchInputRef}
+                      type="text"
+                      value={modelSearchQuery}
+                      onChange={(event) => setModelSearchQuery(event.target.value)}
+                      placeholder="Search models or providers"
+                      className="w-full bg-transparent text-xs text-zinc-700 outline-none placeholder:text-zinc-400"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-52 overflow-y-auto">
+                  {filteredModelGroups.length === 0 ? (
+                    <div className="px-3 py-3 text-xs text-zinc-400">
+                      No matching models.
+                    </div>
+                  ) : (
+                    filteredModelGroups.map(({ provider, models }) => (
+                      <div key={provider.id}>
+                        <div className="bg-zinc-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                          {provider.name}
+                        </div>
+                        {models.map((model) => {
+                          const isSelected =
+                            settings.selectedProviderId === provider.id &&
+                            settings.selectedModel === model.id;
+                          return (
+                            <button
+                              key={model.id}
+                              type="button"
+                              onClick={() => handleSelectModel(provider.id, model.id)}
+                              className={cn(
+                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition",
+                                isSelected
+                                  ? "bg-zinc-100 font-medium text-zinc-900"
+                                  : "text-zinc-600 hover:bg-zinc-50",
+                              )}
+                            >
+                              {isSelected && <CheckIcon className="size-3.5 shrink-0 text-zinc-900" />}
+                              <span className={isSelected ? "" : "pl-5.5"}>
+                                {model.name ?? model.id}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {modelDropdownOpen && (
+            <div className="fixed inset-0 z-[9]" onClick={() => setModelDropdownOpen(false)} />
+          )}
+        </div>
+        {allModels.length === 0 && (
+          <p className="mt-2 text-xs text-zinc-400">
+            Add a provider and fetch models to select one.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-zinc-900">Providers</h4>
+          <Button
+            onClick={handleAddProvider}
+            disabled={isFormOpen}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <PlusIcon className="size-3.5" weight="bold" />
+            Add
+          </Button>
+        </div>
+
+        {providers.length === 0 && !isAddingProvider && (
+          <p className="mt-3 text-xs text-zinc-400">
+            No providers configured yet.
+          </p>
+        )}
+
+        <div className="mt-3 space-y-2">
+          {providers.map((provider) => {
+            if (editingProviderId === provider.id) return null;
+            const models: ModelInfo[] = (() => {
+              try {
+                return JSON.parse(provider.models || "[]");
+              } catch {
+                return [];
+              }
+            })();
+            const isFetching = fetchingModels === provider.id;
+            return (
+              <div
+                key={provider.id}
+                className="flex items-center justify-between rounded-lg border border-zinc-100 bg-white px-3 py-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-zinc-900">{provider.name}</span>
+                    <span className="text-[11px] text-zinc-400">{models.length} models</span>
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-zinc-400">{provider.baseUrl}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleFetchModels(provider)}
+                    disabled={isFetching || isFormOpen}
+                    title="Fetch models"
+                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
+                  >
+                    <ArrowsClockwiseIcon
+                      className={cn("size-4", isFetching && "animate-spin")}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditProvider(provider)}
+                    disabled={isFormOpen}
+                    title="Edit"
+                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
+                  >
+                    <PencilSimpleIcon className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProvider(provider.id)}
+                    disabled={isFormOpen}
+                    title="Remove"
+                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                  >
+                    <TrashIcon className="size-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <AnimatePresence>
+          {isFormOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="mt-3 overflow-hidden"
+            >
+              {renderProviderForm()}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -202,7 +746,7 @@ export default function SettingsDialog({
                         "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors",
                         isActive
                           ? "bg-white text-zinc-900 shadow-sm"
-                          : "text-zinc-500 hover:bg-white/70 hover:text-zinc-900"
+                          : "text-zinc-500 hover:bg-white/70 hover:text-zinc-900",
                       )}
                     >
                       <span>{section.label}</span>
@@ -226,8 +770,10 @@ export default function SettingsDialog({
                   <XIcon className="size-4" />
                 </Dialog.Close>
               </div>
-              <div className="flex-1 space-y-6 px-6 py-6">
-                {activeSection === "data-storage" ? (
+              <div className="max-h-[60vh] flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                {activeSection === "ai-provider" ? (
+                  renderAiProviderSection()
+                ) : activeSection === "data-storage" ? (
                   <div className="space-y-6">
                     <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
                       <div className="flex items-center justify-between">
@@ -290,7 +836,7 @@ export default function SettingsDialog({
                               "size-2 rounded-full",
                               isStoragePersistent
                                 ? "bg-emerald-500"
-                                : "bg-amber-500"
+                                : "bg-amber-500",
                             )}
                           />
                           {isStoragePersistent ? "Enabled" : "Not enabled"}
@@ -333,7 +879,7 @@ export default function SettingsDialog({
             <span
               className={cn(
                 "mt-1 size-2 rounded-full",
-                toastIconColor(toast.type)
+                toastIconColor(toast.type),
               )}
             />
             <div className="space-y-1">

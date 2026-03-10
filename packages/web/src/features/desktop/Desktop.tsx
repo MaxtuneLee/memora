@@ -1,20 +1,25 @@
 import {
   DndContext,
+  DragOverlay,
   MouseSensor,
   TouchSensor,
+  pointerWithin,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { Tooltip } from "@base-ui/react/tooltip";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { HTMLAttributes } from "react";
 import { useStore } from "@livestore/react";
 import { queryDb } from "@livestore/livestore";
 import { fileEvents, fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { FILES_DIR, FILE_META_SUFFIX, type RecordingMeta } from "@/lib/files";
+import { DesktopItem } from "./DesktopItem";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopContextMenu } from "./DesktopContextMenu";
-import { DesktopFolderWindow } from "./DesktopFolderWindow";
+import { DesktopFolderWindow, FOLDER_WINDOW_DROP_PREFIX } from "./DesktopFolderWindow";
 import { DesktopPreviewWindow } from "./DesktopPreviewWindow";
 import { useDesktopState } from "./useDesktopState";
 import type {
@@ -29,6 +34,24 @@ import { folderEvents, folderTable, type folder as LiveStoreFolder } from "@/liv
 import { ConfirmDialog } from "./ConfirmDialog";
 import { TrashWindow } from "./TrashWindow";
 import { useTrashActions } from "./useTrashActions";
+
+const DESKTOP_ROOT_ID = "desktop-root";
+
+const DesktopDropZone = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  function DesktopDropZone(props, outerRef) {
+    const { setNodeRef } = useDroppable({ id: DESKTOP_ROOT_ID });
+    return (
+      <div
+        {...props}
+        ref={(node) => {
+          setNodeRef(node);
+          if (typeof outerRef === "function") outerRef(node);
+          else if (outerRef) outerRef.current = node;
+        }}
+      />
+    );
+  },
+);
 
 const filesQuery$ = queryDb(
   (_store) => {
@@ -72,6 +95,7 @@ const allFoldersQuery$ = queryDb(
 
 interface DesktopProps {
   onUploadFile: (parentId: string | null) => void;
+  onNativeFileDrop?: (files: File[], parentId: string | null) => void;
   onDeleteFile: (file: RecordingMeta) => Promise<void>;
 }
 
@@ -99,7 +123,7 @@ const ROOT_WINDOW_ID = "root";
 const TRASH_WINDOW_ID = "trash";
 const TRASH_ITEM_ID = "trash";
 
-export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
+export function Desktop({ onUploadFile, onNativeFileDrop, onDeleteFile }: DesktopProps) {
   const { store } = useStore();
   const fileRows = store.useQuery(filesQuery$);
   const folderRows = store.useQuery(foldersQuery$);
@@ -111,6 +135,9 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
   const [renamingIds, setRenamingIds] = useState<Set<string>>(new Set());
   const [desktopSize, setDesktopSize] = useState({ width: 0, height: 0 });
   const [windowOrder, setWindowOrder] = useState<string[]>([]);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [nativeDragOver, setNativeDragOver] = useState(false);
+  const nativeDragCounterRef = useRef(0);
 
   const mapToMeta = useCallback((file: LiveStoreFile): RecordingMeta => {
     const createdAt =
@@ -311,16 +338,69 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
     );
   }, [buildWindowOrder, folderWindows, getWindowIds, previewWindows]);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  }, []);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      setActiveDragId(null);
       const { active, over } = event;
       if (!over) return;
       if (active.id === over.id) return;
       const movedItem = items.get(active.id as string);
-      const targetItem = items.get(over.id as string);
-      if (!movedItem || !targetItem) return;
-      if (targetItem.type !== "folder") return;
+      if (!movedItem) return;
       if (movedItem.type === "widget") return;
+
+      if (over.id === DESKTOP_ROOT_ID) {
+        if (movedItem.type === "file" && movedItem.fileMeta.parentId !== null) {
+          store.commit(
+            fileEvents.fileUpdated({
+              id: movedItem.id,
+              parentId: null,
+              updatedAt: new Date(),
+            }),
+          );
+        }
+        if (movedItem.type === "folder" && movedItem.parentId !== null) {
+          store.commit(
+            folderEvents.folderUpdated({
+              id: movedItem.id,
+              parentId: null,
+              updatedAt: new Date(),
+            }),
+          );
+        }
+        return;
+      }
+
+      const overId = over.id as string;
+      if (overId.startsWith(FOLDER_WINDOW_DROP_PREFIX)) {
+        const targetFolderId = overId.slice(FOLDER_WINDOW_DROP_PREFIX.length);
+        if (movedItem.type === "file") {
+          store.commit(
+            fileEvents.fileUpdated({
+              id: movedItem.id,
+              parentId: targetFolderId,
+              updatedAt: new Date(),
+            }),
+          );
+        }
+        if (movedItem.type === "folder" && movedItem.id !== targetFolderId) {
+          store.commit(
+            folderEvents.folderUpdated({
+              id: movedItem.id,
+              parentId: targetFolderId,
+              updatedAt: new Date(),
+            }),
+          );
+        }
+        return;
+      }
+
+      const targetItem = items.get(over.id as string);
+      if (!targetItem) return;
+      if (targetItem.type !== "folder") return;
       if (movedItem.type === "folder" && movedItem.id === targetItem.id) return;
 
       if (movedItem.type === "file") {
@@ -358,6 +438,41 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
     },
   });
   const sensors = useSensors(mouseSensor, touchSensor);
+
+  const handleNativeDragEnter = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    nativeDragCounterRef.current += 1;
+    setNativeDragOver(true);
+  }, []);
+
+  const handleNativeDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleNativeDragLeave = useCallback(() => {
+    nativeDragCounterRef.current -= 1;
+    if (nativeDragCounterRef.current <= 0) {
+      nativeDragCounterRef.current = 0;
+      setNativeDragOver(false);
+    }
+  }, []);
+
+  const handleNativeDrop = useCallback(
+    (e: React.DragEvent, parentId: string | null = null) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nativeDragCounterRef.current = 0;
+      setNativeDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0 && onNativeFileDrop) {
+        onNativeFileDrop(files, parentId);
+      }
+    },
+    [onNativeFileDrop],
+  );
 
   const handleDesktopClick = useCallback(() => {
     clearSelection();
@@ -836,12 +951,16 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
 
   return (
     <Tooltip.Provider>
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DesktopDropZone
           ref={containerRef}
           className="relative h-full w-full overflow-auto bg-gradient-to-br from-zinc-50 via-zinc-100/50 to-zinc-100"
           onClick={handleDesktopClick}
           onContextMenu={handleDesktopContextMenu}
+          onDragEnter={handleNativeDragEnter}
+          onDragOver={handleNativeDragOver}
+          onDragLeave={handleNativeDragLeave}
+          onDrop={(e) => handleNativeDrop(e, null)}
         >
         {/* Grid pattern background */}
         <div
@@ -999,9 +1118,34 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
                 onSelectItem={selectItem}
                 onRenameCommit={handleRenameCommit}
                 onRenameCancel={handleRenameCancel}
+                onNativeFileDrop={onNativeFileDrop}
               />
             );
           })}
+          <DragOverlay dropAnimation={null}>
+            {activeDragId ? (() => {
+              const dragItem = items.get(activeDragId);
+              if (!dragItem) return null;
+              return (
+                <DesktopItem
+                  item={dragItem}
+                  isSelected
+                  onSelect={() => {}}
+                  onContextMenu={() => {}}
+                  onOpenItem={() => {}}
+                  layout="grid"
+                  draggable={false}
+                />
+              );
+            })() : null}
+          </DragOverlay>
+          {nativeDragOver && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-50/60 backdrop-blur-[2px] pointer-events-none">
+              <div className="rounded-2xl border-2 border-dashed border-blue-400 bg-white/80 px-8 py-6 shadow-lg">
+                <p className="text-sm font-medium text-blue-600">Drop files here to upload</p>
+              </div>
+            </div>
+          )}
           <ConfirmDialog
             isOpen={confirmAction !== null}
             title={confirmDialogCopy?.title ?? ""}
@@ -1011,7 +1155,7 @@ export function Desktop({ onUploadFile, onDeleteFile }: DesktopProps) {
             onConfirm={confirm}
             onCancel={cancel}
           />
-        </div>
+        </DesktopDropZone>
       </DndContext>
     </Tooltip.Provider>
   );

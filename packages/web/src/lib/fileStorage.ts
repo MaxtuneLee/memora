@@ -1,4 +1,8 @@
-import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
+import {
+  dir as opfsDir,
+  file as opfsFile,
+  write as opfsWrite,
+} from "@memora/fs";
 
 import {
   DEFAULT_AUDIO_EXTENSION,
@@ -67,7 +71,9 @@ export type LegacyRecording = {
   transcript: RecordingTranscript | null;
 };
 
-export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResult> => {
+export const saveFileToOpfs = async (
+  input: SaveFileInput,
+): Promise<SaveFileResult> => {
   await ensureFilesDir();
 
   const id = input.id ?? crypto.randomUUID();
@@ -83,10 +89,14 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
 
   await opfsDir(fileDirPath).create();
 
-  await opfsWrite(storagePath, await input.blob.arrayBuffer(), { overwrite: true });
+  await opfsWrite(storagePath, await input.blob.arrayBuffer(), {
+    overwrite: true,
+  });
 
   if (input.transcript) {
-    await opfsWrite(transcriptPath, JSON.stringify(input.transcript), { overwrite: true });
+    await opfsWrite(transcriptPath, JSON.stringify(input.transcript), {
+      overwrite: true,
+    });
   }
 
   const meta: RecordingMeta = {
@@ -113,7 +123,9 @@ export const saveFileToOpfs = async (input: SaveFileInput): Promise<SaveFileResu
   return { id, meta };
 };
 
-export const loadTranscript = async (transcriptPath: string): Promise<RecordingTranscript | null> => {
+export const loadTranscript = async (
+  transcriptPath: string,
+): Promise<RecordingTranscript | null> => {
   try {
     const transcriptText = await opfsFile(transcriptPath).text();
     return JSON.parse(transcriptText) as RecordingTranscript;
@@ -161,8 +173,9 @@ export const deleteFileFromOpfs = async (meta: RecordingMeta) => {
   const dirPath = buildFileDirPath(meta.id);
   try {
     await opfsDir(dirPath).remove();
-  } catch {
+  } catch (e) {
     // Ignore if directory is missing or not empty.
+    console.warn(`Failed to remove directory ${dirPath}:`, e);
   }
 };
 
@@ -194,32 +207,38 @@ export const listLegacyRecordings = async (): Promise<LegacyRecording[]> => {
           updatedAt: legacy.createdAt,
           durationSec: legacy.durationSec,
           transcriptPath:
-            legacy.text || legacy.words.length > 0 ? buildTranscriptPath(legacy.id) : null,
+            legacy.text || legacy.words.length > 0
+              ? buildTranscriptPath(legacy.id)
+              : null,
           transcriptPreview: legacy.text ? legacy.text.slice(0, 280) : null,
         } satisfies RecordingMeta;
         return {
           meta,
           transcript,
         } satisfies LegacyRecording;
-      })
+      }),
   );
   return metas;
 };
 
 export const migrateLegacyRecording = async (
   meta: RecordingMeta,
-  transcript?: RecordingTranscript | null
+  transcript?: RecordingTranscript | null,
 ) => {
   await opfsDir(buildFileDirPath(meta.id)).create();
   if (!meta.transcriptPath || !transcript) {
     await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
     return;
   }
-  await opfsWrite(meta.transcriptPath, JSON.stringify(transcript), { overwrite: true });
+  await opfsWrite(meta.transcriptPath, JSON.stringify(transcript), {
+    overwrite: true,
+  });
   await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
 };
 
-export const resolveAudioBlob = async (meta: RecordingMeta): Promise<Blob | null> => {
+export const resolveAudioBlob = async (
+  meta: RecordingMeta,
+): Promise<Blob | null> => {
   try {
     const audioFile = opfsFile(meta.storagePath);
     const originFile = await audioFile.getOriginFile();

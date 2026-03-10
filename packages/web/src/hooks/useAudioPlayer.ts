@@ -164,12 +164,19 @@ export const useAudioPlayer = (
     (time: number) => {
       const audio = audioRef.current;
       if (!audio) return;
-      const clampedTime = Math.min(
-        Math.max(time, 0),
-        duration || audio.duration || 0,
-      );
-      audio.currentTime = clampedTime;
-      displayTimeRef.current = clampedTime;
+      const resolvedDuration = duration || audio.duration;
+      const hasResolvedDuration =
+        Number.isFinite(resolvedDuration) && resolvedDuration > 0;
+      const clampedTime = hasResolvedDuration
+        ? Math.min(Math.max(time, 0), resolvedDuration)
+        : Math.max(time, 0);
+
+      try {
+        audio.currentTime = clampedTime;
+        displayTimeRef.current = clampedTime;
+      } catch {
+        // Ignore invalid seek attempts while media is still initializing.
+      }
     },
     [audioRef, duration],
   );

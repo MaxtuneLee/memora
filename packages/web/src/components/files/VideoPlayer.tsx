@@ -1,11 +1,14 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { formatDuration } from "@/lib/format";
+import type { RecordingWord } from "@/lib/files";
+import { buildCaptionCues } from "@/lib/transcriptSearchExport";
 import {
   PauseIcon,
   PlayIcon,
   CornersOutIcon,
   CornersInIcon,
+  SubtitlesIcon,
 } from "@phosphor-icons/react";
 
 interface VideoPlayerProps {
@@ -13,6 +16,7 @@ interface VideoPlayerProps {
   readyToken: number;
   duration: number;
   onReady: () => void;
+  transcriptWords?: RecordingWord[];
   timeRef?: React.RefObject<number>;
   onPlayStateChange?: (playing: boolean) => void;
   onDurationChange?: (duration: number) => void;
@@ -25,6 +29,7 @@ export const VideoPlayer = memo(
     readyToken,
     duration,
     onReady,
+    transcriptWords = [],
     timeRef,
     onPlayStateChange,
     onDurationChange,
@@ -35,6 +40,8 @@ export const VideoPlayer = memo(
     const hasSignaledReadyRef = useRef(false);
     const [showControls, setShowControls] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [captionsEnabled, setCaptionsEnabled] = useState(true);
+    const [activeCueIndex, setActiveCueIndex] = useState(-1);
     const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const progressRef = useRef<HTMLDivElement>(null);
     const progressFillRef = useRef<HTMLDivElement>(null);
@@ -72,6 +79,10 @@ export const VideoPlayer = memo(
       togglePlay,
       seek,
     } = useAudioPlayer(mediaRef, readyToken, duration ?? undefined);
+    const captionCues = useMemo(
+      () => buildCaptionCues(transcriptWords),
+      [transcriptWords],
+    );
 
     const effectiveDuration = playerDuration || duration || 0;
     const effectiveDurationRef = useRef(effectiveDuration);
@@ -88,12 +99,18 @@ export const VideoPlayer = memo(
       const tick = () => {
         const t = playerTimeRef.current;
         const dur = effectiveDurationRef.current;
+        const mediaDuration = videoRef.current?.duration;
+        const hasSeekableDuration =
+          (Number.isFinite(dur) && dur > 0) ||
+          (typeof mediaDuration === "number" &&
+            Number.isFinite(mediaDuration) &&
+            mediaDuration > 0);
 
         if (timeRef) {
           timeRef.current = t;
         }
 
-        if (seekRef && seekRef.current != null) {
+        if (seekRef && seekRef.current != null && hasSeekableDuration) {
           seek(seekRef.current);
           seekRef.current = null;
         }
@@ -210,11 +227,52 @@ export const VideoPlayer = memo(
 
     useEffect(() => {
       const handleChange = () => {
-        setIsFullscreen(!!document.fullscreenElement);
+        const fullscreenNode = document.fullscreenElement;
+        const isCurrentVideoFullscreen =
+          !!fullscreenNode && fullscreenNode === containerRef.current;
+        setIsFullscreen(isCurrentVideoFullscreen);
+        if (isCurrentVideoFullscreen) {
+          setCaptionsEnabled(true);
+        } else {
+          setActiveCueIndex(-1);
+        }
       };
       document.addEventListener("fullscreenchange", handleChange);
       return () => document.removeEventListener("fullscreenchange", handleChange);
     }, []);
+
+    useEffect(() => {
+      if (!isFullscreen || !captionsEnabled || captionCues.length === 0) return;
+
+      let rafId: number;
+      let previousIndex = -2;
+
+      const tick = () => {
+        const t = playerTimeRef.current;
+        let nextIndex = -1;
+
+        for (let i = captionCues.length - 1; i >= 0; i--) {
+          const cue = captionCues[i];
+          if (t >= cue.startSec && t <= cue.endSec) {
+            nextIndex = i;
+            break;
+          }
+          if (t > cue.endSec) {
+            break;
+          }
+        }
+
+        if (nextIndex !== previousIndex) {
+          previousIndex = nextIndex;
+          setActiveCueIndex(nextIndex);
+        }
+
+        rafId = requestAnimationFrame(tick);
+      };
+
+      rafId = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(rafId);
+    }, [captionCues, captionsEnabled, isFullscreen, playerTimeRef]);
 
     const handleVideoClick = useCallback(() => {
       togglePlay();
@@ -283,21 +341,50 @@ export const VideoPlayer = memo(
           </div>
 
           <div className="absolute top-3 right-3 pointer-events-auto">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFullscreen();
-              }}
-              className="flex size-8 items-center justify-center rounded-lg bg-gray-600/10 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-white"
-            >
-              {isFullscreen ? (
-                <CornersInIcon className="size-4" weight="bold" />
-              ) : (
-                <CornersOutIcon className="size-4" weight="bold" />
+            <div className="flex items-center gap-2">
+              {isFullscreen && captionCues.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCaptionsEnabled((prev) => !prev);
+                  scheduleHide();
+                  }}
+                  className={`flex size-8 items-center justify-center rounded-lg backdrop-blur-sm transition-colors ${
+                    captionsEnabled
+                      ? "bg-white/20 text-white hover:bg-white/30"
+                      : "bg-gray-700/50 text-white/70 hover:bg-gray-600/60 hover:text-white"
+                  }`}
+                  aria-label={captionsEnabled ? "Hide captions" : "Show captions"}
+                >
+                  <SubtitlesIcon className="size-4" weight={captionsEnabled ? "fill" : "bold"} />
+                </button>
               )}
-            </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                className="flex size-8 items-center justify-center rounded-lg bg-gray-600/10 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-white"
+              >
+                {isFullscreen ? (
+                  <CornersInIcon className="size-4" weight="bold" />
+                ) : (
+                  <CornersOutIcon className="size-4" weight="bold" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
+
+        {isFullscreen && captionsEnabled && activeCueIndex >= 0 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center px-5 sm:bottom-20">
+            <div className="max-w-[min(90vw,980px)] rounded-xl bg-black/45 px-4 py-2 text-center text-[clamp(1rem,1.8vw,1.6rem)] font-medium text-zinc-50 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+              <p className="line-clamp-2 leading-tight">
+                {captionCues[activeCueIndex]?.text}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   },

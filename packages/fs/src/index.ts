@@ -364,6 +364,72 @@ export const mv = async (
   await rm(from, { recursive: true, force: true });
 };
 
+export type GrepMatch = {
+  path: string;
+  line: number;
+  column: number;
+  offset: number;
+  length: number;
+  text: string;
+};
+
+export type GrepOptions = {
+  cwd?: string;
+  glob?: string;
+  ignoreCase?: boolean;
+  maxMatches?: number;
+};
+
+export const grep = async (
+  pattern: string | RegExp,
+  options?: GrepOptions,
+) => {
+  const cwd = normalizePath(options?.cwd ?? "/");
+  const flags = options?.ignoreCase ? "gi" : "g";
+  const regex =
+    typeof pattern === "string" ? new RegExp(pattern, flags) : pattern;
+  const max = options?.maxMatches ?? Infinity;
+  const matches: GrepMatch[] = [];
+
+  const filePaths = options?.glob
+    ? await glob(options.glob, { cwd, files: true, dirs: false })
+    : await ls(cwd, { recursive: true, includeFiles: true, includeDirs: false });
+
+  for (const filePath of filePaths) {
+    if (matches.length >= max) break;
+
+    let text: string;
+    try {
+      text = await file(filePath).text();
+    } catch {
+      continue;
+    }
+
+    const lines = text.split("\n");
+    let charOffset = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (matches.length >= max) break;
+      regex.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(lines[i])) !== null) {
+        matches.push({
+          path: filePath,
+          line: i + 1,
+          column: m.index + 1,
+          offset: charOffset + m.index,
+          length: m[0].length,
+          text: lines[i],
+        });
+        if (matches.length >= max) break;
+        if (!regex.global) break;
+      }
+      charOffset += lines[i].length + 1;
+    }
+  }
+
+  return matches;
+};
+
 const globToRegExp = (segment: string) => {
   const escaped = segment.replace(/[.+^${}()|\\]/g, "\\$&");
   const regex = escaped

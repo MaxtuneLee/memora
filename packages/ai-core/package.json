@@ -24,6 +24,7 @@
     "typescript": "~5.9.3"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^2.0.35"
+    "@ai-sdk/openai-compatible": "^2.0.35",
+    "@valibot/to-json-schema": "^1.5.0"
   }
 }

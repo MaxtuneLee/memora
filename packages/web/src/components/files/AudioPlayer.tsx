@@ -94,12 +94,18 @@ export const AudioPlayer = memo(
       const tick = () => {
         const t = playerTimeRef.current;
         const dur = effectiveDurationRef.current;
+        const mediaDuration = audioRef.current?.duration;
+        const hasSeekableDuration =
+          (Number.isFinite(dur) && dur > 0) ||
+          (typeof mediaDuration === "number" &&
+            Number.isFinite(mediaDuration) &&
+            mediaDuration > 0);
 
         if (timeRef) {
           timeRef.current = t;
         }
 
-        if (seekRef && seekRef.current != null) {
+        if (seekRef && seekRef.current != null && hasSeekableDuration) {
           seek(seekRef.current);
           seekRef.current = null;
         }

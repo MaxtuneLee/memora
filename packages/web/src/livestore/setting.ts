@@ -10,6 +10,8 @@ export const settingsTable = State.SQLite.clientDocument({
     autoTranscribe: Schema.Boolean,
     autoIndex: Schema.Boolean,
     sidebarCollapsed: Schema.Boolean,
+    selectedProviderId: Schema.String,
+    selectedModel: Schema.String,
   }),
   default: {
     id: "user-settings",
@@ -21,6 +23,8 @@ export const settingsTable = State.SQLite.clientDocument({
       autoTranscribe: true,
       autoIndex: true,
       sidebarCollapsed: false,
+      selectedProviderId: "",
+      selectedModel: "",
     },
   },
 });

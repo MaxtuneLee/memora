@@ -106,6 +106,11 @@
       "sourceType": "github",
       "computedHash": "3585dec9d286d35da6da40f6682586d1582a78234773148c7e291c5d604dba9e"
     },
+    "valibot": {
+      "source": "open-circle/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6798b923c1bbe9b07cb8c40470ada09c377d666045caefda90d95577e16e8744"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

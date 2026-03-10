@@ -1,12 +1,15 @@
 import { useCallback, useState } from "react";
 import { useStore } from "@livestore/react";
+import { Toast } from "@base-ui/react/toast";
 import { Desktop, UploadDialog, useUploadDialog } from "@/features/desktop";
 import { fileEvents } from "@/livestore/file";
 import { deleteRecording as deleteFile, getMediaDuration, saveRecording } from "@/lib/fileService";
 import type { FileType, RecordingMeta } from "@/lib/files";
+import ToastStack from "@/components/ToastStack";
 
 export const Component = () => {
   const { store } = useStore();
+  const { add, close } = Toast.useToastManager();
 
   const {
     audioInputRef,
@@ -28,33 +31,34 @@ export const Component = () => {
     if (file.type.startsWith("video/")) return "video";
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("text/")) return "document";
-    if (file.name.toLowerCase().endsWith(".md")) return "document";
+    if (file.type.startsWith("application/")) return "document";
+    const ext = file.name.toLowerCase();
+    if (ext.endsWith(".md") || ext.endsWith(".pdf") || ext.endsWith(".doc") || ext.endsWith(".docx") || ext.endsWith(".txt")) return "document";
+    if (file.type.startsWith("audio/")) return "audio";
     return "audio";
   }, []);
 
-  const handleUploadConfirm = useCallback(async () => {
-    if (!selectedFile) return;
-    setIsUploading(true);
-    try {
+  const uploadSingleFile = useCallback(
+    async (file: File, name: string, parentId: string | null) => {
       const createdAt = Date.now();
-      const type = resolveFileType(selectedFile);
+      const type = resolveFileType(file);
       const isMedia = type === "audio" || type === "video";
 
       const [result, detectedDuration] = await Promise.all([
         saveRecording({
-          blob: selectedFile,
-          name: uploadName || selectedFile.name,
+          blob: file,
+          name,
           type,
-          mimeType: selectedFile.type,
-          parentId: uploadParentId,
+          mimeType: file.type,
+          parentId,
           createdAt,
         }),
-        isMedia ? getMediaDuration(selectedFile) : Promise.resolve(null),
+        isMedia ? getMediaDuration(file) : Promise.resolve(null),
       ]);
 
       const durationSec = detectedDuration ?? result.meta.durationSec ?? undefined;
-
       const createdAtDate = new Date(result.meta.createdAt);
+
       store.commit(
         fileEvents.fileCreated({
           id: result.id,
@@ -71,15 +75,66 @@ export const Component = () => {
           createdAt: createdAtDate,
         }),
       );
+
+      return result;
+    },
+    [resolveFileType, store],
+  );
+
+  const handleUploadConfirm = useCallback(async () => {
+    if (!selectedFile) return;
+    setIsUploading(true);
+    try {
+      await uploadSingleFile(selectedFile, uploadName || selectedFile.name, uploadParentId);
+      add({ title: "File uploaded", type: "success" });
     } catch (err) {
       console.error("Failed to upload file:", err);
+      add({
+        title: "Upload failed",
+        description: err instanceof Error ? err.message : "An unknown error occurred.",
+        type: "error",
+      });
     } finally {
       setIsUploading(false);
       setSelectedFile(null);
       setUploadName("");
       setUploadParentId(null);
     }
-  }, [selectedFile, uploadName, store, setIsUploading, setSelectedFile, setUploadName, resolveFileType, uploadParentId]);
+  }, [selectedFile, uploadName, uploadParentId, uploadSingleFile, setIsUploading, setSelectedFile, setUploadName, add]);
+
+  const handleNativeFileDrop = useCallback(
+    async (files: File[], parentId: string | null) => {
+      let successCount = 0;
+      let failCount = 0;
+
+      await Promise.all(
+        files.map(async (file) => {
+          const baseName = file.name.replace(/\.[^/.]+$/, "") || file.name;
+          try {
+            await uploadSingleFile(file, baseName, parentId);
+            successCount += 1;
+          } catch (err) {
+            console.error("Failed to upload dropped file:", err);
+            failCount += 1;
+          }
+        }),
+      );
+
+      if (successCount > 0) {
+        add({
+          title: `${successCount} file${successCount > 1 ? "s" : ""} uploaded`,
+          type: "success",
+        });
+      }
+      if (failCount > 0) {
+        add({
+          title: `${failCount} file${failCount > 1 ? "s" : ""} failed to upload`,
+          type: "error",
+        });
+      }
+    },
+    [uploadSingleFile, add],
+  );
 
   const handleOpenFilePicker = useCallback(
     (parentId: string | null) => {
@@ -96,20 +151,33 @@ export const Component = () => {
     [],
   );
 
+  const toastIconColor = (type?: string) => {
+    switch (type) {
+      case "success":
+        return "bg-emerald-500";
+      case "error":
+        return "bg-rose-500";
+      default:
+        return "bg-zinc-400";
+    }
+  };
+
   return (
     <div className="h-full w-full">
-      <Desktop onUploadFile={handleOpenFilePicker} onDeleteFile={handleDeleteFile} />
+      <Desktop
+        onUploadFile={handleOpenFilePicker}
+        onNativeFileDrop={handleNativeFileDrop}
+        onDeleteFile={handleDeleteFile}
+      />
 
-      {/* Hidden file input for upload */}
       <input
         ref={audioInputRef}
         type="file"
-        accept="audio/*,video/*,image/*,text/*,.md"
+        accept="audio/*,video/*,image/*,text/*,application/pdf,.md,.pdf,.doc,.docx"
         className="hidden"
         onChange={handleInputChange}
       />
 
-      {/* Upload confirmation dialog */}
       <UploadDialog
         isOpen={isOpen}
         selectedFile={selectedFile}
@@ -118,6 +186,32 @@ export const Component = () => {
         isUploading={isUploading}
         onCancel={handleCancel}
         onConfirm={handleUploadConfirm}
+      />
+
+      <ToastStack
+        render={(toast) => (
+          <Toast.Content className="flex items-start gap-3 transition">
+            <span
+              className={`mt-1 block size-2 shrink-0 rounded-full ${toastIconColor(toast.type as string)}`}
+            />
+            <div className="min-w-0 flex-1">
+              <Toast.Title className="text-sm font-medium text-zinc-900">
+                {toast.title as string}
+              </Toast.Title>
+              {toast.description && (
+                <Toast.Description className="mt-0.5 text-xs text-zinc-500">
+                  {toast.description as string}
+                </Toast.Description>
+              )}
+            </div>
+            <Toast.Close
+              className="shrink-0 text-zinc-400 transition hover:text-zinc-700"
+              onClick={() => close(toast.id)}
+            >
+              <span className="text-xs">&#10005;</span>
+            </Toast.Close>
+          </Toast.Content>
+        )}
       />
     </div>
   );

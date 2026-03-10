@@ -3,7 +3,6 @@ import { useMemo, useCallback } from "react";
 import {
   FileTextIcon,
   FolderPlusIcon,
-  MicrophoneIcon,
   PencilSimpleIcon,
   TrashIcon,
   UploadIcon,
@@ -70,8 +69,17 @@ export function DesktopContextMenu({
   if (!isOpen) return null;
 
   return (
-    <Menu.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <Menu.Portal>
+    <Menu.Root
+      open={isOpen}
+      onOpenChange={(open, event) => {
+        if (!open) {
+          const reason = event.reason;
+          if (reason === "outside-press" || reason === "escape-key" || reason === "item-press") {
+            onClose();
+          }
+        }
+      }}
+    >      <Menu.Portal>
         <Menu.Positioner
           className="z-30"
           anchor={virtualAnchor}
@@ -100,13 +108,6 @@ export function DesktopContextMenu({
                 >
                   <FileTextIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>New Note</span>
-                </Menu.Item>
-                <Menu.Item
-                  className={menuItemClassName}
-                  onClick={onUploadAudio}
-                >
-                  <MicrophoneIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
-                  <span>Record Voice</span>
                 </Menu.Item>
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
                 <Menu.Item

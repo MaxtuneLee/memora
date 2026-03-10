@@ -87,12 +87,13 @@ export function DesktopItem({
         width: GRID_SIZE,
         zIndex: isDragging ? 12 : isSelected ? 3 : 1,
         cursor: isDragging ? "grabbing" : "default",
-        opacity: isDragging ? 0.8 : 1,
+        opacity: isDragging ? 0 : 1,
       }
     : {
         position: "relative",
         zIndex: isSelected ? 3 : 1,
         cursor: "default",
+        opacity: isDragging ? 0 : 1,
       };
 
   const handleClick = (e: React.MouseEvent) => {

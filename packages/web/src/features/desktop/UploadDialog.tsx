@@ -3,6 +3,17 @@ import { Dialog } from "@base-ui/react/dialog";
 import { XIcon } from "@phosphor-icons/react";
 import { formatBytes } from "@/lib/format";
 
+const resolveFileLabel = (file: File | null): string => {
+  if (!file) return "File";
+  if (file.type.startsWith("video/")) return "Video";
+  if (file.type.startsWith("image/")) return "Image";
+  if (file.type.startsWith("text/") || file.type.startsWith("application/")) return "Document";
+  const ext = file.name.toLowerCase();
+  if (ext.endsWith(".md") || ext.endsWith(".pdf") || ext.endsWith(".doc") || ext.endsWith(".docx") || ext.endsWith(".txt")) return "Document";
+  if (file.type.startsWith("audio/")) return "Audio";
+  return "File";
+};
+
 interface UploadDialogProps {
   isOpen: boolean;
   selectedFile: File | null;
@@ -30,7 +41,7 @@ export function UploadDialog({
           <div className="flex items-start justify-between">
             <div>
               <Dialog.Title className="text-lg font-semibold text-zinc-900">
-                Upload Audio
+                Upload {resolveFileLabel(selectedFile)}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-zinc-500">
                 Confirm the file details before uploading.
