@@ -31,6 +31,7 @@ export type {
   ResponsesFunctionToolDefinition,
   ResponsesBuiltinToolDefinition,
   ResponsesRequestPayload,
+  TokenUsage,
   ToolDefinition,
   AgentEvent,
   WebSearchStatus,

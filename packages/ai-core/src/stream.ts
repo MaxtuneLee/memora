@@ -1,4 +1,4 @@
-import type { AgentEvent, WebSearchStatus } from "./types";
+import type { AgentEvent, TokenUsage, WebSearchStatus } from "./types";
 
 // ─── Chat Completions SSE types ───
 
@@ -6,6 +6,11 @@ interface SSEChunkDelta {
   role?: string;
   content?: string;
   reasoning_content?: string;
+  reasoning?: string;
+  reasoning_details?: Array<{
+    text?: string;
+    [key: string]: unknown;
+  }>;
   tool_calls?: Array<{
     index: number;
     id?: string;
@@ -20,10 +25,13 @@ interface SSEChunkDelta {
 interface SSEChunk {
   id?: string;
   object?: string;
+  provider?: string;
+  usage?: Record<string, unknown>;
   choices?: Array<{
     index: number;
     delta: SSEChunkDelta;
     finish_reason: string | null;
+    native_finish_reason?: string | null;
   }>;
 }
 
@@ -36,6 +44,7 @@ interface ResponsesSSEEvent {
   content_index?: number;
   delta?: string;
   text?: string;
+  usage?: Record<string, unknown>;
   part?: Record<string, unknown>;
   item?: {
     type?: string;
@@ -52,6 +61,7 @@ interface ResponsesSSEEvent {
   response?: {
     id?: string;
     status?: string;
+    usage?: Record<string, unknown>;
     error?: { message?: string; code?: string };
     output?: Array<{
       type?: string;
@@ -66,6 +76,77 @@ interface ResponsesSSEEvent {
   };
 }
 
+const normalizeUsageValue = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+  return value;
+};
+
+const normalizeTokenUsage = (value: unknown): TokenUsage | undefined => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const inputTokens = normalizeUsageValue(
+    candidate.input_tokens ?? candidate.inputTokens ?? candidate.prompt_tokens,
+  );
+  const outputTokens = normalizeUsageValue(
+    candidate.output_tokens ??
+      candidate.outputTokens ??
+      candidate.completion_tokens,
+  );
+  const totalTokens = normalizeUsageValue(
+    candidate.total_tokens ?? candidate.totalTokens,
+  );
+
+  if (
+    inputTokens === undefined &&
+    outputTokens === undefined &&
+    totalTokens === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...(inputTokens !== undefined ? { inputTokens } : {}),
+    ...(outputTokens !== undefined ? { outputTokens } : {}),
+    ...(totalTokens !== undefined ? { totalTokens } : {}),
+  };
+};
+
+const normalizeChunkText = (value: unknown): string | undefined => {
+  if (typeof value !== "string" || value.length === 0) {
+    return undefined;
+  }
+
+  return value;
+};
+
+const extractReasoningText = (delta: SSEChunkDelta): string | undefined => {
+  const reasoningContent = normalizeChunkText(delta.reasoning_content);
+  if (reasoningContent) {
+    return reasoningContent;
+  }
+
+  const reasoning = normalizeChunkText(delta.reasoning);
+  if (reasoning) {
+    return reasoning;
+  }
+
+  if (!Array.isArray(delta.reasoning_details)) {
+    return undefined;
+  }
+
+  const reasoningDetails = delta.reasoning_details
+    .map((detail) => normalizeChunkText(detail.text))
+    .filter((text): text is string => text !== undefined)
+    .join("");
+
+  return reasoningDetails || undefined;
+};
+
 export async function* parseSSEStream(
   response: Response,
 ): AsyncGenerator<AgentEvent> {
@@ -77,12 +158,42 @@ export async function* parseSSEStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  let currentText = "";
   let reasoningText = "";
   const pendingToolCalls = new Map<
     number,
     { id: string; name: string; arguments: string }
   >();
+
+  const flushReasoning = (): AgentEvent[] => {
+    if (!reasoningText) {
+      return [];
+    }
+
+    const text = reasoningText;
+    reasoningText = "";
+    return [{ type: "reasoning-done", text }];
+  };
+
+  const finalizePendingToolCalls = (): AgentEvent[] => {
+    const events: AgentEvent[] = [];
+
+    for (const [idx, tc] of pendingToolCalls) {
+      let parsedArgs: Record<string, unknown> = {};
+      try {
+        parsedArgs = JSON.parse(tc.arguments);
+      } catch {
+        parsedArgs = {};
+      }
+
+      events.push({
+        type: "tool-call-complete",
+        toolCall: { id: tc.id, name: tc.name, arguments: parsedArgs },
+      });
+      pendingToolCalls.delete(idx);
+    }
+
+    return events;
+  };
 
   try {
     while (true) {
@@ -101,17 +212,11 @@ export async function* parseSSEStream(
         const data = trimmed.slice(6);
 
         if (data === "[DONE]") {
-          for (const [, tc] of pendingToolCalls) {
-            let parsedArgs: Record<string, unknown> = {};
-            try {
-              parsedArgs = JSON.parse(tc.arguments);
-            } catch {
-              parsedArgs = {};
-            }
-            yield {
-              type: "tool-call-complete",
-              toolCall: { id: tc.id, name: tc.name, arguments: parsedArgs },
-            };
+          for (const event of flushReasoning()) {
+            yield event;
+          }
+          for (const event of finalizePendingToolCalls()) {
+            yield event;
           }
           return;
         }
@@ -123,29 +228,32 @@ export async function* parseSSEStream(
           continue;
         }
 
+        const usage = normalizeTokenUsage(chunk.usage);
+        if (usage) {
+          yield { type: "usage", usage };
+        }
+
         const choice = chunk.choices?.[0];
         if (!choice) continue;
 
         const delta = choice.delta;
+        const reasoningDelta = extractReasoningText(delta);
 
-        if (delta.reasoning_content) {
-          reasoningText += delta.reasoning_content;
-          yield { type: "reasoning-delta", delta: delta.reasoning_content };
+        if (reasoningDelta) {
+          reasoningText += reasoningDelta;
+          yield { type: "reasoning-delta", delta: reasoningDelta };
         }
 
         if (delta.content) {
-          if (reasoningText) {
-            yield { type: "reasoning-done", text: reasoningText };
-            reasoningText = "";
+          for (const event of flushReasoning()) {
+            yield event;
           }
-          currentText += delta.content;
           yield { type: "text-delta", delta: delta.content };
         }
 
         if (delta.tool_calls) {
-          if (reasoningText) {
-            yield { type: "reasoning-done", text: reasoningText };
-            reasoningText = "";
+          for (const event of flushReasoning()) {
+            yield event;
           }
           for (const tc of delta.tool_calls) {
             const idx = tc.index;
@@ -179,22 +287,25 @@ export async function* parseSSEStream(
           }
         }
 
+        if (choice.finish_reason) {
+          for (const event of flushReasoning()) {
+            yield event;
+          }
+        }
+
         if (choice.finish_reason === "tool_calls") {
-          for (const [idx, tc] of pendingToolCalls) {
-            let parsedArgs: Record<string, unknown> = {};
-            try {
-              parsedArgs = JSON.parse(tc.arguments);
-            } catch {
-              parsedArgs = {};
-            }
-            yield {
-              type: "tool-call-complete",
-              toolCall: { id: tc.id, name: tc.name, arguments: parsedArgs },
-            };
-            pendingToolCalls.delete(idx);
+          for (const event of finalizePendingToolCalls()) {
+            yield event;
           }
         }
       }
+    }
+
+    for (const event of flushReasoning()) {
+      yield event;
+    }
+    for (const event of finalizePendingToolCalls()) {
+      yield event;
     }
   } finally {
     reader.releaseLock();
@@ -301,6 +412,14 @@ export async function* parseResponsesStream(
       }
 
       case "response.output_text.done": {
+        break;
+      }
+
+      case "response.usage": {
+        const usage = normalizeTokenUsage(event.usage ?? event.response?.usage);
+        if (usage) {
+          yield { type: "usage", usage };
+        }
         break;
       }
 
@@ -417,6 +536,10 @@ export async function* parseResponsesStream(
       }
 
       case "response.completed": {
+        const usage = normalizeTokenUsage(event.response?.usage ?? event.usage);
+        if (usage) {
+          yield { type: "usage", usage };
+        }
         for (const [, fc] of pendingFunctionCalls) {
           let parsedArgs: Record<string, unknown> = {};
           try {

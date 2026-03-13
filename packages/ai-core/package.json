@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch"
+    "dev": "tsdown --watch",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "tsdown": "^0.15.0",

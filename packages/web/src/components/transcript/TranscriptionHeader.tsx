@@ -6,11 +6,11 @@ import {
 import { Button } from "@base-ui/react/button";
 import { Menu } from "@base-ui/react/menu";
 import { useMemo, type ReactNode } from "react";
-import { AudioVisualizer } from "@/components/AudioVisualizer";
-import { LanguageSelector } from "@/components/LanguageSelector";
-import type { SettingsSectionId } from "@/components/SettingsDialog";
-import { useSettingsDialog } from "@/hooks/useSettingDialog";
-import { BackButton } from "@/components/backButton";
+import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
+import { LanguageSelector } from "@/components/transcript/LanguageSelector";
+import type { SettingsSectionId } from "@/types/settings";
+import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
+import { BackButton } from "@/components/transcript/BackButton";
 
 interface TranscriptionHeaderProps {
   stream: MediaStream | null;

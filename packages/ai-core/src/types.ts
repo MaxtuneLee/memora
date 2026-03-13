@@ -111,6 +111,9 @@ export interface LLMRequestPayload {
   messages: LLMMessage[];
   tools?: LLMToolDefinition[];
   stream: true;
+  stream_options?: {
+    include_usage?: boolean;
+  };
   temperature?: number;
   max_tokens?: number;
 }
@@ -182,6 +185,12 @@ export interface ResponsesRequestPayload {
   max_output_tokens?: number;
 }
 
+export interface TokenUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
 // ─── Tool System ───
 
 export interface ToolDefinition<TParams = unknown, TResult = unknown> {
@@ -200,6 +209,7 @@ export type AgentEvent =
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-delta"; delta: string }
   | { type: "reasoning-done"; text: string }
+  | { type: "usage"; usage: TokenUsage }
   | { type: "tool-call-start"; toolCall: { id: string; name: string } }
   | {
       type: "tool-call-args-delta";
@@ -236,7 +246,7 @@ export type AgentEvent =
   | { type: "thinking"; text: string }
   | { type: "status"; status: string }
   | { type: "error"; error: Error }
-  | { type: "done"; message: AgentMessage };
+  | { type: "done"; message: AgentMessage; usage?: TokenUsage };
 
 // ─── Loop State ───
 
@@ -308,6 +318,7 @@ export interface ThinkResult {
   text: string;
   reasoning: string;
   toolCalls: AgentMessageContent[];
+  usage?: TokenUsage;
 }
 
 export type ResponseTransformer = (

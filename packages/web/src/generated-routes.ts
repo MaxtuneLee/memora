@@ -6,17 +6,12 @@
 import type { RouteObject } from "react-router"
 
 // Imports for page components
-const lazy0 = () => import("./pages/chat/ChatHistoryPanel")
-const lazy1 = () => import("./pages/chat/ChatMessage")
-const lazy2 = () => import("./pages/chat/StatusBar")
-const lazy3 = () => import("./pages/chat/ThinkingPanel")
-const lazy4 = () => import("./pages/chat/ToolWriteApprovalDialog")
-const lazy5 = () => import("./pages/chat/index")
-const lazy6 = () => import("./pages/files/index")
-const lazy7 = () => import("./pages/transcript/file/[id]")
-const lazy8 = () => import("./pages/transcript/live")
-const lazy9 = () => import("./pages/transcript/index")
-const lazy10 = () => import("./pages/index")
+const lazy0 = () => import("./pages/chat/index")
+const lazy1 = () => import("./pages/files/index")
+const lazy2 = () => import("./pages/transcript/file/[id]")
+const lazy3 = () => import("./pages/transcript/live")
+const lazy4 = () => import("./pages/transcript/index")
+const lazy5 = () => import("./pages/index")
 
 // Generated route configuration
 export const routes: RouteObject[] = [
@@ -24,28 +19,8 @@ export const routes: RouteObject[] = [
     "path": "chat",
     "children": [
       {
-        "path": "ChatHistoryPanel",
-        "lazy": lazy0
-      },
-      {
-        "path": "ChatMessage",
-        "lazy": lazy1
-      },
-      {
-        "path": "StatusBar",
-        "lazy": lazy2
-      },
-      {
-        "path": "ThinkingPanel",
-        "lazy": lazy3
-      },
-      {
-        "path": "ToolWriteApprovalDialog",
-        "lazy": lazy4
-      },
-      {
         "path": "",
-        "lazy": lazy5
+        "lazy": lazy0
       }
     ]
   },
@@ -54,7 +29,7 @@ export const routes: RouteObject[] = [
     "children": [
       {
         "path": "",
-        "lazy": lazy6
+        "lazy": lazy1
       }
     ]
   },
@@ -66,23 +41,23 @@ export const routes: RouteObject[] = [
         "children": [
           {
             "path": ":id",
-            "lazy": lazy7
+            "lazy": lazy2
           }
         ]
       },
       {
         "path": "live",
-        "lazy": lazy8
+        "lazy": lazy3
       },
       {
         "path": "",
-        "lazy": lazy9
+        "lazy": lazy4
       }
     ]
   },
   {
     "path": "",
-    "lazy": lazy10
+    "lazy": lazy5
   }
 ]
 

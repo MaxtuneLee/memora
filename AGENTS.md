@@ -10,10 +10,11 @@
 ### Workspace basics
 - Install deps: `pnpm install`
 - Run commands for a package: `pnpm --filter @memora/web <command>`
+- Root shortcuts: `pnpm dev:web`, `pnpm build:web`, `pnpm lint:web`
 
 ### Development
 - Dev server: `pnpm --filter @memora/web dev`
-  - Vite runs on port `9000` (see `packages/web/vite.config.ts`).
+  - Vite runs on port `9001` (see `packages/web/vite.config.ts`).
 - Preview build: `pnpm --filter @memora/web preview`
 
 ### Build

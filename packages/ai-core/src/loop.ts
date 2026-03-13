@@ -16,6 +16,7 @@ import type {
   ThinkResult,
   ToolDefinition,
   PromptSegment,
+  TokenUsage,
 } from "./types";
 import { ContextManager, createContextManager } from "./context";
 import { ToolRegistry, createToolRegistry } from "./tools";
@@ -67,28 +68,49 @@ const trimContext = (messages: AgentMessage[], maxChars: number): AgentMessage[]
 };
 
 const PERSONALITY_MEMORY_KEY = "personality";
+const NOTICES_MEMORY_KEY = "notices";
 
-const mergeSystemPromptWithPersonality = (
+interface MemoryNotice {
+  text: string;
+}
+
+const mergeSystemPromptWithMemory = (
   systemPrompt: string,
   personalityText: string,
+  notices: MemoryNotice[],
 ): string => {
   const normalizedSystemPrompt = systemPrompt.trim();
   const normalizedPersonality = personalityText.trim();
-  if (!normalizedPersonality) {
+  const normalizedNotices = notices
+    .map((notice) => (typeof notice.text === "string" ? notice.text.trim() : ""))
+    .filter((notice) => notice.length > 0);
+
+  const memorySections: string[] = [];
+  if (normalizedPersonality) {
+    memorySections.push([
+      "## User Personality Context",
+      normalizedPersonality,
+    ].join("\n\n"));
+  }
+
+  if (normalizedNotices.length > 0) {
+    memorySections.push([
+      "## Stable User Preferences",
+      ...normalizedNotices.map((notice) => `- ${notice}`),
+    ].join("\n"));
+  }
+
+  if (memorySections.length === 0) {
     return normalizedSystemPrompt;
   }
 
   if (!normalizedSystemPrompt) {
-    return [
-      "## User Personality Context",
-      normalizedPersonality,
-    ].join("\n\n");
+    return memorySections.join("\n\n");
   }
 
   return [
     normalizedSystemPrompt,
-    "## User Personality Context",
-    normalizedPersonality,
+    ...memorySections,
   ].join("\n\n");
 };
 
@@ -230,7 +252,11 @@ export class Agent {
             );
           }
 
-          yield { type: "done", message: assistantMessage };
+          yield {
+            type: "done",
+            message: assistantMessage,
+            ...(thinkResult.usage ? { usage: thinkResult.usage } : {}),
+          };
           return;
         }
 
@@ -352,12 +378,14 @@ export class Agent {
       const personality = await this.context.loadMemory<string>(
         PERSONALITY_MEMORY_KEY,
       );
-      if (typeof personality === "string" && personality.trim().length > 0) {
-        finalSystemPrompt = mergeSystemPromptWithPersonality(
-          finalSystemPrompt,
-          personality,
-        );
-      }
+      const notices = await this.context.loadMemory<MemoryNotice[]>(
+        NOTICES_MEMORY_KEY,
+      );
+      finalSystemPrompt = mergeSystemPromptWithMemory(
+        finalSystemPrompt,
+        typeof personality === "string" ? personality : "",
+        Array.isArray(notices) ? notices : [],
+      );
     } catch {
       // Personality context is best-effort; failures should not block chat.
     }
@@ -419,6 +447,9 @@ export class Agent {
         model: this.config.model,
         messages: llmMessages,
         stream: true,
+        stream_options: {
+          include_usage: true,
+        },
         ...(toolDefs.length > 0 ? { tools: toolDefs } : {}),
         ...(this.config.temperature !== undefined
           ? { temperature: this.config.temperature }
@@ -446,6 +477,7 @@ export class Agent {
 
     let text = "";
     const collectedEvents: AgentEvent[] = [];
+    let usage: TokenUsage | undefined;
 
     for await (const event of streamParser(response)) {
       if (this.state.aborted) break;
@@ -455,10 +487,16 @@ export class Agent {
 
       if (event.type === "text-delta") {
         text += event.delta;
+      } else if (event.type === "usage") {
+        usage = event.usage;
       }
     }
 
-    return this.transform.runResponse(collectedEvents);
+    const result = await this.transform.runResponse(collectedEvents);
+    return {
+      ...result,
+      usage,
+    };
   }
 
   private createHookContext(): HookContext {
