@@ -171,7 +171,6 @@ export const Component = () => {
 
       <div className="flex justify-center">
         <Persona
-          variant="obsidian"
           state={personaState}
           className="size-28 opacity-50"
         />

@@ -29,14 +29,16 @@ function NavItem({ icon: Icon, label, to, isActive }: NavItemProps) {
         "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
         isActive
           ? "bg-white/80 text-zinc-900 shadow-sm"
-          : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900"
+          : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
       )}
     >
       <Icon
         weight={isActive ? "fill" : "regular"}
         className={cn(
           "size-4 shrink-0 transition-colors",
-          isActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600"
+          isActive
+            ? "text-zinc-900"
+            : "text-zinc-400 group-hover:text-zinc-600",
         )}
       />
       <span className="truncate">{label}</span>
@@ -76,9 +78,11 @@ export function Sidebar() {
     <aside className="flex h-full w-[260px] flex-col border-r border-zinc-200/70 bg-[#f7f2e9]/80 backdrop-blur-xl">
       <div className="flex h-12 flex-none items-center justify-between px-4">
         <div className="flex items-center gap-2 font-semibold text-zinc-900 select-none">
-          <div className="flex size-6 items-center justify-center rounded-md bg-zinc-900 text-white shadow-sm">
-            <span className="text-xs font-bold leading-none">M</span>
-          </div>
+          <img
+            src="/memora-icon.svg"
+            alt="Memora"
+            className="size-6 rounded-md"
+          />
           <span>Memora</span>
         </div>
         <Button
@@ -162,7 +166,7 @@ export function Sidebar() {
             "group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
             isSettingsOpen
               ? "bg-white/80 text-zinc-900 shadow-sm"
-              : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900"
+              : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
           )}
         >
           <GearIcon
@@ -171,7 +175,7 @@ export function Sidebar() {
               "size-4 shrink-0 transition-colors",
               isSettingsOpen
                 ? "text-zinc-900"
-                : "text-zinc-400 group-hover:text-zinc-600"
+                : "text-zinc-400 group-hover:text-zinc-600",
             )}
           />
           <span>Settings</span>

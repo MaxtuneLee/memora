@@ -3,6 +3,9 @@ import { useMemo } from "react";
 import { Link } from "react-router";
 
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
+import MemoraMascot, {
+  type MemoraMascotState,
+} from "@/components/assistant/MemoraMascot";
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
@@ -167,6 +170,14 @@ export function ChatMessage({
     !parsedContent.cleanedContent &&
     parsedContent.jumpCards.length === 0;
   const tokenUsageText = isUser ? null : formatTokenUsage(message.usage);
+  const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
+  const shouldAnimateAssistantAvatar =
+    !isUser &&
+    (isStreaming ||
+      status?.type === "thinking" ||
+      status?.type === "searching" ||
+      status?.type === "tool-calling" ||
+      status?.type === "tool-running");
 
   return (
     <motion.div
@@ -176,10 +187,13 @@ export function ChatMessage({
       className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
     >
       {!isUser && (
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-900">
-          <span className="text-[10px] font-bold text-white leading-none">
-            M
-          </span>
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mocha ring-[#ddd1c1]">
+          <MemoraMascot
+            state={assistantAvatarState}
+            animated={shouldAnimateAssistantAvatar}
+            decorative
+            className="size-7"
+          />
         </div>
       )}
       <div
@@ -191,14 +205,15 @@ export function ChatMessage({
         )}
       >
         {message.attachments && message.attachments.length > 0 && (
-          <div className={cn(message.content ? "mb-3" : "") }>
+          <div className={cn(message.content ? "mb-3" : "")}>
             <ChatImageAttachmentGallery
               attachments={message.attachments}
               tone={isUser ? "user" : "composer"}
               savingAttachmentIds={savingAttachmentIds}
               onSaveToLibrary={
                 onSaveImageToLibrary
-                  ? (attachmentId) => onSaveImageToLibrary(message.id, attachmentId)
+                  ? (attachmentId) =>
+                      onSaveImageToLibrary(message.id, attachmentId)
                   : undefined
               }
             />
@@ -297,4 +312,23 @@ export function ChatMessage({
       </div>
     </motion.div>
   );
+}
+
+function getAssistantAvatarState(
+  status: AgentStatus | undefined,
+  isStreaming: boolean,
+): MemoraMascotState {
+  if (status?.type === "thinking" || status?.type === "searching") {
+    return "thinking";
+  }
+
+  if (status?.type === "tool-calling" || status?.type === "tool-running") {
+    return "listening";
+  }
+
+  if (isStreaming || status?.type === "generating") {
+    return "speaking";
+  }
+
+  return "idle";
 }

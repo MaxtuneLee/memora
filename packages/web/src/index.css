@@ -6,6 +6,7 @@
 
 @theme {
   --animate-shimmer: shimmer 2s infinite;
+  --color-mocha: #aebe79;
 }
 
 @keyframes shimmer {

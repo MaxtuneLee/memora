@@ -87,9 +87,6 @@ importers:
       '@ricky0123/vad-web':
         specifier: ^0.0.30
         version: 0.0.30
-      '@rive-app/react-webgl2':
-        specifier: ^4.26.1
-        version: 4.26.1(react@19.2.3)
       '@streamdown/cjk':
         specifier: ^1.0.2
         version: 1.0.2(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.3)(unified@11.0.5)
@@ -1900,14 +1897,6 @@ packages:
 
   '@ricky0123/vad-web@0.0.30':
     resolution: {integrity: sha512-cJyYrh4YeeUBJcbR9Bic/bFDyB9qBkAepvpuWM3vLxnAi7bC3VHzf51UeNdT+OtY4D7MLAgV8iJMc4z41ZnaWg==}
-
-  '@rive-app/react-webgl2@4.26.1':
-    resolution: {integrity: sha512-zUyJvoEutjUXRnE5rQAEDxV4F+kLJzFkWCEQRO3mAk/wMxWYmgZjr6fUTJyjWCsdEP2APwODl4+J1uU5SldRmg==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
-
-  '@rive-app/webgl2@2.34.1':
-    resolution: {integrity: sha512-xxdz1XJaVp0OOsg9CJZ8gNtfPerqtAXnOpPg2autwZWgQ+0OSNvxhfUOA80+R/7BxxqNLQDcCjj7vs3pAQy7Wg==}
 
   '@rolldown/binding-android-arm64@1.0.0-beta.45':
     resolution: {integrity: sha512-bfgKYhFiXJALeA/riil908+2vlyWGdwa7Ju5S+JgWZYdR4jtiPOGdM6WLfso1dojCh+4ZWeiTwPeV9IKQEX+4g==}
@@ -7013,13 +7002,6 @@ snapshots:
   '@ricky0123/vad-web@0.0.30':
     dependencies:
       onnxruntime-web: 1.23.2
-
-  '@rive-app/react-webgl2@4.26.1(react@19.2.3)':
-    dependencies:
-      '@rive-app/webgl2': 2.34.1
-      react: 19.2.3
-
-  '@rive-app/webgl2@2.34.1': {}
 
   '@rolldown/binding-android-arm64@1.0.0-beta.45':
     optional: true
