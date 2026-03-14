@@ -13,11 +13,14 @@ export default function SettingsStorageSection({
   open,
 }: SettingsStorageSectionProps) {
   const {
+    breakdownSegments,
+    contentCategories,
+    contentUsage,
     storageUsage,
     storageQuota,
+    usagePercentageLabel,
     isStoragePersistent,
     isStorageSupported,
-    categories,
     handleRequestPersistence,
   } = useStorageSettings({ open });
   const [isPersistRequesting, setIsPersistRequesting] = useState(false);
@@ -28,13 +31,12 @@ export default function SettingsStorageSection({
 
     return `${formatBytes(storageUsage)} of ${formatBytes(storageQuota)} used`;
   }, [storageQuota, storageUsage]);
-  const usagePercentage = useMemo(() => {
-    if (!storageQuota) {
-      return 0;
-    }
-
-    return Math.min(100, Math.round((storageUsage / storageQuota) * 100));
-  }, [storageQuota, storageUsage]);
+  const visibleBreakdownSegments = useMemo(() => {
+    return breakdownSegments.filter((segment) => segment.size > 0);
+  }, [breakdownSegments]);
+  const visibleContentCategories = useMemo(() => {
+    return contentCategories.filter((category) => category.size > 0);
+  }, [contentCategories]);
 
   const handlePersistClick = async (): Promise<void> => {
     if (isPersistRequesting) {
@@ -52,37 +54,88 @@ export default function SettingsStorageSection({
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h4 className="text-sm font-semibold text-zinc-900">
-              Local storage usage
+              Browser storage
             </h4>
             <p className="mt-1 text-sm text-zinc-500">{storageSummary}</p>
+            <p className="mt-2 text-xs text-zinc-400">
+              Includes user content, local databases, caches, and service
+              workers.
+            </p>
           </div>
-          <span className="text-xs font-semibold text-zinc-500">
-            {usagePercentage}%
+          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-zinc-600 shadow-sm">
+            {usagePercentageLabel}
           </span>
         </div>
         <div className="mt-3 flex h-2 w-full overflow-hidden rounded-full bg-zinc-200">
-          {categories.map((category) => (
+          {visibleBreakdownSegments.map((segment) => (
             <div
-              key={category.id}
-              className={category.color}
-              style={{ width: `${category.fraction * 100}%` }}
+              key={segment.id}
+              className={segment.color}
+              style={{ width: `${segment.fraction * 100}%` }}
             />
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap gap-3 text-xs text-zinc-500">
-          {categories.map((category) => (
-            <div key={category.id} className="flex items-center gap-1.5">
-              <span className={`size-2 rounded-full ${category.color}`} />
-              <span>{category.label}</span>
-              <span className="text-[11px] text-zinc-400">
-                {formatBytes(category.size)}
-              </span>
-            </div>
-          ))}
+        {visibleBreakdownSegments.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-3 text-xs text-zinc-500">
+            {visibleBreakdownSegments.map((segment) => (
+              <div key={segment.id} className="flex items-center gap-1.5">
+                <span className={cn("size-2 rounded-full", segment.color)} />
+                <span>{segment.label}</span>
+                <span className="text-[11px] text-zinc-400">
+                  {formatBytes(segment.size)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-zinc-400">No browser storage used yet.</p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-900">
+              User content
+            </h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              Files and downloaded models saved by Memora.
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-zinc-900">
+            {formatBytes(contentUsage)}
+          </span>
         </div>
+        {visibleContentCategories.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {visibleContentCategories.map((category) => (
+              <div key={category.id}>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 text-zinc-700">
+                    <span className={cn("size-2 rounded-full", category.color)} />
+                    <span>{category.label}</span>
+                  </div>
+                  <span className="text-xs font-medium text-zinc-400">
+                    {formatBytes(category.size)}
+                  </span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className={cn("h-full rounded-full", category.color)}
+                    style={{ width: `${category.fraction * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-500">
+            No user files stored yet.
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -103,7 +156,7 @@ export default function SettingsStorageSection({
             <span
               className={cn(
                 "size-2 rounded-full",
-                isStoragePersistent ? "bg-emerald-500" : "bg-amber-500",
+                isStoragePersistent ? "bg-[#879a4f]" : "bg-[#b07a63]",
               )}
             />
             {isStoragePersistent ? "Enabled" : "Not enabled"}

@@ -1,15 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStore } from "@livestore/react";
 import { Toast } from "@base-ui/react/toast";
+import { useLocation, useNavigate } from "react-router";
 import { Desktop, UploadDialog } from "@/components/desktop";
 import { useUploadDialog } from "@/hooks/desktop/useUploadDialog";
 import { fileEvents } from "@/livestore/file";
 import { deleteRecording as deleteFile, getMediaDuration, saveRecording } from "@/lib/library/fileService";
 import type { FileType, RecordingMeta } from "@/types/library";
+import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search";
 import ToastStack from "@/components/ToastStack";
 
 export const Component = () => {
   const { store } = useStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { add, close } = Toast.useToastManager();
 
   const {
@@ -27,6 +31,8 @@ export const Component = () => {
   } = useUploadDialog();
 
   const [uploadParentId, setUploadParentId] = useState<string | null>(null);
+  const [externalIntent, setExternalIntent] =
+    useState<PendingDesktopIntent | null>(null);
 
   const resolveFileType = useCallback((file: File): FileType => {
     if (file.type.startsWith("video/")) return "video";
@@ -152,6 +158,26 @@ export const Component = () => {
     [],
   );
 
+  const handleExternalIntentHandled = useCallback((requestId: string) => {
+    setExternalIntent((prev) =>
+      prev?.requestId === requestId ? null : prev,
+    );
+  }, []);
+
+  useEffect(() => {
+    const routeState = location.state as SearchNavigationState | null;
+    const pendingIntent = routeState?.searchDesktopIntent;
+    if (!pendingIntent) {
+      return;
+    }
+
+    setExternalIntent(pendingIntent);
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
+    });
+  }, [location.pathname, location.search, location.state, navigate]);
+
   const toastIconColor = (type?: string) => {
     switch (type) {
       case "success":
@@ -166,6 +192,8 @@ export const Component = () => {
   return (
     <div className="h-full w-full">
       <Desktop
+        externalIntent={externalIntent}
+        onExternalIntentHandled={handleExternalIntentHandled}
         onUploadFile={handleOpenFilePicker}
         onNativeFileDrop={handleNativeFileDrop}
         onDeleteFile={handleDeleteFile}

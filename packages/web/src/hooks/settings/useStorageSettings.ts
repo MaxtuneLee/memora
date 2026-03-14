@@ -14,7 +14,10 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
     storageQuota,
     isStoragePersistent,
     isStorageSupported,
-    categories,
+    breakdownSegments,
+    contentCategories,
+    contentUsage,
+    usagePercentageLabel,
     refreshStorageState,
   } = useStorageStats({ autoRefresh: false });
 
@@ -61,7 +64,10 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
     storageQuota,
     isStoragePersistent,
     isStorageSupported,
-    categories,
+    breakdownSegments,
+    contentCategories,
+    contentUsage,
+    usagePercentageLabel,
     handleRequestPersistence,
   };
 };

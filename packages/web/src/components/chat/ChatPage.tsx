@@ -6,6 +6,7 @@ import {
   useCallback,
   type FormEvent,
 } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
   SparkleIcon,
   PenNibIcon,
@@ -87,6 +88,7 @@ import {
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
 import { saveRecording } from "@/lib/library/fileService";
+import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
 
 interface SuggestionCard {
   icon: React.ElementType;
@@ -359,9 +361,21 @@ const hasImageItems = (dataTransfer: DataTransfer | null): boolean => {
 
 export const Component = () => {
   const { store } = useStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
   const activeFileRows = store.useQuery(chatActiveFilesQuery$) as LiveStoreFile[];
   const activeFolderRows = store.useQuery(chatActiveFoldersQuery$) as LiveStoreFolder[];
+  const requestedSessionId = useMemo(() => {
+    const value = new URLSearchParams(location.search).get("session");
+    return value?.trim() ?? "";
+  }, [location.search]);
+  const shouldCreateSessionFromUrl = useMemo(() => {
+    return new URLSearchParams(location.search).get("new") === "1";
+  }, [location.search]);
+  const initialRequestedSessionIdRef = useRef(requestedSessionId);
+  const initialCreateSessionRef = useRef(shouldCreateSessionFromUrl);
+  const initialLocationKeyRef = useRef(location.key);
   const [settings] = useClientDocument(settingsTable);
   const { openSettings } = useSettingsDialog();
   const referenceScopeRef = useRef<ResolvedReferenceScope>(EMPTY_REFERENCE_SCOPE);
@@ -374,7 +388,7 @@ export const Component = () => {
     [],
   );
   const promptSegments = useMemo(
-    () => [SYSTEM_PROMPT, referencePromptSegment],
+    () => [SYSTEM_PROMPT, BUILT_IN_SKILLS_PROMPT, referencePromptSegment],
     [referencePromptSegment],
   );
 
@@ -420,6 +434,8 @@ export const Component = () => {
   const [isOnboardingSubmitting, setIsOnboardingSubmitting] = useState(false);
   const [userIdentityInput, setUserIdentityInput] = useState("");
   const persistedSignaturesRef = useRef<Map<string, string>>(new Map());
+  const handledNewLocationKeyRef = useRef<string | null>(null);
+  const pendingLocationSessionIdRef = useRef<string | null>(null);
   const sessionWriteApprovalRef = useRef<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const composerImagesRef = useRef<ChatImageAttachment[]>([]);
@@ -546,6 +562,26 @@ export const Component = () => {
     MAX_CHAT_IMAGE_ATTACHMENTS - composerImages.length,
   );
 
+  const replaceChatLocation = useCallback(
+    (sessionId: string) => {
+      pendingLocationSessionIdRef.current = sessionId;
+      navigate(`/chat?session=${encodeURIComponent(sessionId)}`, {
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (!requestedSessionId) {
+      return;
+    }
+
+    if (pendingLocationSessionIdRef.current === requestedSessionId) {
+      pendingLocationSessionIdRef.current = null;
+    }
+  }, [requestedSessionId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -555,13 +591,27 @@ export const Component = () => {
 
       try {
         let summaries = await listChatSessions();
-        if (summaries.length === 0) {
+        let forcedSessionId: string | null = null;
+
+        if (summaries.length === 0 || initialCreateSessionRef.current) {
           const created = await createChatSession();
-          summaries = [toSessionSummary(created)];
+          const createdSummary = toSessionSummary(created);
+          summaries = [
+            createdSummary,
+            ...summaries.filter((summary) => summary.id !== createdSummary.id),
+          ];
+          forcedSessionId = created.id;
+          if (initialCreateSessionRef.current) {
+            handledNewLocationKeyRef.current = initialLocationKeyRef.current;
+          }
         }
 
         const sorted = [...summaries].sort((a, b) => b.updatedAt - a.updatedAt);
-        const initialSessionId = sorted[0]?.id;
+        const requestedSummary = initialRequestedSessionIdRef.current
+          ? sorted.find((summary) => summary.id === initialRequestedSessionIdRef.current)
+          : null;
+        const initialSessionId =
+          requestedSummary?.id ?? forcedSessionId ?? sorted[0]?.id;
         if (!initialSessionId) {
           throw new Error("No session available");
         }
@@ -579,6 +629,13 @@ export const Component = () => {
           initialSessionId,
           buildSessionSignature(initialMessages, initialReferences),
         );
+        if (
+          !requestedSummary ||
+          initialCreateSessionRef.current ||
+          !initialRequestedSessionIdRef.current
+        ) {
+          replaceChatLocation(initialSessionId);
+        }
       } catch (err) {
         if (cancelled) return;
         const message =
@@ -596,7 +653,7 @@ export const Component = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [replaceChatLocation]);
 
   useEffect(() => {
     setActiveReferences((prev) => {
@@ -965,11 +1022,12 @@ export const Component = () => {
     setReferencePickerSource(null);
     setReferenceNotice(null);
     setUserToggled(false);
+    replaceChatLocation(created.id);
     if (inputRef.current) {
       inputRef.current.value = "";
       inputRef.current.focus();
     }
-  }, [abort, isPreparingTurn, isStreaming, sessionsReady]);
+  }, [abort, isPreparingTurn, isStreaming, replaceChatLocation, sessionsReady]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
@@ -994,11 +1052,19 @@ export const Component = () => {
       setReferencePickerSource(null);
       setReferenceNotice(null);
       setUserToggled(false);
+      replaceChatLocation(session.id);
       if (inputRef.current) {
         inputRef.current.value = "";
       }
     },
-    [abort, activeSessionId, isPreparingTurn, isStreaming, sessionsReady],
+    [
+      abort,
+      activeSessionId,
+      isPreparingTurn,
+      isStreaming,
+      replaceChatLocation,
+      sessionsReady,
+    ],
   );
 
   const handlePromptDeleteSession = useCallback(
@@ -1052,6 +1118,7 @@ export const Component = () => {
             created.id,
             buildSessionSignature([], []),
           );
+          replaceChatLocation(created.id);
           return;
         }
 
@@ -1066,6 +1133,7 @@ export const Component = () => {
           nextSessionId,
           buildSessionSignature(nextMessages, nextReferences),
         );
+        replaceChatLocation(nextSessionId);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to delete chat session.";
@@ -1074,8 +1142,77 @@ export const Component = () => {
         setDeletingSessionId(null);
       }
     },
-    [abort, activeSessionId, isPreparingTurn, isStreaming, sessions, sessionsReady],
+    [
+      abort,
+      activeSessionId,
+      isPreparingTurn,
+      isStreaming,
+      replaceChatLocation,
+      sessions,
+      sessionsReady,
+    ],
   );
+
+  useEffect(() => {
+    if (!sessionsReady || !shouldCreateSessionFromUrl) return;
+    if (handledNewLocationKeyRef.current === location.key) return;
+    handledNewLocationKeyRef.current = location.key;
+    void handleCreateSession();
+  }, [
+    handleCreateSession,
+    location.key,
+    sessionsReady,
+    shouldCreateSessionFromUrl,
+  ]);
+
+  useEffect(() => {
+    if (!sessionsReady || !activeSessionId) return;
+    if (shouldCreateSessionFromUrl) return;
+
+    if (
+      pendingLocationSessionIdRef.current === activeSessionId &&
+      requestedSessionId !== activeSessionId
+    ) {
+      return;
+    }
+
+    if (!requestedSessionId) {
+      replaceChatLocation(activeSessionId);
+      return;
+    }
+
+    if (requestedSessionId === activeSessionId) {
+      return;
+    }
+
+    const requestedExists = sessions.some(
+      (session) => session.id === requestedSessionId,
+    );
+    if (requestedExists) {
+      void handleSelectSession(requestedSessionId);
+      return;
+    }
+
+    const fallbackSessionId = sessions[0]?.id ?? activeSessionId;
+    if (!fallbackSessionId) {
+      return;
+    }
+
+    if (fallbackSessionId === activeSessionId) {
+      replaceChatLocation(fallbackSessionId);
+      return;
+    }
+
+    void handleSelectSession(fallbackSessionId);
+  }, [
+    activeSessionId,
+    handleSelectSession,
+    replaceChatLocation,
+    requestedSessionId,
+    sessions,
+    sessionsReady,
+    shouldCreateSessionFromUrl,
+  ]);
 
   const closeReferencePicker = useCallback(() => {
     setReferencePickerOpen(false);

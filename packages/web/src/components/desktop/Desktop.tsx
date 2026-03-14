@@ -40,6 +40,7 @@ import {
 } from "@/lib/desktop/queries";
 import { TrashWindow } from "./TrashWindow";
 import { useTrashActions } from "@/hooks/desktop/useTrashActions";
+import type { PendingDesktopIntent } from "@/types/search";
 
 const DESKTOP_ROOT_ID = "desktop-root";
 
@@ -60,6 +61,8 @@ const DesktopDropZone = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement
 );
 
 interface DesktopProps {
+  externalIntent?: PendingDesktopIntent | null;
+  onExternalIntentHandled?: (requestId: string) => void;
   onUploadFile: (parentId: string | null) => void;
   onNativeFileDrop?: (files: File[], parentId: string | null) => void;
   onDeleteFile: (file: RecordingMeta) => Promise<void>;
@@ -89,7 +92,13 @@ const ROOT_WINDOW_ID = "root";
 const TRASH_WINDOW_ID = "trash";
 const TRASH_ITEM_ID = "trash";
 
-export function Desktop({ onUploadFile, onNativeFileDrop, onDeleteFile }: DesktopProps) {
+export function Desktop({
+  externalIntent = null,
+  onExternalIntentHandled,
+  onUploadFile,
+  onNativeFileDrop,
+  onDeleteFile,
+}: DesktopProps) {
   const { store } = useStore();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
@@ -104,6 +113,7 @@ export function Desktop({ onUploadFile, onNativeFileDrop, onDeleteFile }: Deskto
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [nativeDragOver, setNativeDragOver] = useState(false);
   const nativeDragCounterRef = useRef(0);
+  const lastHandledExternalIntentRef = useRef<string | null>(null);
 
   const mapToMeta = useCallback((file: LiveStoreFile): RecordingMeta => {
     return mapLiveStoreFileToMeta(file);
@@ -893,6 +903,43 @@ export function Desktop({ onUploadFile, onNativeFileDrop, onDeleteFile }: Deskto
       requestTrash(item);
     }
   }, [closeContextMenu, contextMenu.targetId, items, requestTrash]);
+
+  useEffect(() => {
+    if (!externalIntent) return;
+    if (lastHandledExternalIntentRef.current === externalIntent.requestId) {
+      return;
+    }
+
+    lastHandledExternalIntentRef.current = externalIntent.requestId;
+
+    switch (externalIntent.intent.type) {
+      case "openPreview":
+        openPreviewWindow(externalIntent.intent.fileId);
+        break;
+      case "openFolder":
+        openFolderWindow(externalIntent.intent.folderId);
+        break;
+      case "newFolder":
+        handleNewFolder(externalIntent.intent.parentId);
+        break;
+      case "openTrash":
+        openTrashWindow();
+        break;
+      case "uploadFile":
+        onUploadFile(externalIntent.intent.parentId);
+        break;
+    }
+
+    onExternalIntentHandled?.(externalIntent.requestId);
+  }, [
+    externalIntent,
+    handleNewFolder,
+    onExternalIntentHandled,
+    onUploadFile,
+    openFolderWindow,
+    openPreviewWindow,
+    openTrashWindow,
+  ]);
 
   return (
     <Tooltip.Provider>

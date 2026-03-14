@@ -20,6 +20,11 @@ export const SETTINGS_SECTIONS = [
     description: "Review and manage the assistant's saved long-term memory.",
   },
   {
+    id: "skills",
+    label: "Skills",
+    description: "Inspect built-in skills bundled with the app.",
+  },
+  {
     id: "data-storage",
     label: "Data Storage",
     description: "Storage usage and persistence options.",

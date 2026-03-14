@@ -11,6 +11,7 @@ import {
 import { Button } from "@base-ui/react/button";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
+import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 
 interface NavItemProps {
@@ -69,6 +70,7 @@ export function Sidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const { openSettings, isSettingsOpen } = useSettingsDialog();
+  const { openSearch, isSearchOpen } = useSearchPalette();
 
   return (
     <aside className="flex h-full w-[260px] flex-col border-r border-zinc-200/70 bg-[#f7f2e9]/80 backdrop-blur-xl">
@@ -88,7 +90,18 @@ export function Sidebar() {
       </div>
 
       <div className="mb-4 px-3">
-        <Button className="flex w-full items-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-2 text-sm text-zinc-400 shadow-sm transition-colors hover:border-zinc-300 hover:text-zinc-600 focus-visible:ring-2 focus-visible:ring-zinc-400 outline-none select-none">
+        <Button
+          aria-label="Open global search"
+          aria-expanded={isSearchOpen}
+          aria-haspopup="dialog"
+          onClick={(event) => openSearch(event.currentTarget)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 outline-none select-none",
+            isSearchOpen
+              ? "border-[#aebe79] bg-[#f8f3df] text-[#55672e]"
+              : "border-zinc-200/80 bg-white/80 text-zinc-400 hover:border-zinc-300 hover:text-zinc-600",
+          )}
+        >
           <MagnifyingGlassIcon className="size-4" />
           <span>Search...</span>
           <kbd className="ml-auto min-w-[20px] rounded border border-zinc-200 px-1 text-[10px] font-medium text-zinc-300 text-center">

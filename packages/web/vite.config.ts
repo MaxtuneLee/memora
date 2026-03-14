@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -8,9 +9,20 @@ import { livestoreDevtoolsPlugin } from "@livestore/devtools-vite";
 import path from "node:path";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
+const APP_VERSION =
+  (
+    JSON.parse(
+      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+    ) as {
+      version?: string;
+    }
+  ).version ?? "0.0.0";
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [
     livestoreDevtoolsPlugin({
       schemaPath: "./src/livestore/schema.ts",

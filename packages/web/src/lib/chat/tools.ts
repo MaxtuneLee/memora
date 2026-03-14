@@ -1,9 +1,13 @@
-import type { ToolDefinition } from "@memora/ai-core";
-import type { PromptSegment } from "@memora/ai-core";
+import {
+  createSkillTools,
+  type PromptSegment,
+  type ToolDefinition,
+} from "@memora/ai-core";
 import * as v from "valibot";
 import { cat, file as opfsFile, grep, write as opfsWrite } from "@memora/fs";
 import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 import { extractNoticeCandidatesWithAI } from "@/lib/chat/noticeExtractor";
+import { builtInSkillStore } from "@/lib/skills/builtInSkills";
 import { upsertGlobalMemoryNotices } from "@/lib/settings/personalityStorage";
 import { fileTable } from "@/livestore/file";
 
@@ -257,6 +261,11 @@ export const createChatTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions = {},
 ): ToolDefinition[] => [
+  ...createSkillTools(builtInSkillStore, {
+    activateToolName: "activate_skill",
+    readResourceToolName: "read_skill_resource",
+    contextLabel: "Memora",
+  }),
   {
     type: "function",
     name: "list_chat_sessions",

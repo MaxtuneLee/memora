@@ -5,7 +5,9 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
+import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
+import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import ToastStack from "@/components/ToastStack";
 import { cn } from "@/lib/cn";
@@ -39,8 +41,16 @@ export default function SettingsDialog({
       return <SettingsMemorySection open={open} />;
     }
 
+    if (activeSection === "skills") {
+      return <SettingsSkillsSection />;
+    }
+
     if (activeSection === "data-storage") {
       return <SettingsStorageSection open={open} />;
+    }
+
+    if (activeSection === "about") {
+      return <SettingsAboutSection />;
     }
 
     return (

@@ -4,21 +4,23 @@ import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useMemo } from "react";
 
 export function StorageWidget() {
-  const { storageQuota, isStoragePersistent, categories } =
-    useStorageStats();
+  const {
+    breakdownSegments,
+    storageQuota,
+    storageUsage,
+    isStoragePersistent,
+  } = useStorageStats();
   const { openSettings } = useSettingsDialog();
-
-  const fileUsage = useMemo(
-    () => categories.reduce((total, category) => total + category.size, 0),
-    [categories],
-  );
+  const visibleBreakdownSegments = useMemo(() => {
+    return breakdownSegments.filter((segment) => segment.size > 0);
+  }, [breakdownSegments]);
 
   const storageSummary = useMemo(() => {
     if (!storageQuota) {
       return "Storage usage not available.";
     }
-    return `${formatBytes(fileUsage)} of ${formatBytes(storageQuota)} used`;
-  }, [fileUsage, storageQuota]);
+    return `${formatBytes(storageUsage)} of ${formatBytes(storageQuota)} used`;
+  }, [storageQuota, storageUsage]);
 
   return (
     <div className="absolute bottom-4 right-4 w-72">
@@ -37,41 +39,43 @@ export function StorageWidget() {
               className={`
                 flex items-center gap-1.5 rounded-full px-2 py-0.5 
                 text-[10px] font-medium
-                ${isStoragePersistent ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}
+                ${isStoragePersistent ? "bg-[#eef2e2] text-[#5f7240]" : "bg-[#f3ebe2] text-[#8a6a4d]"}
               `}
             >
               <span
                 className={`size-1.5 rounded-full ${
-                  isStoragePersistent ? "bg-emerald-500" : "bg-amber-500"
+                  isStoragePersistent ? "bg-[#879a4f]" : "bg-[#b07a63]"
                 }`}
               />
               {isStoragePersistent ? "Persistent" : "Temporary"}
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
-            {categories.map((category) => (
+            {visibleBreakdownSegments.map((segment) => (
               <div
-                key={category.id}
-                className={category.color}
-                style={{ width: `${category.fraction * 100}%` }}
+                key={segment.id}
+                className={segment.color}
+                style={{ width: `${segment.fraction * 100}%` }}
               />
             ))}
           </div>
 
-          {/* Category legend */}
-          <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
-            {categories.map((category) => (
-              <div key={category.id} className="flex items-center gap-1">
-                <span className={`size-1.5 rounded-full ${category.color}`} />
-                <span>{category.label}</span>
-                <span className="text-zinc-400">
-                  {formatBytes(category.size)}
-                </span>
-              </div>
-            ))}
-          </div>
+          {visibleBreakdownSegments.length > 0 ? (
+            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+              {visibleBreakdownSegments.map((segment) => (
+                <div key={segment.id} className="flex items-center gap-1">
+                  <span className={`size-1.5 rounded-full ${segment.color}`} />
+                  <span>{segment.label}</span>
+                  <span className="text-zinc-400">
+                    {formatBytes(segment.size)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2.5 text-[10px] text-zinc-400">No storage used yet.</p>
+          )}
         </div>
       </button>
     </div>
