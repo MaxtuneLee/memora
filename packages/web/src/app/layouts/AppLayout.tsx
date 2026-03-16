@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import { Toast } from "@base-ui/react/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "@/app/components/Sidebar";
@@ -9,14 +9,21 @@ import {
   type SearchPaletteContextValue,
 } from "@/hooks/search/useSearchPalette";
 import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialog";
+import { loadGlobalMemoryData } from "@/lib/settings/personalityStorage";
 import type { SettingsSectionId } from "@/types/settings";
 
 export default function AppLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [onboardingGateReady, setOnboardingGateReady] = useState(false);
+  const [hasPersonality, setHasPersonality] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSection, setActiveSection] =
     useState<SettingsSectionId>("general");
   const lastSearchTriggerRef = useRef<HTMLElement | null>(null);
+  const isOnboardingRoute = location.pathname.startsWith("/onboarding");
+  const isChatRoute = location.pathname.startsWith("/chat");
 
   const openSettings = useCallback((section: SettingsSectionId) => {
     setIsSearchOpen(false);
@@ -25,6 +32,10 @@ export default function AppLayout() {
   }, []);
 
   const canOpenSearch = useCallback(() => {
+    if (isOnboardingRoute) {
+      return false;
+    }
+
     if (typeof document === "undefined") {
       return true;
     }
@@ -35,7 +46,7 @@ export default function AppLayout() {
     }
 
     return isSettingsOpen;
-  }, [isSettingsOpen]);
+  }, [isOnboardingRoute, isSettingsOpen]);
 
   const closeSearch = useCallback(
     (options?: { restoreFocus?: boolean }) => {
@@ -113,6 +124,42 @@ export default function AppLayout() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
+    const checkOnboardingGate = async () => {
+      const memory = await loadGlobalMemoryData();
+      const personality = memory?.personality?.trim() ?? "";
+      if (cancelled) {
+        return;
+      }
+
+      setHasPersonality(!!personality);
+      setOnboardingGateReady(true);
+    };
+
+    void checkOnboardingGate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!onboardingGateReady) {
+      return;
+    }
+
+    if (!hasPersonality && isChatRoute) {
+      navigate("/onboarding", { replace: true });
+      return;
+    }
+
+    if (hasPersonality && isOnboardingRoute) {
+      navigate("/chat", { replace: true });
+    }
+  }, [hasPersonality, isChatRoute, isOnboardingRoute, navigate, onboardingGateReady]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
@@ -142,15 +189,23 @@ export default function AppLayout() {
     <Toast.Provider limit={3}>
       <SettingsDialogContextProvider value={settingsValue}>
         <SearchPaletteContextProvider value={searchValue}>
-          <div className="flex h-dvh w-full overflow-hidden bg-[#fffbf2] text-zinc-950 font-sans selection:bg-[#879a4f] selection:text-zinc-950">
-            <Sidebar />
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">
-                <Outlet />
-              </div>
-            </main>
-          </div>
-          <SearchPalette />
+          {!onboardingGateReady ? (
+            <div className="flex h-dvh w-full items-center justify-center bg-[#fffbf2] text-sm text-zinc-500">
+              Preparing your workspace...
+            </div>
+          ) : isOnboardingRoute ? (
+            <Outlet />
+          ) : (
+            <div className="flex h-dvh w-full overflow-hidden bg-[#fffbf2] text-zinc-950 font-sans selection:bg-[#879a4f] selection:text-zinc-950">
+              <Sidebar />
+              <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">
+                  <Outlet />
+                </div>
+              </main>
+            </div>
+          )}
+          {!isOnboardingRoute && <SearchPalette />}
           <SettingsDialog
             open={isSettingsOpen}
             onOpenChange={setIsSettingsOpen}

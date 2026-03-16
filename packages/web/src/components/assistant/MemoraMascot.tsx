@@ -23,6 +23,7 @@ const EYE_TRANSFORM_STYLE = {
   transformOrigin: "center center",
 };
 const INFINITE_REPEAT = Number.POSITIVE_INFINITY;
+const BASE_EYE_STROKE_WIDTH = 8;
 
 export default function MemoraMascot({
   state,
@@ -39,6 +40,8 @@ export default function MemoraMascot({
   const rightEyeMotion = getEyePresenceMotion(state, shouldAnimate, "right");
   const leftBlinkMotion = getBlinkMotion(state, shouldAnimate, "left");
   const rightBlinkMotion = getBlinkMotion(state, shouldAnimate, "right");
+  const leftEyeStrokeMotion = getEyeStrokeWidthMotion(state, shouldAnimate, "left");
+  const rightEyeStrokeMotion = getEyeStrokeWidthMotion(state, shouldAnimate, "right");
 
   return (
     <div
@@ -103,14 +106,17 @@ export default function MemoraMascot({
                 animate={leftBlinkMotion.animate}
                 transition={leftBlinkMotion.transition}
               >
-                <ellipse
+                <motion.ellipse
                   cx="0"
                   cy="0"
                   rx="33"
                   ry="78"
                   fill="none"
                   stroke="#FFFAF2"
-                  strokeWidth="6.5"
+                  strokeWidth={BASE_EYE_STROKE_WIDTH}
+                  style={EYE_TRANSFORM_STYLE}
+                  animate={leftEyeStrokeMotion.animate}
+                  transition={leftEyeStrokeMotion.transition}
                   strokeLinecap="round"
                 />
               </motion.g>
@@ -128,14 +134,17 @@ export default function MemoraMascot({
                 animate={rightBlinkMotion.animate}
                 transition={rightBlinkMotion.transition}
               >
-                <ellipse
+                <motion.ellipse
                   cx="0"
                   cy="0"
                   rx="33"
                   ry="79"
                   fill="none"
                   stroke="#FFFAF2"
-                  strokeWidth="6.5"
+                  strokeWidth={BASE_EYE_STROKE_WIDTH}
+                  style={EYE_TRANSFORM_STYLE}
+                  animate={rightEyeStrokeMotion.animate}
+                  transition={rightEyeStrokeMotion.transition}
                   strokeLinecap="round"
                 />
               </motion.g>
@@ -448,6 +457,83 @@ function getEyePresenceMotion(
     default:
       return {
         animate: { scale: [1, 1.02, 1] },
+        transition: {
+          duration: 4.8,
+          delay,
+          repeat: INFINITE_REPEAT,
+          ease: EASE_OUT_QUINT,
+        },
+      };
+  }
+}
+
+function getEyeStrokeWidthMotion(
+  state: MemoraMascotState,
+  animate: boolean,
+  side: "left" | "right",
+) {
+  const delay = side === "left" ? 0 : 0.03;
+
+  if (!animate) {
+    return {
+      animate: {
+        strokeWidth:
+          state === "listening"
+            ? 11.6
+            : state === "speaking"
+              ? 11.4
+              : state === "asleep"
+                ? 9.2
+                : BASE_EYE_STROKE_WIDTH + 4,
+      },
+    };
+  }
+
+  switch (state) {
+    case "listening":
+      return {
+        animate: { strokeWidth: [10.1, 11.9, 10.1] },
+        transition: {
+          duration: 2.2,
+          delay,
+          repeat: INFINITE_REPEAT,
+          ease: EASE_OUT_QUINT,
+        },
+      };
+    case "thinking":
+      return {
+        animate: { strokeWidth: [9.9, 11.4, 10.2, 11.1, 9.9] },
+        transition: {
+          duration: 3.1,
+          delay,
+          repeat: INFINITE_REPEAT,
+          ease: EASE_OUT_QUINT,
+        },
+      };
+    case "speaking":
+      return {
+        animate: { strokeWidth: [11.2, 9.4, 12, 9.8, 11.3] },
+        transition: {
+          duration: 1.45,
+          delay,
+          repeat: INFINITE_REPEAT,
+          ease: EASE_OUT_QUINT,
+        },
+      };
+    case "asleep":
+      return {
+        animate: { strokeWidth: [8.8, 9.9, 8.8] },
+        transition: {
+          duration: 6.8,
+          delay,
+          repeat: INFINITE_REPEAT,
+          ease: EASE_OUT_QUINT,
+        },
+      };
+    case "idle":
+    default:
+      return {
+        animate: { strokeWidth: [9.9, 11, 9.9] },
         transition: {
           duration: 4.8,
           delay,

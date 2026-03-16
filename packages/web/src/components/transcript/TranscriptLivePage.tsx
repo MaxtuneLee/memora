@@ -172,7 +172,7 @@ export const Component = () => {
       <div className="flex justify-center">
         <Persona
           state={personaState}
-          className="size-28 opacity-50"
+          className="size-28"
         />
       </div>
 

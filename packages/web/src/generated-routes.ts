@@ -8,10 +8,11 @@ import type { RouteObject } from "react-router"
 // Imports for page components
 const lazy0 = () => import("./pages/chat/index")
 const lazy1 = () => import("./pages/files/index")
-const lazy2 = () => import("./pages/transcript/file/[id]")
-const lazy3 = () => import("./pages/transcript/live")
-const lazy4 = () => import("./pages/transcript/index")
-const lazy5 = () => import("./pages/index")
+const lazy2 = () => import("./pages/onboarding/index")
+const lazy3 = () => import("./pages/transcript/file/[id]")
+const lazy4 = () => import("./pages/transcript/live")
+const lazy5 = () => import("./pages/transcript/index")
+const lazy6 = () => import("./pages/index")
 
 // Generated route configuration
 export const routes: RouteObject[] = [
@@ -34,6 +35,15 @@ export const routes: RouteObject[] = [
     ]
   },
   {
+    "path": "onboarding",
+    "children": [
+      {
+        "path": "",
+        "lazy": lazy2
+      }
+    ]
+  },
+  {
     "path": "transcript",
     "children": [
       {
@@ -41,23 +51,23 @@ export const routes: RouteObject[] = [
         "children": [
           {
             "path": ":id",
-            "lazy": lazy2
+            "lazy": lazy3
           }
         ]
       },
       {
         "path": "live",
-        "lazy": lazy3
+        "lazy": lazy4
       },
       {
         "path": "",
-        "lazy": lazy4
+        "lazy": lazy5
       }
     ]
   },
   {
     "path": "",
-    "lazy": lazy5
+    "lazy": lazy6
   }
 ]
 

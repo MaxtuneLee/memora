@@ -12,6 +12,9 @@ export const settingsTable = State.SQLite.clientDocument({
     sidebarCollapsed: Schema.Boolean,
     selectedProviderId: Schema.String,
     selectedModel: Schema.String,
+    onboardingName: Schema.optional(Schema.String),
+    onboardingCompleted: Schema.optional(Schema.Boolean),
+    onboardingSkippedAt: Schema.optional(Schema.String),
   }),
   default: {
     id: "user-settings",
@@ -25,6 +28,9 @@ export const settingsTable = State.SQLite.clientDocument({
       sidebarCollapsed: false,
       selectedProviderId: "",
       selectedModel: "",
+      onboardingName: "",
+      onboardingCompleted: false,
+      onboardingSkippedAt: "",
     },
   },
 });

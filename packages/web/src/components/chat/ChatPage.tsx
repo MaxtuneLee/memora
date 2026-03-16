@@ -48,12 +48,6 @@ import {
   type ChatSessionSummary,
 } from "@/lib/chat/chatSessionStorage";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
-import {
-  loadPersonalityDoc,
-  normalizePersonalityText,
-  savePersonalityDoc,
-} from "@/lib/settings/personalityStorage";
-import { generatePersonalityMarkdownWithAI } from "@/lib/chat/personalityGenerator";
 import { ConfirmDialog } from "@/components/desktop";
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
 import { ChatMessage } from "@/components/chat/ChatMessage";
@@ -88,6 +82,10 @@ import {
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
 import { saveRecording } from "@/lib/library/fileService";
+import {
+  loadGlobalMemoryData,
+  loadPersonalityDoc,
+} from "@/lib/settings/personalityStorage";
 import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
 
 interface SuggestionCard {
@@ -126,17 +124,6 @@ const suggestions: SuggestionCard[] = [
 
 const MAX_REFERENCED_FILES = 200;
 const REFERENCE_MENTION_PATTERN = /@([^\s@]*)$/;
-const PERSONALITY_MEMORY_KEY = "personality";
-const ONBOARDING_IDENTITY_PROMPT =
-  "Hey, I’m your Memora assistant. Before we get started, tell me a bit about you and what you usually want help with.";
-const ONBOARDING_STYLE_PROMPT =
-  "Nice. What kind of assistant style do you want from me? For example: concise, direct, step-by-step, bilingual, etc.";
-const ONBOARDING_DRAFTING_PROMPT =
-  "Got it. Give me a moment to draft your profile.";
-const ONBOARDING_COMPLETE_PROMPT =
-  "Perfect, I’ve saved that. We’re good to go.";
-
-type OnboardingStep = "identity" | "assistantStyle";
 
 const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessage[] => {
   return messages.map((message) => ({
@@ -147,17 +134,6 @@ const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessage[] => 
     thinkingSteps: message.thinkingSteps,
     usage: message.usage,
   }));
-};
-
-const createLocalChatMessage = (
-  role: "user" | "assistant",
-  content: string,
-): AgentChatMessage => {
-  return {
-    id: crypto.randomUUID(),
-    role,
-    content,
-  };
 };
 
 const toSessionSummary = (record: ChatSessionRecord): ChatSessionSummary => {
@@ -359,6 +335,67 @@ const hasImageItems = (dataTransfer: DataTransfer | null): boolean => {
   });
 };
 
+const resolveTimeGreeting = (date: Date): string => {
+  const hour = date.getHours();
+  if (hour < 12) {
+    return "Good morning";
+  }
+  if (hour < 18) {
+    return "Good afternoon";
+  }
+  return "Good evening";
+};
+
+const resolveGreetingName = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized;
+};
+
+const extractNameFromPersonalityMarkdown = (markdown: string): string | null => {
+  const match = markdown.match(
+    /^##\s+User\s+Identity\s*\n([\s\S]*?)(?=\n##\s+|$)/im,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const firstLine = match[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+
+  if (!firstLine) {
+    return null;
+  }
+
+  if (/^not\s+specified$/i.test(firstLine)) {
+    return null;
+  }
+
+  return resolveGreetingName(firstLine);
+};
+
+const loadGreetingName = async (): Promise<string | null> => {
+  const globalMemory = await loadGlobalMemoryData();
+  const fromGlobalMemory = extractNameFromPersonalityMarkdown(
+    globalMemory?.personality ?? "",
+  );
+  if (fromGlobalMemory) {
+    return fromGlobalMemory;
+  }
+
+  const personalityDoc = await loadPersonalityDoc();
+  return extractNameFromPersonalityMarkdown(personalityDoc ?? "");
+};
+
 export const Component = () => {
   const { store } = useStore();
   const location = useLocation();
@@ -414,6 +451,7 @@ export const Component = () => {
   >(null);
   const [referenceNotice, setReferenceNotice] = useState<string | null>(null);
   const [memoryUpdatedNotice, setMemoryUpdatedNotice] = useState(false);
+  const [greetingName, setGreetingName] = useState<string | null>(null);
   const [pendingWriteApproval, setPendingWriteApproval] =
     useState<WriteApprovalRequest | null>(null);
   const [composerTextValue, setComposerTextValue] = useState("");
@@ -426,13 +464,6 @@ export const Component = () => {
   const [savingImageAttachmentIds, setSavingImageAttachmentIds] = useState<string[]>(
     [],
   );
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("identity");
-  const [onboardingMessages, setOnboardingMessages] = useState<AgentChatMessage[]>(
-    [],
-  );
-  const [isOnboardingSubmitting, setIsOnboardingSubmitting] = useState(false);
-  const [userIdentityInput, setUserIdentityInput] = useState("");
   const persistedSignaturesRef = useRef<Map<string, string>>(new Map());
   const handledNewLocationKeyRef = useRef<string | null>(null);
   const pendingLocationSessionIdRef = useRef<string | null>(null);
@@ -713,6 +744,23 @@ export const Component = () => {
     };
   }, [memoryUpdatedNotice]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateGreetingName = async () => {
+      const nextName = await loadGreetingName();
+      if (!cancelled) {
+        setGreetingName(nextName);
+      }
+    };
+
+    void hydrateGreetingName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const persistence = useMemo(() => {
     return activeSessionId
       ? createOpfsSessionPersistenceAdapter(activeSessionId)
@@ -766,7 +814,6 @@ export const Component = () => {
   ]);
 
   const isConfigured = !!selectedProvider && !!selectedModel && !!selectedEndpoint;
-  const isOnboardingGenerationReady = isConfigured && selectedApiKey.length > 0;
 
   const tools = useMemo(
     () =>
@@ -813,8 +860,6 @@ export const Component = () => {
     dismissIterationLimitPrompt,
     abort: abortAgent,
     updateMessage,
-    saveMemory,
-    loadMemory,
   } = useAgent({
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
@@ -830,10 +875,7 @@ export const Component = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
-  const displayedMessages = useMemo(
-    () => (isOnboardingOpen ? [...messages, ...onboardingMessages] : messages),
-    [isOnboardingOpen, messages, onboardingMessages],
-  );
+  const displayedMessages = messages;
   const hasMessages = displayedMessages.length > 0;
   const abort = useCallback(() => {
     resolveWriteApproval("deny");
@@ -894,84 +936,6 @@ export const Component = () => {
       resolver?.("deny");
     };
   }, [cleanupComposerImages]);
-
-  useEffect(() => {
-    if (!sessionsReady || !activeSessionId) return;
-    if (isOnboardingOpen && isOnboardingGenerationReady) return;
-    let cancelled = false;
-
-    const initializePersonality = async () => {
-      setIsOnboardingSubmitting(false);
-      try {
-        const memoryValue = await loadMemory<string>(PERSONALITY_MEMORY_KEY);
-        const normalizedMemory = normalizePersonalityText(memoryValue);
-        if (normalizedMemory) {
-          if (!cancelled) {
-            setIsOnboardingOpen(false);
-            setOnboardingMessages([]);
-          }
-          return;
-        }
-
-        const docValue = await loadPersonalityDoc();
-        const normalizedDoc = normalizePersonalityText(docValue);
-        if (normalizedDoc) {
-          await saveMemory(PERSONALITY_MEMORY_KEY, normalizedDoc);
-          if (!cancelled) {
-            setIsOnboardingOpen(false);
-            setOnboardingMessages([]);
-          }
-          return;
-        }
-
-        if (!isOnboardingGenerationReady) {
-          if (!cancelled) {
-            setIsOnboardingOpen(false);
-            setOnboardingMessages([]);
-          }
-          return;
-        }
-
-        if (!cancelled) {
-          setOnboardingStep("identity");
-          setUserIdentityInput("");
-          setOnboardingMessages([
-            createLocalChatMessage("assistant", ONBOARDING_IDENTITY_PROMPT),
-          ]);
-          setIsOnboardingOpen(true);
-        }
-      } catch (_error) {
-        if (cancelled) return;
-        setOnboardingStep("identity");
-        setUserIdentityInput("");
-        if (!isOnboardingGenerationReady) {
-          setIsOnboardingOpen(false);
-          setOnboardingMessages([]);
-          return;
-        }
-        setOnboardingMessages([
-          createLocalChatMessage(
-            "assistant",
-            "I had trouble loading your profile settings, so we’ll quickly set it up now.",
-          ),
-          createLocalChatMessage("assistant", ONBOARDING_IDENTITY_PROMPT),
-        ]);
-        setIsOnboardingOpen(true);
-      }
-    };
-
-    void initializePersonality();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeSessionId,
-    isOnboardingGenerationReady,
-    isOnboardingOpen,
-    loadMemory,
-    saveMemory,
-    sessionsReady,
-  ]);
 
   useEffect(() => {
     if (!sessionsReady || !activeSessionId) return;
@@ -1430,10 +1394,6 @@ export const Component = () => {
 
   const handleComposerPaste = useCallback(
     (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      if (isOnboardingOpen) {
-        return;
-      }
-
       const imageFiles = Array.from(event.clipboardData.items)
         .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
         .map((item) => item.getAsFile())
@@ -1446,12 +1406,12 @@ export const Component = () => {
       event.preventDefault();
       void addLocalImagesToComposer(imageFiles);
     },
-    [addLocalImagesToComposer, isOnboardingOpen],
+    [addLocalImagesToComposer],
   );
 
   const handleComposerDragEnter = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (!hasImageItems(event.dataTransfer) || isOnboardingOpen) {
+      if (!hasImageItems(event.dataTransfer)) {
         return;
       }
 
@@ -1460,7 +1420,7 @@ export const Component = () => {
       setComposerDragActive(true);
       setImagePickerOpen(true);
     },
-    [isOnboardingOpen],
+    [],
   );
 
   const handleComposerDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
@@ -1569,9 +1529,6 @@ export const Component = () => {
 
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      if (isOnboardingOpen) {
-        return;
-      }
       const value = event.currentTarget.value;
       setComposerTextValue(value);
       const mentionMatch = value.match(REFERENCE_MENTION_PATTERN);
@@ -1586,118 +1543,7 @@ export const Component = () => {
         closeReferencePicker();
       }
     },
-    [closeImagePicker, closeReferencePicker, isOnboardingOpen, referencePickerSource],
-  );
-
-  const handleOnboardingReply = useCallback(
-    async (answer: string) => {
-      if (isOnboardingSubmitting) return;
-
-      const trimmedAnswer = answer.trim();
-      if (!trimmedAnswer) {
-        return;
-      }
-
-      if (onboardingStep === "identity") {
-        setUserIdentityInput(trimmedAnswer);
-        setOnboardingStep("assistantStyle");
-        setOnboardingMessages((prev) => [
-          ...prev,
-          createLocalChatMessage("user", trimmedAnswer),
-          createLocalChatMessage("assistant", ONBOARDING_STYLE_PROMPT),
-        ]);
-        return;
-      }
-
-      const userIdentity = userIdentityInput.trim();
-      if (!userIdentity) {
-        setOnboardingStep("identity");
-        setOnboardingMessages((prev) => [
-          ...prev,
-          createLocalChatMessage(
-            "assistant",
-            "I didn’t catch that intro. Let’s try again: who are you?",
-          ),
-        ]);
-        return;
-      }
-
-      setOnboardingMessages((prev) => [
-        ...prev,
-        createLocalChatMessage("user", trimmedAnswer),
-      ]);
-
-      if (!isOnboardingGenerationReady) {
-        setOnboardingMessages((prev) => [
-          ...prev,
-          createLocalChatMessage(
-            "assistant",
-            "I need a configured API key and model before I can generate your profile. Open settings and set those first.",
-          ),
-        ]);
-        return;
-      }
-
-      setOnboardingMessages((prev) => [
-        ...prev,
-        createLocalChatMessage("assistant", ONBOARDING_DRAFTING_PROMPT),
-      ]);
-      setIsOnboardingSubmitting(true);
-      let personalityMarkdown = "";
-      try {
-        personalityMarkdown = await generatePersonalityMarkdownWithAI({
-          apiFormat: selectedApiFormat,
-          endpoint: selectedEndpoint,
-          apiKey: selectedApiKey,
-          model: selectedModel,
-          userIdentity,
-          assistantStyle: trimmedAnswer,
-        });
-      } catch (_error) {
-        setOnboardingMessages((prev) => [
-          ...prev,
-          createLocalChatMessage(
-            "assistant",
-            "I couldn't generate your profile just now. Please send your preferred assistant style again to retry.",
-          ),
-        ]);
-        setIsOnboardingSubmitting(false);
-        return;
-      }
-
-      try {
-        await savePersonalityDoc(personalityMarkdown);
-        await saveMemory(PERSONALITY_MEMORY_KEY, personalityMarkdown);
-      } catch (_error) {
-        setOnboardingMessages((prev) => [
-          ...prev,
-          createLocalChatMessage(
-            "assistant",
-            "I generated your profile, but couldn't save it. Please send your preferred assistant style again to retry saving.",
-          ),
-        ]);
-        setIsOnboardingSubmitting(false);
-        return;
-      }
-
-      setOnboardingMessages((prev) => [
-        ...prev,
-        createLocalChatMessage("assistant", ONBOARDING_COMPLETE_PROMPT),
-      ]);
-      setIsOnboardingOpen(false);
-      setIsOnboardingSubmitting(false);
-    },
-    [
-      isOnboardingGenerationReady,
-      isOnboardingSubmitting,
-      onboardingStep,
-      saveMemory,
-      selectedApiFormat,
-      selectedApiKey,
-      selectedEndpoint,
-      selectedModel,
-      userIdentityInput,
-    ],
+    [closeImagePicker, closeReferencePicker, referencePickerSource],
   );
 
   const submitMessage = useCallback(async () => {
@@ -1708,24 +1554,6 @@ export const Component = () => {
     const trimmed = inputRef.current?.value.trim() ?? "";
     const nextComposerImages = composerImagesRef.current;
     if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
-      return;
-    }
-
-    if (isOnboardingOpen) {
-      if (trimmed.length === 0) {
-        return;
-      }
-
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
-      cleanupComposerImages(nextComposerImages);
-      setComposerTextValue("");
-      setComposerImages([]);
-      setUserToggled(false);
-      closeReferencePicker();
-      closeImagePicker();
-      await handleOnboardingReply(trimmed);
       return;
     }
 
@@ -1803,10 +1631,7 @@ export const Component = () => {
     activeSessionId,
     closeImagePicker,
     closeReferencePicker,
-    handleOnboardingReply,
-    cleanupComposerImages,
     isConfigured,
-    isOnboardingOpen,
     isPreparingTurn,
     isStreaming,
     openSettings,
@@ -1868,9 +1693,13 @@ export const Component = () => {
   const canSubmitMessage =
     !isStreaming &&
     !isPreparingTurn &&
-    (isOnboardingOpen
-      ? composerTextValue.trim().length > 0
-      : composerTextValue.trim().length > 0 || composerImages.length > 0);
+    (composerTextValue.trim().length > 0 || composerImages.length > 0);
+  const timeGreeting = useMemo(() => resolveTimeGreeting(new Date()), []);
+  const onboardingGreetingName = resolveGreetingName(settings.onboardingName);
+  const effectiveGreetingName = onboardingGreetingName ?? greetingName;
+  const greetingTitle = effectiveGreetingName
+    ? `${timeGreeting}, ${effectiveGreetingName}. What can I help you with today?`
+    : `${timeGreeting}. What can I help you with today?`;
 
   const handleOpenHistoryDrawer = useCallback(() => {
     setIsHistoryDrawerOpen(true);
@@ -2010,7 +1839,7 @@ export const Component = () => {
                 )}
                 <Persona state="idle" className="size-20" />
                 <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-                  What can I help you with?
+                  {greetingTitle}
                 </h1>
                 {!isConfigured && (
                   <button
@@ -2090,7 +1919,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={handleOpenLocalImagePicker}
-                        disabled={!sessionsReady || isOnboardingOpen || remainingImageSlots === 0}
+                        disabled={!sessionsReady || remainingImageSlots === 0}
                         className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Upload
@@ -2098,7 +1927,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={() => setImagePickerOpen((value) => !value)}
-                        disabled={!sessionsReady || isOnboardingOpen}
+                        disabled={!sessionsReady}
                         className="rounded-full border border-zinc-200 bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {imagePickerOpen ? "Hide library" : "Browse library"}
@@ -2127,7 +1956,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={handleOpenLocalImagePicker}
-                        disabled={!sessionsReady || isOnboardingOpen || remainingImageSlots === 0}
+                        disabled={!sessionsReady || remainingImageSlots === 0}
                         className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Upload image
@@ -2281,14 +2110,8 @@ export const Component = () => {
                     onPaste={handleComposerPaste}
                     onCompositionStart={handleCompositionStart}
                     onCompositionEnd={handleCompositionEnd}
-                    placeholder={
-                      isOnboardingOpen
-                        ? onboardingStep === "identity"
-                          ? "Reply with a quick intro..."
-                          : "How do you want me to assist you?"
-                        : "Message Memora..."
-                    }
-                    disabled={isOnboardingSubmitting || isPreparingTurn}
+                    placeholder="Message Memora..."
+                    disabled={isPreparingTurn}
                     rows={1}
                     className="w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
                   />
@@ -2297,7 +2120,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={() => void handleCreateSession()}
-                        disabled={!sessionsReady || isOnboardingOpen || isPreparingTurn}
+                        disabled={!sessionsReady || isPreparingTurn}
                         className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
                         title="New session"
                       >
@@ -2306,7 +2129,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={handleImageButtonClick}
-                        disabled={!sessionsReady || isOnboardingOpen || isPreparingTurn}
+                        disabled={!sessionsReady || isPreparingTurn}
                         className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
                           imagePickerOpen || composerImages.length > 0
                             ? "bg-zinc-900 text-white"
@@ -2319,7 +2142,7 @@ export const Component = () => {
                       <button
                         type="button"
                         onClick={handleReferenceButtonClick}
-                        disabled={!sessionsReady || isOnboardingOpen || isPreparingTurn}
+                        disabled={!sessionsReady || isPreparingTurn}
                         className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
                           referencePickerOpen && referencePickerSource === "button"
                             ? "bg-zinc-900 text-white"
@@ -2348,7 +2171,7 @@ export const Component = () => {
                     ) : (
                       <button
                         type="submit"
-                        disabled={isOnboardingSubmitting || !canSubmitMessage}
+                        disabled={!canSubmitMessage}
                         className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                           canSubmitMessage
                             ? "bg-zinc-900 text-white hover:bg-zinc-800"

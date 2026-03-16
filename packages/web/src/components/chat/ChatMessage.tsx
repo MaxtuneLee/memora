@@ -1,5 +1,5 @@
 import { MicrophoneIcon, VideoCameraIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
@@ -171,9 +171,40 @@ export function ChatMessage({
     parsedContent.jumpCards.length === 0;
   const tokenUsageText = isUser ? null : formatTokenUsage(message.usage);
   const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
+  const [avatarBurstState, setAvatarBurstState] =
+    useState<MemoraMascotState | null>(null);
+  const avatarBurstTimeoutRef = useRef<number | null>(null);
+
+  const triggerAvatarBurst = useCallback(() => {
+    const burstStates: MemoraMascotState[] = ["listening", "thinking", "speaking"];
+    const randomBurstState =
+      burstStates[Math.floor(Math.random() * burstStates.length)] ?? "speaking";
+
+    setAvatarBurstState(randomBurstState);
+
+    if (avatarBurstTimeoutRef.current !== null) {
+      window.clearTimeout(avatarBurstTimeoutRef.current);
+    }
+
+    avatarBurstTimeoutRef.current = window.setTimeout(() => {
+      setAvatarBurstState(null);
+      avatarBurstTimeoutRef.current = null;
+    }, 900);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (avatarBurstTimeoutRef.current !== null) {
+        window.clearTimeout(avatarBurstTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const displayedAssistantAvatarState = avatarBurstState ?? assistantAvatarState;
   const shouldAnimateAssistantAvatar =
     !isUser &&
-    (isStreaming ||
+    (avatarBurstState !== null ||
+      isStreaming ||
       status?.type === "thinking" ||
       status?.type === "searching" ||
       status?.type === "tool-calling" ||
@@ -187,14 +218,19 @@ export function ChatMessage({
       className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
     >
       {!isUser && (
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mocha ring-[#ddd1c1]">
+        <button
+          type="button"
+          onClick={triggerAvatarBurst}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mocha ring-[#ddd1c1] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#91a85b]/45"
+          aria-label="Animate assistant avatar"
+        >
           <MemoraMascot
-            state={assistantAvatarState}
+            state={displayedAssistantAvatarState}
             animated={shouldAnimateAssistantAvatar}
             decorative
             className="size-7"
           />
-        </div>
+        </button>
       )}
       <div
         className={cn(

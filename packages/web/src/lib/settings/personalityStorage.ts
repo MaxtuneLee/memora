@@ -162,11 +162,22 @@ export const savePersonalityDoc = async (content: string): Promise<void> => {
 };
 
 export const buildPersonalityMarkdown = (input: {
-  userIdentity: string;
+  name: string;
+  primaryUseCase?: string;
   assistantStyle: string;
+  languagePreference?: string;
+  aiSetupPreference?: "configure-now" | "later";
 }): string => {
-  const userIdentity = input.userIdentity.trim();
+  const name = input.name.trim();
+  const primaryUseCase = input.primaryUseCase?.trim() ?? "";
   const assistantStyle = input.assistantStyle.trim();
+  const languagePreference = input.languagePreference?.trim() ?? "";
+  const aiSetupPreference =
+    input.aiSetupPreference === "configure-now"
+      ? "Configure AI now"
+      : input.aiSetupPreference === "later"
+        ? "Set up later"
+        : "Not specified";
   const updatedAt = new Date().toISOString();
 
   return [
@@ -176,10 +187,19 @@ export const buildPersonalityMarkdown = (input: {
     "You are Memora's assistant. You support the user with concise, practical, and context-aware help across their files, transcripts, and notes.",
     "",
     "## User Identity",
-    userIdentity,
+    name,
+    "",
+    "## Primary Use Case",
+    primaryUseCase || "Not specified",
     "",
     "## Preferred Assistant Style",
     assistantStyle,
+    "",
+    "## Language Preference",
+    languagePreference || "Not specified",
+    "",
+    "## AI Setup Preference",
+    aiSetupPreference,
     "",
     `## Updated At`,
     updatedAt,

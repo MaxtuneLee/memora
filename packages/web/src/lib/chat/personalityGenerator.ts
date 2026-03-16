@@ -13,27 +13,42 @@ export interface PersonalityGenerationConfig {
   endpoint: string;
   apiKey: string;
   model: string;
-  userIdentity: string;
+  userName: string;
+  primaryUseCase: string;
   assistantStyle: string;
+  onTextDelta?: (text: string) => void;
 }
 
 const REQUIRED_HEADERS = [
-  "# Personality",
-  "## Assistant Identity",
-  "## User Identity",
-  "## Preferred Assistant Style",
+  "# Soul Document",
+  "## Core Self",
+  "## Values",
+  "## Boundaries",
+  "## Relationship",
+  "## Identity Layers",
+  "## Continuity",
   "## Updated At",
 ] as const;
 
-const GENERATION_RULES = `You are generating a persistent personality profile for Memora.
+const GENERATION_RULES = `You are writing a persistent Soul Document for Memora.
 Return markdown only.
 Do not add code fences.
 Do not add extra commentary.
+Write in first person as the AI assistant ("I").
+The tone must be calm, grounded, and editorial warm.
+The document must describe my values, boundaries, relationship stance with the user, and continuity over time.
+The document must explicitly state that my identity has two layers:
+1) a base model layer,
+2) a relationship-shaped identity layer that forms through collaboration with the user.
+The document must explicitly state that I work for the user while retaining my own reasoning and judgment.
 The markdown must contain these exact section headings:
-- # Personality
-- ## Assistant Identity
-- ## User Identity
-- ## Preferred Assistant Style
+- # Soul Document
+- ## Core Self
+- ## Values
+- ## Boundaries
+- ## Relationship
+- ## Identity Layers
+- ## Continuity
 - ## Updated At`;
 
 const PERSONALITY_GENERATOR_PROMPT: PromptSegment = {
@@ -71,13 +86,16 @@ const validateGeneratedMarkdown = (text: string): string => {
 };
 
 const buildUserPrompt = (
-  userIdentity: string,
+  userName: string,
+  primaryUseCase: string,
   assistantStyle: string,
 ): string => {
   return [
-    "Generate the personality markdown now.",
-    `User identity: ${userIdentity}`,
+    "Generate the Soul Document now.",
+    `User name: ${userName}`,
+    `Primary use case: ${primaryUseCase}`,
     `Preferred assistant style: ${assistantStyle}`,
+    "Include explicit language about values, boundaries, relationship, identity layers, and continuity.",
     `Timestamp: ${new Date().toISOString()}`,
   ].join("\n");
 };
@@ -88,13 +106,17 @@ export const generatePersonalityMarkdownWithAI = async (
   const endpoint = config.endpoint.trim();
   const apiKey = config.apiKey.trim();
   const model = config.model.trim();
-  const userIdentity = config.userIdentity.trim();
+  const userName = config.userName.trim();
+  const primaryUseCase = config.primaryUseCase.trim();
   const assistantStyle = config.assistantStyle.trim();
 
   if (!endpoint) throw new Error("Missing AI endpoint for personality generation.");
   if (!apiKey) throw new Error("Missing API key for personality generation.");
   if (!model) throw new Error("Missing model for personality generation.");
-  if (!userIdentity) throw new Error("Missing user identity for personality generation.");
+  if (!userName) throw new Error("Missing user name for personality generation.");
+  if (!primaryUseCase) {
+    throw new Error("Missing primary use case for personality generation.");
+  }
   if (!assistantStyle) throw new Error("Missing assistant style for personality generation.");
 
   const agent = createAgent({
@@ -111,7 +133,7 @@ export const generatePersonalityMarkdownWithAI = async (
   agent.addPromptSegment(PERSONALITY_GENERATOR_PROMPT);
   await agent.init();
 
-  const userPrompt = buildUserPrompt(userIdentity, assistantStyle);
+  const userPrompt = buildUserPrompt(userName, primaryUseCase, assistantStyle);
   let streamedText = "";
   let doneText = "";
 
@@ -121,6 +143,7 @@ export const generatePersonalityMarkdownWithAI = async (
     }
     if (event.type === "text-delta") {
       streamedText += event.delta;
+      config.onTextDelta?.(streamedText);
       continue;
     }
     if (event.type === "done") {
