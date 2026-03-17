@@ -7,10 +7,10 @@ export const BackButton = memo(() => {
   const navigate = useNavigate();
   return (
     <Button
-      className="flex items-center gap-1.5 opacity-65 hover:opacity-90 cursor-pointer select-none"
+      className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900 cursor-pointer select-none"
       onClick={() => navigate(-1)}
     >
-      <ArrowLeftIcon size={24} weight="bold" />
+      <ArrowLeftIcon size={18} weight="bold" />
       <span>Go back</span>
     </Button>
   );

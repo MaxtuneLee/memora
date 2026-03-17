@@ -6,11 +6,13 @@ import type {
   FileType,
   RecordingMeta,
   RecordingTranscript,
-  RecordingWord,
 } from "@/types/library";
 import { TRANSCRIPT_SUFFIX, FILES_DIR } from "@/types/library";
 import { resolveAudioBlob } from "@/lib/library/fileStorage";
-import { TRANSCRIPT_LANGUAGE_STORAGE_KEY, isUsableText } from "@/lib/transcript/transcriptUtils";
+import {
+  TRANSCRIPT_LANGUAGE_STORAGE_KEY,
+  evaluateTranscriptCandidate,
+} from "@/lib/transcript/transcriptUtils";
 import { fileEvents } from "@/livestore/file";
 
 interface ProgressItem {
@@ -263,14 +265,17 @@ export const useFileTranscription = () => {
                     : Array.isArray(e.data.output)
                       ? e.data.output[0]
                       : "";
-
-                const chunks = Array.isArray(e.data.chunks)
-                  ? (e.data.chunks as RecordingWord[])
-                  : [];
+                const chunks = Array.isArray(e.data.chunks) ? e.data.chunks : [];
+                const evaluation = evaluateTranscriptCandidate({
+                  audio: audioData,
+                  text,
+                  words: chunks,
+                });
 
                 const transcript: RecordingTranscript = {
-                  text: isUsableText(text) ? text : "",
-                  words: chunks.filter((c) => Array.isArray(c.timestamp)),
+                  text: evaluation.text,
+                  words: evaluation.words,
+                  diagnostics: evaluation.diagnostics,
                 };
 
                 setStatus("saving");

@@ -12,11 +12,20 @@ export const useRecordingDetail = (id: string | undefined) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioUrlRef = useRef<string | null>(null);
-  const reloadToken = useRef(0);
+  const requestIdRef = useRef(0);
+
+  const revokeAudioUrl = useCallback((url: string | null | undefined) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+  }, []);
 
   const load = useCallback(async (recordingId: string) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     setLoading(true);
     setError(null);
+
     try {
       const metas = await listRecordings();
       const meta = metas.find((item) => item.id === recordingId);
@@ -24,43 +33,69 @@ export const useRecordingDetail = (id: string | undefined) => {
         throw new Error("Recording not found");
       }
 
-      // Revoke old URL if exists
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
+      const audioUrl = await getRecordingAudioUrl(meta);
+      if (requestId !== requestIdRef.current) {
+        revokeAudioUrl(audioUrl);
+        return;
       }
 
-      const audioUrl = await getRecordingAudioUrl(meta);
-      audioUrlRef.current = audioUrl;
       const transcript = meta.transcriptPath
         ? await getRecordingTranscript(meta)
         : null;
+      if (requestId !== requestIdRef.current) {
+        revokeAudioUrl(audioUrl);
+        return;
+      }
+
+      const previousAudioUrl = audioUrlRef.current;
+      audioUrlRef.current = audioUrl;
 
       setRecording({ ...meta, audioUrl: audioUrl ?? undefined, transcript });
+      if (previousAudioUrl && previousAudioUrl !== audioUrl) {
+        window.setTimeout(() => {
+          if (audioUrlRef.current !== previousAudioUrl) {
+            revokeAudioUrl(previousAudioUrl);
+          }
+        }, 0);
+      }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load recording");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [revokeAudioUrl]);
 
   const reload = useCallback(() => {
     if (id) {
-      reloadToken.current += 1;
       void load(id);
     }
   }, [id, load]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      requestIdRef.current += 1;
+      setRecording(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     void load(id);
 
     return () => {
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = null;
-      }
+      requestIdRef.current += 1;
     };
   }, [id, load]);
+
+  useEffect(() => {
+    return () => {
+      revokeAudioUrl(audioUrlRef.current);
+      audioUrlRef.current = null;
+    };
+  }, [revokeAudioUrl]);
 
   return { recording, loading, error, reload };
 };

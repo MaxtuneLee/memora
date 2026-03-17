@@ -20,10 +20,21 @@ type Transcriber = (
   audio: Float32Array,
   options: {
     language?: string;
+    task?: "transcribe";
     return_timestamps?: "word";
     chunk_length_s?: number;
+    max_new_tokens?: number;
   }
 ) => Promise<TimestampedTranscription>;
+
+const WHISPER_MAX_TOKENS_PER_SECOND = 8;
+const WHISPER_MIN_NEW_TOKENS = 24;
+
+const getMaxNewTokens = (audioLength: number) =>
+  Math.max(
+    WHISPER_MIN_NEW_TOKENS,
+    Math.ceil((audioLength / 16_000) * WHISPER_MAX_TOKENS_PER_SECOND),
+  );
 
 // Custom cache backend using OPFS for persistent storage
 class OPFSCache {
@@ -100,7 +111,7 @@ class AutomaticSpeechRecognitionPipeline {
           progress_callback,
           dtype: {
             encoder_model: "fp32",
-            decoder_model_merged: "q4",
+            decoder_model_merged: "fp32",
           },
           device: "webgpu",
         }
@@ -136,34 +147,44 @@ async function generate({
   }
   processing = true;
 
-  // Tell the main thread we are starting
-  console.log("[Worker] Sending start message");
-  self.postMessage({ status: "start" });
+  try {
+    // Tell the main thread we are starting
+    console.log("[Worker] Sending start message");
+    self.postMessage({ status: "start" });
 
-  const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance(
-    (x) => {
-      console.log("[Worker] Pipeline load progress:", x);
-      self.postMessage(x);
-    }
-  );
+    const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance(
+      (x) => {
+        console.log("[Worker] Pipeline load progress:", x);
+        self.postMessage(x);
+      }
+    );
 
-  console.log("[Worker] Transcribing with timestamps");
-  const result = await transcriber(audio, {
-    language,
-    return_timestamps: "word",
-    chunk_length_s: 30,
-  });
+    console.log("[Worker] Transcribing with timestamps");
+    const result = await transcriber(audio, {
+      language,
+      task: "transcribe",
+      return_timestamps: "word",
+      chunk_length_s: 30,
+      max_new_tokens: getMaxNewTokens(audio.length),
+    });
 
-  console.log("[Worker] Generation complete, output:", result.text);
-  self.postMessage({
-    status: "complete",
-    output: result.text,
-    chunks: result.chunks,
-    audio_length: audio.length,
-  });
-
-  processing = false;
-  console.log("[Worker] Processing flag cleared");
+    console.log("[Worker] Generation complete, output:", result.text);
+    self.postMessage({
+      status: "complete",
+      output: result.text,
+      chunks: result.chunks,
+      audio_length: audio.length,
+    });
+  } catch (error) {
+    console.error("[Worker] Generation failed:", error);
+    self.postMessage({
+      status: "error",
+      data: error instanceof Error ? error.message : "Transcription failed",
+    });
+  } finally {
+    processing = false;
+    console.log("[Worker] Processing flag cleared");
+  }
 }
 
 async function load() {

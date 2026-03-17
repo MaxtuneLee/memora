@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RecordingWord } from "@/types/library";
+import { formatDuration } from "@/lib/format";
 
 interface TranscriptSidebarProps {
   words: RecordingWord[];
@@ -49,20 +50,13 @@ const SidebarChunk = memo(
               key={`${word.timestamp[0]}-${i}`}
               ref={isActive ? activeWordRef : undefined}
               onClick={() => onSeek(word.timestamp[0])}
-              className={`cursor-pointer rounded-sm transition-all duration-200 ${
+              className={`cursor-pointer rounded-md px-0.5 py-0.5 transition-colors duration-200 ${
                 isActive
-                  ? "text-[0.8125rem] font-semibold text-zinc-950"
+                  ? "bg-zinc-100 font-medium text-zinc-950"
                   : isPast
-                    ? "text-zinc-950"
-                    : "text-zinc-950/30 hover:text-zinc-950/50"
+                    ? "text-zinc-900 hover:bg-zinc-50"
+                    : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
               }`}
-              style={
-                isActive
-                  ? {
-                      textShadow: "0 0 8px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1)",
-                    }
-                  : undefined
-              }
             >
               {word.text}
             </span>
@@ -187,7 +181,12 @@ export const TranscriptSidebar = ({
   if (words.length === 0 && !text) {
     return (
       <div className="flex h-full items-center justify-center px-6">
-        <p className="text-sm text-zinc-300">No transcript</p>
+        <div className="text-center">
+          <p className="text-sm font-medium text-zinc-700">No transcript yet</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Generate one or add a manual draft to review it here.
+          </p>
+        </div>
       </div>
     );
   }
@@ -196,21 +195,35 @@ export const TranscriptSidebar = ({
     return (
       <div
         ref={scrollRef}
-        className="h-full overflow-y-auto px-6 py-8 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200"
+        className="h-full overflow-y-auto px-5 py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200 md:px-6 md:py-8"
       >
-        <p className="text-xs leading-relaxed text-zinc-500">{text}</p>
+        <p className="w-full text-sm leading-8 text-zinc-600">{text}</p>
       </div>
     );
   }
 
   const activeChunkIdx = activeWordIndex >= 0 ? Math.floor(activeWordIndex / CHUNK_SIZE) : -1;
+  const activeWord = activeWordIndex >= 0 ? words[activeWordIndex] : null;
 
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto px-5 py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200"
+      className="h-full overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200 md:px-5 md:pb-5"
     >
-      <div className="text-xs leading-[1.8]">
+      <div className="sticky top-0 z-10 mb-0 bg-gradient-to-b from-white via-white/95 to-transparent pt-2 pb-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-zinc-500">
+              Tap any word to jump through the recording.
+            </p>
+          </div>
+          <div className="shrink-0 text-xs tabular-nums text-zinc-400">
+            {activeWord ? formatDuration(activeWord.timestamp[0]) : "0:00"}
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full text-base leading-[1.9] text-zinc-800">
         {chunks.map((chunk, chunkIdx) => (
           <SidebarChunk
             key={chunkIdx}

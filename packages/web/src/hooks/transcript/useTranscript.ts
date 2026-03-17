@@ -4,7 +4,11 @@ import { MicVAD } from "@ricky0123/vad-web";
 import { dir as opfsDir } from "@memora/fs";
 
 import { saveRecording } from "@/lib/library/fileService";
-import { DEFAULT_AUDIO_MIME, type RecordingWord } from "@/types/library";
+import {
+  DEFAULT_AUDIO_MIME,
+  type RecordingWord,
+  type TranscriptDiagnostics,
+} from "@/types/library";
 import { fileEvents } from "@/livestore/file";
 import {
   TRANSFORMERS_CACHE_DIR,
@@ -12,7 +16,8 @@ import {
   WHISPER_MAX_SAMPLES,
   WHISPER_SAMPLE_RATE,
   buildWordAnimationWords,
-  isUsableText,
+  evaluateTranscriptCandidate,
+  summarizeTranscriptDiagnostics,
 } from "@/lib/transcript/transcriptUtils";
 
 interface ProgressItem {
@@ -27,7 +32,10 @@ export const useTranscript = () => {
   const pendingSegmentsRef = useRef<
     Array<{ audio: Float32Array; startSec: number }>
   >([]);
-  const currentSegmentRef = useRef<{ startSec: number } | null>(null);
+  const currentSegmentRef = useRef<{
+    audio: Float32Array;
+    startSec: number;
+  } | null>(null);
   const recordingRef = useRef(false);
   const isProcessingRef = useRef(false);
   const [language, setLanguage] = useState(() => {
@@ -55,9 +63,11 @@ export const useTranscript = () => {
   const recordingIdRef = useRef<string | null>(null);
   const recordingTextRef = useRef("");
   const recordingWordsRef = useRef<RecordingWord[]>([]);
+  const accumulatedTextRef = useRef("");
   const speechStartTimeRef = useRef<number | null>(null);
   const speechStartSecRef = useRef<number | null>(null);
   const speechBufferOffsetSecRef = useRef(0);
+  const segmentDiagnosticsRef = useRef<TranscriptDiagnostics[]>([]);
   const pendingSaveRef = useRef(false);
   const saveInProgressRef = useRef(false);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -68,7 +78,10 @@ export const useTranscript = () => {
   const [isCheckingCache, setIsCheckingCache] = useState(true);
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
   const [accumulatedText, setAccumulatedText] = useState("");
+  const [currentSegmentPrefix, setCurrentSegmentPrefix] = useState("");
   const [currentSegment, setCurrentSegment] = useState("");
+  const [lastSegmentDiagnostics, setLastSegmentDiagnostics] =
+    useState<TranscriptDiagnostics | null>(null);
   const [tps, setTps] = useState<number | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recording, setRecording] = useState(false);
@@ -102,7 +115,7 @@ export const useTranscript = () => {
     if (!next) return;
 
     isProcessingRef.current = true;
-    currentSegmentRef.current = { startSec: next.startSec };
+    currentSegmentRef.current = { audio: next.audio, startSec: next.startSec };
     worker.current?.postMessage({
       type: "generate",
       data: { audio: next.audio, language: languageRef.current },
@@ -141,6 +154,8 @@ export const useTranscript = () => {
     }
     wordAnimationQueueRef.current = [];
     wordAnimationRunningRef.current = false;
+    setCurrentSegmentPrefix("");
+    setCurrentSegment("");
   }, []);
 
   const enqueueWordAnimation = useCallback(
@@ -158,20 +173,28 @@ export const useTranscript = () => {
         const job = wordAnimationQueueRef.current.shift();
         if (!job) {
           wordAnimationRunningRef.current = false;
+          setCurrentSegmentPrefix("");
           return;
         }
 
         wordAnimationRunningRef.current = true;
+        const baseText = accumulatedTextRef.current;
+        setCurrentSegmentPrefix(baseText);
         setCurrentSegment("");
 
         let index = 0;
         const step = () => {
           if (index >= job.words.length) {
             wordAnimationRunningRef.current = false;
+            setCurrentSegmentPrefix("");
             setCurrentSegment("");
-            setAccumulatedText((prev) =>
-              prev ? `${prev} ${job.finalText.trim()}` : job.finalText.trim(),
-            );
+            setAccumulatedText((prev) => {
+              const nextText = prev
+                ? `${prev} ${job.finalText.trim()}`
+                : job.finalText.trim();
+              accumulatedTextRef.current = nextText;
+              return nextText;
+            });
             runNext();
             return;
           }
@@ -275,6 +298,10 @@ export const useTranscript = () => {
         }
 
         const createdAt = Date.now();
+        const transcriptDiagnostics = summarizeTranscriptDiagnostics({
+          text: recordingTextRef.current,
+          segments: segmentDiagnosticsRef.current,
+        });
         const result = await saveRecording({
           id,
           blob,
@@ -284,6 +311,7 @@ export const useTranscript = () => {
           durationSec,
           transcriptText: recordingTextRef.current,
           transcriptWords: recordingWordsRef.current,
+          transcriptDiagnostics,
           createdAt,
         });
 
@@ -396,7 +424,7 @@ export const useTranscript = () => {
         },
         positiveSpeechThreshold: 0.6,
         negativeSpeechThreshold: 0.4,
-        redemptionMs: 800,
+        redemptionMs: 150,
       });
     } finally {
       vadInitializingRef.current = false;
@@ -457,8 +485,12 @@ export const useTranscript = () => {
     setPaused(false);
     recordingRef.current = true;
     pendingSegmentsRef.current = [];
+    currentSegmentRef.current = null;
     recordingTextRef.current = "";
+    accumulatedTextRef.current = "";
     recordingWordsRef.current = [];
+    segmentDiagnosticsRef.current = [];
+    setLastSegmentDiagnostics(null);
     recordingIdRef.current =
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
@@ -544,14 +576,19 @@ export const useTranscript = () => {
 
   const handleReset = useCallback(() => {
     setAccumulatedText("");
+    setCurrentSegmentPrefix("");
     setCurrentSegment("");
+    setLastSegmentDiagnostics(null);
+    accumulatedTextRef.current = "";
     pendingSegmentsRef.current = [];
+    currentSegmentRef.current = null;
     collectingRef.current = false;
     speechBufferRef.current = [];
     speechBufferSizeRef.current = 0;
     speechBufferOffsetSecRef.current = 0;
     speechStartTimeRef.current = null;
     speechStartSecRef.current = null;
+    segmentDiagnosticsRef.current = [];
     clearWordAnimations();
   }, [clearWordAnimations]);
 
@@ -611,33 +648,41 @@ export const useTranscript = () => {
               : Array.isArray(e.data.output)
                 ? e.data.output[0]
                 : "";
-          const chunks = Array.isArray(e.data.chunks)
-            ? (e.data.chunks as RecordingWord[])
-            : [];
+          const chunks = Array.isArray(e.data.chunks) ? e.data.chunks : [];
+          const segmentAudio = currentSegmentRef.current?.audio ?? new Float32Array();
+          const evaluation = evaluateTranscriptCandidate({
+            audio: segmentAudio,
+            text: newText,
+            words: chunks,
+          });
+          segmentDiagnosticsRef.current.push(evaluation.diagnostics);
+          setLastSegmentDiagnostics(evaluation.diagnostics);
           const offsetSec = currentSegmentRef.current?.startSec ?? 0;
-          const adjustedChunks: RecordingWord[] = chunks
-            .filter((chunk) => Array.isArray(chunk.timestamp))
-            .map((chunk) => ({
+          const adjustedChunks: RecordingWord[] = evaluation.words.map((chunk) => ({
               text: chunk.text,
               timestamp: [
                 chunk.timestamp[0] + offsetSec,
                 chunk.timestamp[1] + offsetSec,
               ],
             }));
-          const shouldUseText = isUsableText(newText);
+          currentSegmentRef.current = null;
 
-          if (shouldUseText && chunks.length > 0) {
-            enqueueWordAnimation(chunks, newText);
-          } else if (shouldUseText) {
-            setAccumulatedText((prev) =>
-              prev ? `${prev} ${newText.trim()}` : newText.trim(),
-            );
+          if (evaluation.shouldKeep && evaluation.words.length > 0) {
+            enqueueWordAnimation(evaluation.words, evaluation.text);
+          } else if (evaluation.shouldKeep) {
+            setAccumulatedText((prev) => {
+              const nextText = prev
+                ? `${prev} ${evaluation.text.trim()}`
+                : evaluation.text.trim();
+              accumulatedTextRef.current = nextText;
+              return nextText;
+            });
           }
 
-          if (recordingIdRef.current && shouldUseText) {
+          if (recordingIdRef.current && evaluation.shouldKeep) {
             recordingTextRef.current = recordingTextRef.current
-              ? `${recordingTextRef.current} ${newText.trim()}`
-              : newText.trim();
+              ? `${recordingTextRef.current} ${evaluation.text.trim()}`
+              : evaluation.text.trim();
           }
           if (recordingIdRef.current && adjustedChunks.length > 0) {
             recordingWordsRef.current.push(...adjustedChunks);
@@ -647,6 +692,13 @@ export const useTranscript = () => {
           maybeFinalizeRecording();
           break;
         }
+        case "error":
+          isProcessingRef.current = false;
+          currentSegmentRef.current = null;
+          setCurrentSegment("");
+          tryProcessNext();
+          maybeFinalizeRecording();
+          break;
       }
     };
 
@@ -673,6 +725,7 @@ export const useTranscript = () => {
     loadingMessage,
     progressItems,
     accumulatedText,
+    currentSegmentPrefix,
     currentSegment,
     tps,
     stream,
@@ -683,6 +736,7 @@ export const useTranscript = () => {
     language,
     isModelCached,
     isCheckingCache,
+    lastSegmentDiagnostics,
     loadModel,
     updateLanguage,
     checkModelCache,

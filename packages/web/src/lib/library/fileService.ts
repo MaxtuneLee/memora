@@ -4,8 +4,10 @@ import {
   DEFAULT_AUDIO_MIME,
   type FileType,
   type RecordingMeta,
+  type RecordingTranscript,
   type RecordingWord,
   type StorageType,
+  type TranscriptDiagnostics,
 } from "@/types/library";
 import {
   deleteFileFromOpfs,
@@ -29,6 +31,7 @@ export type SaveRecordingInput = {
   durationSec?: number | null;
   transcriptText?: string;
   transcriptWords?: RecordingWord[];
+  transcriptDiagnostics?: TranscriptDiagnostics;
   storageType?: StorageType;
   parentId?: string | null;
   positionX?: number | null;
@@ -44,11 +47,14 @@ export type SaveRecordingResult = {
 export const saveRecording = async (input: SaveRecordingInput): Promise<SaveRecordingResult> => {
   const createdAt = input.createdAt ?? Date.now();
   const transcript =
-    input.transcriptText || (input.transcriptWords?.length ?? 0) > 0
-      ? {
+    input.transcriptText ||
+    (input.transcriptWords?.length ?? 0) > 0 ||
+    input.transcriptDiagnostics
+      ? ({
           text: input.transcriptText ?? "",
           words: input.transcriptWords ?? [],
-        }
+          diagnostics: input.transcriptDiagnostics,
+        } satisfies RecordingTranscript)
       : null;
 
   return saveFileToOpfs({

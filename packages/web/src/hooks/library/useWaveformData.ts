@@ -26,19 +26,20 @@ export const useWaveformData = (
     let cancelled = false;
 
     const extractWaveform = async () => {
+      let audioContext: AudioContext | null = null;
+
       try {
         const response = await fetch(audioUrl, {
           signal: controller.signal,
         });
         const arrayBuffer = await response.arrayBuffer();
 
-        if (cancelled) return;
+        if (cancelled || controller.signal.aborted) return;
 
-        const audioContext = new AudioContext();
+        audioContext = new AudioContext();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-        if (cancelled) {
-          await audioContext.close();
+        if (cancelled || controller.signal.aborted) {
           return;
         }
 
@@ -69,18 +70,22 @@ export const useWaveformData = (
           maxPeak > 0 ? p / maxPeak : 0,
         );
 
-        await audioContext.close();
-
-        if (!cancelled) {
+        if (!cancelled && !controller.signal.aborted) {
           setResult({
             url: audioUrl,
             data: { peaks: normalizedPeaks, duration: audioBuffer.duration },
           });
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !controller.signal.aborted) {
           console.error("Failed to extract waveform:", error);
           setResult({ url: audioUrl, error: true });
+        }
+      } finally {
+        if (audioContext && audioContext.state !== "closed") {
+          void audioContext.close().catch(() => {
+            // Ignore close failures from interrupted decoding.
+          });
         }
       }
     };

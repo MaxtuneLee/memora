@@ -142,14 +142,13 @@ export const AudioPlayer = memo(
       if (playerDuration > 0) onDurationChange?.(playerDuration);
     }, [playerDuration, onDurationChange]);
 
-    const [waveformProgress, setWaveformProgress] = useState(0);
-
-    useEffect(() => {
-      const id = requestAnimationFrame(() => {
-        setWaveformProgress(effectiveDuration > 0 ? playerTimeRef.current / effectiveDuration : 0);
-      });
-      return () => cancelAnimationFrame(id);
-    }, [effectiveDuration, playerTimeRef]);
+    const getWaveformProgress = useCallback(() => {
+      const dur = effectiveDurationRef.current;
+      if (!(Number.isFinite(dur) && dur > 0)) {
+        return 0;
+      }
+      return playerTimeRef.current / dur;
+    }, [playerTimeRef]);
 
     const handleSeek = useCallback(
       (progressPercent: number) => {
@@ -215,13 +214,14 @@ export const AudioPlayer = memo(
     }, [playerTimeRef, seek]);
 
     return (
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <div className="relative px-5 pt-6 pb-2">
           {waveformData ? (
             <div className="h-24">
               <WaveformCanvas
                 peaks={waveformData.peaks}
-                progress={waveformProgress}
+                progress={0}
+                getProgress={getWaveformProgress}
                 height={96}
                 className="w-full"
                 onClick={handleSeek}

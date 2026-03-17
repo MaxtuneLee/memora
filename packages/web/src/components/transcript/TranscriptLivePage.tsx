@@ -1,13 +1,21 @@
-import { WarningIcon } from "@phosphor-icons/react";
-import { Dialog } from "@base-ui/react/dialog";
+import { Menu } from "@base-ui/react/menu";
+import {
+  GearSixIcon,
+  SlidersHorizontalIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Persona } from "@/components/assistant/Persona";
-import { LoadingProgressCard } from "@/components/transcript/LoadingProgressCard";
-import { ModelLoadCard } from "@/components/transcript/ModelLoadCard";
-import { TranscriptionHeader } from "@/components/transcript/TranscriptionHeader";
+// import { Persona } from "@/components/assistant/Persona";
+import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
+import { BackButton } from "@/components/transcript/BackButton";
+import { LanguageSelector } from "@/components/transcript/LanguageSelector";
+import { Progress } from "@/components/Progress";
+import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
 import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
+import type { SettingsSectionId } from "@/types/settings";
+import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useTranscript } from "@/hooks/transcript/useTranscript";
 
 export const Component = () => {
@@ -17,6 +25,7 @@ export const Component = () => {
     loadingMessage,
     progressItems,
     accumulatedText,
+    currentSegmentPrefix,
     currentSegment,
     tps,
     stream,
@@ -27,6 +36,7 @@ export const Component = () => {
     language,
     isModelCached,
     isCheckingCache,
+    lastSegmentDiagnostics,
     loadModel,
     updateLanguage,
     checkModelCache,
@@ -37,14 +47,8 @@ export const Component = () => {
     handleReset,
   } = useTranscript();
 
-  console.log(
-    "ischeckingCache",
-    isCheckingCache,
-    "isModelCached",
-    isModelCached,
-  );
-
   const navigate = useNavigate();
+  const { openSettings } = useSettingsDialog();
 
   useEffect(() => {
     if (saveStatus === "success" && lastSavedId) {
@@ -78,13 +82,13 @@ export const Component = () => {
     }
     if (isCheckingCache) {
       return {
-        label: "Model Checking",
+        label: "Checking Model Cache",
         tone: "bg-zinc-400",
       };
     }
     if (isModelCached) {
       return {
-        label: "Model Loading",
+        label: "Preparing Model",
         tone: "bg-amber-400",
       };
     }
@@ -94,27 +98,17 @@ export const Component = () => {
     };
   }, [isCheckingCache, isModelCached, status]);
 
-  const personaState = useMemo(() => {
-    if (status !== "ready") {
-      return "asleep";
-    }
-    if (recording && paused) {
-      return "idle";
-    }
-    if (recording && currentSegment) {
-      return "listening";
-    }
-    if (recording) {
-      return "thinking";
-    }
-    if (accumulatedText) {
-      return "speaking";
-    }
-    return "idle";
-  }, [accumulatedText, currentSegment, paused, recording, status]);
+  const settingsItems: Array<{ label: string; section: SettingsSectionId }> =
+    useMemo(
+      () => [
+        { label: "Model settings", section: "ai-provider" },
+        { label: "Language preferences", section: "general" },
+      ],
+      [],
+    );
 
-  const shouldShowModal =
-    !isCheckingCache && !isModelCached && status !== "ready";
+  const isReady = status === "ready";
+  const shouldShowDiagnostics = import.meta.env.DEV;
 
   if (!isWebGpuAvailable) {
     return (
@@ -136,68 +130,129 @@ export const Component = () => {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
-      <TranscriptionHeader
-        stream={stream}
-        language={language}
-        onLanguageChange={updateLanguage}
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <TranscriptionControls
-              recording={recording}
-              paused={paused}
-              saveStatus={saveStatus}
-              onReset={handleReset}
-              onStart={handleStartRecording}
-              onPause={handlePauseRecording}
-              onResume={handleResumeRecording}
-              onFinalize={handleFinalizeRecording}
-              isReady={status === "ready"}
-            />
-          </div>
-        }
-        onCreateNew={() => navigate("/transcript")}
-        hideCreateNew
-        modelBadge={modelBadge}
-      />
-
-      {status === "ready" && (
-        <TranscriptionPanel
-          accumulatedText={accumulatedText}
-          currentSegment={currentSegment}
-          tps={tps}
-        />
-      )}
-
-      <div className="flex justify-center">
-        <Persona
-          state={personaState}
-          className="size-28"
-        />
+    <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-5xl flex-col gap-6 p-6 pb-32 md:p-8 md:pb-36">
+      <div className="flex items-center justify-between">
+        <BackButton />
       </div>
 
-      <Dialog.Root open={shouldShowModal} modal>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-zinc-950/40" />
-          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
-            {status === null && !isModelCached && !isCheckingCache && (
-              <ModelLoadCard disabled={status !== null} onLoad={loadModel} />
-            )}
-            {status === "loading" && (
-              <LoadingProgressCard
-                loadingMessage={loadingMessage}
-                progressItems={progressItems}
-              />
-            )}
-            {(status === "loading" || (!isCheckingCache && !isModelCached)) && (
-              <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-4 text-xs text-zinc-500">
-                Tip: keep this tab open while the model loads to maintain
-                progress.
+      {isReady && (
+        <>
+          <TranscriptionPanel
+            accumulatedText={accumulatedText}
+            currentSegmentPrefix={currentSegmentPrefix}
+            currentSegment={currentSegment}
+            tps={tps}
+          />
+          {shouldShowDiagnostics && (
+            <TranscriptDiagnosticsCard
+              diagnostics={lastSegmentDiagnostics}
+              title="Latest Segment Diagnostics"
+            />
+          )}
+        </>
+      )}
+
+      <div className="sticky bottom-4 z-20 mt-auto">
+        <div className="rounded-[28px] border border-zinc-200/80 bg-[rgba(250,248,243,0.92)] p-3 shadow-[0_18px_50px_rgba(24,24,27,0.08)] backdrop-blur-md md:p-4">
+          {isReady ? (
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Menu.Root>
+                  <Menu.Trigger className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50">
+                    <SlidersHorizontalIcon className="size-4" />
+                    Settings
+                  </Menu.Trigger>
+                  <Menu.Portal>
+                    <Menu.Positioner className="z-50" sideOffset={8}>
+                      <Menu.Popup className="min-w-55 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
+                        <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
+                          <div className="mt-2">
+                            <LanguageSelector
+                              language={language}
+                              setLanguage={updateLanguage}
+                            />
+                          </div>
+                        </div>
+                        <Menu.Separator className="my-2 h-px bg-zinc-100" />
+                        {settingsItems.map((item) => (
+                          <Menu.Item
+                            key={item.section}
+                            onClick={() => openSettings(item.section)}
+                            className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-highlighted:bg-zinc-100 data-highlighted:text-zinc-900"
+                          >
+                            <span>{item.label}</span>
+                            <GearSixIcon className="size-4 text-zinc-400" />
+                          </Menu.Item>
+                        ))}
+                      </Menu.Popup>
+                    </Menu.Positioner>
+                  </Menu.Portal>
+                </Menu.Root>
+                <AudioVisualizer stream={stream} className="h-6 min-w-0 flex-1" />
               </div>
-            )}
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
+
+              <div className="flex justify-end md:justify-end">
+                <TranscriptionControls
+                  recording={recording}
+                  paused={paused}
+                  saveStatus={saveStatus}
+                  onReset={handleReset}
+                  onStart={handleStartRecording}
+                  onPause={handlePauseRecording}
+                  onResume={handleResumeRecording}
+                  onFinalize={handleFinalizeRecording}
+                  isReady={isReady}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
+                    <span className={`h-2.5 w-2.5 rounded-full ${modelBadge.tone}`} />
+                    {modelBadge.label}
+                  </div>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {status === "loading"
+                      ? loadingMessage || "Downloading transcription model..."
+                      : isCheckingCache
+                        ? "Checking local model availability."
+                        : isModelCached
+                          ? "Finishing model preparation before recording."
+                          : "Download the transcription model to start recording."}
+                  </p>
+                </div>
+
+                {!isCheckingCache && !isModelCached && status === null && (
+                  <button
+                    type="button"
+                    onClick={loadModel}
+                    className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+                  >
+                    Load Model
+                  </button>
+                )}
+              </div>
+
+              {progressItems.length > 0 && (
+                <div className="space-y-2 rounded-2xl border border-zinc-200/80 bg-white/60 p-3">
+                  {progressItems.map(({ file, progress, total }, index) => (
+                    <Progress
+                      key={`${file}-${index}`}
+                      text={file}
+                      percentage={progress}
+                      total={total}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
+
+

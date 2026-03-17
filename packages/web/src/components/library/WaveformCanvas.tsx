@@ -51,6 +51,7 @@ const formatTimeMarker = (seconds: number): string => {
 interface WaveformCanvasProps {
   peaks: number[];
   progress: number; // 0-1 percentage of playback
+  getProgress?: () => number;
   height: number;
   className?: string;
   playedColor?: string;
@@ -66,6 +67,7 @@ interface WaveformCanvasProps {
 export const WaveformCanvas = memo(({
   peaks,
   progress,
+  getProgress,
   height,
   className = "",
   playedColor = "#27272a", // zinc-800
@@ -94,6 +96,7 @@ export const WaveformCanvas = memo(({
   const propsRef = useRef({
     peaks,
     progress,
+    getProgress,
     height,
     playedColor,
     unplayedColor,
@@ -108,6 +111,7 @@ export const WaveformCanvas = memo(({
     propsRef.current = {
       peaks,
       progress,
+      getProgress,
       height,
       playedColor,
       unplayedColor,
@@ -116,7 +120,7 @@ export const WaveformCanvas = memo(({
       barRadius,
       smoothingFactor,
     };
-  }, [peaks, progress, height, playedColor, unplayedColor, barWidth, barGap, barRadius, smoothingFactor]);
+  }, [peaks, progress, getProgress, height, playedColor, unplayedColor, barWidth, barGap, barRadius, smoothingFactor]);
 
   // Handle interaction (click/drag) to seek
   const handleInteraction = useCallback(
@@ -221,7 +225,10 @@ export const WaveformCanvas = memo(({
       }
 
       // Smooth progress toward target
-      const targetProgress = props.progress;
+      const rawTargetProgress = props.getProgress ? props.getProgress() : props.progress;
+      const targetProgress = Number.isFinite(rawTargetProgress)
+        ? Math.max(0, Math.min(1, rawTargetProgress))
+        : 0;
       const progressDiff = targetProgress - smoothedProgressRef.current;
       const progressEase = props.smoothingFactor;
 

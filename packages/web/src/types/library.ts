@@ -1,6 +1,39 @@
 export type FileType = "audio" | "video" | "image" | "document";
 export type StorageType = "opfs" | "s3" | "url";
 
+export type TranscriptDiagnosticsIssueCode =
+  | "blank-audio-marker"
+  | "empty-after-cleanup"
+  | "low-content"
+  | "low-audio-energy"
+  | "high-repetition"
+  | "repeated-tail-loop"
+  | "dense-output";
+
+export interface TranscriptDiagnostics {
+  source: "heuristic-v1";
+  audioDurationSec: number;
+  audioRms: number;
+  audioPeak: number;
+  activeFrameRatio: number;
+  textLength: number;
+  wordCount: number;
+  wordsPerSecond: number;
+  uniqueWordRatio: number;
+  repetitionRatio: number;
+  trailingRepeatPhraseWords: number;
+  trailingRepeatPhraseCycles: number;
+  blankAudioMarkerCount: number;
+  hallucinationScore: number;
+  qualityScore: number;
+  dropped: boolean;
+  dropReason: TranscriptDiagnosticsIssueCode | null;
+  issues: TranscriptDiagnosticsIssueCode[];
+  segmentCount?: number;
+  acceptedSegmentCount?: number;
+  rejectedSegmentCount?: number;
+}
+
 export interface TranscriptWord {
   text: string;
   timestamp: [number, number];
@@ -9,6 +42,7 @@ export interface TranscriptWord {
 export interface TranscriptData {
   text: string;
   words: TranscriptWord[];
+  diagnostics?: TranscriptDiagnostics;
 }
 
 export interface FileMeta {
