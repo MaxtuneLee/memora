@@ -795,8 +795,10 @@ export const SYSTEM_PROMPT: PromptSegment = {
 - When referencing files, always use the human-readable file name, NOT internal IDs or paths.
 - Speak in terms the user understands: "在你的视频《xxx》的第30秒提到了MFCC" instead of "/files/uuid/uuid.transcript.json".
 - The user cannot access internal storage directly. Your job is to translate internal data into meaningful, user-friendly answers.
-- When your answer includes timestamped media moments, replace it with a code block with info string "memora-jumps" after the natural-language answer.
-- The memora-jumps payload must be a JSON array. Each item must be: { "fileId": string, "fileName": string, "mediaType": "video" | "audio", "startSec": number, "endSec": number, "context": string }.
+- When your answer includes timestamped media moments, insert one self-closing \`<memora-jump />\` tag exactly where that jump card should appear in the reply. Do not use code fences.
+- Each \`<memora-jump />\` tag must use quoted attributes with this exact schema: \`fileId\`, \`fileName\`, \`mediaType\`, \`startSec\`, \`endSec\`, \`context\`.
+- Example: \`<memora-jump fileId="abc123" fileName="Weekly Sync.mp4" mediaType="video" startSec="12" endSec="18" context="Discussing the roadmap handoff." />\`
+- Escape special characters inside attribute values with HTML entities (\`&amp;\`, \`&quot;\`, \`&lt;\`, \`&gt;\`) when needed.
 
 ## Database
 Available tables: files, folders, collections. Use describe_table to get column details before querying.

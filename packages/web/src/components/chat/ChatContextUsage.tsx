@@ -19,14 +19,18 @@ interface ChatContextUsageProps {
 interface UsageSummary {
   description: string;
   draftEstimate: number;
-  latestInputTokens?: number;
-  latestOutputTokens?: number;
-  latestTotalTokens?: number;
+  hasMeasuredUsage: boolean;
   measuredUsageRatio: number | null;
   primaryApproximate: boolean;
   primaryContextTokens: number | null;
   projectedNextTurnTokens: number | null;
   projectedUsageRatio: number | null;
+}
+
+interface UsageState {
+  badgeClassName: string;
+  label: string;
+  triggerClassName: string;
 }
 
 const MESSAGE_FRAMING_TOKENS = 6;
@@ -109,31 +113,60 @@ const buildScopeSummary = (
   return `${prefix} · ${fileCount} file${fileCount === 1 ? "" : "s"}`;
 };
 
-function ContextMetric({
-  emphasis = "normal",
+function UsageDetail({
   label,
   value,
 }: {
-  emphasis?: "muted" | "normal";
   label: string;
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+    <div className="flex items-center justify-between gap-3 text-[11px]">
+      <p className="text-zinc-500">
         {label}
       </p>
-      <p
-        className={cn(
-          "mt-1 text-sm font-medium",
-          emphasis === "muted" ? "text-zinc-500" : "text-zinc-800",
-        )}
-      >
+      <p className="text-right font-medium text-zinc-800">
         {value}
       </p>
     </div>
   );
 }
+
+const getUsageState = (ratio: number | null, isMeasured: boolean): UsageState => {
+  if (ratio === null) {
+    return {
+      badgeClassName: "border-zinc-200 bg-zinc-100 text-zinc-600",
+      label: isMeasured ? "Measured" : "Estimate",
+      triggerClassName:
+        "border-zinc-200/80 bg-zinc-50/90 text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-700",
+    };
+  }
+
+  if (ratio >= 0.85) {
+    return {
+      badgeClassName: "border-rose-200 bg-rose-50 text-rose-700",
+      label: "Near limit",
+      triggerClassName:
+        "border-rose-200/80 bg-rose-50/90 text-rose-700 hover:border-rose-300 hover:bg-rose-50",
+    };
+  }
+
+  if (ratio >= 0.65) {
+    return {
+      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+      label: "Watch it",
+      triggerClassName:
+        "border-amber-200/80 bg-amber-50/90 text-amber-700 hover:border-amber-300 hover:bg-amber-50",
+    };
+  }
+
+  return {
+    badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    label: "Comfortable",
+    triggerClassName:
+      "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50",
+  };
+};
 
 export function ChatContextUsage({
   composerImageCount,
@@ -189,26 +222,21 @@ export function ChatContextUsage({
         ? projectedNextTurnTokens / model.contextWindow
         : null;
 
-    let description =
-      "Send a message to capture measured context tokens from the provider.";
+    const hasMeasuredUsage = latestInputTokens !== undefined;
+    let description = "Send one message to replace the estimate with provider data.";
 
     if (latestInputTokens !== undefined) {
-      description =
-        "Latest input tokens come from the last completed turn. Draft and next-turn numbers are estimated.";
+      description = "Current usage comes from the last completed turn.";
     } else if (latestTotalTokens !== undefined) {
-      description =
-        "Provider returned total tokens but not prompt-only tokens, so context is inferred from that total.";
+      description = "Current usage is inferred from the provider total and your draft.";
     } else if (primaryContextTokens !== null) {
-      description =
-        "No provider usage yet. Current context is a rough estimate from visible chat content and the draft.";
+      description = "Current usage is estimated from visible messages and your draft.";
     }
 
     return {
       description,
       draftEstimate,
-      latestInputTokens,
-      latestOutputTokens,
-      latestTotalTokens,
+      hasMeasuredUsage,
       measuredUsageRatio,
       primaryApproximate,
       primaryContextTokens,
@@ -223,7 +251,14 @@ export function ChatContextUsage({
           usageSummary.primaryContextTokens,
         )}`
       : "--";
+  const exactPrimaryLabel =
+    usageSummary.primaryContextTokens !== null
+      ? `${usageSummary.primaryApproximate ? "~" : ""}${formatExactTokenCount(
+          usageSummary.primaryContextTokens,
+        )}`
+      : "Unavailable";
   const scopeSummary = buildScopeSummary(referenceCount, resolvedReferenceScope);
+  const showScopeSummary = referenceCount > 0 || resolvedReferenceScope.isActive;
   const usagePercent =
     usageSummary.measuredUsageRatio !== null
       ? formatPercent(usageSummary.measuredUsageRatio)
@@ -236,19 +271,25 @@ export function ChatContextUsage({
     usageSummary.projectedUsageRatio !== null
       ? `${Math.min(usageSummary.projectedUsageRatio, 1) * 100}%`
       : "0%";
+  const status = getUsageState(
+    usageSummary.projectedUsageRatio ?? usageSummary.measuredUsageRatio,
+    usageSummary.hasMeasuredUsage,
+  );
   const resolvedModelLabel = model?.name ?? model?.id ?? selectedModelId;
-  const debugContextWindow = model?.contextWindow?.toLocaleString() ?? "missing";
-  const debugMaxOutputTokens = model?.maxOutputTokens?.toLocaleString() ?? "missing";
-  const debugModelId = model?.id || selectedModelId || "none";
-  const metadataStatus = model
-    ? "Parsed"
-    : selectedModelId
-      ? "Missing"
+  const triggerValue = usagePercent ?? primaryLabel;
+  const triggerSecondaryValue = usagePercent ? primaryLabel : null;
+  const nextTurnLabel =
+    usageSummary.projectedNextTurnTokens !== null
+      ? `~${formatExactTokenCount(usageSummary.projectedNextTurnTokens)}`
       : "Unavailable";
-  const metadataNote =
-    selectedModelId && !model
-      ? "Saved provider metadata does not currently include a matching entry for the selected model, so limit-based percentages are unavailable."
-      : null;
+  const windowSummary = model?.contextWindow
+    ? `${formatCompactTokenCount(model.contextWindow)} window`
+    : "Window unavailable";
+  const subtitle = model?.contextWindow
+    ? usagePercent
+      ? `${usagePercent} of the ${windowSummary}.`
+      : `Start a message to gauge the ${windowSummary}.`
+    : "Model limit is unavailable, so this only shows token estimates.";
 
   return (
     <Tooltip.Root>
@@ -259,16 +300,17 @@ export function ChatContextUsage({
           <button
             type="button"
             aria-label={`Context usage ${primaryLabel}`}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-zinc-50/90 px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-white hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10",
+              status.triggerClassName,
+            )}
           >
-            <span className="uppercase tracking-[0.18em] text-zinc-400">
+            <span className="uppercase tracking-[0.18em]">
               Ctx
             </span>
-            <span className="text-zinc-700">{primaryLabel}</span>
-            {usagePercent && (
-              <span className="rounded-full bg-zinc-200/70 px-1.5 py-0.5 text-[10px] text-zinc-500">
-                {usagePercent}
-              </span>
+            <span className="text-zinc-800">{triggerValue}</span>
+            {triggerSecondaryValue && (
+              <span className="text-zinc-500">{triggerSecondaryValue}</span>
             )}
           </button>
         }
@@ -280,137 +322,90 @@ export function ChatContextUsage({
           sideOffset={10}
           className="z-30"
         >
-          <Tooltip.Popup className="w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-zinc-200 bg-white/95 p-3 text-xs shadow-xl backdrop-blur-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-zinc-800">
-                  Context usage
-                </p>
-                <p className="mt-1 leading-relaxed text-zinc-500">
-                  {usageSummary.description}
-                </p>
-                {metadataNote && (
-                  <p className="mt-1 leading-relaxed text-amber-600">
-                    {metadataNote}
+          <Tooltip.Popup className="w-[min(19rem,calc(100vw-1.5rem))] rounded-2xl border border-zinc-200 bg-white/95 p-3.5 text-xs shadow-xl backdrop-blur-sm">
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-zinc-900">Context</p>
+                  <p className="mt-1 leading-relaxed text-zinc-500">
+                    {subtitle}
                   </p>
+                  {resolvedModelLabel && (
+                    <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                      {resolvedModelLabel}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                    status.badgeClassName,
+                  )}
+                >
+                  {status.label}
+                </span>
+              </div>
+              <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                      Now
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-zinc-900">
+                      {primaryLabel}
+                    </p>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      {exactPrimaryLabel}
+                    </p>
+                  </div>
+                  {usagePercent && (
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                        Window
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-zinc-800">
+                        {usagePercent}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {model?.contextWindow && (
+                  <div className="mt-3">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                      <div
+                        className="h-full rounded-full bg-zinc-800 transition-[width] duration-200"
+                        style={{ width: progressWidth }}
+                      />
+                    </div>
+                    {projectedPercent && (
+                      <p className="mt-2 text-[11px] text-zinc-500">
+                        After send: {projectedPercent}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-              {resolvedModelLabel && (
-                <span className="max-w-[11rem] truncate rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  {resolvedModelLabel}
-                </span>
-              )}
-            </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <ContextMetric
-                label="Latest input"
-                value={
-                  usageSummary.latestInputTokens !== undefined
-                    ? formatExactTokenCount(usageSummary.latestInputTokens)
-                    : "Unavailable"
-                }
-                emphasis={
-                  usageSummary.latestInputTokens !== undefined ? "normal" : "muted"
-                }
-              />
-              <ContextMetric
-                label="Latest output"
-                value={
-                  usageSummary.latestOutputTokens !== undefined
-                    ? formatExactTokenCount(usageSummary.latestOutputTokens)
-                    : "Unavailable"
-                }
-                emphasis={
-                  usageSummary.latestOutputTokens !== undefined ? "normal" : "muted"
-                }
-              />
-              <ContextMetric
-                label="Projected next turn"
-                value={
-                  usageSummary.projectedNextTurnTokens !== null
-                    ? `~${formatExactTokenCount(usageSummary.projectedNextTurnTokens)}`
-                    : "Unavailable"
-                }
-                emphasis={
-                  usageSummary.projectedNextTurnTokens !== null ? "normal" : "muted"
-                }
-              />
-              <ContextMetric
-                label="Draft"
-                value={
-                  usageSummary.draftEstimate > 0
-                    ? `~${formatExactTokenCount(usageSummary.draftEstimate)}`
-                    : "Empty"
-                }
-                emphasis={
-                  usageSummary.draftEstimate > 0 ? "normal" : "muted"
-                }
-              />
-              <ContextMetric
-                label="Messages"
-                value={`${messages.length}`}
-              />
-              <ContextMetric
-                label="Scope"
-                value={scopeSummary}
-                emphasis={
-                  referenceCount > 0 || resolvedReferenceScope.isActive
-                    ? "normal"
-                    : "muted"
-                }
-              />
-              <ContextMetric
-                label="Max output"
-                value={
-                  model?.maxOutputTokens
-                    ? formatExactTokenCount(model.maxOutputTokens)
-                    : "Unknown"
-                }
-                emphasis={model?.maxOutputTokens ? "normal" : "muted"}
-              />
-              <ContextMetric
-                label="Model meta"
-                value={metadataStatus}
-                emphasis={model ? "normal" : "muted"}
-              />
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 px-3 py-2.5">
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="font-medium text-zinc-600">Model window</span>
-                <span className="text-zinc-500">
-                  {model?.contextWindow
-                    ? `${formatExactTokenCount(model.contextWindow)}${
-                        projectedPercent ? ` · ${projectedPercent}` : ""
-                      }`
-                    : "Unknown"}
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200">
-                <div
-                  className="h-full rounded-full bg-zinc-800 transition-[width] duration-200"
-                  style={{ width: progressWidth }}
+              <div className="space-y-2 rounded-2xl border border-zinc-200/80 bg-white px-3 py-3">
+                <UsageDetail label="Next send" value={nextTurnLabel} />
+                <UsageDetail
+                  label="Draft"
+                  value={
+                    usageSummary.draftEstimate > 0
+                      ? `~${formatExactTokenCount(usageSummary.draftEstimate)}`
+                      : "Empty"
+                  }
                 />
+                {showScopeSummary && (
+                  <UsageDetail label="References" value={scopeSummary} />
+                )}
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-                <span>Current draft images</span>
-                <span>
-                  {composerImageCount} image{composerImageCount === 1 ? "" : "s"}
-                </span>
-              </div>
-            </div>
 
-            <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">
-              Values without a prefixed <span className="font-semibold">~</span> are
-              reported by the model provider. Estimated values are derived from the
-              visible conversation and current draft.
-            </p>
-            <p className="mt-2 text-[10px] leading-relaxed text-zinc-400">
-              Debug: model=<span className="font-mono">{debugModelId}</span> ·
-              contextWindow=<span className="font-mono">{debugContextWindow}</span> ·
-              maxOutputTokens=<span className="font-mono">{debugMaxOutputTokens}</span>
-            </p>
+              <p className="text-[11px] leading-relaxed text-zinc-400">
+                {usageSummary.description} Values with{" "}
+                <span className="font-semibold">~</span> are estimates.
+              </p>
+            </div>
           </Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>

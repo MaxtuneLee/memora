@@ -12,6 +12,10 @@ import MemoraMascot, {
   type MemoraMascotState,
 } from "@/components/assistant/MemoraMascot";
 import { cn } from "@/lib/cn";
+import {
+  parseMemoraJumpContent,
+  type MediaJumpCardData,
+} from "@/lib/chat/memoraJump";
 import { formatDuration } from "@/lib/format";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import { ChatWidget } from "@/components/chat/ChatWidget";
@@ -52,87 +56,6 @@ interface ChatMessageProps {
   onRetryMessage?: (messageId: string) => Promise<void> | void;
   actionsDisabled?: boolean;
 }
-
-interface MediaJumpCardData {
-  fileId: string;
-  fileName: string;
-  mediaType: "video" | "audio";
-  startSec: number;
-  endSec: number;
-  context: string;
-}
-
-const parseMediaJumpCard = (value: unknown): MediaJumpCardData | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const candidate = value as Partial<MediaJumpCardData>;
-  if (typeof candidate.fileId !== "string" || !candidate.fileId.trim()) {
-    return null;
-  }
-  if (typeof candidate.fileName !== "string" || !candidate.fileName.trim()) {
-    return null;
-  }
-  if (candidate.mediaType !== "video" && candidate.mediaType !== "audio") {
-    return null;
-  }
-  if (
-    typeof candidate.startSec !== "number" ||
-    !Number.isFinite(candidate.startSec) ||
-    candidate.startSec < 0
-  ) {
-    return null;
-  }
-  if (
-    typeof candidate.endSec !== "number" ||
-    !Number.isFinite(candidate.endSec) ||
-    candidate.endSec < 0
-  ) {
-    return null;
-  }
-  return {
-    fileId: candidate.fileId.trim(),
-    fileName: candidate.fileName.trim(),
-    mediaType: candidate.mediaType,
-    startSec: candidate.startSec,
-    endSec: Math.max(candidate.endSec, candidate.startSec),
-    context:
-      typeof candidate.context === "string" ? candidate.context.trim() : "",
-  };
-};
-
-const parseMessageMediaJumps = (
-  content: string,
-): { cleanedContent: string; jumpCards: MediaJumpCardData[] } => {
-  const jumpCards: MediaJumpCardData[] = [];
-  const blockPattern = /```memora-jumps\s*([\s\S]*?)```/gi;
-
-  const cleanedContent = content
-    .replace(blockPattern, (_, blockPayload: string) => {
-      try {
-        const parsed = JSON.parse(blockPayload) as unknown;
-        if (!Array.isArray(parsed)) {
-          return "";
-        }
-        for (const item of parsed) {
-          const jumpCard = parseMediaJumpCard(item);
-          if (jumpCard) {
-            jumpCards.push(jumpCard);
-          }
-        }
-      } catch {
-        // Ignore malformed jump payloads.
-      }
-      return "";
-    })
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  return {
-    cleanedContent,
-    jumpCards,
-  };
-};
 
 const formatTokenUsage = (usage?: TokenUsage): string | null => {
   if (!usage) return null;
@@ -175,19 +98,25 @@ function ChatMessageComponent({
   const parsedContent = useMemo(
     () =>
       isUser
-        ? {
-            cleanedContent: message.content,
-            jumpCards: [] as MediaJumpCardData[],
-          }
-        : parseMessageMediaJumps(message.content),
+        ? [
+            {
+              type: "text" as const,
+              content: message.content,
+            },
+          ]
+        : parseMemoraJumpContent(message.content),
     [isUser, message.content],
   );
+  const hasRenderableText = parsedContent.some((part) => {
+    return part.type === "text" && part.content.trim().length > 0;
+  });
+  const hasJumpCards = parsedContent.some((part) => part.type === "jump");
   const hasStreamingSpinner =
     isStreaming &&
     thinkingSteps &&
     thinkingSteps.length === 0 &&
-    !parsedContent.cleanedContent &&
-    parsedContent.jumpCards.length === 0 &&
+    !hasRenderableText &&
+    !hasJumpCards &&
     (!message.widgets || message.widgets.length === 0);
   const tokenUsageText = isUser ? null : formatTokenUsage(message.usage);
   const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
@@ -428,25 +357,44 @@ function ChatMessageComponent({
                   ))}
                 </div>
               )}
-              {parsedContent.cleanedContent ? (
+              {parsedContent.length > 0 ? (
                 <div
                   className={cn(
+                    "space-y-3",
                     message.widgets && message.widgets.length > 0 && "mt-3",
                   )}
                 >
-                  <Streamdown
-                    mode={isStreaming ? "streaming" : "static"}
-                    animated={{
-                      animation: "blurIn",
-                      sep: "word",
-                      duration: 0.5,
-                      easing: "ease-in-out",
-                    }}
-                    isAnimating={isStreaming}
-                    plugins={{ cjk, code, math, mermaid }}
-                  >
-                    {parsedContent.cleanedContent}
-                  </Streamdown>
+                  {parsedContent.map((part, index) => {
+                    if (part.type === "text") {
+                      if (!part.content.trim()) {
+                        return null;
+                      }
+
+                      return (
+                        <Streamdown
+                          key={`text-${index}`}
+                          mode={isStreaming ? "streaming" : "static"}
+                          animated={{
+                            animation: "blurIn",
+                            sep: "word",
+                            duration: 0.5,
+                            easing: "ease-in-out",
+                          }}
+                          isAnimating={isStreaming}
+                          plugins={{ cjk, code, math, mermaid }}
+                        >
+                          {part.content}
+                        </Streamdown>
+                      );
+                    }
+
+                    return (
+                      <MediaJumpCard
+                        key={`${part.jumpCard.fileId}-${part.jumpCard.startSec}-${index}`}
+                        jumpCard={part.jumpCard}
+                      />
+                    );
+                  })}
                 </div>
               ) : hasStreamingSpinner ? (
                 <div className="flex items-center gap-1 py-0.5">
@@ -464,47 +412,6 @@ function ChatMessageComponent({
                   ))}
                 </div>
               ) : null}
-              {parsedContent.jumpCards.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {parsedContent.jumpCards.map((jumpCard, index) => {
-                    const JumpIcon =
-                      jumpCard.mediaType === "video"
-                        ? VideoCameraIcon
-                        : MicrophoneIcon;
-                    return (
-                      <Link
-                        key={`${jumpCard.fileId}-${jumpCard.startSec}-${index}`}
-                        to={`/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(
-                          String(jumpCard.startSec),
-                        )}`}
-                        className="group block rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 transition hover:border-zinc-300 hover:bg-white"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
-                            <JumpIcon className="size-3.5" weight="bold" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-medium text-zinc-900">
-                                {jumpCard.fileName}
-                              </p>
-                              <span className="shrink-0 text-[11px] font-medium text-zinc-500">
-                                {formatDuration(jumpCard.startSec)} -{" "}
-                                {formatDuration(jumpCard.endSec)}
-                              </span>
-                            </div>
-                            {jumpCard.context && (
-                              <p className="mt-1 truncate text-xs text-zinc-500">
-                                {jumpCard.context}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
               {tokenUsageText && (
                 <div className="mt-3 border-t border-zinc-200/70 pt-2 text-[11px] font-medium text-zinc-400">
                   {tokenUsageText}
@@ -555,6 +462,41 @@ const areChatMessagePropsEqual = (
 };
 
 export const ChatMessage = memo(ChatMessageComponent, areChatMessagePropsEqual);
+
+function MediaJumpCard({ jumpCard }: { jumpCard: MediaJumpCardData }) {
+  const JumpIcon =
+    jumpCard.mediaType === "video" ? VideoCameraIcon : MicrophoneIcon;
+
+  return (
+    <Link
+      to={`/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(
+        String(jumpCard.startSec),
+      )}`}
+      className="group block rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 transition hover:border-zinc-300 hover:bg-white"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
+          <JumpIcon className="size-3.5" weight="bold" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-sm font-medium text-zinc-900">
+              {jumpCard.fileName}
+            </p>
+            <span className="shrink-0 text-[11px] font-medium text-zinc-500">
+              {formatDuration(jumpCard.startSec)} - {formatDuration(jumpCard.endSec)}
+            </span>
+          </div>
+          {jumpCard.context && (
+            <p className="mt-1 truncate text-xs text-zinc-500">
+              {jumpCard.context}
+            </p>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function getAssistantAvatarState(
   status: AgentStatus | undefined,

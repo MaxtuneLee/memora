@@ -1,6 +1,7 @@
 import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 import type { file as LiveStoreFile } from "@/livestore/file";
+import { stripMemoraJumpMarkup } from "@/lib/chat/memoraJump";
 import type { ChatWidget } from "@/lib/chat/showWidget";
 
 const CHAT_SESSION_ASSETS_DIR = "/chat/session-assets";
@@ -347,7 +348,7 @@ export const getChatMessagePreviewText = (message: {
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
 }): string => {
-  const text = trimPreview(message.content, 80);
+  const text = trimPreview(stripMemoraJumpMarkup(message.content), 80);
   if (text) {
     return text;
   }
@@ -365,7 +366,7 @@ export const getChatMessageTitleText = (message: {
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
 }): string | null => {
-  const text = trimPreview(message.content, 48);
+  const text = trimPreview(stripMemoraJumpMarkup(message.content), 48);
   if (text) {
     return text;
   }
