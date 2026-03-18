@@ -12,6 +12,8 @@ export interface ProviderFormState {
 export interface ModelInfo {
   id: string;
   name?: string;
+  contextWindow?: number;
+  maxOutputTokens?: number;
 }
 
 export interface ProviderModelOption {

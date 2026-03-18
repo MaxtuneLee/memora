@@ -5,7 +5,34 @@ import type {
   ProviderModelOption,
 } from "@/types/settingsDialog";
 
-const toModelInfo = (value: unknown): ModelInfo | null => {
+const normalizePositiveInteger = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  return undefined;
+};
+
+const pickTopProviderValue = (
+  record: Record<string, unknown>,
+  field: string,
+): unknown => {
+  const topProvider = record.top_provider;
+  if (!topProvider || typeof topProvider !== "object" || Array.isArray(topProvider)) {
+    return undefined;
+  }
+
+  return (topProvider as Record<string, unknown>)[field];
+};
+
+export const parseProviderModel = (value: unknown): ModelInfo | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -17,9 +44,42 @@ const toModelInfo = (value: unknown): ModelInfo | null => {
   }
 
   const name = typeof record.name === "string" ? record.name.trim() : "";
+  const contextWindow = normalizePositiveInteger(
+    record.contextWindow ??
+      record.context_window ??
+      record.contextLength ??
+      record.context_length ??
+      record.maxContextWindow ??
+      record.max_context_window ??
+      record.maxContextLength ??
+      record.max_context_length ??
+      record.maxInputTokens ??
+      record.max_input_tokens ??
+      record.inputTokenLimit ??
+      record.input_token_limit ??
+      pickTopProviderValue(record, "contextWindow") ??
+      pickTopProviderValue(record, "context_window") ??
+      pickTopProviderValue(record, "context_length"),
+  );
+  const maxOutputTokens = normalizePositiveInteger(
+    record.maxOutputTokens ??
+      record.max_output_tokens ??
+      record.maxCompletionTokens ??
+      record.max_completion_tokens ??
+      record.completionTokenLimit ??
+      record.completion_token_limit ??
+      record.outputTokenLimit ??
+      record.output_token_limit ??
+      pickTopProviderValue(record, "maxOutputTokens") ??
+      pickTopProviderValue(record, "max_output_tokens") ??
+      pickTopProviderValue(record, "max_completion_tokens"),
+  );
+
   return {
     id,
     ...(name ? { name } : {}),
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
+    ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
   };
 };
 
@@ -48,7 +108,7 @@ export const parseProviderModels = (
     }
 
     return parsed.flatMap((entry) => {
-      const model = toModelInfo(entry);
+      const model = parseProviderModel(entry);
       return model ? [model] : [];
     });
   } catch {

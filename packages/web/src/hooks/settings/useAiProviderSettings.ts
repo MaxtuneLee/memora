@@ -2,6 +2,7 @@ import { Toast } from "@base-ui/react/toast";
 import { useClientDocument, useStore } from "@livestore/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { parseProviderModel } from "@/lib/settings/dialogHelpers";
 import { settingsProvidersQuery$ } from "@/lib/settings/queries";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
 import { settingsTable } from "@/livestore/setting";
@@ -182,15 +183,24 @@ export const useAiProviderSettings = ({
         }
 
         const json = (await response.json()) as {
-          data?: Array<{ id: string; name?: string }>;
-          models?: Array<{ id: string; name?: string }>;
+          data?: unknown[];
+          models?: unknown[];
         };
-        const models: ModelInfo[] = (json.data ?? json.models ?? []).map(
-          (model) => ({
-            id: model.id,
-            name: model.name ?? model.id,
-          }),
-        );
+        const rawModels = json.data ?? json.models ?? [];
+        const models: ModelInfo[] = rawModels.flatMap((model) => {
+          const parsedModel = parseProviderModel(model);
+          return parsedModel ? [parsedModel] : [];
+        });
+
+        if (import.meta.env.DEV) {
+          console.info("[provider] models:fetched", {
+            providerId: provider.id,
+            providerName: provider.name,
+            parsedCount: models.length,
+            rawSample: rawModels.slice(0, 12),
+            parsedSample: models.slice(0, 12),
+          });
+        }
 
         store.commit(
           providerEvents.providerUpdated({

@@ -50,6 +50,7 @@ import {
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
 import { ConfirmDialog } from "@/components/desktop";
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
+import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import {
@@ -83,6 +84,7 @@ import {
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
 import { saveRecording } from "@/lib/library/fileService";
+import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import {
   loadGlobalMemoryData,
   loadPersonalityDoc,
@@ -122,6 +124,7 @@ const suggestions: SuggestionCard[] = [
     description: "Extract tasks from your meetings",
   },
 ];
+const IS_DEV = import.meta.env.DEV;
 
 const MAX_REFERENCED_FILES = 200;
 const REFERENCE_MENTION_PATTERN = /@([^\s@]*)$/;
@@ -779,6 +782,39 @@ export const Component = () => {
     [providers, settings.selectedProviderId],
   );
   const selectedModel = settings.selectedModel.trim();
+  const selectedProviderModels = useMemo(() => {
+    if (!selectedProvider) {
+      return [];
+    }
+
+    return parseProviderModels(selectedProvider);
+  }, [selectedProvider]);
+  const selectedModelInfo = useMemo(() => {
+    if (!selectedModel) {
+      return null;
+    }
+
+    return selectedProviderModels.find((model) => model.id === selectedModel) ?? null;
+  }, [selectedModel, selectedProviderModels]);
+  useEffect(() => {
+    if (!IS_DEV || !selectedProvider || !selectedModel) {
+      return;
+    }
+
+    console.info("[chat-context] selected-model-meta", {
+      providerId: selectedProvider.id,
+      providerName: selectedProvider.name,
+      selectedModel,
+      matched: selectedModelInfo !== null,
+      selectedModelInfo,
+      parsedModels: selectedProviderModels.map((model) => ({
+        id: model.id,
+        name: model.name,
+        contextWindow: model.contextWindow,
+        maxOutputTokens: model.maxOutputTokens,
+      })),
+    });
+  }, [selectedModel, selectedModelInfo, selectedProvider, selectedProviderModels]);
   const selectedApiFormat = (
     selectedProvider?.apiFormat ?? "chat-completions"
   ) as "chat-completions" | "responses";
@@ -2344,27 +2380,38 @@ export const Component = () => {
                         <SlidersHorizontalIcon className="size-4" />
                       </button>
                     </div>
-                    {isStreaming ? (
-                      <button
-                        type="button"
-                        onClick={abort}
-                        className="flex size-7 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800"
-                      >
-                        <StopIcon className="size-3.5" weight="fill" />
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={!canSubmitMessage}
-                        className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                          canSubmitMessage
-                            ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                            : "bg-zinc-200 text-zinc-400"
-                        }`}
-                      >
-                        <ArrowUpIcon className="size-3.5" weight="bold" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <ChatContextUsage
+                        composerImageCount={composerImages.length}
+                        composerText={composerTextValue}
+                        messages={messages}
+                        model={selectedModelInfo}
+                        referenceCount={activeReferences.length}
+                        resolvedReferenceScope={resolvedReferenceScope}
+                        selectedModelId={selectedModel}
+                      />
+                      {isStreaming ? (
+                        <button
+                          type="button"
+                          onClick={abort}
+                          className="flex size-7 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800"
+                        >
+                          <StopIcon className="size-3.5" weight="fill" />
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={!canSubmitMessage}
+                          className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                            canSubmitMessage
+                              ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                              : "bg-zinc-200 text-zinc-400"
+                          }`}
+                        >
+                          <ArrowUpIcon className="size-3.5" weight="bold" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </form>
