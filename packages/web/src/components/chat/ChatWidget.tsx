@@ -19,11 +19,8 @@ import {
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
 const BASE_WIDGET_STYLES = `
-:host {
+:root {
   color-scheme: light dark;
-  display: block;
-  width: 100%;
-  background: transparent;
   font-family: var(--font-sans, "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif);
   --color-background-primary: #ffffff;
   --color-background-secondary: #f5f5f4;
@@ -96,7 +93,7 @@ const BASE_WIDGET_STYLES = `
 }
 
 @media (prefers-color-scheme: dark) {
-  :host {
+  :root {
     --color-background-primary: #18181b;
     --color-background-secondary: #27272a;
     --color-background-tertiary: #09090b;
@@ -143,8 +140,22 @@ const BASE_WIDGET_STYLES = `
   }
 }
 
-:host, :host * {
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background: transparent;
+}
+
+body,
+body * {
   box-sizing: border-box;
+}
+
+body {
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
 }
 
 [data-widget-content] {
@@ -157,6 +168,93 @@ const BASE_WIDGET_STYLES = `
 [data-widget-content] :where(button, input, select, textarea) {
   color: inherit;
   font: inherit;
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ) {
+  appearance: none;
+  width: 100%;
+  min-height: var(--widget-control-height);
+  padding: 0 12px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: color-mix(in srgb, var(--color-background-primary) 92%, transparent);
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    textarea
+  )::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):hover {
+  border-color: var(--color-border-primary);
+  background: var(--color-background-primary);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):focus-visible {
+  outline: none;
+  border-color: var(--color-border-primary);
+  box-shadow: var(--widget-focus-ring);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: var(--color-background-secondary);
+}
+
+[data-widget-content] textarea {
+  min-height: 96px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
+}
+
+[data-widget-content] select {
+  cursor: pointer;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-secondary) 50%),
+    linear-gradient(135deg, var(--color-text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px);
+  background-repeat: no-repeat;
+  background-size: 6px 6px, 6px 6px;
 }
 
 [data-widget-content] button {
@@ -493,6 +591,22 @@ const getWidgetLabel = (widget: ChatWidgetData): string => {
 };
 
 const IS_DEV = import.meta.env.DEV;
+const WIDGET_IFRAME_SRC_DOC = `<!doctype html><html><head><meta charset="utf-8" /><style>${BASE_WIDGET_STYLES}</style><style data-widget-user-style></style></head><body><div data-widget-content></div></body></html>`;
+const WIDGET_BRIDGE_KEY = "__MEMORA_WIDGET_BRIDGE__";
+const WIDGET_CLEANUP_KEY = "__MEMORA_WIDGET_CLEANUP__";
+const WIDGET_ERROR_KEY = "__MEMORA_WIDGET_ERROR__";
+const WIDGET_SCRIPT_ATTR = "data-widget-runtime-script";
+
+interface WidgetIframeWindow extends Window {
+  [WIDGET_BRIDGE_KEY]?: {
+    Chart: typeof Chart;
+    container: HTMLDivElement;
+    openLink: (url: string) => void;
+    sendPrompt: (text: string) => Promise<void>;
+  };
+  [WIDGET_CLEANUP_KEY]?: (() => void) | null;
+  [WIDGET_ERROR_KEY]?: string | null;
+}
 
 const formatStreamFootprint = (length: number): string => {
   if (length < 1024) {
@@ -530,28 +644,28 @@ const getPlaceholderCopy = ({
   if (hasStyle && !styleReady) {
     return {
       title: "Streaming styles",
-      detail: `${loadingMessage} The stylesheet is still open, so the layout cannot render yet.`,
+      detail: `${loadingMessage}`,
     };
   }
 
   if (hasScript && scriptReady) {
     return {
       title: "Initializing widget",
-      detail: `${loadingMessage} The interactive runtime is ready to mount.`,
+      detail: `${loadingMessage}`,
     };
   }
 
   if (hasScript && !scriptReady) {
     return {
       title: "Streaming interactions",
-      detail: `${loadingMessage} The widget script is still being generated.`,
+      detail: `${loadingMessage}`,
     };
   }
 
   if (htmlText.trim()) {
     return {
       title: "Streaming layout",
-      detail: `${loadingMessage} Markup is arriving and will render as soon as the current chunk is balanced.`,
+      detail: `${loadingMessage}`,
     };
   }
 
@@ -578,10 +692,11 @@ function ChatWidgetComponent({
   widget,
   onSendPrompt,
 }: ChatWidgetProps) {
-  const hostRef = useRef<HTMLDivElement>(null);
-  const shadowRootRef = useRef<ShadowRoot | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeDocumentRef = useRef<Document | null>(null);
   const userStyleRef = useRef<HTMLStyleElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const scriptElementsRef = useRef<HTMLScriptElement[]>([]);
   const cleanupRef = useRef<(() => void) | null>(null);
   const executedSignatureRef = useRef("");
   const parsedCode = useMemo(
@@ -589,6 +704,8 @@ function ChatWidgetComponent({
     [widget.widgetCode],
   );
   const [loadingIndex, setLoadingIndex] = useState(0);
+  const [iframeReady, setIframeReady] = useState(false);
+  const [iframeHeight, setIframeHeight] = useState(1);
   const [hasRuntimeDom, setHasRuntimeDom] = useState(false);
   const [runtimeError, setRuntimeError] = useState<{
     signature: string;
@@ -600,10 +717,62 @@ function ChatWidgetComponent({
     () => getShowWidgetDebugState(widget.toolCallId),
   );
   const teardownWidgetScript = useCallback(() => {
+    const iframeWindow = iframeDocumentRef.current?.defaultView as WidgetIframeWindow | null;
+
     cleanupRef.current?.();
     cleanupRef.current = null;
+    scriptElementsRef.current.forEach((element) => {
+      element.remove();
+    });
+    scriptElementsRef.current = [];
+    if (iframeWindow) {
+      delete iframeWindow[WIDGET_BRIDGE_KEY];
+      delete iframeWindow[WIDGET_CLEANUP_KEY];
+      delete iframeWindow[WIDGET_ERROR_KEY];
+    }
     executedSignatureRef.current = "";
   }, []);
+  const syncIframeHeight = useCallback(() => {
+    const iframe = iframeRef.current;
+    const iframeDocument = iframeDocumentRef.current;
+    const content = contentRef.current;
+    if (!iframe || !iframeDocument || !content) {
+      return;
+    }
+
+    const body = iframeDocument.body;
+    const documentElement = iframeDocument.documentElement;
+    const nextHeight = Math.max(
+      1,
+      content.scrollHeight,
+      content.offsetHeight,
+      body?.scrollHeight ?? 0,
+      body?.offsetHeight ?? 0,
+      documentElement?.scrollHeight ?? 0,
+      documentElement?.offsetHeight ?? 0,
+    );
+
+    setIframeHeight((currentHeight) =>
+      currentHeight === nextHeight ? currentHeight : nextHeight,
+    );
+  }, []);
+  const bindIframeDocument = useCallback(() => {
+    const iframe = iframeRef.current;
+    const iframeDocument = iframe?.contentDocument;
+    if (!iframe || !iframeDocument) {
+      return;
+    }
+
+    iframeDocumentRef.current = iframeDocument;
+    userStyleRef.current =
+      iframeDocument.querySelector<HTMLStyleElement>("[data-widget-user-style]");
+    contentRef.current =
+      iframeDocument.querySelector<HTMLDivElement>("[data-widget-content]");
+    setIframeReady(Boolean(userStyleRef.current && contentRef.current));
+    queueMicrotask(() => {
+      syncIframeHeight();
+    });
+  }, [syncIframeHeight]);
   const loadingMessages = widget.loadingMessages;
   const activeLoadingMessage =
     loadingMessages.length > 0
@@ -619,35 +788,14 @@ function ChatWidgetComponent({
     (runtimeError?.signature === executionSignature ? runtimeError.message : null);
 
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) {
-      return;
-    }
-
-    const shadowRoot = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-    shadowRootRef.current = shadowRoot;
-
-    if (!userStyleRef.current || !contentRef.current) {
-      shadowRoot.replaceChildren();
-
-      const baseStyle = document.createElement("style");
-      baseStyle.textContent = BASE_WIDGET_STYLES;
-
-      const userStyle = document.createElement("style");
-      userStyle.setAttribute("data-widget-user-style", "");
-
-      const content = document.createElement("div");
-      content.setAttribute("data-widget-content", "");
-
-      shadowRoot.append(baseStyle, userStyle, content);
-      userStyleRef.current = userStyle;
-      contentRef.current = content;
-    }
-  }, []);
+    bindIframeDocument();
+  }, [bindIframeDocument]);
 
   useEffect(() => {
     const content = contentRef.current;
-    if (!content) {
+    const iframeDocument = iframeDocumentRef.current;
+    const iframeWindow = iframeDocument?.defaultView;
+    if (!iframeReady || !content || !iframeDocument || !iframeWindow) {
       return;
     }
 
@@ -656,11 +804,12 @@ function ChatWidgetComponent({
         content.childElementCount > 0 ||
         (content.textContent?.trim().length ?? 0) !== 0;
       setHasRuntimeDom(nextHasRuntimeDom);
+      syncIframeHeight();
     };
 
     syncRuntimeDom();
 
-    const observer = new MutationObserver(() => {
+    const observer = new iframeWindow.MutationObserver(() => {
       syncRuntimeDom();
     });
 
@@ -670,10 +819,19 @@ function ChatWidgetComponent({
       characterData: true,
     });
 
+    const resizeObserver = new iframeWindow.ResizeObserver(() => {
+      syncIframeHeight();
+    });
+
+    resizeObserver.observe(content);
+    resizeObserver.observe(iframeDocument.body);
+    resizeObserver.observe(iframeDocument.documentElement);
+
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
     };
-  }, []);
+  }, [iframeReady, syncIframeHeight]);
 
   useEffect(() => {
     if (loadingMessages.length <= 1 || widget.phase === "ready") {
@@ -690,13 +848,14 @@ function ChatWidgetComponent({
   }, [loadingMessages, widget.phase]);
 
   useEffect(() => {
-    if (!userStyleRef.current || !contentRef.current) {
+    if (!iframeReady || !userStyleRef.current || !contentRef.current) {
       return;
     }
 
     userStyleRef.current.textContent = parsedCode.styleText;
     contentRef.current.innerHTML = parsedCode.htmlRenderable;
-  }, [parsedCode.htmlRenderable, parsedCode.styleText]);
+    syncIframeHeight();
+  }, [iframeReady, parsedCode.htmlRenderable, parsedCode.styleText, syncIframeHeight]);
 
   useEffect(() => {
     updateShowWidgetDebug(
@@ -741,7 +900,7 @@ function ChatWidgetComponent({
   ]);
 
   useEffect(() => {
-    if (!shadowRootRef.current || !contentRef.current) {
+    if (!iframeReady || !iframeDocumentRef.current || !contentRef.current) {
       teardownWidgetScript();
       return;
     }
@@ -802,35 +961,151 @@ function ChatWidgetComponent({
     };
 
     try {
-      const runWidgetScript = new Function(
-        "shadowRoot",
-        "container",
-        "Chart",
-        "sendPrompt",
-        "openLink",
-        `"use strict";
-const root = container;
-const document = shadowRoot;
-${parsedCode.scriptText}`,
-      ) as (
-        shadowRoot: ShadowRoot,
-        container: HTMLDivElement,
-        chart: typeof Chart,
-        sendPrompt: (text: string) => Promise<void>,
-        openLink: (url: string) => void,
-      ) => unknown;
-
-      const cleanup = runWidgetScript(
-        shadowRootRef.current,
-        contentRef.current,
-        Chart,
-        sendPrompt,
-        openLink,
-      );
-
-      if (typeof cleanup === "function") {
-        cleanupRef.current = cleanup as () => void;
+      const iframeDocument = iframeDocumentRef.current;
+      const iframeWindow = iframeDocument.defaultView as WidgetIframeWindow | null;
+      if (!iframeWindow) {
+        throw new Error("Widget iframe window is unavailable.");
       }
+
+      iframeWindow[WIDGET_BRIDGE_KEY] = {
+        Chart,
+        container: contentRef.current,
+        openLink,
+        sendPrompt,
+      };
+      iframeWindow[WIDGET_CLEANUP_KEY] = null;
+      iframeWindow[WIDGET_ERROR_KEY] = null;
+      const appendScriptElement = (scriptElement: HTMLScriptElement): Promise<void> => {
+        scriptElementsRef.current.push(scriptElement);
+
+        return new Promise((resolve, reject) => {
+          scriptElement.addEventListener(
+            "load",
+            () => {
+              resolve();
+            },
+            { once: true },
+          );
+          scriptElement.addEventListener(
+            "error",
+            () => {
+              reject(
+                new Error(
+                  iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.",
+                ),
+              );
+            },
+            { once: true },
+          );
+
+          iframeDocument.body.append(scriptElement);
+
+          if (!scriptElement.src) {
+            resolve();
+          }
+        });
+      };
+
+      const runScripts = async () => {
+        for (const script of parsedCode.scripts) {
+          const scriptElement = iframeDocument.createElement("script");
+          scriptElement.type = "text/javascript";
+          scriptElement.setAttribute(WIDGET_SCRIPT_ATTR, signature);
+
+          if (script.src) {
+            scriptElement.src = script.src;
+            await appendScriptElement(scriptElement);
+            continue;
+          }
+
+          scriptElement.textContent = `"use strict";
+(() => {
+  const bridge = window.${WIDGET_BRIDGE_KEY};
+  if (!bridge) {
+    throw new Error("Widget bridge is unavailable.");
+  }
+
+  const shadowRoot = document;
+  const container = bridge.container;
+  const root = container;
+  const Chart = window.Chart ?? bridge.Chart;
+  const sendPrompt = bridge.sendPrompt;
+  const openLink = bridge.openLink;
+
+  try {
+    const cleanup = (() => {
+${script.content}
+    })();
+    if (typeof cleanup === "function") {
+      window.${WIDGET_CLEANUP_KEY} = cleanup;
+    }
+    window.${WIDGET_ERROR_KEY} = null;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Widget script failed to execute.";
+    window.${WIDGET_ERROR_KEY} = message;
+    throw error;
+  }
+})();`;
+          await appendScriptElement(scriptElement);
+        }
+      };
+
+      void runScripts()
+        .then(() => {
+          const cleanup = iframeWindow[WIDGET_CLEANUP_KEY];
+          if (typeof cleanup === "function") {
+            cleanupRef.current = cleanup;
+          }
+          if (iframeWindow[WIDGET_ERROR_KEY]) {
+            throw new Error(
+              iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.",
+            );
+          }
+          syncIframeHeight();
+          updateShowWidgetDebug(
+            widget.toolCallId,
+            {
+              phase: widget.phase,
+            },
+            {
+              type: "widget-script-success",
+              summary: "Widget script executed",
+              details: {
+                returnedCleanup: typeof cleanup === "function",
+                scriptCount: parsedCode.scripts.length,
+              },
+            },
+          );
+        })
+        .catch((error: unknown) => {
+          updateShowWidgetDebug(
+            widget.toolCallId,
+            {
+              phase: "error",
+            },
+            {
+              type: "widget-script-error",
+              summary: "Widget script threw during execution",
+              details: {
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Widget script failed to execute.",
+              },
+            },
+          );
+          queueMicrotask(() => {
+            setRuntimeError({
+              signature,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Widget script failed to execute.",
+            });
+          });
+        });
+
       updateShowWidgetDebug(
         widget.toolCallId,
         {
@@ -838,9 +1113,9 @@ ${parsedCode.scriptText}`,
         },
         {
           type: "widget-script-success",
-          summary: "Widget script executed",
+          summary: "Widget scripts scheduled",
           details: {
-            returnedCleanup: typeof cleanup === "function",
+            scriptCount: parsedCode.scripts.length,
           },
         },
       );
@@ -879,11 +1154,14 @@ ${parsedCode.scriptText}`,
     };
   }, [
     executionSignature,
+    iframeReady,
     onSendPrompt,
     parsedCode.htmlRenderable.length,
     parsedCode.hasScript,
     parsedCode.scriptReady,
+    parsedCode.scripts,
     parsedCode.scriptText,
+    syncIframeHeight,
     teardownWidgetScript,
     widget.phase,
     widget.toolCallId,
@@ -947,10 +1225,17 @@ ${parsedCode.scriptText}`,
           </div>
         </div>
       )}
-      <div
-        ref={hostRef}
-        className={cn("w-full px-3 py-3", !hasVisibleWidgetDom && "hidden")}
-      />
+      <div className={cn("px-3 py-3", !hasVisibleWidgetDom && "hidden")}>
+        <iframe
+          ref={iframeRef}
+          title={getWidgetLabel(widget)}
+          srcDoc={WIDGET_IFRAME_SRC_DOC}
+          className="block w-full border-0 bg-transparent"
+          style={{ height: `${iframeHeight}px` }}
+          scrolling="no"
+          onLoad={bindIframeDocument}
+        />
+      </div>
       {showLoadingState && (
         <div className="border-t border-zinc-200/80 bg-white/80 px-3 py-2 text-xs text-zinc-500">
           {activeLoadingMessage}

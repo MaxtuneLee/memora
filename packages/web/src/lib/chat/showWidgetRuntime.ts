@@ -4,9 +4,15 @@ export interface ParsedShowWidgetCode {
   styleReady: boolean;
   htmlText: string;
   htmlRenderable: string;
+  scripts: ParsedWidgetScript[];
   scriptText: string;
   hasScript: boolean;
   scriptReady: boolean;
+}
+
+export interface ParsedWidgetScript {
+  content: string;
+  src: string | null;
 }
 
 const findTagStart = (
@@ -19,6 +25,23 @@ const findTagStart = (
 
 const findTagEnd = (source: string, fromIndex: number): number => {
   return source.indexOf(">", fromIndex);
+};
+
+const getTagAttribute = (
+  source: string,
+  attributeName: string,
+): string | null => {
+  const quotedMatch = source.match(
+    new RegExp(`${attributeName}\\s*=\\s*(['"])(.*?)\\1`, "i"),
+  );
+  if (quotedMatch) {
+    return quotedMatch[2] ?? null;
+  }
+
+  const unquotedMatch = source.match(
+    new RegExp(`${attributeName}\\s*=\\s*([^\\s"'=<>` + "`" + `]+)`, "i"),
+  );
+  return unquotedMatch?.[1] ?? null;
 };
 
 const findClosingTagRange = (
@@ -249,6 +272,7 @@ export const parseShowWidgetCode = (
   let styleText = "";
   let hasStyle = false;
   let styleReady = true;
+  const scripts: ParsedWidgetScript[] = [];
   let scriptText = "";
   let scriptReady = false;
   let hasScript = false;
@@ -278,16 +302,37 @@ export const parseShowWidgetCode = (
   if (scriptStart !== -1) {
     hasScript = true;
     htmlEnd = scriptStart;
+    scriptReady = true;
 
-    const scriptOpenEnd = findTagEnd(source, scriptStart);
-    if (scriptOpenEnd !== -1) {
-      const scriptClose = findClosingTagRange(source, "script", scriptOpenEnd + 1);
-      if (scriptClose) {
-        scriptText = source.slice(scriptOpenEnd + 1, scriptClose.start);
-        scriptReady = true;
-      } else {
-        scriptText = source.slice(scriptOpenEnd + 1);
+    let scriptCursor = scriptStart;
+    while (scriptCursor < source.length) {
+      const nextScriptStart = findTagStart(source, "script", scriptCursor);
+      if (nextScriptStart === -1) {
+        break;
       }
+
+      const scriptOpenEnd = findTagEnd(source, nextScriptStart);
+      if (scriptOpenEnd === -1) {
+        scriptReady = false;
+        break;
+      }
+
+      const rawOpenTag = source.slice(nextScriptStart, scriptOpenEnd + 1);
+      const scriptClose = findClosingTagRange(source, "script", scriptOpenEnd + 1);
+      if (!scriptClose) {
+        scripts.push({
+          content: source.slice(scriptOpenEnd + 1),
+          src: getTagAttribute(rawOpenTag, "src"),
+        });
+        scriptReady = false;
+        break;
+      }
+
+      scripts.push({
+        content: source.slice(scriptOpenEnd + 1, scriptClose.start),
+        src: getTagAttribute(rawOpenTag, "src"),
+      });
+      scriptCursor = scriptClose.end;
     }
   } else {
     scriptReady = true;
@@ -295,6 +340,7 @@ export const parseShowWidgetCode = (
 
   const htmlText = source.slice(cursor, htmlEnd);
   const htmlRenderable = getRenderableHtml(htmlText);
+  scriptText = scripts.map((script) => script.content).join("\n\n");
 
   return {
     styleText,
@@ -302,6 +348,7 @@ export const parseShowWidgetCode = (
     styleReady,
     htmlText,
     htmlRenderable,
+    scripts,
     scriptText,
     hasScript,
     scriptReady,

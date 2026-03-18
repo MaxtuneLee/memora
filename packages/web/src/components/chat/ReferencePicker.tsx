@@ -35,7 +35,7 @@ export const ReferencePicker = ({
   }
 
   return (
-    <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-sm">
+    <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-sm z-10 relative">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-3 py-2">
         <MagnifyingGlassIcon className="size-4 text-zinc-400" />
         <input

@@ -49,6 +49,11 @@ export interface ChatTurnInput {
   images: ChatInputImage[];
 }
 
+interface RunTurnOptions {
+  existingUserMessage?: ChatMessage;
+  userMessageContent?: string;
+}
+
 interface IterationLimitPrompt {
   iterations: number;
 }
@@ -90,11 +95,17 @@ interface UseAgentReturn {
   thinkingCollapsed: boolean;
   iterationLimitPrompt: IterationLimitPrompt | null;
   error: Error | null;
-  send: (input: string | ChatTurnInput) => Promise<void>;
+  send: (
+    input: string | ChatTurnInput,
+    options?: RunTurnOptions,
+  ) => Promise<void>;
   continueAfterIterationLimit: () => Promise<void>;
   dismissIterationLimitPrompt: () => void;
   abort: () => void;
-  reset: () => void;
+  reset: (options?: {
+    messages?: ChatMessage[];
+    contextMessages?: ChatMessage[];
+  }) => Promise<void>;
   updateMessage: (
     messageId: string,
     updater: (message: ChatMessage) => ChatMessage,
@@ -147,6 +158,33 @@ const buildAgentInput = (
       })),
     ],
   };
+};
+
+const toAgentHistoryMessages = (messages: ChatMessage[]): AgentMessage[] => {
+  return messages.flatMap((message, index) => {
+    const content: AgentMessage["content"] = [];
+    const normalizedText = message.content.trim();
+
+    if (normalizedText.length > 0) {
+      content.push({
+        type: "text",
+        text: message.content,
+      });
+    }
+
+    if (content.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: message.id,
+        role: message.role,
+        content,
+        createdAt: Date.now() + index,
+      },
+    ];
+  });
 };
 
 const formatUsageSummary = (usage?: TokenUsage): string => {
@@ -1082,13 +1120,42 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   ]);
 
   const runTurn = useCallback(
-    async (input: string | ChatTurnInput, userMessageContent?: string) => {
+    async (input: string | ChatTurnInput, turnOptions?: RunTurnOptions) => {
       if (isStreaming) return;
 
       const normalizedInput = normalizeTurnInput(input);
-      const userMessageId = crypto.randomUUID();
-      const agentInput = buildAgentInput(normalizedInput, userMessageId);
+      const userMessageId =
+        turnOptions?.existingUserMessage?.id ?? crypto.randomUUID();
       const userAttachments = normalizedInput.images.map((image) => image.attachment);
+      const userMsg: ChatMessage =
+        turnOptions?.existingUserMessage ?? {
+          id: userMessageId,
+          role: "user",
+          content: turnOptions?.userMessageContent ?? normalizedInput.text,
+          ...(userAttachments.length > 0 ? { attachments: userAttachments } : {}),
+        };
+      const agentInput = turnOptions?.existingUserMessage
+        ? {
+            id: userMsg.id,
+            role: "user" as const,
+            createdAt: Date.now(),
+            content: [
+              ...(normalizedInput.text
+                ? [
+                    {
+                      type: "text" as const,
+                      text: normalizedInput.text,
+                    },
+                  ]
+                : []),
+              ...normalizedInput.images.map((image) => ({
+                type: "image" as const,
+                mimeType: image.attachment.mimeType,
+                data: image.data,
+              })),
+            ],
+          }
+        : buildAgentInput(normalizedInput, userMessageId);
 
       setError(null);
       setIterationLimitPrompt(null);
@@ -1099,13 +1166,9 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
       setThinkingCollapsed(false);
       clearBufferedWidgetState();
 
-      const userMsg: ChatMessage = {
-        id: userMessageId,
-        role: "user",
-        content: userMessageContent ?? normalizedInput.text,
-        ...(userAttachments.length > 0 ? { attachments: userAttachments } : {}),
-      };
-      setMessages((prev) => [...prev, userMsg]);
+      if (!turnOptions?.existingUserMessage) {
+        setMessages((prev) => [...prev, userMsg]);
+      }
 
       const streamingId = crypto.randomUUID();
       setMessages((prev) => [
@@ -1196,15 +1259,17 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   );
 
   const send = useCallback(
-    async (input: string | ChatTurnInput) => {
-      await runTurn(input);
+    async (input: string | ChatTurnInput, options?: RunTurnOptions) => {
+      await runTurn(input, options);
     },
     [runTurn],
   );
 
   const continueAfterIterationLimit = useCallback(async () => {
     if (!iterationLimitPrompt || isStreaming) return;
-    await runTurn(CONTINUE_AFTER_ITERATION_LIMIT_PROMPT, "Continue");
+    await runTurn(CONTINUE_AFTER_ITERATION_LIMIT_PROMPT, {
+      userMessageContent: "Continue",
+    });
   }, [isStreaming, iterationLimitPrompt, runTurn]);
 
   const dismissIterationLimitPrompt = useCallback(() => {
@@ -1236,21 +1301,31 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     clearBufferedWidgetState();
   }, [clearBufferedWidgetState, flushAllBufferedWidgets]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async (options?: {
+    messages?: ChatMessage[];
+    contextMessages?: ChatMessage[];
+  }) => {
     flushAllBufferedWidgets();
     agentRef.current?.abort();
-    agentRef.current = null;
-    initializedRef.current = false;
-    agentSignatureRef.current = "";
-    setMessages([]);
+    const nextMessages = options?.messages ?? [];
+    const nextContextMessages = options?.contextMessages ?? nextMessages;
+    initialMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
     setIsStreaming(false);
     setStatus({ type: "idle" });
     setThinkingSteps([]);
     thinkingStepsRef.current = [];
+    setThinkingCollapsed(false);
     setIterationLimitPrompt(null);
     setError(null);
     clearBufferedWidgetState();
-  }, [clearBufferedWidgetState, flushAllBufferedWidgets]);
+
+    const agent = await getAgent();
+    await agent.context.clear();
+    for (const message of toAgentHistoryMessages(nextContextMessages)) {
+      await agent.context.append(message);
+    }
+  }, [clearBufferedWidgetState, flushAllBufferedWidgets, getAgent]);
 
   return {
     messages,

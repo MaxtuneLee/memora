@@ -810,10 +810,15 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 - If the user asks for an inline chart, diagram, mockup, artwork, or interactive UI in chat, first activate the \`show-widget-skills\` skill.
 - Read \`README.md\`, then the closest module guideline, then that module's required section files before calling \`show_widget\`.
 - Keep explanatory prose in the normal assistant response. Use \`show_widget\` only for the rendered widget fragment.
+- DO NOT use Mathematical expressions in \`show_widget\` content.
 
 ## Transcript format (at transcriptPath)
 { "text": "full transcript", "words": [{ "text": "word", "timestamp": [startSec, endSec] }] }
 Word-level timestamps live in the "words" array. Prefer search_transcript to get timestamps directly.
+
+## Mathematical expressions
+- Wrap inline mathematical expressions with $$
+- For display-style equations, place $$ delimiters on separate lines
 
 ## Workflow
 1. describe_table("files") to learn the schema

@@ -185,6 +185,10 @@ export class Agent {
     this.abortController?.abort();
   }
 
+  async replaceHistory(messages: AgentMessage[]): Promise<void> {
+    await this.context.replaceMessages(messages);
+  }
+
   async *run(input: string | AgentMessage): AsyncGenerator<AgentEvent> {
     this.state = {
       phase: "input",
@@ -213,7 +217,7 @@ export class Agent {
         await this.hooks.onAfterInput(hookCtx, inputMessage);
       }
 
-      // Loop: Think � Action � Observation
+      // Loop: Think - Action - Observation
       const maxIterations = this.config.maxIterations ?? 10;
 
       while (this.state.iteration < maxIterations && !this.state.aborted) {

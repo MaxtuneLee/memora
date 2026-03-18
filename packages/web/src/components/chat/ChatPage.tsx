@@ -129,7 +129,9 @@ const IS_DEV = import.meta.env.DEV;
 const MAX_REFERENCED_FILES = 200;
 const REFERENCE_MENTION_PATTERN = /@([^\s@]*)$/;
 
-const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessage[] => {
+const toAgentMessages = (
+  messages: ChatSessionMessage[],
+): AgentChatMessage[] => {
   return messages.map((message) => ({
     id: message.id,
     role: message.role,
@@ -311,24 +313,48 @@ const buildSessionSignature = (
   messages: AgentChatMessage[],
   references: ChatSessionReference[],
 ): string => {
-  return JSON.stringify(
-    {
-      messages: messages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        content: message.content,
-        attachments: message.attachments ?? [],
-        widgets: message.widgets ?? [],
-        thinkingSteps: message.thinkingSteps ?? [],
-        ...(message.usage ? { usage: message.usage } : {}),
-      })),
-      references: references.map((reference) => ({
-        type: reference.type,
-        id: reference.id,
-        name: reference.name,
-      })),
-    },
-  );
+  return JSON.stringify({
+    messages: messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      attachments: message.attachments ?? [],
+      widgets: message.widgets ?? [],
+      thinkingSteps: message.thinkingSteps ?? [],
+      ...(message.usage ? { usage: message.usage } : {}),
+    })),
+    references: references.map((reference) => ({
+      type: reference.type,
+      id: reference.id,
+      name: reference.name,
+    })),
+  });
+};
+
+const findMessageIndexById = (
+  messages: AgentChatMessage[],
+  messageId: string,
+): number => {
+  return messages.findIndex((message) => message.id === messageId);
+};
+
+const findRetrySourceMessage = (
+  messages: AgentChatMessage[],
+  assistantMessageId: string,
+): AgentChatMessage | null => {
+  const assistantIndex = findMessageIndexById(messages, assistantMessageId);
+  if (assistantIndex <= 0) {
+    return null;
+  }
+
+  for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+    const candidate = messages[index];
+    if (candidate?.role === "user") {
+      return candidate;
+    }
+  }
+
+  return null;
 };
 
 const hasImageItems = (dataTransfer: DataTransfer | null): boolean => {
@@ -352,7 +378,9 @@ const resolveTimeGreeting = (date: Date): string => {
   return "Good evening";
 };
 
-const resolveGreetingName = (value: string | null | undefined): string | null => {
+const resolveGreetingName = (
+  value: string | null | undefined,
+): string | null => {
   if (typeof value !== "string") {
     return null;
   }
@@ -365,7 +393,9 @@ const resolveGreetingName = (value: string | null | undefined): string | null =>
   return normalized;
 };
 
-const extractNameFromPersonalityMarkdown = (markdown: string): string | null => {
+const extractNameFromPersonalityMarkdown = (
+  markdown: string,
+): string | null => {
   const match = markdown.match(
     /^##\s+User\s+Identity\s*\n([\s\S]*?)(?=\n##\s+|$)/im,
   );
@@ -407,8 +437,12 @@ export const Component = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
-  const activeFileRows = store.useQuery(chatActiveFilesQuery$) as LiveStoreFile[];
-  const activeFolderRows = store.useQuery(chatActiveFoldersQuery$) as LiveStoreFolder[];
+  const activeFileRows = store.useQuery(
+    chatActiveFilesQuery$,
+  ) as LiveStoreFile[];
+  const activeFolderRows = store.useQuery(
+    chatActiveFoldersQuery$,
+  ) as LiveStoreFolder[];
   const requestedSessionId = useMemo(() => {
     const value = new URLSearchParams(location.search).get("session");
     return value?.trim() ?? "";
@@ -421,7 +455,9 @@ export const Component = () => {
   const initialLocationKeyRef = useRef(location.key);
   const [settings] = useClientDocument(settingsTable);
   const { openSettings } = useSettingsDialog();
-  const referenceScopeRef = useRef<ResolvedReferenceScope>(EMPTY_REFERENCE_SCOPE);
+  const referenceScopeRef = useRef<ResolvedReferenceScope>(
+    EMPTY_REFERENCE_SCOPE,
+  );
   const showWidgetSkillTracker = useMemo(
     () => createShowWidgetSkillTracker(),
     [],
@@ -447,13 +483,15 @@ export const Component = () => {
     useState<AgentChatMessage[]>([]);
   const [userToggled, setUserToggled] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null,
   );
-  const [activeReferences, setActiveReferences] = useState<ChatSessionReference[]>(
-    [],
-  );
+  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<
+    string | null
+  >(null);
+  const [activeReferences, setActiveReferences] = useState<
+    ChatSessionReference[]
+  >([]);
   const [referencePickerOpen, setReferencePickerOpen] = useState(false);
   const [referencePickerQuery, setReferencePickerQuery] = useState("");
   const [referencePickerSource, setReferencePickerSource] = useState<
@@ -465,15 +503,19 @@ export const Component = () => {
   const [pendingWriteApproval, setPendingWriteApproval] =
     useState<WriteApprovalRequest | null>(null);
   const [composerTextValue, setComposerTextValue] = useState("");
-  const [composerImages, setComposerImages] = useState<ChatImageAttachment[]>([]);
-  const [imagePickerOpen, setImagePickerOpen] = useState(false);
-  const [imagePickerQuery, setImagePickerQuery] = useState("");
-  const [composerNotice, setComposerNotice] = useState<ComposerNotice | null>(null);
-  const [composerDragActive, setComposerDragActive] = useState(false);
-  const [isPreparingTurn, setIsPreparingTurn] = useState(false);
-  const [savingImageAttachmentIds, setSavingImageAttachmentIds] = useState<string[]>(
+  const [composerImages, setComposerImages] = useState<ChatImageAttachment[]>(
     [],
   );
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerQuery, setImagePickerQuery] = useState("");
+  const [composerNotice, setComposerNotice] = useState<ComposerNotice | null>(
+    null,
+  );
+  const [composerDragActive, setComposerDragActive] = useState(false);
+  const [isPreparingTurn, setIsPreparingTurn] = useState(false);
+  const [savingImageAttachmentIds, setSavingImageAttachmentIds] = useState<
+    string[]
+  >([]);
   const persistedSignaturesRef = useRef<Map<string, string>>(new Map());
   const handledNewLocationKeyRef = useRef<string | null>(null);
   const pendingLocationSessionIdRef = useRef<string | null>(null);
@@ -481,9 +523,9 @@ export const Component = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const composerImagesRef = useRef<ChatImageAttachment[]>([]);
   const dragDepthRef = useRef(0);
-  const writeApprovalResolverRef = useRef<((decision: WriteApprovalDecision) => void) | null>(
-    null,
-  );
+  const writeApprovalResolverRef = useRef<
+    ((decision: WriteApprovalDecision) => void) | null
+  >(null);
 
   const activeFileById = useMemo(
     () => new Map(activeFileRows.map((file) => [file.id, file])),
@@ -503,11 +545,7 @@ export const Component = () => {
   );
   const resolvedReferenceScope = useMemo(
     () =>
-      resolveReferenceScope(
-        activeReferences,
-        activeFileRows,
-        activeFolderRows,
-      ),
+      resolveReferenceScope(activeReferences, activeFileRows, activeFolderRows),
     [activeFileRows, activeFolderRows, activeReferences],
   );
   referenceScopeRef.current = resolvedReferenceScope;
@@ -573,7 +611,12 @@ export const Component = () => {
       }));
 
     return [...folderOptions, ...fileOptions].slice(0, 80);
-  }, [activeFileRows, activeFolderRows, activeReferences, referencePickerQuery]);
+  }, [
+    activeFileRows,
+    activeFolderRows,
+    activeReferences,
+    referencePickerQuery,
+  ]);
 
   const imagePickerOptions = useMemo(() => {
     const normalizedQuery = imagePickerQuery.trim().toLowerCase();
@@ -649,7 +692,9 @@ export const Component = () => {
 
         const sorted = [...summaries].sort((a, b) => b.updatedAt - a.updatedAt);
         const requestedSummary = initialRequestedSessionIdRef.current
-          ? sorted.find((summary) => summary.id === initialRequestedSessionIdRef.current)
+          ? sorted.find(
+              (summary) => summary.id === initialRequestedSessionIdRef.current,
+            )
           : null;
         const initialSessionId =
           requestedSummary?.id ?? forcedSessionId ?? sorted[0]?.id;
@@ -680,7 +725,9 @@ export const Component = () => {
       } catch (err) {
         if (cancelled) return;
         const message =
-          err instanceof Error ? err.message : "Failed to initialize chat sessions.";
+          err instanceof Error
+            ? err.message
+            : "Failed to initialize chat sessions.";
         setSessionsError(message);
       } finally {
         if (!cancelled) {
@@ -794,7 +841,9 @@ export const Component = () => {
       return null;
     }
 
-    return selectedProviderModels.find((model) => model.id === selectedModel) ?? null;
+    return (
+      selectedProviderModels.find((model) => model.id === selectedModel) ?? null
+    );
   }, [selectedModel, selectedProviderModels]);
   useEffect(() => {
     if (!IS_DEV || !selectedProvider || !selectedModel) {
@@ -814,10 +863,14 @@ export const Component = () => {
         maxOutputTokens: model.maxOutputTokens,
       })),
     });
-  }, [selectedModel, selectedModelInfo, selectedProvider, selectedProviderModels]);
-  const selectedApiFormat = (
-    selectedProvider?.apiFormat ?? "chat-completions"
-  ) as "chat-completions" | "responses";
+  }, [
+    selectedModel,
+    selectedModelInfo,
+    selectedProvider,
+    selectedProviderModels,
+  ]);
+  const selectedApiFormat = (selectedProvider?.apiFormat ??
+    "chat-completions") as "chat-completions" | "responses";
   const selectedApiKey = selectedProvider?.apiKey.trim() ?? "";
   const selectedEndpoint = useMemo(() => {
     if (!selectedProvider) return "";
@@ -846,6 +899,7 @@ export const Component = () => {
       endpoint: selectedEndpoint,
       apiKey: selectedApiKey || undefined,
       apiFormat: selectedApiFormat,
+      maxIterations: 20,
     };
   }, [
     activeSessionId,
@@ -856,7 +910,8 @@ export const Component = () => {
     selectedProvider,
   ]);
 
-  const isConfigured = !!selectedProvider && !!selectedModel && !!selectedEndpoint;
+  const isConfigured =
+    !!selectedProvider && !!selectedModel && !!selectedEndpoint;
 
   const tools = useMemo(
     () =>
@@ -904,6 +959,7 @@ export const Component = () => {
     continueAfterIterationLimit,
     dismissIterationLimitPrompt,
     abort: abortAgent,
+    reset: resetAgent,
     updateMessage,
   } = useAgent({
     sessionId: activeSessionId || "bootstrap",
@@ -927,7 +983,8 @@ export const Component = () => {
   const displayedMessages = messages;
   const hasMessages = displayedMessages.length > 0;
   const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
-  const composerScrollInset = composerOverlayHeight > 0 ? composerOverlayHeight : 320;
+  const composerScrollInset =
+    composerOverlayHeight > 0 ? composerOverlayHeight : 320;
   const composerFadeHeight = Math.min(
     Math.max(composerOverlayHeight + 40, 160),
     320,
@@ -944,13 +1001,16 @@ export const Component = () => {
     dragDepthRef.current = 0;
   }, []);
 
-  const cleanupComposerImages = useCallback((attachments: ChatImageAttachment[]) => {
-    void Promise.all(
-      attachments.map(async (attachment) => {
-        await deleteChatImageAttachmentAsset(attachment);
-      }),
-    );
-  }, []);
+  const cleanupComposerImages = useCallback(
+    (attachments: ChatImageAttachment[]) => {
+      void Promise.all(
+        attachments.map(async (attachment) => {
+          await deleteChatImageAttachmentAsset(attachment);
+        }),
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     latestMessagesRef.current = messages;
@@ -962,7 +1022,9 @@ export const Component = () => {
 
   useEffect(() => {
     const behavior =
-      displayedMessages.length > previousMessageCountRef.current ? "smooth" : "auto";
+      displayedMessages.length > previousMessageCountRef.current
+        ? "smooth"
+        : "auto";
     previousMessageCountRef.current = displayedMessages.length;
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, [displayedMessages.length, isStreaming, thinkingSteps]);
@@ -974,7 +1036,9 @@ export const Component = () => {
     }
 
     const measureOverlay = () => {
-      const nextHeight = Math.ceil(overlayElement.getBoundingClientRect().height);
+      const nextHeight = Math.ceil(
+        overlayElement.getBoundingClientRect().height,
+      );
       setComposerOverlayHeight((currentHeight) => {
         return currentHeight === nextHeight ? currentHeight : nextHeight;
       });
@@ -1042,12 +1106,7 @@ export const Component = () => {
   }, [cleanupComposerImages]);
 
   useEffect(() => {
-    if (
-      !sessionsReady ||
-      !activeSessionId ||
-      isStreaming ||
-      isPreparingTurn
-    ) {
+    if (!sessionsReady || !activeSessionId || isStreaming || isPreparingTurn) {
       return;
     }
 
@@ -1055,7 +1114,8 @@ export const Component = () => {
       const nextMessages = latestMessagesRef.current;
       const nextReferences = latestReferencesRef.current;
       const signature = buildSessionSignature(nextMessages, nextReferences);
-      const persistedSignature = persistedSignaturesRef.current.get(activeSessionId);
+      const persistedSignature =
+        persistedSignaturesRef.current.get(activeSessionId);
       if (persistedSignature === signature) {
         return;
       }
@@ -1070,7 +1130,10 @@ export const Component = () => {
             buildSessionSignature(nextMessages, record.references),
           );
           setSessions((prev) => {
-            const next = [summary, ...prev.filter((session) => session.id !== summary.id)];
+            const next = [
+              summary,
+              ...prev.filter((session) => session.id !== summary.id),
+            ];
             return next.sort((a, b) => b.updatedAt - a.updatedAt);
           });
         })
@@ -1097,11 +1160,17 @@ export const Component = () => {
     }
     const created = await createChatSession();
     const summary = toSessionSummary(created);
-    setSessions((prev) => [summary, ...prev.filter((session) => session.id !== summary.id)]);
+    setSessions((prev) => [
+      summary,
+      ...prev.filter((session) => session.id !== summary.id),
+    ]);
     setActiveSessionInitialMessages([]);
     setActiveReferences([]);
     setActiveSessionId(created.id);
-    persistedSignaturesRef.current.set(created.id, buildSessionSignature([], []));
+    persistedSignaturesRef.current.set(
+      created.id,
+      buildSessionSignature([], []),
+    );
     setReferencePickerOpen(false);
     setReferencePickerQuery("");
     setReferencePickerSource(null);
@@ -1185,7 +1254,9 @@ export const Component = () => {
         await deleteChatSession(sessionId);
         persistedSignaturesRef.current.delete(sessionId);
 
-        const remaining = sessions.filter((session) => session.id !== sessionId);
+        const remaining = sessions.filter(
+          (session) => session.id !== sessionId,
+        );
         setSessions(remaining);
 
         if (sessionId !== activeSessionId) {
@@ -1323,7 +1394,9 @@ export const Component = () => {
       });
 
       if (referencePickerSource === "mention" && inputRef.current) {
-        inputRef.current.value = removeTrailingReferenceMention(inputRef.current.value);
+        inputRef.current.value = removeTrailingReferenceMention(
+          inputRef.current.value,
+        );
       }
       closeReferencePicker();
       inputRef.current?.focus();
@@ -1331,17 +1404,16 @@ export const Component = () => {
     [closeReferencePicker, referencePickerSource],
   );
 
-  const handleRemoveReference = useCallback((reference: ChatSessionReference) => {
-    setActiveReferences((prev) =>
-      prev.filter(
-        (item) =>
-          !(
-            item.type === reference.type &&
-            item.id === reference.id
-          ),
-      ),
-    );
-  }, []);
+  const handleRemoveReference = useCallback(
+    (reference: ChatSessionReference) => {
+      setActiveReferences((prev) =>
+        prev.filter(
+          (item) => !(item.type === reference.type && item.id === reference.id),
+        ),
+      );
+    },
+    [],
+  );
 
   const handleClearReferences = useCallback(() => {
     setActiveReferences([]);
@@ -1357,34 +1429,42 @@ export const Component = () => {
     setReferencePickerOpen(true);
     setReferencePickerQuery("");
     setReferencePickerSource("button");
-  }, [closeImagePicker, closeReferencePicker, referencePickerOpen, referencePickerSource]);
+  }, [
+    closeImagePicker,
+    closeReferencePicker,
+    referencePickerOpen,
+    referencePickerSource,
+  ]);
 
-  const pushComposerImages = useCallback((nextAttachments: ChatImageAttachment[]) => {
-    if (nextAttachments.length === 0) {
-      return;
-    }
-
-    setComposerImages((prev) => {
-      const remainingSlots = MAX_CHAT_IMAGE_ATTACHMENTS - prev.length;
-      if (remainingSlots <= 0) {
-        setComposerNotice({
-          type: "error",
-          text: `You can attach up to ${MAX_CHAT_IMAGE_ATTACHMENTS} images per message.`,
-        });
-        return prev;
+  const pushComposerImages = useCallback(
+    (nextAttachments: ChatImageAttachment[]) => {
+      if (nextAttachments.length === 0) {
+        return;
       }
 
-      const accepted = nextAttachments.slice(0, remainingSlots);
-      if (accepted.length < nextAttachments.length) {
-        setComposerNotice({
-          type: "info",
-          text: `Only the first ${MAX_CHAT_IMAGE_ATTACHMENTS} images were kept.`,
-        });
-      }
+      setComposerImages((prev) => {
+        const remainingSlots = MAX_CHAT_IMAGE_ATTACHMENTS - prev.length;
+        if (remainingSlots <= 0) {
+          setComposerNotice({
+            type: "error",
+            text: `You can attach up to ${MAX_CHAT_IMAGE_ATTACHMENTS} images per message.`,
+          });
+          return prev;
+        }
 
-      return [...prev, ...accepted];
-    });
-  }, []);
+        const accepted = nextAttachments.slice(0, remainingSlots);
+        if (accepted.length < nextAttachments.length) {
+          setComposerNotice({
+            type: "info",
+            text: `Only the first ${MAX_CHAT_IMAGE_ATTACHMENTS} images were kept.`,
+          });
+        }
+
+        return [...prev, ...accepted];
+      });
+    },
+    [],
+  );
 
   const addLocalImagesToComposer = useCallback(
     async (files: File[]) => {
@@ -1425,7 +1505,10 @@ export const Component = () => {
       const errors: string[] = [];
       for (const file of filesToAttach) {
         try {
-          const attachment = await createLocalChatImageAttachment(activeSessionId, file);
+          const attachment = await createLocalChatImageAttachment(
+            activeSessionId,
+            file,
+          );
           nextAttachments.push(attachment);
         } catch (error) {
           errors.push(error instanceof Error ? error.message : String(error));
@@ -1492,7 +1575,10 @@ export const Component = () => {
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text: error instanceof Error ? error.message : "Could not attach that image.",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not attach that image.",
         });
       }
     },
@@ -1508,7 +1594,9 @@ export const Component = () => {
         cleanupComposerImages([nextAttachment]);
       }
 
-      setComposerImages((prev) => prev.filter((attachment) => attachment.id !== attachmentId));
+      setComposerImages((prev) =>
+        prev.filter((attachment) => attachment.id !== attachmentId),
+      );
     },
     [cleanupComposerImages],
   );
@@ -1516,7 +1604,9 @@ export const Component = () => {
   const handleComposerPaste = useCallback(
     (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const imageFiles = Array.from(event.clipboardData.items)
-        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .filter(
+          (item) => item.kind === "file" && item.type.startsWith("image/"),
+        )
         .map((item) => item.getAsFile())
         .filter((file): file is File => file !== null);
 
@@ -1544,26 +1634,32 @@ export const Component = () => {
     [],
   );
 
-  const handleComposerDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!hasImageItems(event.dataTransfer)) {
-      return;
-    }
+  const handleComposerDragOver = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!hasImageItems(event.dataTransfer)) {
+        return;
+      }
 
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  }, []);
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [],
+  );
 
-  const handleComposerDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!hasImageItems(event.dataTransfer)) {
-      return;
-    }
+  const handleComposerDragLeave = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!hasImageItems(event.dataTransfer)) {
+        return;
+      }
 
-    event.preventDefault();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setComposerDragActive(false);
-    }
-  }, []);
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setComposerDragActive(false);
+      }
+    },
+    [],
+  );
 
   const handleComposerDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -1581,12 +1677,18 @@ export const Component = () => {
 
   const handleSaveImageToLibrary = useCallback(
     async (messageId: string, attachmentId: string) => {
-      const targetMessage = messages.find((message) => message.id === messageId);
+      const targetMessage = messages.find(
+        (message) => message.id === messageId,
+      );
       const targetAttachment = targetMessage?.attachments?.find(
         (attachment) => attachment.id === attachmentId,
       );
 
-      if (!targetAttachment || targetAttachment.source !== "local" || targetAttachment.savedFileId) {
+      if (
+        !targetAttachment ||
+        targetAttachment.source !== "local" ||
+        targetAttachment.savedFileId
+      ) {
         return;
       }
 
@@ -1637,7 +1739,10 @@ export const Component = () => {
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text: error instanceof Error ? error.message : "Could not save that image.",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not save that image.",
         });
       } finally {
         setSavingImageAttachmentIds((prev) => {
@@ -1700,10 +1805,148 @@ export const Component = () => {
   ]);
 
   const startAgentTurn = useCallback(
-    async (turnInput: string | ChatTurnInput) => {
-      await send(turnInput);
+    async (
+      turnInput: string | ChatTurnInput,
+      options?: Parameters<typeof send>[1],
+    ) => {
+      await send(turnInput, options);
     },
     [send],
+  );
+
+  const buildReplayTurnInput = useCallback(
+    async (
+      message: AgentChatMessage,
+      nextText: string,
+    ): Promise<string | ChatTurnInput> => {
+      const attachments = message.attachments ?? [];
+      if (attachments.length === 0) {
+        return nextText;
+      }
+
+      const images = await Promise.all(
+        attachments.map((attachment) => attachmentToChatInputImage(attachment)),
+      );
+
+      return {
+        text: nextText,
+        images,
+      };
+    },
+    [],
+  );
+
+  const queueReplayTurn = useCallback(
+    async (sourceMessage: AgentChatMessage, nextText: string) => {
+      if (!sessionsReady || !activeSessionId || isPreparingTurn || isStreaming) {
+        return;
+      }
+      if (sourceMessage.role !== "user") {
+        return;
+      }
+      if (!isConfigured) {
+        openSettings("ai-provider");
+        return;
+      }
+
+      const normalizedText = nextText.trim();
+      const hasAttachments = (sourceMessage.attachments?.length ?? 0) > 0;
+      if (!normalizedText && !hasAttachments) {
+        setComposerNotice({
+          type: "error",
+          text: "A message needs text or at least one image attachment.",
+        });
+        return;
+      }
+
+      const sourceIndex = findMessageIndexById(
+        latestMessagesRef.current,
+        sourceMessage.id,
+      );
+      if (sourceIndex < 0) {
+        return;
+      }
+
+      prepareReferenceScopeForTurn();
+      setUserToggled(false);
+      closeReferencePicker();
+      closeImagePicker();
+      setComposerNotice(null);
+      setIsPreparingTurn(true);
+
+      try {
+        const input = await buildReplayTurnInput(sourceMessage, nextText);
+        const baseMessages = latestMessagesRef.current.slice(0, sourceIndex);
+        const replayedUserMessage: AgentChatMessage = {
+          ...sourceMessage,
+          content: nextText,
+        };
+        const nextDisplayedMessages = [...baseMessages, replayedUserMessage];
+
+        latestMessagesRef.current = nextDisplayedMessages;
+        setActiveSessionInitialMessages(nextDisplayedMessages);
+        await resetAgent({
+          messages: nextDisplayedMessages,
+          contextMessages: baseMessages,
+        });
+        await startAgentTurn(input, {
+          existingUserMessage: replayedUserMessage,
+        });
+      } catch (error) {
+        setComposerNotice({
+          type: "error",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not prepare that message for resend.",
+        });
+      } finally {
+        setIsPreparingTurn(false);
+      }
+    },
+    [
+      activeSessionId,
+      buildReplayTurnInput,
+      closeImagePicker,
+      closeReferencePicker,
+      isConfigured,
+      isPreparingTurn,
+      isStreaming,
+      openSettings,
+      prepareReferenceScopeForTurn,
+      resetAgent,
+      sessionsReady,
+      startAgentTurn,
+    ],
+  );
+
+  const handleEditMessage = useCallback(
+    async (messageId: string, nextText: string) => {
+      const sourceMessage = latestMessagesRef.current.find(
+        (message) => message.id === messageId,
+      );
+      if (!sourceMessage) {
+        return;
+      }
+
+      await queueReplayTurn(sourceMessage, nextText);
+    },
+    [queueReplayTurn],
+  );
+
+  const handleRetryMessage = useCallback(
+    async (assistantMessageId: string) => {
+      const sourceMessage = findRetrySourceMessage(
+        latestMessagesRef.current,
+        assistantMessageId,
+      );
+      if (!sourceMessage) {
+        return;
+      }
+
+      await queueReplayTurn(sourceMessage, sourceMessage.content);
+    },
+    [queueReplayTurn],
   );
 
   const submitMessage = useCallback(async () => {
@@ -1713,7 +1956,10 @@ export const Component = () => {
 
     const trimmed = inputRef.current?.value.trim() ?? "";
     const nextComposerImages = composerImagesRef.current;
-    if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
+    if (
+      (trimmed.length === 0 && nextComposerImages.length === 0) ||
+      isStreaming
+    ) {
       return;
     }
 
@@ -1730,7 +1976,9 @@ export const Component = () => {
 
       try {
         const images = await Promise.all(
-          nextComposerImages.map((attachment) => attachmentToChatInputImage(attachment)),
+          nextComposerImages.map((attachment) =>
+            attachmentToChatInputImage(attachment),
+          ),
         );
         turnInput = {
           text: trimmed,
@@ -1739,7 +1987,10 @@ export const Component = () => {
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text: error instanceof Error ? error.message : "Could not attach those images.",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not attach those images.",
         });
         setIsPreparingTurn(false);
         return;
@@ -1775,7 +2026,12 @@ export const Component = () => {
 
   const handleWidgetPrompt = useCallback(
     async (text: string) => {
-      if (!sessionsReady || !activeSessionId || isPreparingTurn || isStreaming) {
+      if (
+        !sessionsReady ||
+        !activeSessionId ||
+        isPreparingTurn ||
+        isStreaming
+      ) {
         return;
       }
 
@@ -1853,6 +2109,20 @@ export const Component = () => {
   const lastAssistantId = [...messages]
     .reverse()
     .find((message) => message.role === "assistant")?.id;
+  const retryableAssistantIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    displayedMessages.forEach((message) => {
+      if (
+        message.role === "assistant" &&
+        findRetrySourceMessage(displayedMessages, message.id)
+      ) {
+        ids.add(message.id);
+      }
+    });
+
+    return ids;
+  }, [displayedMessages]);
   const activeSessionTitle =
     sessions.find((session) => session.id === activeSessionId)?.title ??
     "Select a session";
@@ -1941,7 +2211,7 @@ export const Component = () => {
           <div className="relative flex min-h-0 flex-1">
             <div className="min-h-0 flex-1 overflow-y-auto">
               <div
-                className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 pt-6"
+                className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6"
                 style={{ paddingBottom: composerScrollInset }}
               >
                 {hasMessages ? (
@@ -1953,20 +2223,39 @@ export const Component = () => {
                     )}
                     {displayedMessages.map((message) => {
                       const isCurrentAssistant =
-                        message.role === "assistant" && message.id === lastAssistantId;
+                        message.role === "assistant" &&
+                        message.id === lastAssistantId;
                       return (
                         <ChatMessage
                           key={message.id}
                           message={message}
                           isStreaming={isStreaming && isCurrentAssistant}
-                          thinkingSteps={isCurrentAssistant ? thinkingSteps : undefined}
+                          thinkingSteps={
+                            isCurrentAssistant ? thinkingSteps : undefined
+                          }
                           status={isCurrentAssistant ? status : undefined}
-                          thinkingCollapsed={isCurrentAssistant ? panelCollapsed : undefined}
+                          thinkingCollapsed={
+                            isCurrentAssistant ? panelCollapsed : undefined
+                          }
                           savingAttachmentIds={savingImageAttachmentIdSet}
                           onSaveImageToLibrary={handleSaveImageToLibrary}
                           onSendWidgetPrompt={handleWidgetPrompt}
+                          onEditMessage={
+                            message.role === "user"
+                              ? handleEditMessage
+                              : undefined
+                          }
+                          onRetryMessage={
+                            message.role === "assistant" &&
+                            retryableAssistantIds.has(message.id)
+                              ? handleRetryMessage
+                              : undefined
+                          }
+                          actionsDisabled={isStreaming || isPreparingTurn}
                           onToggleThinking={
-                            isCurrentAssistant ? handleToggleThinking : undefined
+                            isCurrentAssistant
+                              ? handleToggleThinking
+                              : undefined
                           }
                         />
                       );
@@ -1979,8 +2268,8 @@ export const Component = () => {
                       >
                         <p>
                           The model has been running for a while (
-                          {iterationLimitPrompt.iterations} iterations). Continue
-                          running?
+                          {iterationLimitPrompt.iterations} iterations).
+                          Continue running?
                         </p>
                         <div className="mt-3 flex items-center gap-2">
                           <button
@@ -2077,344 +2366,373 @@ export const Component = () => {
               />
               <div ref={composerOverlayRef} className="px-4 pb-6 pt-16">
                 <div className="pointer-events-auto mx-auto max-w-2xl">
-              <AnimatePresence>
-                {isStreaming &&
-                  status.type !== "idle" &&
-                  status.type !== "generating" && <StatusBar status={status} />}
-              </AnimatePresence>
-              {memoryUpdatedNotice && (
-                <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                  <span>
-                    Memory updated. Review or delete it in Settings &gt; Memory.
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openSettings("memory")}
-                      className="font-semibold text-emerald-800 transition hover:text-emerald-900"
-                    >
-                      Open settings
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMemoryUpdatedNotice(false)}
-                      className="text-emerald-600 transition hover:text-emerald-800"
-                      aria-label="Dismiss memory update notice"
-                    >
-                      <XIcon className="size-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-              {composerNotice && (
-                <div
-                  className={`mb-2 rounded-xl border px-3 py-2 text-xs ${
-                    composerNotice.type === "error"
-                      ? "border-rose-200 bg-rose-50 text-rose-700"
-                      : composerNotice.type === "success"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-blue-200 bg-blue-50 text-blue-700"
-                  }`}
-                >
-                  {composerNotice.text}
-                </div>
-              )}
-              {referenceNotice && (
-                <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  {referenceNotice}
-                </p>
-              )}
-              {composerImages.length > 0 && (
-                <div className="mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 shadow-sm">
-                  <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        Attached images
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {composerImages.length} of {MAX_CHAT_IMAGE_ATTACHMENTS} ready to send
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleOpenLocalImagePicker}
-                        disabled={!sessionsReady || remainingImageSlots === 0}
-                        className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImagePickerOpen((value) => !value)}
-                        disabled={!sessionsReady}
-                        className="rounded-full border border-zinc-200 bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {imagePickerOpen ? "Hide library" : "Browse library"}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <ChatImageAttachmentGallery
-                      attachments={composerImages}
-                      tone="composer"
-                      onRemove={handleRemoveComposerImage}
-                    />
-                  </div>
-                </div>
-              )}
-              {imagePickerOpen && (
-                <div className="mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-sm">
-                  <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">Add images</p>
-                      <p className="text-xs text-zinc-500">
-                        Paste, drop, upload, or pick from your library. {remainingImageSlots} slot{remainingImageSlots === 1 ? "" : "s"} left.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleOpenLocalImagePicker}
-                        disabled={!sessionsReady || remainingImageSlots === 0}
-                        className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Upload image
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closeImagePicker}
-                        className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                      <ImageIcon className="size-4 text-zinc-400" />
-                      <input
-                        value={imagePickerQuery}
-                        onChange={(event) => setImagePickerQuery(event.target.value)}
-                        placeholder="Search library images..."
-                        className="h-7 min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
-                      />
-                    </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {imagePickerOptions.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-xs text-zinc-500 sm:col-span-2">
-                          No matching images in your library.
-                        </div>
-                      ) : (
-                        imagePickerOptions.map(({ file, isSelected }) => (
-                          <button
-                            key={file.id}
-                            type="button"
-                            onClick={() => handleSelectLibraryImage(file)}
-                            disabled={isSelected || remainingImageSlots === 0}
-                            className={`rounded-2xl border px-3 py-3 text-left transition ${
-                              isSelected
-                                ? "border-zinc-900 bg-zinc-900 text-white"
-                                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
-                            } disabled:cursor-not-allowed disabled:opacity-55`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">{file.name}</p>
-                                <p className={`mt-1 text-[11px] ${isSelected ? "text-zinc-200" : "text-zinc-500"}`}>
-                                  {(file.sizeBytes / 1024 / 1024).toFixed(1)} MB
-                                </p>
-                              </div>
-                              {isSelected && (
-                                <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white">
-                                  Added
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        ))
+                  <AnimatePresence>
+                    {isStreaming &&
+                      status.type !== "idle" &&
+                      status.type !== "generating" && (
+                        <StatusBar status={status} />
                       )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {activeReferences.length > 0 && (
-                <div className="mb-2 rounded-xl border border-zinc-200 bg-white/80 px-3 py-2">
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-zinc-600">
-                      References
-                      <span className="ml-1 text-zinc-400">
-                        ({activeReferences.length})
+                  </AnimatePresence>
+                  {memoryUpdatedNotice && (
+                    <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                      <span>
+                        Memory updated. Review or delete it in Settings &gt;
+                        Memory.
                       </span>
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {resolvedReferenceScope.isActive && (
-                        <span className="text-[11px] text-zinc-500">
-                          Scoped files: {resolvedReferenceScope.fileIds.length}
-                          {resolvedReferenceScope.truncated
-                            ? ` / ${resolvedReferenceScope.totalResolvedFiles}`
-                            : ""}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleClearReferences}
-                        className="text-xs text-zinc-500 transition hover:text-zinc-700"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeReferences.map((reference) => (
-                      <span
-                        key={`${reference.type}:${reference.id}`}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-zinc-200 bg-zinc-100 px-2 py-1 text-xs text-zinc-700"
-                      >
-                        {reference.type === "folder" ? (
-                          <FolderSimpleIcon className="size-3.5 shrink-0 text-zinc-500" />
-                        ) : (
-                          <FileTextIcon className="size-3.5 shrink-0 text-zinc-500" />
-                        )}
-                        <span className="truncate">{reference.name}</span>
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => handleRemoveReference(reference)}
-                          className="inline-flex size-4 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
-                          aria-label={`Remove reference ${reference.name}`}
+                          onClick={() => openSettings("memory")}
+                          className="font-semibold text-emerald-800 transition hover:text-emerald-900"
                         >
-                          <XIcon className="size-3" />
+                          Open settings
                         </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <ReferencePicker
-                open={referencePickerOpen}
-                query={referencePickerQuery}
-                options={referencePickerOptions}
-                onQueryChange={setReferencePickerQuery}
-                onSelect={handleSelectReference}
-                onClose={closeReferencePicker}
-              />
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleImageInputChange}
-              />
-              <form onSubmit={handleSubmit}>
-                <div
-                  className={`group relative rounded-xl border bg-white/90 shadow-[0_24px_60px_-28px_rgba(24,24,27,0.35)] backdrop-blur-xl transition-colors focus-within:border-zinc-300 focus-within:shadow-[0_28px_70px_-28px_rgba(24,24,27,0.42)] ${
-                    composerDragActive
-                      ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                      : "border-zinc-200/80"
-                  }`}
-                  onDragEnter={handleComposerDragEnter}
-                  onDragOver={handleComposerDragOver}
-                  onDragLeave={handleComposerDragLeave}
-                  onDrop={handleComposerDrop}
-                >
-                  {composerDragActive && (
-                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border border-dashed border-zinc-900/20 bg-zinc-900/5 px-6 text-center text-sm font-medium text-zinc-700">
-                      Drop images here to attach them
+                        <button
+                          type="button"
+                          onClick={() => setMemoryUpdatedNotice(false)}
+                          className="text-emerald-600 transition hover:text-emerald-800"
+                          aria-label="Dismiss memory update notice"
+                        >
+                          <XIcon className="size-3.5" />
+                        </button>
+                      </div>
                     </div>
                   )}
-                  <textarea
-                    ref={inputRef}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    onPaste={handleComposerPaste}
-                    onCompositionStart={handleCompositionStart}
-                    onCompositionEnd={handleCompositionEnd}
-                    placeholder="Message Memora..."
-                    disabled={isPreparingTurn}
-                    rows={1}
-                    className="w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+                  {composerNotice && (
+                    <div
+                      className={`mb-2 rounded-xl border px-3 py-2 text-xs ${
+                        composerNotice.type === "error"
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : composerNotice.type === "success"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-blue-200 bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      {composerNotice.text}
+                    </div>
+                  )}
+                  {referenceNotice && (
+                    <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      {referenceNotice}
+                    </p>
+                  )}
+                  {composerImages.length > 0 && (
+                    <div className="mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 shadow-sm">
+                      <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            Attached images
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {composerImages.length} of{" "}
+                            {MAX_CHAT_IMAGE_ATTACHMENTS} ready to send
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleOpenLocalImagePicker}
+                            disabled={
+                              !sessionsReady || remainingImageSlots === 0
+                            }
+                            className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Upload
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setImagePickerOpen((value) => !value)
+                            }
+                            disabled={!sessionsReady}
+                            className="rounded-full border border-zinc-200 bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {imagePickerOpen
+                              ? "Hide library"
+                              : "Browse library"}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <ChatImageAttachmentGallery
+                          attachments={composerImages}
+                          tone="composer"
+                          onRemove={handleRemoveComposerImage}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {imagePickerOpen && (
+                    <div className="relative z-10 mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-sm">
+                      <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            Add images
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Paste, drop, upload, or pick from your library.{" "}
+                            {remainingImageSlots} slot
+                            {remainingImageSlots === 1 ? "" : "s"} left.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleOpenLocalImagePicker}
+                            disabled={
+                              !sessionsReady || remainingImageSlots === 0
+                            }
+                            className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Upload image
+                          </button>
+                          <button
+                            type="button"
+                            onClick={closeImagePicker}
+                            className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                          <ImageIcon className="size-4 text-zinc-400" />
+                          <input
+                            value={imagePickerQuery}
+                            onChange={(event) =>
+                              setImagePickerQuery(event.target.value)
+                            }
+                            placeholder="Search library images..."
+                            className="h-7 min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
+                          />
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {imagePickerOptions.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-xs text-zinc-500 sm:col-span-2">
+                              No matching images in your library.
+                            </div>
+                          ) : (
+                            imagePickerOptions.map(({ file, isSelected }) => (
+                              <button
+                                key={file.id}
+                                type="button"
+                                onClick={() => handleSelectLibraryImage(file)}
+                                disabled={
+                                  isSelected || remainingImageSlots === 0
+                                }
+                                className={`rounded-2xl border px-3 py-3 text-left transition ${
+                                  isSelected
+                                    ? "border-zinc-900 bg-zinc-900 text-white"
+                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                                } disabled:cursor-not-allowed disabled:opacity-55`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">
+                                      {file.name}
+                                    </p>
+                                    <p
+                                      className={`mt-1 text-[11px] ${isSelected ? "text-zinc-200" : "text-zinc-500"}`}
+                                    >
+                                      {(file.sizeBytes / 1024 / 1024).toFixed(
+                                        1,
+                                      )}{" "}
+                                      MB
+                                    </p>
+                                  </div>
+                                  {isSelected && (
+                                    <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white">
+                                      Added
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {activeReferences.length > 0 && (
+                    <div className="mb-2 rounded-xl border border-zinc-200 bg-white/80 px-3 py-2 relative z-10">
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-zinc-600">
+                          References
+                          <span className="ml-1 text-zinc-400">
+                            ({activeReferences.length})
+                          </span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {resolvedReferenceScope.isActive && (
+                            <span className="text-[11px] text-zinc-500">
+                              Scoped files:{" "}
+                              {resolvedReferenceScope.fileIds.length}
+                              {resolvedReferenceScope.truncated
+                                ? ` / ${resolvedReferenceScope.totalResolvedFiles}`
+                                : ""}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleClearReferences}
+                            className="text-xs text-zinc-500 transition hover:text-zinc-700"
+                          >
+                            Clear all
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeReferences.map((reference) => (
+                          <span
+                            key={`${reference.type}:${reference.id}`}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-zinc-200 bg-zinc-100 px-2 py-1 text-xs text-zinc-700"
+                          >
+                            {reference.type === "folder" ? (
+                              <FolderSimpleIcon className="size-3.5 shrink-0 text-zinc-500" />
+                            ) : (
+                              <FileTextIcon className="size-3.5 shrink-0 text-zinc-500" />
+                            )}
+                            <span className="truncate">{reference.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveReference(reference)}
+                              className="inline-flex size-4 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
+                              aria-label={`Remove reference ${reference.name}`}
+                            >
+                              <XIcon className="size-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <ReferencePicker
+                    open={referencePickerOpen}
+                    query={referencePickerQuery}
+                    options={referencePickerOptions}
+                    onQueryChange={setReferencePickerQuery}
+                    onSelect={handleSelectReference}
+                    onClose={closeReferencePicker}
                   />
-                  <div className="flex items-center justify-between px-3 pb-2.5">
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleCreateSession()}
-                        disabled={!sessionsReady || isPreparingTurn}
-                        className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="New session"
-                      >
-                        <PlusIcon className="size-4" weight="bold" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleImageButtonClick}
-                        disabled={!sessionsReady || isPreparingTurn}
-                        className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
-                          imagePickerOpen || composerImages.length > 0
-                            ? "bg-zinc-900 text-white"
-                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                        title="Attach images"
-                      >
-                        <ImageIcon className="size-4" weight="bold" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleReferenceButtonClick}
-                        disabled={!sessionsReady || isPreparingTurn}
-                        className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
-                          referencePickerOpen && referencePickerSource === "button"
-                            ? "bg-zinc-900 text-white"
-                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                        title="Reference files or folders"
-                      >
-                        <FileTextIcon className="size-4" weight="bold" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openSettings("ai-provider")}
-                        className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-                      >
-                        <SlidersHorizontalIcon className="size-4" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ChatContextUsage
-                        composerImageCount={composerImages.length}
-                        composerText={composerTextValue}
-                        messages={messages}
-                        model={selectedModelInfo}
-                        referenceCount={activeReferences.length}
-                        resolvedReferenceScope={resolvedReferenceScope}
-                        selectedModelId={selectedModel}
-                      />
-                      {isStreaming ? (
-                        <button
-                          type="button"
-                          onClick={abort}
-                          className="flex size-7 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800"
-                        >
-                          <StopIcon className="size-3.5" weight="fill" />
-                        </button>
-                      ) : (
-                        <button
-                          type="submit"
-                          disabled={!canSubmitMessage}
-                          className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                            canSubmitMessage
-                              ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                              : "bg-zinc-200 text-zinc-400"
-                          }`}
-                        >
-                          <ArrowUpIcon className="size-3.5" weight="bold" />
-                        </button>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageInputChange}
+                  />
+                  <form onSubmit={handleSubmit}>
+                    <div
+                      className={`group relative rounded-xl border bg-white/90 shadow-[0_24px_60px_-28px_rgba(24,24,27,0.35)] backdrop-blur-xl transition-colors focus-within:border-zinc-300 focus-within:shadow-[0_28px_70px_-28px_rgba(24,24,27,0.42)] ${
+                        composerDragActive
+                          ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                          : "border-zinc-200/80"
+                      }`}
+                      onDragEnter={handleComposerDragEnter}
+                      onDragOver={handleComposerDragOver}
+                      onDragLeave={handleComposerDragLeave}
+                      onDrop={handleComposerDrop}
+                    >
+                      {composerDragActive && (
+                        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border border-dashed border-zinc-900/20 bg-zinc-900/5 px-6 text-center text-sm font-medium text-zinc-700">
+                          Drop images here to attach them
+                        </div>
                       )}
+                      <textarea
+                        ref={inputRef}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handleComposerPaste}
+                        onCompositionStart={handleCompositionStart}
+                        onCompositionEnd={handleCompositionEnd}
+                        placeholder="Message Memora..."
+                        disabled={isPreparingTurn}
+                        rows={1}
+                        className="w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+                      />
+                      <div className="flex items-center justify-between px-3 pb-2.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleCreateSession()}
+                            disabled={!sessionsReady || isPreparingTurn}
+                            className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="New session"
+                          >
+                            <PlusIcon className="size-4" weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleImageButtonClick}
+                            disabled={!sessionsReady || isPreparingTurn}
+                            className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
+                              imagePickerOpen || composerImages.length > 0
+                                ? "bg-zinc-900 text-white"
+                                : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                            } disabled:cursor-not-allowed disabled:opacity-50`}
+                            title="Attach images"
+                          >
+                            <ImageIcon className="size-4" weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleReferenceButtonClick}
+                            disabled={!sessionsReady || isPreparingTurn}
+                            className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
+                              referencePickerOpen &&
+                              referencePickerSource === "button"
+                                ? "bg-zinc-900 text-white"
+                                : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                            } disabled:cursor-not-allowed disabled:opacity-50`}
+                            title="Reference files or folders"
+                          >
+                            <FileTextIcon className="size-4" weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openSettings("ai-provider")}
+                            className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+                          >
+                            <SlidersHorizontalIcon className="size-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ChatContextUsage
+                            composerImageCount={composerImages.length}
+                            composerText={composerTextValue}
+                            messages={messages}
+                            model={selectedModelInfo}
+                            referenceCount={activeReferences.length}
+                            resolvedReferenceScope={resolvedReferenceScope}
+                            selectedModelId={selectedModel}
+                          />
+                          {isStreaming ? (
+                            <button
+                              type="button"
+                              onClick={abort}
+                              className="flex size-7 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800"
+                            >
+                              <StopIcon className="size-3.5" weight="fill" />
+                            </button>
+                          ) : (
+                            <button
+                              type="submit"
+                              disabled={!canSubmitMessage}
+                              className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                                canSubmitMessage
+                                  ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                                  : "bg-zinc-200 text-zinc-400"
+                              }`}
+                            >
+                              <ArrowUpIcon className="size-3.5" weight="bold" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </form>
+                  </form>
                 </div>
               </div>
             </div>

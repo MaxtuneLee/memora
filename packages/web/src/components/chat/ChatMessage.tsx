@@ -1,4 +1,9 @@
-import { MicrophoneIcon, VideoCameraIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  MicrophoneIcon,
+  PencilSimpleIcon,
+  VideoCameraIcon,
+} from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -43,6 +48,9 @@ interface ChatMessageProps {
   savingAttachmentIds?: ReadonlySet<string>;
   onSaveImageToLibrary?: (messageId: string, attachmentId: string) => void;
   onSendWidgetPrompt?: (text: string) => Promise<void> | void;
+  onEditMessage?: (messageId: string, text: string) => Promise<void> | void;
+  onRetryMessage?: (messageId: string) => Promise<void> | void;
+  actionsDisabled?: boolean;
 }
 
 interface MediaJumpCardData {
@@ -148,8 +156,12 @@ function ChatMessageComponent({
   savingAttachmentIds,
   onSaveImageToLibrary,
   onSendWidgetPrompt,
+  onEditMessage,
+  onRetryMessage,
+  actionsDisabled = false,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const hasAttachments = (message.attachments?.length ?? 0) > 0;
   const liveThinkingSteps =
     thinkingSteps && thinkingSteps.length > 0 ? thinkingSteps : undefined;
   const persistedThinkingSteps =
@@ -182,6 +194,22 @@ function ChatMessageComponent({
   const [avatarBurstState, setAvatarBurstState] =
     useState<MemoraMascotState | null>(null);
   const avatarBurstTimeoutRef = useRef<number | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(message.content);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const canShowHoverActions = Boolean(
+    (!isUser && onRetryMessage) || (isUser && onEditMessage && !isEditing),
+  );
+
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    editInputRef.current?.focus();
+    const valueLength = editInputRef.current?.value.length ?? 0;
+    editInputRef.current?.setSelectionRange(valueLength, valueLength);
+  }, [isEditing]);
 
   const triggerAvatarBurst = useCallback(() => {
     const burstStates: MemoraMascotState[] = ["listening", "thinking", "speaking"];
@@ -217,6 +245,44 @@ function ChatMessageComponent({
       status?.type === "searching" ||
       status?.type === "tool-calling" ||
       status?.type === "tool-running");
+  const canSubmitEdit = draftText.trim().length > 0 || hasAttachments;
+
+  const handleStartEditing = useCallback(() => {
+    if (!onEditMessage || actionsDisabled) {
+      return;
+    }
+
+    setDraftText(message.content);
+    setIsEditing(true);
+  }, [actionsDisabled, message.content, onEditMessage]);
+
+  const handleCancelEditing = useCallback(() => {
+    setDraftText(message.content);
+    setIsEditing(false);
+  }, [message.content]);
+
+  const handleSubmitEdit = useCallback(() => {
+    if (!onEditMessage || actionsDisabled || !canSubmitEdit) {
+      return;
+    }
+
+    void onEditMessage(message.id, draftText);
+    setIsEditing(false);
+  }, [
+    actionsDisabled,
+    canSubmitEdit,
+    draftText,
+    message.id,
+    onEditMessage,
+  ]);
+
+  const handleRetry = useCallback(() => {
+    if (!onRetryMessage || actionsDisabled) {
+      return;
+    }
+
+    void onRetryMessage(message.id);
+  }, [actionsDisabled, message.id, onRetryMessage]);
 
   return (
     <motion.div
@@ -224,7 +290,7 @@ function ChatMessageComponent({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "flex items-start gap-3",
+        "group/message flex items-start gap-3",
         isUser ? "justify-end" : "justify-start",
       )}
     >
@@ -245,130 +311,208 @@ function ChatMessageComponent({
       )}
       <div
         className={cn(
-          "text-sm leading-relaxed",
+          "min-w-0",
           isUser
-            ? "max-w-[75%] rounded-2xl bg-zinc-900 px-4 py-2.5 text-white"
-            : "min-w-0 flex-1 bg-transparent px-0 py-0 text-zinc-800",
+            ? cn(
+                "flex flex-col items-end",
+                isEditing ? "w-full max-w-none" : "max-w-[75%]",
+              )
+            : "flex min-w-0 flex-1 flex-col",
         )}
       >
-        {message.attachments && message.attachments.length > 0 && (
-          <div className={cn(message.content ? "mb-3" : "")}>
-            <ChatImageAttachmentGallery
-              attachments={message.attachments}
-              tone={isUser ? "user" : "composer"}
-              savingAttachmentIds={savingAttachmentIds}
-              onSaveToLibrary={
-                onSaveImageToLibrary
-                  ? (attachmentId) =>
-                      onSaveImageToLibrary(message.id, attachmentId)
-                  : undefined
-              }
-            />
-          </div>
-        )}
-        {isUser ? (
-          message.content
-        ) : (
-          <>
-            {visibleThinkingSteps && (
-              <ThinkingPanel
-                steps={visibleThinkingSteps}
-                status={visibleStatus}
-                collapsed={canToggleThinking ? thinkingCollapsed : undefined}
-                onToggle={canToggleThinking ? onToggleThinking : undefined}
-              />
-            )}
-            {message.widgets && message.widgets.length > 0 && (
-              <div className="space-y-3">
-                {message.widgets.map((widget) => (
-                  <ChatWidget
-                    key={widget.toolCallId}
-                    widget={widget}
-                    onSendPrompt={onSendWidgetPrompt}
-                  />
-                ))}
-              </div>
-            )}
-            {parsedContent.cleanedContent ? (
-              <div className={cn(message.widgets && message.widgets.length > 0 && "mt-3")}>
-                <Streamdown
-                  mode={isStreaming ? "streaming" : "static"}
-                  animated={{
-                    animation: "blurIn",
-                    sep: "word",
-                    duration: 0.5,
-                    easing: "ease-in-out",
-                  }}
-                  isAnimating={isStreaming}
-                  plugins={{ cjk, code, math, mermaid }}
+        <div
+          className={cn(
+            "relative text-sm leading-relaxed",
+            isUser
+              ? "w-full rounded-2xl bg-[#efe7db] px-4 py-2.5 text-zinc-900"
+              : "min-w-0 flex-1 bg-transparent px-0 py-0 text-zinc-800",
+          )}
+        >
+          {canShowHoverActions && (
+            <div
+              className={cn(
+                "pointer-events-none absolute top-3 z-20 flex items-center gap-1.5 opacity-0 transition duration-150 group-hover/message:opacity-100 group-focus-within/message:opacity-100",
+                isUser ? "right-full mr-3" : "left-full ml-3",
+              )}
+            >
+              {isUser && !isEditing && onEditMessage && (
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  disabled={actionsDisabled}
+                  className="pointer-events-auto inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-[#f1ebe2] text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Edit message"
                 >
-                  {parsedContent.cleanedContent}
-                </Streamdown>
+                  <PencilSimpleIcon className="size-3.5" />
+                </button>
+              )}
+              {!isUser && onRetryMessage && (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={actionsDisabled}
+                  className="pointer-events-auto inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-[#f1ebe2] text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Retry message"
+                >
+                  <ArrowCounterClockwiseIcon className="size-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+          {message.attachments && message.attachments.length > 0 && (
+            <div className={cn(message.content ? "mb-3" : "")}>
+              <ChatImageAttachmentGallery
+                attachments={message.attachments}
+                tone={isUser ? "user" : "composer"}
+                savingAttachmentIds={savingAttachmentIds}
+                onSaveToLibrary={
+                  onSaveImageToLibrary
+                    ? (attachmentId) =>
+                        onSaveImageToLibrary(message.id, attachmentId)
+                    : undefined
+                }
+              />
+            </div>
+          )}
+          {isUser ? (
+            isEditing ? (
+              <div className="space-y-3">
+                <textarea
+                  ref={editInputRef}
+                  value={draftText}
+                  onChange={(event) => setDraftText(event.currentTarget.value)}
+                  rows={3}
+                  className="block w-full resize-y rounded-2xl border border-[#d9d1c5] bg-[#f3efe9] px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+                  placeholder="Edit your message..."
+                  disabled={actionsDisabled}
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEditing}
+                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9d1c5] bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitEdit}
+                    disabled={!canSubmitEdit || actionsDisabled}
+                    className="inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
-            ) : hasStreamingSpinner ? (
-              <div className="flex items-center gap-1 py-0.5">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="size-1.5 rounded-full bg-zinc-400"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Infinity,
-                      delay: i * 0.2,
+            ) : (
+              message.content
+            )
+          ) : (
+            <>
+              {visibleThinkingSteps && (
+                <ThinkingPanel
+                  steps={visibleThinkingSteps}
+                  status={visibleStatus}
+                  collapsed={canToggleThinking ? thinkingCollapsed : undefined}
+                  onToggle={canToggleThinking ? onToggleThinking : undefined}
+                />
+              )}
+              {message.widgets && message.widgets.length > 0 && (
+                <div className="space-y-3">
+                  {message.widgets.map((widget) => (
+                    <ChatWidget
+                      key={widget.toolCallId}
+                      widget={widget}
+                      onSendPrompt={onSendWidgetPrompt}
+                    />
+                  ))}
+                </div>
+              )}
+              {parsedContent.cleanedContent ? (
+                <div
+                  className={cn(
+                    message.widgets && message.widgets.length > 0 && "mt-3",
+                  )}
+                >
+                  <Streamdown
+                    mode={isStreaming ? "streaming" : "static"}
+                    animated={{
+                      animation: "blurIn",
+                      sep: "word",
+                      duration: 0.5,
+                      easing: "ease-in-out",
                     }}
-                  />
-                ))}
-              </div>
-            ) : null}
-            {parsedContent.jumpCards.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {parsedContent.jumpCards.map((jumpCard, index) => {
-                  const JumpIcon =
-                    jumpCard.mediaType === "video"
-                      ? VideoCameraIcon
-                      : MicrophoneIcon;
-                  return (
-                    <Link
-                      key={`${jumpCard.fileId}-${jumpCard.startSec}-${index}`}
-                      to={`/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(
-                        String(jumpCard.startSec),
-                      )}`}
-                      className="group block rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 transition hover:border-zinc-300 hover:bg-white"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
-                          <JumpIcon className="size-3.5" weight="bold" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-medium text-zinc-900">
-                              {jumpCard.fileName}
-                            </p>
-                            <span className="shrink-0 text-[11px] font-medium text-zinc-500">
-                              {formatDuration(jumpCard.startSec)} -{" "}
-                              {formatDuration(jumpCard.endSec)}
-                            </span>
+                    isAnimating={isStreaming}
+                    plugins={{ cjk, code, math, mermaid }}
+                  >
+                    {parsedContent.cleanedContent}
+                  </Streamdown>
+                </div>
+              ) : hasStreamingSpinner ? (
+                <div className="flex items-center gap-1 py-0.5">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="size-1.5 rounded-full bg-zinc-400"
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {parsedContent.jumpCards.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {parsedContent.jumpCards.map((jumpCard, index) => {
+                    const JumpIcon =
+                      jumpCard.mediaType === "video"
+                        ? VideoCameraIcon
+                        : MicrophoneIcon;
+                    return (
+                      <Link
+                        key={`${jumpCard.fileId}-${jumpCard.startSec}-${index}`}
+                        to={`/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(
+                          String(jumpCard.startSec),
+                        )}`}
+                        className="group block rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 transition hover:border-zinc-300 hover:bg-white"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
+                            <JumpIcon className="size-3.5" weight="bold" />
                           </div>
-                          {jumpCard.context && (
-                            <p className="mt-1 truncate text-xs text-zinc-500">
-                              {jumpCard.context}
-                            </p>
-                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium text-zinc-900">
+                                {jumpCard.fileName}
+                              </p>
+                              <span className="shrink-0 text-[11px] font-medium text-zinc-500">
+                                {formatDuration(jumpCard.startSec)} -{" "}
+                                {formatDuration(jumpCard.endSec)}
+                              </span>
+                            </div>
+                            {jumpCard.context && (
+                              <p className="mt-1 truncate text-xs text-zinc-500">
+                                {jumpCard.context}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-            {tokenUsageText && (
-              <div className="mt-3 border-t border-zinc-200/70 pt-2 text-[11px] font-medium text-zinc-400">
-                {tokenUsageText}
-              </div>
-            )}
-          </>
-        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+              {tokenUsageText && (
+                <div className="mt-3 border-t border-zinc-200/70 pt-2 text-[11px] font-medium text-zinc-400">
+                  {tokenUsageText}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -403,7 +547,10 @@ const areChatMessagePropsEqual = (
     previousProps.onToggleThinking === nextProps.onToggleThinking &&
     previousProps.savingAttachmentIds === nextProps.savingAttachmentIds &&
     previousProps.onSaveImageToLibrary === nextProps.onSaveImageToLibrary &&
-    previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt
+    previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt &&
+    previousProps.onEditMessage === nextProps.onEditMessage &&
+    previousProps.onRetryMessage === nextProps.onRetryMessage &&
+    previousProps.actionsDisabled === nextProps.actionsDisabled
   );
 };
 
