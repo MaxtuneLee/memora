@@ -7,6 +7,13 @@ import * as v from "valibot";
 import { cat, file as opfsFile, grep, write as opfsWrite } from "@memora/fs";
 import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 import { extractNoticeCandidatesWithAI } from "@/lib/chat/noticeExtractor";
+import {
+  SHOW_WIDGET_SKILL_NAME,
+  SHOW_WIDGET_TOOL_NAME,
+  createShowWidgetSkillTracker,
+  type ShowWidgetSkillTracker,
+  validateShowWidgetCall,
+} from "@/lib/chat/showWidget";
 import { builtInSkillStore } from "@/lib/skills/builtInSkills";
 import { upsertGlobalMemoryNotices } from "@/lib/settings/personalityStorage";
 import { fileTable } from "@/livestore/file";
@@ -130,6 +137,7 @@ export interface WriteApprovalRequest {
 
 interface CreateChatToolsOptions {
   getReferenceScope?: () => ResolvedReferenceScope;
+  showWidgetSkillTracker?: ShowWidgetSkillTracker;
   getMemoryExtractionConfig?: () => {
     apiFormat: "chat-completions" | "responses";
     endpoint: string;
@@ -260,12 +268,52 @@ const isWritablePath = (path: string): boolean => {
 export const createChatTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions = {},
-): ToolDefinition[] => [
-  ...createSkillTools(builtInSkillStore, {
-    activateToolName: "activate_skill",
-    readResourceToolName: "read_skill_resource",
-    contextLabel: "Memora",
-  }),
+): ToolDefinition[] => {
+  const showWidgetSkillTracker =
+    options.showWidgetSkillTracker ?? createShowWidgetSkillTracker();
+  const trackedSkillStore = showWidgetSkillTracker.wrapStore(builtInSkillStore);
+
+  return [
+    ...createSkillTools(trackedSkillStore, {
+      activateToolName: "activate_skill",
+      readResourceToolName: "read_skill_resource",
+      contextLabel: "Memora",
+    }),
+    {
+      type: "function",
+      name: SHOW_WIDGET_TOOL_NAME,
+      description:
+        `Stream an interactive chat widget after reading the ${SHOW_WIDGET_SKILL_NAME} skill README, one module guideline, and that module's required section files. widget_code must stream as <style>...</style>, then HTML, then <script>...</script>.`,
+      parameters: v.object({
+        i_have_seen_read_me: v.boolean(),
+        title: v.string(),
+        loading_messages: v.array(v.string()),
+        widget_code: v.string(),
+      }),
+      execute: async (params: unknown) => {
+        const p = params as {
+          i_have_seen_read_me: boolean;
+          title: string;
+          loading_messages: string[];
+          widget_code: string;
+        };
+        const validationError = validateShowWidgetCall({
+          i_have_seen_read_me: p.i_have_seen_read_me,
+          title: p.title,
+          loading_messages: p.loading_messages,
+          widget_code: p.widget_code,
+        });
+
+        if (validationError) {
+          throw new Error(validationError);
+        }
+
+        return {
+          ok: true,
+          title: p.title.trim(),
+        };
+      },
+    },
   {
     type: "function",
     name: "list_chat_sessions",
@@ -304,7 +352,12 @@ export const createChatTools = (
       }
       const maxMessages = Math.min(p.max_messages ?? 50, 200);
       const messages = session.messages
-        .filter((message) => message.content.trim().length > 0)
+        .filter((message) => {
+          return (
+            message.content.trim().length > 0 ||
+            (message.widgets?.length ?? 0) > 0
+          );
+        })
         .slice(-maxMessages);
       return {
         id: session.id,
@@ -730,6 +783,7 @@ export const createChatTools = (
     },
   },
 ];
+};
 
 export const SYSTEM_PROMPT: PromptSegment = {
   id: "system",
@@ -752,6 +806,11 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 ## Cross-session history
 - If the user asks about previous chats, earlier conclusions, or "what we discussed before", call list_chat_sessions and read_chat_session as needed.
 - Summarize history in user-friendly language. Do not reveal internal IDs or storage details.
+
+## Interactive widgets
+- If the user asks for an inline chart, diagram, mockup, artwork, or interactive UI in chat, first activate the \`show-widget-skills\` skill.
+- Read \`README.md\`, then the closest module guideline, then that module's required section files before calling \`show_widget\`.
+- Keep explanatory prose in the normal assistant response. Use \`show_widget\` only for the rendered widget fragment.
 
 ## Transcript format (at transcriptPath)
 { "text": "full transcript", "words": [{ "text": "word", "timestamp": [startSec, endSec] }] }

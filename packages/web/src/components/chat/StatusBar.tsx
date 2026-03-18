@@ -27,7 +27,7 @@ export function StatusBar({ status }: { status: AgentStatus }) {
     >
       <div
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium relative z-10",
           status.type === "error"
             ? "bg-red-50 text-red-500"
             : "bg-linear-to-r from-zinc-100 via-zinc-50 to-zinc-100 bg-size-[200%_100%] text-zinc-500 animate-shimmer",

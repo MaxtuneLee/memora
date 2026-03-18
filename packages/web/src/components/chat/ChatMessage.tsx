@@ -1,5 +1,5 @@
 import { MicrophoneIcon, VideoCameraIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
@@ -9,6 +9,8 @@ import MemoraMascot, {
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
+import { ChatWidget } from "@/components/chat/ChatWidget";
+import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { motion } from "motion/react";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
@@ -26,8 +28,21 @@ export interface ChatMessageData {
   role: "user" | "assistant";
   content: string;
   attachments?: ChatImageAttachment[];
+  widgets?: ChatWidgetData[];
   thinkingSteps?: ThinkingStep[];
   usage?: TokenUsage;
+}
+
+interface ChatMessageProps {
+  message: ChatMessageData;
+  isStreaming: boolean;
+  thinkingSteps?: ThinkingStep[];
+  status?: AgentStatus;
+  thinkingCollapsed?: boolean;
+  onToggleThinking?: () => void;
+  savingAttachmentIds?: ReadonlySet<string>;
+  onSaveImageToLibrary?: (messageId: string, attachmentId: string) => void;
+  onSendWidgetPrompt?: (text: string) => Promise<void> | void;
 }
 
 interface MediaJumpCardData {
@@ -123,7 +138,7 @@ const formatTokenUsage = (usage?: TokenUsage): string | null => {
   return parts.length > 0 ? parts.join(" · ") : null;
 };
 
-export function ChatMessage({
+function ChatMessageComponent({
   message,
   isStreaming,
   thinkingSteps,
@@ -132,16 +147,8 @@ export function ChatMessage({
   onToggleThinking,
   savingAttachmentIds,
   onSaveImageToLibrary,
-}: {
-  message: ChatMessageData;
-  isStreaming: boolean;
-  thinkingSteps?: ThinkingStep[];
-  status?: AgentStatus;
-  thinkingCollapsed?: boolean;
-  onToggleThinking?: () => void;
-  savingAttachmentIds?: ReadonlySet<string>;
-  onSaveImageToLibrary?: (messageId: string, attachmentId: string) => void;
-}) {
+  onSendWidgetPrompt,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
   const liveThinkingSteps =
     thinkingSteps && thinkingSteps.length > 0 ? thinkingSteps : undefined;
@@ -168,7 +175,8 @@ export function ChatMessage({
     thinkingSteps &&
     thinkingSteps.length === 0 &&
     !parsedContent.cleanedContent &&
-    parsedContent.jumpCards.length === 0;
+    parsedContent.jumpCards.length === 0 &&
+    (!message.widgets || message.widgets.length === 0);
   const tokenUsageText = isUser ? null : formatTokenUsage(message.usage);
   const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
   const [avatarBurstState, setAvatarBurstState] =
@@ -215,7 +223,10 @@ export function ChatMessage({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
+      className={cn(
+        "flex items-start gap-3",
+        isUser ? "justify-end" : "justify-start",
+      )}
     >
       {!isUser && (
         <button
@@ -234,10 +245,10 @@ export function ChatMessage({
       )}
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+          "text-sm leading-relaxed",
           isUser
-            ? "bg-zinc-900 text-white"
-            : "bg-white/80 text-zinc-800 shadow-sm ring-1 ring-zinc-200/60",
+            ? "max-w-[75%] rounded-2xl bg-zinc-900 px-4 py-2.5 text-white"
+            : "min-w-0 flex-1 bg-transparent px-0 py-0 text-zinc-800",
         )}
       >
         {message.attachments && message.attachments.length > 0 && (
@@ -267,20 +278,33 @@ export function ChatMessage({
                 onToggle={canToggleThinking ? onToggleThinking : undefined}
               />
             )}
+            {message.widgets && message.widgets.length > 0 && (
+              <div className="space-y-3">
+                {message.widgets.map((widget) => (
+                  <ChatWidget
+                    key={widget.toolCallId}
+                    widget={widget}
+                    onSendPrompt={onSendWidgetPrompt}
+                  />
+                ))}
+              </div>
+            )}
             {parsedContent.cleanedContent ? (
-              <Streamdown
-                mode={isStreaming ? "streaming" : "static"}
-                animated={{
-                  animation: "blurIn",
-                  sep: "word",
-                  duration: 0.5,
-                  easing: "ease-in-out",
-                }}
-                isAnimating={isStreaming}
-                plugins={{ cjk, code, math, mermaid }}
-              >
-                {parsedContent.cleanedContent}
-              </Streamdown>
+              <div className={cn(message.widgets && message.widgets.length > 0 && "mt-3")}>
+                <Streamdown
+                  mode={isStreaming ? "streaming" : "static"}
+                  animated={{
+                    animation: "blurIn",
+                    sep: "word",
+                    duration: 0.5,
+                    easing: "ease-in-out",
+                  }}
+                  isAnimating={isStreaming}
+                  plugins={{ cjk, code, math, mermaid }}
+                >
+                  {parsedContent.cleanedContent}
+                </Streamdown>
+              </div>
             ) : hasStreamingSpinner ? (
               <div className="flex items-center gap-1 py-0.5">
                 {[0, 1, 2].map((i) => (
@@ -349,6 +373,41 @@ export function ChatMessage({
     </motion.div>
   );
 }
+
+const areStatusesEqual = (
+  previousStatus: AgentStatus | undefined,
+  nextStatus: AgentStatus | undefined,
+): boolean => {
+  const previousToolName =
+    previousStatus && "toolName" in previousStatus
+      ? previousStatus.toolName
+      : undefined;
+  const nextToolName =
+    nextStatus && "toolName" in nextStatus ? nextStatus.toolName : undefined;
+  return (
+    previousStatus?.type === nextStatus?.type &&
+    previousToolName === nextToolName
+  );
+};
+
+const areChatMessagePropsEqual = (
+  previousProps: ChatMessageProps,
+  nextProps: ChatMessageProps,
+): boolean => {
+  return (
+    previousProps.message === nextProps.message &&
+    previousProps.isStreaming === nextProps.isStreaming &&
+    previousProps.thinkingSteps === nextProps.thinkingSteps &&
+    areStatusesEqual(previousProps.status, nextProps.status) &&
+    previousProps.thinkingCollapsed === nextProps.thinkingCollapsed &&
+    previousProps.onToggleThinking === nextProps.onToggleThinking &&
+    previousProps.savingAttachmentIds === nextProps.savingAttachmentIds &&
+    previousProps.onSaveImageToLibrary === nextProps.onSaveImageToLibrary &&
+    previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt
+  );
+};
+
+export const ChatMessage = memo(ChatMessageComponent, areChatMessagePropsEqual);
 
 function getAssistantAvatarState(
   status: AgentStatus | undefined,

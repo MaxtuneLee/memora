@@ -65,6 +65,7 @@ import {
   type WriteApprovalDecision,
   type WriteApprovalRequest,
 } from "@/lib/chat/tools";
+import { createShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
 import {
   chatActiveFilesQuery$,
@@ -131,6 +132,7 @@ const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessage[] => 
     role: message.role,
     content: message.content,
     attachments: message.attachments,
+    widgets: message.widgets,
     thinkingSteps: message.thinkingSteps,
     usage: message.usage,
   }));
@@ -313,6 +315,7 @@ const buildSessionSignature = (
         role: message.role,
         content: message.content,
         attachments: message.attachments ?? [],
+        widgets: message.widgets ?? [],
         thinkingSteps: message.thinkingSteps ?? [],
         ...(message.usage ? { usage: message.usage } : {}),
       })),
@@ -416,6 +419,10 @@ export const Component = () => {
   const [settings] = useClientDocument(settingsTable);
   const { openSettings } = useSettingsDialog();
   const referenceScopeRef = useRef<ResolvedReferenceScope>(EMPTY_REFERENCE_SCOPE);
+  const showWidgetSkillTracker = useMemo(
+    () => createShowWidgetSkillTracker(),
+    [],
+  );
   const referencePromptSegment = useMemo<PromptSegment>(
     () => ({
       id: "reference-scope",
@@ -835,6 +842,7 @@ export const Component = () => {
           setMemoryUpdatedNotice(true);
         },
         requestWriteApproval,
+        showWidgetSkillTracker,
       }),
     [
       isConfigured,
@@ -843,6 +851,7 @@ export const Component = () => {
       selectedApiKey,
       selectedEndpoint,
       selectedModel,
+      showWidgetSkillTracker,
       store,
     ],
   );
@@ -874,9 +883,19 @@ export const Component = () => {
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const composerOverlayRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
+  const previousMessageCountRef = useRef(0);
+  const latestMessagesRef = useRef(messages);
+  const latestReferencesRef = useRef(activeReferences);
   const displayedMessages = messages;
   const hasMessages = displayedMessages.length > 0;
+  const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
+  const composerScrollInset = composerOverlayHeight > 0 ? composerOverlayHeight : 320;
+  const composerFadeHeight = Math.min(
+    Math.max(composerOverlayHeight + 40, 160),
+    320,
+  );
   const abort = useCallback(() => {
     resolveWriteApproval("deny");
     abortAgent();
@@ -898,12 +917,61 @@ export const Component = () => {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [displayedMessages, isStreaming, thinkingSteps]);
+    latestMessagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    latestReferencesRef.current = activeReferences;
+  }, [activeReferences]);
+
+  useEffect(() => {
+    const behavior =
+      displayedMessages.length > previousMessageCountRef.current ? "smooth" : "auto";
+    previousMessageCountRef.current = displayedMessages.length;
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, [displayedMessages.length, isStreaming, thinkingSteps]);
+
+  useEffect(() => {
+    const overlayElement = composerOverlayRef.current;
+    if (!overlayElement) {
+      return;
+    }
+
+    const measureOverlay = () => {
+      const nextHeight = Math.ceil(overlayElement.getBoundingClientRect().height);
+      setComposerOverlayHeight((currentHeight) => {
+        return currentHeight === nextHeight ? currentHeight : nextHeight;
+      });
+    };
+
+    measureOverlay();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measureOverlay);
+      return () => {
+        window.removeEventListener("resize", measureOverlay);
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      measureOverlay();
+    });
+    observer.observe(overlayElement);
+    window.addEventListener("resize", measureOverlay);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureOverlay);
+    };
+  }, []);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [activeSessionId]);
+
+  useEffect(() => {
+    showWidgetSkillTracker.resetTurn();
+  }, [activeSessionId, showWidgetSkillTracker]);
 
   useEffect(() => {
     cleanupComposerImages(composerImagesRef.current);
@@ -938,22 +1006,32 @@ export const Component = () => {
   }, [cleanupComposerImages]);
 
   useEffect(() => {
-    if (!sessionsReady || !activeSessionId) return;
-    const signature = buildSessionSignature(messages, activeReferences);
-    const persistedSignature = persistedSignaturesRef.current.get(activeSessionId);
-    if (persistedSignature === signature) {
+    if (
+      !sessionsReady ||
+      !activeSessionId ||
+      isStreaming ||
+      isPreparingTurn
+    ) {
       return;
     }
 
     const timeout = setTimeout(() => {
-      void updateChatSessionMessages(activeSessionId, messages, {
-        references: activeReferences,
+      const nextMessages = latestMessagesRef.current;
+      const nextReferences = latestReferencesRef.current;
+      const signature = buildSessionSignature(nextMessages, nextReferences);
+      const persistedSignature = persistedSignaturesRef.current.get(activeSessionId);
+      if (persistedSignature === signature) {
+        return;
+      }
+
+      void updateChatSessionMessages(activeSessionId, nextMessages, {
+        references: nextReferences,
       })
         .then((record) => {
           const summary = toSessionSummary(record);
           persistedSignaturesRef.current.set(
             activeSessionId,
-            buildSessionSignature(messages, record.references),
+            buildSessionSignature(nextMessages, record.references),
           );
           setSessions((prev) => {
             const next = [summary, ...prev.filter((session) => session.id !== summary.id)];
@@ -967,7 +1045,14 @@ export const Component = () => {
     return () => {
       clearTimeout(timeout);
     };
-  }, [activeReferences, activeSessionId, messages, sessionsReady]);
+  }, [
+    activeReferences,
+    activeSessionId,
+    isPreparingTurn,
+    isStreaming,
+    messages,
+    sessionsReady,
+  ]);
 
   const handleCreateSession = useCallback(async () => {
     if (!sessionsReady || isPreparingTurn) return;
@@ -1546,22 +1631,7 @@ export const Component = () => {
     [closeImagePicker, closeReferencePicker, referencePickerSource],
   );
 
-  const submitMessage = useCallback(async () => {
-    if (!sessionsReady || !activeSessionId || isPreparingTurn) {
-      return;
-    }
-
-    const trimmed = inputRef.current?.value.trim() ?? "";
-    const nextComposerImages = composerImagesRef.current;
-    if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
-      return;
-    }
-
-    if (!isConfigured) {
-      openSettings("ai-provider");
-      return;
-    }
-
+  const prepareReferenceScopeForTurn = useCallback(() => {
     const validReferences = sanitizeActiveReferences(
       activeReferences,
       activeFileById,
@@ -1585,6 +1655,38 @@ export const Component = () => {
         `Reference scope was limited to ${MAX_REFERENCED_FILES} files for this request.`,
       );
     }
+  }, [
+    activeFileById,
+    activeFileRows,
+    activeFolderById,
+    activeFolderRows,
+    activeReferences,
+  ]);
+
+  const startAgentTurn = useCallback(
+    async (turnInput: string | ChatTurnInput) => {
+      await send(turnInput);
+    },
+    [send],
+  );
+
+  const submitMessage = useCallback(async () => {
+    if (!sessionsReady || !activeSessionId || isPreparingTurn) {
+      return;
+    }
+
+    const trimmed = inputRef.current?.value.trim() ?? "";
+    const nextComposerImages = composerImagesRef.current;
+    if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
+      return;
+    }
+
+    if (!isConfigured) {
+      openSettings("ai-provider");
+      return;
+    }
+
+    prepareReferenceScopeForTurn();
 
     let turnInput: string | ChatTurnInput = trimmed;
     if (nextComposerImages.length > 0) {
@@ -1618,16 +1720,11 @@ export const Component = () => {
     closeImagePicker();
 
     try {
-      await send(turnInput);
+      await startAgentTurn(turnInput);
     } finally {
       setIsPreparingTurn(false);
     }
   }, [
-    activeFileById,
-    activeFileRows,
-    activeFolderById,
-    activeFolderRows,
-    activeReferences,
     activeSessionId,
     closeImagePicker,
     closeReferencePicker,
@@ -1635,9 +1732,42 @@ export const Component = () => {
     isPreparingTurn,
     isStreaming,
     openSettings,
-    send,
+    prepareReferenceScopeForTurn,
     sessionsReady,
+    startAgentTurn,
   ]);
+
+  const handleWidgetPrompt = useCallback(
+    async (text: string) => {
+      if (!sessionsReady || !activeSessionId || isPreparingTurn || isStreaming) {
+        return;
+      }
+
+      const trimmed = text.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      if (!isConfigured) {
+        openSettings("ai-provider");
+        return;
+      }
+
+      prepareReferenceScopeForTurn();
+      setUserToggled(false);
+      await startAgentTurn(trimmed);
+    },
+    [
+      activeSessionId,
+      isConfigured,
+      isPreparingTurn,
+      isStreaming,
+      openSettings,
+      prepareReferenceScopeForTurn,
+      sessionsReady,
+      startAgentTurn,
+    ],
+  );
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -1709,6 +1839,19 @@ export const Component = () => {
     setIsHistoryDrawerOpen(false);
   }, []);
 
+  const handleCreateSessionFromPanel = useCallback(() => {
+    void handleCreateSession();
+  }, [handleCreateSession]);
+
+  const handleSelectSessionFromPanel = useCallback(
+    (sessionId: string) => {
+      void handleSelectSession(sessionId);
+    },
+    [handleSelectSession],
+  );
+
+  const isHistoryPanelBusy = isStreaming || isPreparingTurn;
+
   const handleAllowWriteOnce = useCallback(() => {
     resolveWriteApproval("allow_once");
   }, [resolveWriteApproval]);
@@ -1728,10 +1871,10 @@ export const Component = () => {
           <ChatHistoryPanel
             sessions={sessions}
             activeSessionId={activeSessionId}
-            isStreaming={isStreaming || isPreparingTurn}
+            isStreaming={isHistoryPanelBusy}
             deletingSessionId={deletingSessionId}
-            onCreateSession={() => void handleCreateSession()}
-            onSelectSession={(sessionId) => void handleSelectSession(sessionId)}
+            onCreateSession={handleCreateSessionFromPanel}
+            onSelectSession={handleSelectSessionFromPanel}
             onDeleteSession={handlePromptDeleteSession}
             isReady={sessionsReady}
           />
@@ -1759,104 +1902,145 @@ export const Component = () => {
             )}
           </div>
 
-          {hasMessages ? (
-            <div className="flex-1 overflow-y-auto px-4 py-6">
-              <div className="mx-auto max-w-2xl space-y-4">
-                {sessionsError && (
-                  <p className="hidden text-xs text-red-600 md:block">
-                    {sessionsError}
-                  </p>
-                )}
-                {displayedMessages.map((message) => {
-                  const isCurrentAssistant =
-                    message.role === "assistant" && message.id === lastAssistantId;
-                  return (
-                    <ChatMessage
-                      key={message.id}
-                      message={message}
-                      isStreaming={isStreaming && isCurrentAssistant}
-                      thinkingSteps={isCurrentAssistant ? thinkingSteps : undefined}
-                      status={isCurrentAssistant ? status : undefined}
-                      thinkingCollapsed={isCurrentAssistant ? panelCollapsed : undefined}
-                      savingAttachmentIds={savingImageAttachmentIdSet}
-                      onSaveImageToLibrary={handleSaveImageToLibrary}
-                      onToggleThinking={
-                        isCurrentAssistant ? handleToggleThinking : undefined
-                      }
-                    />
-                  );
-                })}
-                {iterationLimitPrompt && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-800"
-                  >
-                    <p>
-                      The model has been running for a while (
-                      {iterationLimitPrompt.iterations} iterations). Continue
-                      running?
-                    </p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void continueAfterIterationLimit()}
-                        disabled={isStreaming}
-                        className="rounded-lg border border-amber-700 bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+          <div className="relative flex min-h-0 flex-1">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div
+                className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 pt-6"
+                style={{ paddingBottom: composerScrollInset }}
+              >
+                {hasMessages ? (
+                  <div className="w-full space-y-4">
+                    {sessionsError && (
+                      <p className="hidden text-xs text-red-600 md:block">
+                        {sessionsError}
+                      </p>
+                    )}
+                    {displayedMessages.map((message) => {
+                      const isCurrentAssistant =
+                        message.role === "assistant" && message.id === lastAssistantId;
+                      return (
+                        <ChatMessage
+                          key={message.id}
+                          message={message}
+                          isStreaming={isStreaming && isCurrentAssistant}
+                          thinkingSteps={isCurrentAssistant ? thinkingSteps : undefined}
+                          status={isCurrentAssistant ? status : undefined}
+                          thinkingCollapsed={isCurrentAssistant ? panelCollapsed : undefined}
+                          savingAttachmentIds={savingImageAttachmentIdSet}
+                          onSaveImageToLibrary={handleSaveImageToLibrary}
+                          onSendWidgetPrompt={handleWidgetPrompt}
+                          onToggleThinking={
+                            isCurrentAssistant ? handleToggleThinking : undefined
+                          }
+                        />
+                      );
+                    })}
+                    {iterationLimitPrompt && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-800"
                       >
-                        Continue
-                      </button>
-                      <button
-                        type="button"
-                        onClick={dismissIterationLimitPrompt}
-                        disabled={isStreaming}
-                        className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        <p>
+                          The model has been running for a while (
+                          {iterationLimitPrompt.iterations} iterations). Continue
+                          running?
+                        </p>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void continueAfterIterationLimit()}
+                            disabled={isStreaming}
+                            className="rounded-lg border border-amber-700 bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Continue
+                          </button>
+                          <button
+                            type="button"
+                            onClick={dismissIterationLimitPrompt}
+                            disabled={isStreaming}
+                            className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Stop
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
                       >
-                        Stop
-                      </button>
+                        {error.message}
+                      </motion.div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      {sessionsError && (
+                        <p className="text-center text-xs text-red-600">
+                          {sessionsError}
+                        </p>
+                      )}
+                      <Persona state="idle" className="size-20" />
+                      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+                        {greetingTitle}
+                      </h1>
+                      {!isConfigured && (
+                        <button
+                          type="button"
+                          onClick={() => openSettings("ai-provider")}
+                          className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100"
+                        >
+                          <GearIcon className="size-4" />
+                          Configure an AI provider to get started
+                        </button>
+                      )}
                     </div>
-                  </motion.div>
-                )}
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
-                  >
-                    {error.message}
-                  </motion.div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center px-4">
-              <div className="flex flex-col items-center gap-4">
-                {sessionsError && (
-                  <p className="text-center text-xs text-red-600">
-                    {sessionsError}
-                  </p>
-                )}
-                <Persona state="idle" className="size-20" />
-                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-                  {greetingTitle}
-                </h1>
-                {!isConfigured && (
-                  <button
-                    type="button"
-                    onClick={() => openSettings("ai-provider")}
-                    className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100"
-                  >
-                    <GearIcon className="size-4" />
-                    Configure an AI provider to get started
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
-          <div className="shrink-0 px-4 pb-6">
-            <div className="mx-auto max-w-2xl">
+                    <AnimatePresence>
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-8 grid w-full grid-cols-2 gap-2.5"
+                      >
+                        {suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.title}
+                            type="button"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="flex items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-3.5 py-3 text-left transition-all hover:border-zinc-300 hover:bg-white/90 hover:shadow-sm"
+                          >
+                            <suggestion.icon className="mt-0.5 size-4 shrink-0 text-zinc-400" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-zinc-700">
+                                {suggestion.title}
+                              </p>
+                              <p className="mt-0.5 text-xs leading-snug text-zinc-400">
+                                {suggestion.description}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#fffbf2] via-[#fffbf2]/90 to-transparent z-0"
+                style={{ height: composerFadeHeight }}
+              />
+              <div ref={composerOverlayRef} className="px-4 pb-6 pt-16">
+                <div className="pointer-events-auto mx-auto max-w-2xl">
               <AnimatePresence>
                 {isStreaming &&
                   status.type !== "idle" &&
@@ -2088,7 +2272,7 @@ export const Component = () => {
               />
               <form onSubmit={handleSubmit}>
                 <div
-                  className={`group relative rounded-2xl border bg-white/80 shadow-sm transition-colors focus-within:border-zinc-300 focus-within:shadow-md ${
+                  className={`group relative rounded-xl border bg-white/90 shadow-[0_24px_60px_-28px_rgba(24,24,27,0.35)] backdrop-blur-xl transition-colors focus-within:border-zinc-300 focus-within:shadow-[0_28px_70px_-28px_rgba(24,24,27,0.42)] ${
                     composerDragActive
                       ? "border-zinc-900 ring-2 ring-zinc-900/10"
                       : "border-zinc-200/80"
@@ -2099,7 +2283,7 @@ export const Component = () => {
                   onDrop={handleComposerDrop}
                 >
                   {composerDragActive && (
-                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl border border-dashed border-zinc-900/20 bg-zinc-900/5 px-6 text-center text-sm font-medium text-zinc-700">
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border border-dashed border-zinc-900/20 bg-zinc-900/5 px-6 text-center text-sm font-medium text-zinc-700">
                       Drop images here to attach them
                     </div>
                   )}
@@ -2184,37 +2368,8 @@ export const Component = () => {
                   </div>
                 </div>
               </form>
-
-              <AnimatePresence>
-                {!hasMessages && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-4 grid grid-cols-2 gap-2.5"
-                  >
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.title}
-                        type="button"
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="flex items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-3.5 py-3 text-left transition-all hover:border-zinc-300 hover:bg-white/90 hover:shadow-sm"
-                      >
-                        <suggestion.icon className="mt-0.5 size-4 shrink-0 text-zinc-400" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-700">
-                            {suggestion.title}
-                          </p>
-                          <p className="mt-0.5 text-xs leading-snug text-zinc-400">
-                            {suggestion.description}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2244,10 +2399,10 @@ export const Component = () => {
               <ChatHistoryPanel
                 sessions={sessions}
                 activeSessionId={activeSessionId}
-                isStreaming={isStreaming || isPreparingTurn}
+                isStreaming={isHistoryPanelBusy}
                 deletingSessionId={deletingSessionId}
-                onCreateSession={() => void handleCreateSession()}
-                onSelectSession={(sessionId) => void handleSelectSession(sessionId)}
+                onCreateSession={handleCreateSessionFromPanel}
+                onSelectSession={handleSelectSessionFromPanel}
                 onDeleteSession={handlePromptDeleteSession}
                 onCloseMobileDrawer={handleCloseHistoryDrawer}
                 isReady={sessionsReady}

@@ -7,15 +7,6 @@ export default function SettingsSkillsSection() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div>
-          <h4 className="text-sm font-semibold text-zinc-900">Built-in skills</h4>
-          <p className="mt-1 text-sm text-zinc-500">
-            Skills shipped with Memora. The assistant only sees their names and
-            descriptions up front, then loads full instructions on demand.
-          </p>
-        </div>
-      </div>
 
       {skills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-6 text-sm text-zinc-500">

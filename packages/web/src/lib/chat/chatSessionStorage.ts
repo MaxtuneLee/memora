@@ -1,5 +1,6 @@
 import { dir as opfsDir, file as opfsFile, glob, write as opfsWrite } from "@memora/fs";
 import type { TokenUsage } from "@memora/ai-core";
+import { normalizeChatWidgets, type ChatWidget } from "@/lib/chat/showWidget";
 
 import {
   deleteChatSessionAssets,
@@ -32,6 +33,7 @@ export interface ChatSessionMessage {
   role: "user" | "assistant";
   content: string;
   attachments?: ChatImageAttachment[];
+  widgets?: ChatWidget[];
   thinkingSteps?: ChatSessionThinkingStep[];
   usage?: TokenUsage;
 }
@@ -182,6 +184,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
     const attachments = normalizeChatImageAttachments(value.attachments);
     if (attachments && attachments.length > 0) {
       normalizedMessage.attachments = attachments;
+    }
+
+    const widgets = normalizeChatWidgets(value.widgets);
+    if (widgets && widgets.length > 0) {
+      normalizedMessage.widgets = widgets;
     }
 
     const thinkingSteps = normalizeThinkingSteps(value.thinkingSteps);

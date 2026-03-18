@@ -1,6 +1,7 @@
 import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 import type { file as LiveStoreFile } from "@/livestore/file";
+import type { ChatWidget } from "@/lib/chat/showWidget";
 
 const CHAT_SESSION_ASSETS_DIR = "/chat/session-assets";
 
@@ -324,13 +325,36 @@ const trimPreview = (value: string, maxLength: number): string => {
   return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 };
 
+const createWidgetSummary = (widgets?: ChatWidget[]): string => {
+  if (!widgets || widgets.length === 0) {
+    return "";
+  }
+
+  const firstNamedWidget = widgets.find((widget) => widget.title.trim().length > 0);
+  if (firstNamedWidget) {
+    return `Widget: ${firstNamedWidget.title}`;
+  }
+
+  if (widgets.length === 1) {
+    return "Interactive widget";
+  }
+
+  return `${widgets.length} widgets`;
+};
+
 export const getChatMessagePreviewText = (message: {
   content: string;
   attachments?: ChatImageAttachment[];
+  widgets?: ChatWidget[];
 }): string => {
   const text = trimPreview(message.content, 80);
   if (text) {
     return text;
+  }
+
+  const widgetSummary = trimPreview(createWidgetSummary(message.widgets), 80);
+  if (widgetSummary) {
+    return widgetSummary;
   }
 
   return trimPreview(createAttachmentSummary(message.attachments), 80);
@@ -339,10 +363,16 @@ export const getChatMessagePreviewText = (message: {
 export const getChatMessageTitleText = (message: {
   content: string;
   attachments?: ChatImageAttachment[];
+  widgets?: ChatWidget[];
 }): string | null => {
   const text = trimPreview(message.content, 48);
   if (text) {
     return text;
+  }
+
+  const widgetSummary = trimPreview(createWidgetSummary(message.widgets), 48);
+  if (widgetSummary) {
+    return widgetSummary;
   }
 
   const summary = trimPreview(createAttachmentSummary(message.attachments), 48);

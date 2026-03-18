@@ -350,7 +350,6 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshStorageState();
   }, [autoRefresh, refreshStorageState]);
 

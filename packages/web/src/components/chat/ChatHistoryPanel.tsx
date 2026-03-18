@@ -1,9 +1,15 @@
+import { memo, useMemo } from "react";
 import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SESSION_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 type SessionGroup = {
   id: "today" | "last-7-days" | "earlier";
@@ -18,12 +24,7 @@ const getDayStart = (timestamp: number): number => {
 };
 
 const formatSessionUpdatedAt = (timestamp: number): string => {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+  return SESSION_DATE_FORMATTER.format(new Date(timestamp));
 };
 
 const groupSessionsByDate = (
@@ -65,7 +66,7 @@ export interface ChatHistoryPanelProps {
   isReady?: boolean;
 }
 
-export const ChatHistoryPanel = ({
+function ChatHistoryPanelComponent({
   sessions,
   activeSessionId,
   isStreaming,
@@ -75,7 +76,7 @@ export const ChatHistoryPanel = ({
   onDeleteSession,
   onCloseMobileDrawer,
   isReady = true,
-}: ChatHistoryPanelProps) => {
+}: ChatHistoryPanelProps) {
   const groups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const activeTitle =
     sessions.find((session) => session.id === activeSessionId)?.title ??
@@ -207,4 +208,26 @@ export const ChatHistoryPanel = ({
       </div>
     </div>
   );
+}
+
+const areChatHistoryPanelPropsEqual = (
+  previousProps: ChatHistoryPanelProps,
+  nextProps: ChatHistoryPanelProps,
+): boolean => {
+  return (
+    previousProps.sessions === nextProps.sessions &&
+    previousProps.activeSessionId === nextProps.activeSessionId &&
+    previousProps.isStreaming === nextProps.isStreaming &&
+    previousProps.deletingSessionId === nextProps.deletingSessionId &&
+    previousProps.onCreateSession === nextProps.onCreateSession &&
+    previousProps.onSelectSession === nextProps.onSelectSession &&
+    previousProps.onDeleteSession === nextProps.onDeleteSession &&
+    previousProps.onCloseMobileDrawer === nextProps.onCloseMobileDrawer &&
+    previousProps.isReady === nextProps.isReady
+  );
 };
+
+export const ChatHistoryPanel = memo(
+  ChatHistoryPanelComponent,
+  areChatHistoryPanelPropsEqual,
+);

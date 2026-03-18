@@ -259,15 +259,23 @@ export async function* parseSSEStream(
             const idx = tc.index;
 
             if (tc.id) {
+              const initialArguments = tc.function?.arguments ?? "";
               pendingToolCalls.set(idx, {
                 id: tc.id,
                 name: tc.function?.name ?? "",
-                arguments: tc.function?.arguments ?? "",
+                arguments: initialArguments,
               });
               yield {
                 type: "tool-call-start",
                 toolCall: { id: tc.id, name: tc.function?.name ?? "" },
               };
+              if (initialArguments) {
+                yield {
+                  type: "tool-call-args-delta",
+                  toolCallId: tc.id,
+                  delta: initialArguments,
+                };
+              }
             } else {
               const pending = pendingToolCalls.get(idx);
               if (pending) {
@@ -347,8 +355,9 @@ export async function* parseResponsesStream(
 ): AsyncGenerator<AgentEvent> {
   const pendingFunctionCalls = new Map<
     string,
-    { callId: string; name: string; arguments: string }
+    { itemId: string; callId: string; name: string; arguments: string }
   >();
+  const pendingFunctionCallItemIds = new Map<string, string>();
 
   let currentEventType = "";
   let reasoningText = "";
@@ -380,6 +389,7 @@ export async function* parseResponsesStream(
           toolCall: { id: fc.callId, name: fc.name, arguments: parsedArgs },
         };
       }
+      pendingFunctionCallItemIds.clear();
       return;
     }
 
@@ -445,15 +455,27 @@ export async function* parseResponsesStream(
         if (itemType === "function_call") {
           const callId = event.item?.call_id ?? itemId;
           const name = event.item?.name ?? "";
+          const initialArguments = event.item?.arguments ?? "";
           pendingFunctionCalls.set(callId, {
+            itemId,
             callId,
             name,
-            arguments: event.item?.arguments ?? "",
+            arguments: initialArguments,
           });
+          if (itemId) {
+            pendingFunctionCallItemIds.set(itemId, callId);
+          }
           yield {
             type: "tool-call-start",
             toolCall: { id: callId, name },
           };
+          if (initialArguments) {
+            yield {
+              type: "tool-call-args-delta",
+              toolCallId: callId,
+              delta: initialArguments,
+            };
+          }
         } else {
           yield {
             type: "output-item-added",
@@ -470,10 +492,31 @@ export async function* parseResponsesStream(
         const itemId = event.item?.id ?? "";
 
         if (itemType === "function_call") {
-          const callId = event.item?.call_id ?? itemId;
+          const callId =
+            event.item?.call_id ??
+            pendingFunctionCallItemIds.get(itemId) ??
+            itemId;
           const fc = pendingFunctionCalls.get(callId);
+          const bufferedArgs = fc?.arguments ?? "";
           const args = event.item?.arguments ?? fc?.arguments ?? "{}";
           const name = event.item?.name ?? fc?.name ?? "";
+
+          if (args && args !== bufferedArgs) {
+            const delta = args.startsWith(bufferedArgs)
+              ? args.slice(bufferedArgs.length)
+              : args;
+
+            if (delta) {
+              if (fc) {
+                fc.arguments = args;
+              }
+              yield {
+                type: "tool-call-args-delta",
+                toolCallId: callId,
+                delta,
+              };
+            }
+          }
 
           let parsedArgs: Record<string, unknown> = {};
           try {
@@ -487,6 +530,11 @@ export async function* parseResponsesStream(
             toolCall: { id: callId, name, arguments: parsedArgs },
           };
           pendingFunctionCalls.delete(callId);
+          if (fc?.itemId) {
+            pendingFunctionCallItemIds.delete(fc.itemId);
+          } else if (itemId) {
+            pendingFunctionCallItemIds.delete(itemId);
+          }
         } else {
           yield {
             type: "output-item-done",
@@ -500,7 +548,10 @@ export async function* parseResponsesStream(
 
       case "response.function_call_arguments.delta": {
         if (event.delta) {
-          const callId = event.item_id ?? "";
+          const callId =
+            pendingFunctionCallItemIds.get(event.item_id ?? "") ??
+            event.item_id ??
+            "";
           const fc = pendingFunctionCalls.get(callId);
           if (fc) {
             fc.arguments += event.delta;
@@ -553,6 +604,7 @@ export async function* parseResponsesStream(
           };
         }
         pendingFunctionCalls.clear();
+        pendingFunctionCallItemIds.clear();
         break;
       }
 
