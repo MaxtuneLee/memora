@@ -20,16 +20,18 @@ import { formatDuration } from "@/lib/format";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
+import {
+  MEMORA_STREAMDOWN_CLASS_NAME,
+  MEMORA_STREAMDOWN_CONTROLS,
+  MEMORA_STREAMDOWN_PLUGINS,
+  MEMORA_STREAMDOWN_THEME,
+} from "@/lib/streamdown";
 import { motion } from "motion/react";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
 import type { TokenUsage } from "@memora/ai-core";
 import { ThinkingPanel } from "@/components/chat/ThinkingPanel";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import "katex/dist/katex.min.css";
 
 export interface ChatMessageData {
@@ -141,7 +143,11 @@ function ChatMessageComponent({
   }, [isEditing]);
 
   const triggerAvatarBurst = useCallback(() => {
-    const burstStates: MemoraMascotState[] = ["listening", "thinking", "speaking"];
+    const burstStates: MemoraMascotState[] = [
+      "listening",
+      "thinking",
+      "speaking",
+    ];
     const randomBurstState =
       burstStates[Math.floor(Math.random() * burstStates.length)] ?? "speaking";
 
@@ -165,7 +171,8 @@ function ChatMessageComponent({
     };
   }, []);
 
-  const displayedAssistantAvatarState = avatarBurstState ?? assistantAvatarState;
+  const displayedAssistantAvatarState =
+    avatarBurstState ?? assistantAvatarState;
   const shouldAnimateAssistantAvatar =
     !isUser &&
     (avatarBurstState !== null ||
@@ -197,13 +204,7 @@ function ChatMessageComponent({
 
     void onEditMessage(message.id, draftText);
     setIsEditing(false);
-  }, [
-    actionsDisabled,
-    canSubmitEdit,
-    draftText,
-    message.id,
-    onEditMessage,
-  ]);
+  }, [actionsDisabled, canSubmitEdit, draftText, message.id, onEditMessage]);
 
   const handleRetry = useCallback(() => {
     if (!onRetryMessage || actionsDisabled) {
@@ -373,7 +374,8 @@ function ChatMessageComponent({
                       return (
                         <Streamdown
                           key={`text-${index}`}
-                          mode={isStreaming ? "streaming" : "static"}
+                          // mode={isStreaming ? "streaming" : "static"}
+                          className={MEMORA_STREAMDOWN_CLASS_NAME}
                           animated={{
                             animation: "blurIn",
                             sep: "word",
@@ -381,7 +383,9 @@ function ChatMessageComponent({
                             easing: "ease-in-out",
                           }}
                           isAnimating={isStreaming}
-                          plugins={{ cjk, code, math, mermaid }}
+                          controls={MEMORA_STREAMDOWN_CONTROLS}
+                          plugins={{ ...MEMORA_STREAMDOWN_PLUGINS }}
+                          shikiTheme={MEMORA_STREAMDOWN_THEME}
                         >
                           {part.content}
                         </Streamdown>
@@ -484,7 +488,8 @@ function MediaJumpCard({ jumpCard }: { jumpCard: MediaJumpCardData }) {
               {jumpCard.fileName}
             </p>
             <span className="shrink-0 text-[11px] font-medium text-zinc-500">
-              {formatDuration(jumpCard.startSec)} - {formatDuration(jumpCard.endSec)}
+              {formatDuration(jumpCard.startSec)} -{" "}
+              {formatDuration(jumpCard.endSec)}
             </span>
           </div>
           {jumpCard.context && (

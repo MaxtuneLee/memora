@@ -5,6 +5,12 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/MemoraMascot";
+import {
+  MEMORA_STREAMDOWN_CLASS_NAME,
+  MEMORA_STREAMDOWN_CONTROLS,
+  MEMORA_STREAMDOWN_PLUGINS,
+  MEMORA_STREAMDOWN_THEME,
+} from "@/lib/streamdown";
 
 export type OnboardingApiFormat = "chat-completions" | "responses";
 
@@ -301,7 +307,10 @@ export default function OnboardingExperience({
                         <Streamdown
                           parseIncompleteMarkdown
                           mode="streaming"
-                          className="streamdown prose prose-sm max-w-none text-[#3f372f]"
+                          className={MEMORA_STREAMDOWN_CLASS_NAME}
+                          controls={MEMORA_STREAMDOWN_CONTROLS}
+                          plugins={MEMORA_STREAMDOWN_PLUGINS}
+                          shikiTheme={MEMORA_STREAMDOWN_THEME}
                         >
                           {streamingSoulDocument || "Generating Soul Document..."}
                         </Streamdown>
