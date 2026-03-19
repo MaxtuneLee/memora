@@ -1,18 +1,18 @@
-import { Button } from "@base-ui/react/button";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "@livestore/react";
 import { write as opfsWrite } from "@memora/fs";
 import { AudioPlayer } from "@/components/library/AudioPlayer";
 import { VideoPlayer } from "@/components/library/VideoPlayer";
-import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useFileTranscription } from "@/hooks/transcript/useFileTranscription";
 import { getMediaDuration, resolveRecordingBlob } from "@/lib/library/fileService";
 import { BackButton } from "@/components/transcript/BackButton";
-import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
+import { RecordingHeader } from "@/components/transcript/transcriptDetail/RecordingHeader";
+import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
+import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
 import { fileEvents } from "@/livestore/file";
 import {
   FILES_DIR,
@@ -25,17 +25,6 @@ import {
   downloadText,
   searchTranscript,
 } from "@/lib/transcript/transcriptSearchExport";
-import {
-  CaretDownIcon,
-  CaretUpIcon,
-  DownloadSimpleIcon,
-  MagnifyingGlassIcon,
-  TrashIcon,
-  PencilSimpleIcon,
-  SpinnerGapIcon,
-  FloppyDiskIcon,
-  SubtitlesIcon,
-} from "@phosphor-icons/react";
 
 const buildExportFileName = (name: string, ext: "txt" | "srt"): string => {
   const sanitized = name
@@ -383,115 +372,29 @@ export const Component = () => {
     <div className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
       <BackButton />
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1 space-y-3">
-            {isRenaming ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleRenameSubmit();
-                }}
-                className="flex flex-col gap-3 sm:flex-row sm:items-center"
-              >
-                <input
-                  type="text"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-2xl font-semibold tracking-tight text-zinc-900 focus:border-zinc-400 focus:outline-none"
-                  autoFocus
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="submit"
-                    className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setIsRenaming(false);
-                      setRenameValue(recording.name);
-                    }}
-                    className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <button
-                onClick={() => setIsRenaming(true)}
-                className="group flex items-start gap-2 text-left"
-              >
-                <span className="break-words text-3xl font-semibold tracking-tight text-zinc-900">
-                  {recording.name}
-                </span>
-                <PencilSimpleIcon className="mt-2 size-3.5 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-700" />
-              </button>
-            )}
-
-            <p className="text-sm text-zinc-500">
-              {formatDateTime(recording.createdAt)}
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {metaPills.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {isMedia && (
-              <Button
-                onClick={handleTranscriptToggle}
-                disabled={isTranscribing}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                  showTranscript
-                    ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                    : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                }`}
-                title={showTranscript ? "Hide transcript" : "Show transcript"}
-              >
-                {isTranscribing ? (
-                  <SpinnerGapIcon className="size-4 animate-spin" />
-                ) : (
-                  <SubtitlesIcon
-                    className="size-4"
-                    weight={showTranscript ? "fill" : "bold"}
-                  />
-                )}
-                <span>
-                  {showTranscript
-                    ? "Hide transcript"
-                    : hasTranscript
-                      ? "Open transcript"
-                      : "Generate transcript"}
-                </span>
-              </Button>
-            )}
-
-            <Button
-              onClick={async () => {
-                await deleteRecording(recording);
-                navigate("/files");
-              }}
-              className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-zinc-50"
-              title="Delete recording"
-            >
-              <TrashIcon className="size-4" weight="bold" />
-              <span>Delete</span>
-            </Button>
-          </div>
-        </div>
-      </section>
+      <RecordingHeader
+        recording={recording}
+        isRenaming={isRenaming}
+        renameValue={renameValue}
+        metaPills={metaPills}
+        isMedia={isMedia}
+        showTranscript={showTranscript}
+        hasTranscript={hasTranscript}
+        isTranscribing={isTranscribing}
+        createdAtLabel={formatDateTime(recording.createdAt)}
+        onRenameChange={setRenameValue}
+        onRenameSubmit={handleRenameSubmit}
+        onRenameCancel={() => {
+          setIsRenaming(false);
+          setRenameValue(recording.name);
+        }}
+        onStartRename={() => setIsRenaming(true)}
+        onToggleTranscript={handleTranscriptToggle}
+        onDelete={async () => {
+          await deleteRecording(recording);
+          navigate("/files");
+        }}
+      />
 
       {recording.type === "video" ? (
         <VideoPlayer
@@ -514,193 +417,39 @@ export const Component = () => {
         />
       )}
 
-      {showTranscript && (
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-200 px-4 py-4 md:px-5">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">
-                    Transcript
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    Search the transcript or jump to a matching moment.
-                  </p>
-                </div>
+      <TranscriptSection
+        showTranscript={showTranscript}
+        hasSearchableTranscript={hasSearchableTranscript}
+        hasTranscript={hasTranscript}
+        isTranscribing={isTranscribing}
+        canExportSrt={canExportSrt}
+        canSearch={canSearch}
+        transcriptText={transcriptText}
+        transcriptWords={transcriptWords}
+        transcriptDiagnostics={transcriptDiagnostics}
+        transcriptionStatus={transcriptionStatus}
+        transcriptionProgress={transcriptionProgress}
+        currentTimeRef={currentTimeRef}
+        searchQuery={searchQuery}
+        activeMatchIndex={activeMatchIndex}
+        searchMatches={searchMatches}
+        activeMatchId={activeMatch?.id}
+        manualTranscript={manualTranscript}
+        isSavingManual={isSavingManual}
+        onSearchQueryChange={setSearchQuery}
+        onJumpToMatch={jumpToMatch}
+        onManualTranscriptChange={setManualTranscript}
+        onExportTxt={handleExportTxt}
+        onExportSrt={handleExportSrt}
+        onTranscriptToggle={handleTranscriptToggle}
+        onSaveManualTranscript={handleSaveManualTranscript}
+        onSeek={handleTranscriptSeek}
+      />
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={handleExportTxt}
-                    disabled={!hasSearchableTranscript}
-                    className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <DownloadSimpleIcon className="size-3.5" />
-                    Export TXT
-                  </Button>
-                  <Button
-                    onClick={handleExportSrt}
-                    disabled={!canExportSrt}
-                    title={
-                      canExportSrt
-                        ? "Export SRT"
-                        : "SRT export needs word-level timestamps"
-                    }
-                    className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <DownloadSimpleIcon className="size-3.5" />
-                    Export SRT
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus-within:border-zinc-300">
-                  <MagnifyingGlassIcon className="size-4 text-zinc-400" />
-                  <input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search transcript..."
-                    disabled={!canSearch}
-                    className="w-full bg-transparent text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none disabled:cursor-not-allowed disabled:text-zinc-400"
-                  />
-                </label>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center rounded-xl border border-zinc-200 bg-white">
-                    <Button
-                      onClick={() => jumpToMatch(activeMatchIndex - 1)}
-                      disabled={searchMatches.length === 0}
-                      className="flex h-9 w-9 items-center justify-center rounded-l-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-                      title="Previous match"
-                    >
-                      <CaretUpIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      onClick={() => jumpToMatch(activeMatchIndex + 1)}
-                      disabled={searchMatches.length === 0}
-                      className="flex h-9 w-9 items-center justify-center rounded-r-xl border-l border-zinc-200 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-                      title="Next match"
-                    >
-                      <CaretDownIcon className="size-3.5" />
-                    </Button>
-                  </div>
-
-                  <p className="text-xs text-zinc-500">
-                    {searchQuery.trim().length === 0
-                      ? "Type to search"
-                      : searchMatches.length === 0
-                        ? "No matches"
-                        : `${activeMatchIndex + 1}/${searchMatches.length} matches`}
-                  </p>
-                </div>
-              </div>
-
-              {!canExportSrt && hasTranscript && (
-                <p className="text-xs text-zinc-400">
-                  SRT export is unavailable because this transcript has no word timestamps.
-                </p>
-              )}
-
-              {searchQuery.trim().length > 0 && (
-                <div className="max-h-36 space-y-1 overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-2">
-                  {searchMatches.length === 0 ? (
-                    <p className="px-2 py-2 text-xs text-zinc-500">
-                      No matches found in this transcript.
-                    </p>
-                  ) : (
-                    searchMatches.map((match, index) => {
-                      const isActive = match.id === activeMatch?.id;
-                      const hasTimestamp = match.startSec != null;
-                      return (
-                        <button
-                          key={match.id}
-                          onClick={() => jumpToMatch(index)}
-                          className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
-                            isActive
-                              ? "bg-zinc-900 text-white"
-                              : "text-zinc-600 hover:bg-white hover:text-zinc-900"
-                          }`}
-                        >
-                          <span className="line-clamp-1">{match.snippet}</span>
-                          <span className="shrink-0 tabular-nums">
-                            {hasTimestamp && match.startSec != null
-                              ? formatDuration(match.startSec)
-                              : "Text only"}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {!hasSearchableTranscript && !isTranscribing ? (
-            <div className="space-y-4 p-4 md:p-5">
-              {transcriptDiagnostics?.dropped && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  The last auto-transcription was filtered as likely hallucination.
-                  Retry it or save a manual transcript.
-                </div>
-              )}
-
-              <textarea
-                value={manualTranscript}
-                onChange={(event) => setManualTranscript(event.target.value)}
-                placeholder="Type or paste your transcript here..."
-                className="min-h-[220px] w-full resize-y rounded-xl border border-zinc-200 p-4 text-sm leading-7 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
-              />
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                  onClick={handleTranscriptToggle}
-                  disabled={isTranscribing}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {transcriptDiagnostics
-                    ? "Retry auto transcribe"
-                    : "Auto transcribe"}
-                </Button>
-                <Button
-                  onClick={handleSaveManualTranscript}
-                  disabled={!manualTranscript.trim() || isSavingManual}
-                  className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  <FloppyDiskIcon className="size-3.5" />
-                  {isSavingManual ? "Saving..." : "Save transcript"}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="h-[min(50vh,620px)]">
-              <TranscriptSidebar
-                words={transcriptWords}
-                text={transcriptText}
-                timeRef={currentTimeRef}
-                onSeek={handleTranscriptSeek}
-                isTranscribing={isTranscribing}
-                transcriptionStatus={transcriptionStatus}
-                transcriptionProgress={transcriptionProgress}
-              />
-            </div>
-          )}
-        </section>
-      )}
-
-      {shouldShowDiagnostics && transcriptDiagnostics && (
-        <details className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <summary className="cursor-pointer list-none px-4 py-4 text-sm font-medium text-zinc-700 marker:hidden">
-            Transcript diagnostics
-          </summary>
-          <div className="border-t border-zinc-200 p-4">
-            <TranscriptDiagnosticsCard
-              diagnostics={transcriptDiagnostics}
-              title="Transcript Diagnostics"
-            />
-          </div>
-        </details>
-      )}
+      <TranscriptDiagnosticsPanel
+        diagnostics={transcriptDiagnostics}
+        visible={shouldShowDiagnostics}
+      />
     </div>
   );
 };

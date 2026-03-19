@@ -2,42 +2,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@livestore/react";
 import { MicVAD } from "@ricky0123/vad-web";
 import { dir as opfsDir } from "@memora/fs";
-
-import { saveRecording } from "@/lib/library/fileService";
 import {
-  DEFAULT_AUDIO_MIME,
   type RecordingWord,
   type TranscriptDiagnostics,
 } from "@/types/library";
-import { fileEvents } from "@/livestore/file";
 import {
   TRANSFORMERS_CACHE_DIR,
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
-  WHISPER_MAX_SAMPLES,
-  WHISPER_SAMPLE_RATE,
-  buildWordAnimationWords,
   evaluateTranscriptCandidate,
-  summarizeTranscriptDiagnostics,
 } from "@/lib/transcript/transcriptUtils";
-
-interface ProgressItem {
-  file: string;
-  progress: number;
-  total?: number;
-}
+import {
+  getOrCreateWhisperWorker,
+  loadWhisperModel,
+  subscribeToWhisperWorker,
+  type WhisperProgressItem,
+} from "@/lib/transcript/whisper/client";
+import { useRecordingFinalizer } from "@/hooks/transcript/useTranscript/useRecordingFinalizer";
+import { useSpeechBuffer } from "@/hooks/transcript/useTranscript/useSpeechBuffer";
+import { useSpeechQueue } from "@/hooks/transcript/useTranscript/useSpeechQueue";
+import { useWordAnimation } from "@/hooks/transcript/useTranscript/useWordAnimation";
 
 export const useTranscript = () => {
   const { store } = useStore();
   const worker = useRef<Worker | null>(null);
-  const pendingSegmentsRef = useRef<
-    Array<{ audio: Float32Array; startSec: number }>
-  >([]);
-  const currentSegmentRef = useRef<{
-    audio: Float32Array;
-    startSec: number;
-  } | null>(null);
   const recordingRef = useRef(false);
-  const isProcessingRef = useRef(false);
   const [language, setLanguage] = useState(() => {
     if (typeof window === "undefined") return "en";
     return localStorage.getItem(TRANSCRIPT_LANGUAGE_STORAGE_KEY) ?? "en";
@@ -46,17 +34,6 @@ export const useTranscript = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const vadRef = useRef<MicVAD | null>(null);
   const vadInitializingRef = useRef(false);
-  const collectingRef = useRef(false);
-  const speechBufferRef = useRef<Float32Array[]>([]);
-  const speechBufferSizeRef = useRef(0);
-  const wordAnimationQueueRef = useRef<
-    Array<{
-      words: Array<{ text: string; delayMs: number }>;
-      finalText: string;
-    }>
-  >([]);
-  const wordAnimationRunningRef = useRef(false);
-  const wordAnimationTimeoutRef = useRef<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
   const recordingStartRef = useRef<number | null>(null);
@@ -64,19 +41,13 @@ export const useTranscript = () => {
   const recordingTextRef = useRef("");
   const recordingWordsRef = useRef<RecordingWord[]>([]);
   const accumulatedTextRef = useRef("");
-  const speechStartTimeRef = useRef<number | null>(null);
-  const speechStartSecRef = useRef<number | null>(null);
-  const speechBufferOffsetSecRef = useRef(0);
   const segmentDiagnosticsRef = useRef<TranscriptDiagnostics[]>([]);
-  const pendingSaveRef = useRef(false);
-  const saveInProgressRef = useRef(false);
-  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
   const [status, setStatus] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [isModelCached, setIsModelCached] = useState(false);
   const [isCheckingCache, setIsCheckingCache] = useState(true);
-  const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
+  const [progressItems, setProgressItems] = useState<WhisperProgressItem[]>([]);
   const [accumulatedText, setAccumulatedText] = useState("");
   const [currentSegmentPrefix, setCurrentSegmentPrefix] = useState("");
   const [currentSegment, setCurrentSegment] = useState("");
@@ -92,6 +63,60 @@ export const useTranscript = () => {
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
   const isWebGpuAvailable = !!(navigator.gpu && "GPUBufferUsage" in window);
+  const {
+    pendingSegmentsRef,
+    currentSegmentRef,
+    isProcessingRef,
+    tryProcessNext,
+    enqueueSpeech,
+  } = useSpeechQueue({
+    workerRef: worker,
+    languageRef,
+  });
+  const {
+    collectingRef,
+    speechBufferSizeRef,
+    speechStartTimeRef,
+    speechStartSecRef,
+    appendSpeechFrame,
+    flushSpeechBuffer,
+    resetSpeechCollection,
+  } = useSpeechBuffer({
+    enqueueSpeech,
+  });
+  const {
+    clearWordAnimations,
+    enqueueWordAnimation,
+  } = useWordAnimation({
+    accumulatedTextRef,
+    setAccumulatedText,
+    setCurrentSegmentPrefix,
+    setCurrentSegment,
+  });
+  const {
+    pendingSaveRef,
+    maybeFinalizeRecording,
+  } = useRecordingFinalizer({
+    store,
+    mediaRecorderRef,
+    mediaChunksRef,
+    recordingIdRef,
+    recordingStartRef,
+    recordingTextRef,
+    recordingWordsRef,
+    segmentDiagnosticsRef,
+    setSaveStatus,
+    setLastSavedId,
+  });
+  const finalizeIfReady = useCallback(async () => {
+    if (isProcessingRef.current) {
+      return;
+    }
+    if (pendingSegmentsRef.current.length > 0) {
+      return;
+    }
+    await maybeFinalizeRecording();
+  }, [isProcessingRef, maybeFinalizeRecording, pendingSegmentsRef]);
 
   const getOrCreateStream = useCallback(async () => {
     if (streamRef.current) {
@@ -108,263 +133,6 @@ export const useTranscript = () => {
     setStream(mediaStream);
     return mediaStream;
   }, []);
-
-  const tryProcessNext = useCallback(() => {
-    if (isProcessingRef.current) return;
-    const next = pendingSegmentsRef.current.shift();
-    if (!next) return;
-
-    isProcessingRef.current = true;
-    currentSegmentRef.current = { audio: next.audio, startSec: next.startSec };
-    worker.current?.postMessage({
-      type: "generate",
-      data: { audio: next.audio, language: languageRef.current },
-    });
-  }, []);
-
-  const enqueueSpeech = useCallback(
-    (audio: Float32Array, startSec: number) => {
-      if (audio.length <= WHISPER_MAX_SAMPLES) {
-        pendingSegmentsRef.current.push({ audio, startSec });
-        tryProcessNext();
-        return;
-      }
-
-      for (
-        let offset = 0;
-        offset < audio.length;
-        offset += WHISPER_MAX_SAMPLES
-      ) {
-        const chunk = audio.subarray(offset, offset + WHISPER_MAX_SAMPLES);
-        const chunkStartSec = startSec + offset / WHISPER_SAMPLE_RATE;
-        pendingSegmentsRef.current.push({
-          audio: chunk,
-          startSec: chunkStartSec,
-        });
-      }
-      tryProcessNext();
-    },
-    [tryProcessNext],
-  );
-
-  const clearWordAnimations = useCallback(() => {
-    if (wordAnimationTimeoutRef.current !== null) {
-      window.clearTimeout(wordAnimationTimeoutRef.current);
-      wordAnimationTimeoutRef.current = null;
-    }
-    wordAnimationQueueRef.current = [];
-    wordAnimationRunningRef.current = false;
-    setCurrentSegmentPrefix("");
-    setCurrentSegment("");
-  }, []);
-
-  const enqueueWordAnimation = useCallback(
-    (
-      chunks: Array<{ text: string; timestamp?: [number, number] }>,
-      finalText: string,
-    ) => {
-      const words = buildWordAnimationWords(chunks);
-      if (words.length === 0) return;
-
-      wordAnimationQueueRef.current.push({ words, finalText });
-      if (wordAnimationRunningRef.current) return;
-
-      const runNext = () => {
-        const job = wordAnimationQueueRef.current.shift();
-        if (!job) {
-          wordAnimationRunningRef.current = false;
-          setCurrentSegmentPrefix("");
-          return;
-        }
-
-        wordAnimationRunningRef.current = true;
-        const baseText = accumulatedTextRef.current;
-        setCurrentSegmentPrefix(baseText);
-        setCurrentSegment("");
-
-        let index = 0;
-        const step = () => {
-          if (index >= job.words.length) {
-            wordAnimationRunningRef.current = false;
-            setCurrentSegmentPrefix("");
-            setCurrentSegment("");
-            setAccumulatedText((prev) => {
-              const nextText = prev
-                ? `${prev} ${job.finalText.trim()}`
-                : job.finalText.trim();
-              accumulatedTextRef.current = nextText;
-              return nextText;
-            });
-            runNext();
-            return;
-          }
-
-          const word = job.words[index];
-          setCurrentSegment((prev) => `${prev}${word.text}`);
-          index += 1;
-          wordAnimationTimeoutRef.current = window.setTimeout(
-            step,
-            word.delayMs,
-          );
-        };
-
-        step();
-      };
-
-      runNext();
-    },
-    [],
-  );
-
-  const consumeSpeechBuffer = useCallback((count: number) => {
-    const output = new Float32Array(count);
-    let offset = 0;
-
-    while (offset < count && speechBufferRef.current.length > 0) {
-      const chunk = speechBufferRef.current[0];
-      const remaining = count - offset;
-
-      if (chunk.length <= remaining) {
-        output.set(chunk, offset);
-        offset += chunk.length;
-        speechBufferRef.current.shift();
-      } else {
-        output.set(chunk.subarray(0, remaining), offset);
-        speechBufferRef.current[0] = chunk.subarray(remaining);
-        offset += remaining;
-      }
-    }
-
-    return output;
-  }, []);
-
-  const appendSpeechFrame = useCallback(
-    (frame: Float32Array) => {
-      speechBufferRef.current.push(frame);
-      speechBufferSizeRef.current += frame.length;
-
-      while (speechBufferSizeRef.current >= WHISPER_MAX_SAMPLES) {
-        const chunk = consumeSpeechBuffer(WHISPER_MAX_SAMPLES);
-        speechBufferSizeRef.current -= WHISPER_MAX_SAMPLES;
-        if (speechStartSecRef.current != null) {
-          const chunkStartSec =
-            speechStartSecRef.current + speechBufferOffsetSecRef.current;
-          enqueueSpeech(chunk, chunkStartSec);
-          speechBufferOffsetSecRef.current +=
-            chunk.length / WHISPER_SAMPLE_RATE;
-        }
-      }
-    },
-    [consumeSpeechBuffer, enqueueSpeech],
-  );
-
-  const flushSpeechBuffer = useCallback(() => {
-    if (speechBufferSizeRef.current === 0) return;
-    const chunk = consumeSpeechBuffer(speechBufferSizeRef.current);
-    speechBufferSizeRef.current = 0;
-    if (speechStartSecRef.current != null) {
-      const chunkStartSec =
-        speechStartSecRef.current + speechBufferOffsetSecRef.current;
-      enqueueSpeech(chunk, chunkStartSec);
-      speechBufferOffsetSecRef.current += chunk.length / WHISPER_SAMPLE_RATE;
-    }
-  }, [consumeSpeechBuffer, enqueueSpeech]);
-
-  const maybeFinalizeRecording = useCallback(async () => {
-    if (!pendingSaveRef.current) return;
-    if (isProcessingRef.current) return;
-    if (pendingSegmentsRef.current.length > 0) return;
-    if (saveInProgressRef.current) return;
-
-    const id = recordingIdRef.current;
-    if (!id) return;
-
-    saveInProgressRef.current = true;
-    setSaveStatus("saving");
-    setLastSavedId(null);
-    saveChainRef.current = saveChainRef.current
-      .then(async () => {
-        const durationSec = recordingStartRef.current
-          ? (performance.now() - recordingStartRef.current) / 1000
-          : 0;
-
-        const mimeType =
-          mediaRecorderRef.current?.mimeType || DEFAULT_AUDIO_MIME;
-        const blob = new Blob(mediaChunksRef.current, { type: mimeType });
-        if (blob.size === 0) {
-          pendingSaveRef.current = false;
-          setSaveStatus("idle");
-          return;
-        }
-
-        const createdAt = Date.now();
-        const transcriptDiagnostics = summarizeTranscriptDiagnostics({
-          text: recordingTextRef.current,
-          segments: segmentDiagnosticsRef.current,
-        });
-        const result = await saveRecording({
-          id,
-          blob,
-          name: `Recording ${new Date(createdAt).toLocaleString()}`,
-          type: "audio",
-          mimeType,
-          durationSec,
-          transcriptText: recordingTextRef.current,
-          transcriptWords: recordingWordsRef.current,
-          transcriptDiagnostics,
-          createdAt,
-        });
-
-        const createdAtDate = new Date(result.meta.createdAt);
-        const events = [
-          fileEvents.fileCreated({
-            id: result.id,
-            name: result.meta.name,
-            type: result.meta.type,
-            mimeType: result.meta.mimeType,
-            sizeBytes: result.meta.sizeBytes,
-            storageType: result.meta.storageType,
-            storagePath: result.meta.storagePath,
-            parentId: result.meta.parentId ?? null,
-            positionX: result.meta.positionX ?? null,
-            positionY: result.meta.positionY ?? null,
-            durationSec: result.meta.durationSec ?? undefined,
-            createdAt: createdAtDate,
-          }),
-          fileEvents.fileTranscribed({
-            id: result.id,
-            transcriptPath: result.meta.transcriptPath ?? "",
-            updatedAt: createdAtDate,
-          }),
-        ];
-        if (result.meta.transcriptPath) {
-          events.push(
-            fileEvents.fileTranscribed({
-              id: result.id,
-              transcriptPath: result.meta.transcriptPath,
-              updatedAt: createdAtDate,
-            }),
-          );
-        }
-        store.commit(...events);
-
-        pendingSaveRef.current = false;
-        mediaChunksRef.current = [];
-        recordingIdRef.current = null;
-        recordingStartRef.current = null;
-        setSaveStatus("success");
-        setLastSavedId(result.id);
-        setTimeout(() => {
-          setSaveStatus("idle");
-        }, 1500);
-      })
-      .finally(() => {
-        saveInProgressRef.current = false;
-        if (pendingSaveRef.current) {
-          void maybeFinalizeRecording();
-        }
-      });
-  }, [store]);
 
   const ensureVAD = useCallback(async () => {
     if (vadRef.current || vadInitializingRef.current) return;
@@ -385,10 +153,8 @@ export const useTranscript = () => {
         },
         onSpeechStart: () => {
           if (!recordingRef.current) return;
+          resetSpeechCollection();
           collectingRef.current = true;
-          speechBufferRef.current = [];
-          speechBufferSizeRef.current = 0;
-          speechBufferOffsetSecRef.current = 0;
           if (recordingStartRef.current) {
             const now = performance.now();
             speechStartTimeRef.current = now;
@@ -398,12 +164,7 @@ export const useTranscript = () => {
         },
         onVADMisfire: () => {
           if (!recordingRef.current) return;
-          collectingRef.current = false;
-          speechBufferRef.current = [];
-          speechBufferSizeRef.current = 0;
-          speechBufferOffsetSecRef.current = 0;
-          speechStartTimeRef.current = null;
-          speechStartSecRef.current = null;
+          resetSpeechCollection();
         },
         onSpeechEnd: (audio) => {
           if (!recordingRef.current) return;
@@ -429,10 +190,17 @@ export const useTranscript = () => {
     } finally {
       vadInitializingRef.current = false;
     }
-  }, [appendSpeechFrame, enqueueSpeech, flushSpeechBuffer, getOrCreateStream]);
+  }, [
+    appendSpeechFrame,
+    enqueueSpeech,
+    flushSpeechBuffer,
+    getOrCreateStream,
+    resetSpeechCollection,
+  ]);
 
   const loadModel = useCallback(() => {
-    worker.current?.postMessage({ type: "load" });
+    const whisperWorker = getOrCreateWhisperWorker(worker);
+    loadWhisperModel(whisperWorker);
     setStatus("loading");
   }, []);
 
@@ -518,28 +286,23 @@ export const useTranscript = () => {
     };
     recorder.onstop = () => {
       pendingSaveRef.current = true;
-      maybeFinalizeRecording();
+      void finalizeIfReady();
     };
     mediaRecorderRef.current = recorder;
     recorder.start(1000);
 
     vadRef.current?.start();
-  }, [ensureVAD, getOrCreateStream, maybeFinalizeRecording, status]);
+  }, [ensureVAD, finalizeIfReady, getOrCreateStream, status]);
 
   const handlePauseRecording = useCallback(() => {
     if (!recordingRef.current || paused) return;
     setPaused(true);
-    collectingRef.current = false;
-    speechBufferRef.current = [];
-    speechBufferSizeRef.current = 0;
-    speechBufferOffsetSecRef.current = 0;
-    speechStartTimeRef.current = null;
-    speechStartSecRef.current = null;
+    resetSpeechCollection();
     vadRef.current?.pause();
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.pause();
     }
-  }, [paused]);
+  }, [paused, resetSpeechCollection]);
 
   const handleResumeRecording = useCallback(() => {
     if (!recordingRef.current || !paused) return;
@@ -556,12 +319,7 @@ export const useTranscript = () => {
     setPaused(false);
     recordingRef.current = false;
     pendingSaveRef.current = true;
-    collectingRef.current = false;
-    speechBufferRef.current = [];
-    speechBufferSizeRef.current = 0;
-    speechBufferOffsetSecRef.current = 0;
-    speechStartTimeRef.current = null;
-    speechStartSecRef.current = null;
+    resetSpeechCollection();
     clearWordAnimations();
     vadRef.current?.pause();
     if (
@@ -571,8 +329,8 @@ export const useTranscript = () => {
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
-    maybeFinalizeRecording();
-  }, [clearWordAnimations, maybeFinalizeRecording]);
+    void finalizeIfReady();
+  }, [clearWordAnimations, finalizeIfReady, resetSpeechCollection]);
 
   const handleReset = useCallback(() => {
     setAccumulatedText("");
@@ -582,48 +340,35 @@ export const useTranscript = () => {
     accumulatedTextRef.current = "";
     pendingSegmentsRef.current = [];
     currentSegmentRef.current = null;
-    collectingRef.current = false;
-    speechBufferRef.current = [];
-    speechBufferSizeRef.current = 0;
-    speechBufferOffsetSecRef.current = 0;
-    speechStartTimeRef.current = null;
-    speechStartSecRef.current = null;
+    resetSpeechCollection();
     segmentDiagnosticsRef.current = [];
     clearWordAnimations();
-  }, [clearWordAnimations]);
+  }, [clearWordAnimations, resetSpeechCollection]);
 
   useEffect(() => {
-    if (!worker.current) {
-      worker.current = new Worker(
-        new URL("../../workers/whisper.worker.ts", import.meta.url),
-        {
-          type: "module",
-        },
-      );
-    }
-
-    const onMessageReceived = (e: MessageEvent) => {
-      switch (e.data.status) {
+    const whisperWorker = getOrCreateWhisperWorker(worker);
+    const unsubscribe = subscribeToWhisperWorker(whisperWorker, (message) => {
+      switch (message.status) {
         case "loading":
           setStatus("loading");
-          setLoadingMessage(e.data.data);
+          setLoadingMessage(message.data);
           break;
         case "initiate":
-          setProgressItems((prev) => [...prev, e.data]);
+          setProgressItems((previous) => [...previous, message]);
           break;
         case "progress":
-          setProgressItems((prev) =>
-            prev.map((item) => {
-              if (item.file === e.data.file) {
-                return { ...item, ...e.data };
+          setProgressItems((previous) =>
+            previous.map((item) => {
+              if (item.file === message.file) {
+                return { ...item, ...message };
               }
               return item;
             }),
           );
           break;
         case "done":
-          setProgressItems((prev) =>
-            prev.filter((item) => item.file !== e.data.file),
+          setProgressItems((previous) =>
+            previous.filter((item) => item.file !== message.file),
           );
           break;
         case "ready":
@@ -637,18 +382,18 @@ export const useTranscript = () => {
           setTps(null);
           break;
         case "update":
-          setCurrentSegment(e.data.output);
-          setTps(e.data.tps);
+          setCurrentSegment(message.output);
+          setTps(message.tps ?? null);
           break;
         case "complete": {
           isProcessingRef.current = false;
           const newText =
-            typeof e.data.output === "string"
-              ? e.data.output
-              : Array.isArray(e.data.output)
-                ? e.data.output[0]
+            typeof message.output === "string"
+              ? message.output
+              : Array.isArray(message.output)
+                ? message.output[0]
                 : "";
-          const chunks = Array.isArray(e.data.chunks) ? e.data.chunks : [];
+          const chunks = Array.isArray(message.chunks) ? message.chunks : [];
           const segmentAudio = currentSegmentRef.current?.audio ?? new Float32Array();
           const evaluation = evaluateTranscriptCandidate({
             audio: segmentAudio,
@@ -689,7 +434,7 @@ export const useTranscript = () => {
           }
           setCurrentSegment("");
           tryProcessNext();
-          maybeFinalizeRecording();
+          void finalizeIfReady();
           break;
         }
         case "error":
@@ -697,18 +442,17 @@ export const useTranscript = () => {
           currentSegmentRef.current = null;
           setCurrentSegment("");
           tryProcessNext();
-          maybeFinalizeRecording();
+          void finalizeIfReady();
           break;
       }
-    };
+    });
 
-    worker.current.addEventListener("message", onMessageReceived);
     return () => {
-      worker.current?.removeEventListener("message", onMessageReceived);
+      unsubscribe();
       worker.current?.terminate();
       worker.current = null;
     };
-  }, [enqueueWordAnimation, maybeFinalizeRecording, tryProcessNext]);
+  }, [enqueueWordAnimation, finalizeIfReady, tryProcessNext]);
 
   useEffect(() => {
     return () => {

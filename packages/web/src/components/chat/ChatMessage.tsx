@@ -1,48 +1,19 @@
 import {
   ArrowCounterClockwiseIcon,
-  MicrophoneIcon,
   PencilSimpleIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
-
-import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import MemoraMascot, {
   type MemoraMascotState,
 } from "@/components/assistant/MemoraMascot";
 import { cn } from "@/lib/cn";
-import {
-  parseMemoraJumpContent,
-  type MediaJumpCardData,
-} from "@/lib/chat/memoraJump";
-import { formatDuration } from "@/lib/format";
-import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
-import { ChatWidget } from "@/components/chat/ChatWidget";
-import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
-import {
-  MEMORA_STREAMDOWN_CLASS_NAME,
-  MEMORA_STREAMDOWN_CONTROLS,
-  MEMORA_STREAMDOWN_PLUGINS,
-  MEMORA_STREAMDOWN_THEME,
-} from "@/lib/streamdown";
 import { motion } from "motion/react";
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
-import type { TokenUsage } from "@memora/ai-core";
-import { ThinkingPanel } from "@/components/chat/ThinkingPanel";
-import "katex/dist/katex.min.css";
 
-export interface ChatMessageData {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  attachments?: ChatImageAttachment[];
-  widgets?: ChatWidgetData[];
-  thinkingSteps?: ThinkingStep[];
-  usage?: TokenUsage;
-}
+import { AssistantMessageContent } from "./chatMessage/AssistantMessageContent";
+import { getAssistantAvatarState } from "./chatMessage/getAssistantAvatarState";
+import type { ChatMessageData } from "./chatMessage/types";
+import { UserMessageContent } from "./chatMessage/UserMessageContent";
 
 interface ChatMessageProps {
   message: ChatMessageData;
@@ -58,18 +29,6 @@ interface ChatMessageProps {
   onRetryMessage?: (messageId: string) => Promise<void> | void;
   actionsDisabled?: boolean;
 }
-
-const formatTokenUsage = (usage?: TokenUsage): string | null => {
-  if (!usage) return null;
-
-  const parts = [
-    usage.inputTokens !== undefined ? `In ${usage.inputTokens}` : null,
-    usage.outputTokens !== undefined ? `Out ${usage.outputTokens}` : null,
-    usage.totalTokens !== undefined ? `Total ${usage.totalTokens}` : null,
-  ].filter((value): value is string => value !== null);
-
-  return parts.length > 0 ? parts.join(" · ") : null;
-};
 
 function ChatMessageComponent({
   message,
@@ -87,40 +46,6 @@ function ChatMessageComponent({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
-  const liveThinkingSteps =
-    thinkingSteps && thinkingSteps.length > 0 ? thinkingSteps : undefined;
-  const persistedThinkingSteps =
-    message.thinkingSteps && message.thinkingSteps.length > 0
-      ? message.thinkingSteps
-      : undefined;
-  const visibleThinkingSteps = liveThinkingSteps ?? persistedThinkingSteps;
-  const visibleStatus =
-    liveThinkingSteps && status ? status : { type: "idle" as const };
-  const canToggleThinking = Boolean(liveThinkingSteps && onToggleThinking);
-  const parsedContent = useMemo(
-    () =>
-      isUser
-        ? [
-            {
-              type: "text" as const,
-              content: message.content,
-            },
-          ]
-        : parseMemoraJumpContent(message.content),
-    [isUser, message.content],
-  );
-  const hasRenderableText = parsedContent.some((part) => {
-    return part.type === "text" && part.content.trim().length > 0;
-  });
-  const hasJumpCards = parsedContent.some((part) => part.type === "jump");
-  const hasStreamingSpinner =
-    isStreaming &&
-    thinkingSteps &&
-    thinkingSteps.length === 0 &&
-    !hasRenderableText &&
-    !hasJumpCards &&
-    (!message.widgets || message.widgets.length === 0);
-  const tokenUsageText = isUser ? null : formatTokenUsage(message.usage);
   const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
   const [avatarBurstState, setAvatarBurstState] =
     useState<MemoraMascotState | null>(null);
@@ -289,139 +214,30 @@ function ChatMessageComponent({
               )}
             </div>
           )}
-          {message.attachments && message.attachments.length > 0 && (
-            <div className={cn(message.content ? "mb-3" : "")}>
-              <ChatImageAttachmentGallery
-                attachments={message.attachments}
-                tone={isUser ? "user" : "composer"}
-                savingAttachmentIds={savingAttachmentIds}
-                onSaveToLibrary={
-                  onSaveImageToLibrary
-                    ? (attachmentId) =>
-                        onSaveImageToLibrary(message.id, attachmentId)
-                    : undefined
-                }
-              />
-            </div>
-          )}
           {isUser ? (
-            isEditing ? (
-              <div className="space-y-3">
-                <textarea
-                  ref={editInputRef}
-                  value={draftText}
-                  onChange={(event) => setDraftText(event.currentTarget.value)}
-                  rows={3}
-                  className="block w-full resize-y rounded-2xl border border-[#d9d1c5] bg-[#f3efe9] px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
-                  placeholder="Edit your message..."
-                  disabled={actionsDisabled}
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCancelEditing}
-                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9d1c5] bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmitEdit}
-                    disabled={!canSubmitEdit || actionsDisabled}
-                    className="inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              message.content
-            )
+            <UserMessageContent
+              message={message}
+              draftText={draftText}
+              isEditing={isEditing}
+              actionsDisabled={actionsDisabled}
+              savingAttachmentIds={savingAttachmentIds}
+              editInputRef={editInputRef}
+              onSaveImageToLibrary={onSaveImageToLibrary}
+              onCancelEditing={handleCancelEditing}
+              onDraftTextChange={setDraftText}
+              onSubmitEdit={handleSubmitEdit}
+              canSubmitEdit={canSubmitEdit}
+            />
           ) : (
-            <>
-              {visibleThinkingSteps && (
-                <ThinkingPanel
-                  steps={visibleThinkingSteps}
-                  status={visibleStatus}
-                  collapsed={canToggleThinking ? thinkingCollapsed : undefined}
-                  onToggle={canToggleThinking ? onToggleThinking : undefined}
-                />
-              )}
-              {message.widgets && message.widgets.length > 0 && (
-                <div className="space-y-3">
-                  {message.widgets.map((widget) => (
-                    <ChatWidget
-                      key={widget.toolCallId}
-                      widget={widget}
-                      onSendPrompt={onSendWidgetPrompt}
-                    />
-                  ))}
-                </div>
-              )}
-              {parsedContent.length > 0 ? (
-                <div
-                  className={cn(
-                    "space-y-3",
-                    message.widgets && message.widgets.length > 0 && "mt-3",
-                  )}
-                >
-                  {parsedContent.map((part, index) => {
-                    if (part.type === "text") {
-                      if (!part.content.trim()) {
-                        return null;
-                      }
-
-                      return (
-                        <Streamdown
-                          key={`text-${index}`}
-                          // mode={isStreaming ? "streaming" : "static"}
-                          className={MEMORA_STREAMDOWN_CLASS_NAME}
-                          animated={{
-                            animation: "blurIn",
-                            sep: "word",
-                            duration: 0.5,
-                            easing: "ease-in-out",
-                          }}
-                          isAnimating={isStreaming}
-                          controls={MEMORA_STREAMDOWN_CONTROLS}
-                          plugins={{ ...MEMORA_STREAMDOWN_PLUGINS }}
-                          shikiTheme={MEMORA_STREAMDOWN_THEME}
-                        >
-                          {part.content}
-                        </Streamdown>
-                      );
-                    }
-
-                    return (
-                      <MediaJumpCard
-                        key={`${part.jumpCard.fileId}-${part.jumpCard.startSec}-${index}`}
-                        jumpCard={part.jumpCard}
-                      />
-                    );
-                  })}
-                </div>
-              ) : hasStreamingSpinner ? (
-                <div className="flex items-center gap-1 py-0.5">
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      className="size-1.5 rounded-full bg-zinc-400"
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        delay: i * 0.2,
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : null}
-              {tokenUsageText && (
-                <div className="mt-3 border-t border-zinc-200/70 pt-2 text-[11px] font-medium text-zinc-400">
-                  {tokenUsageText}
-                </div>
-              )}
-            </>
+            <AssistantMessageContent
+              message={message}
+              isStreaming={isStreaming}
+              thinkingSteps={thinkingSteps}
+              status={status}
+              thinkingCollapsed={thinkingCollapsed}
+              onToggleThinking={onToggleThinking}
+              onSendWidgetPrompt={onSendWidgetPrompt}
+            />
           )}
         </div>
       </div>
@@ -466,58 +282,3 @@ const areChatMessagePropsEqual = (
 };
 
 export const ChatMessage = memo(ChatMessageComponent, areChatMessagePropsEqual);
-
-function MediaJumpCard({ jumpCard }: { jumpCard: MediaJumpCardData }) {
-  const JumpIcon =
-    jumpCard.mediaType === "video" ? VideoCameraIcon : MicrophoneIcon;
-
-  return (
-    <Link
-      to={`/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(
-        String(jumpCard.startSec),
-      )}`}
-      className="group block rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 transition hover:border-zinc-300 hover:bg-white"
-    >
-      <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
-          <JumpIcon className="size-3.5" weight="bold" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-medium text-zinc-900">
-              {jumpCard.fileName}
-            </p>
-            <span className="shrink-0 text-[11px] font-medium text-zinc-500">
-              {formatDuration(jumpCard.startSec)} -{" "}
-              {formatDuration(jumpCard.endSec)}
-            </span>
-          </div>
-          {jumpCard.context && (
-            <p className="mt-1 truncate text-xs text-zinc-500">
-              {jumpCard.context}
-            </p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function getAssistantAvatarState(
-  status: AgentStatus | undefined,
-  isStreaming: boolean,
-): MemoraMascotState {
-  if (status?.type === "thinking" || status?.type === "searching") {
-    return "thinking";
-  }
-
-  if (status?.type === "tool-calling" || status?.type === "tool-running") {
-    return "listening";
-  }
-
-  if (isStreaming || status?.type === "generating") {
-    return "speaking";
-  }
-
-  return "idle";
-}

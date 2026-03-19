@@ -13,13 +13,14 @@ import {
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
   evaluateTranscriptCandidate,
 } from "@/lib/transcript/transcriptUtils";
+import {
+  generateWhisperTranscript,
+  getOrCreateWhisperWorker,
+  loadWhisperModel,
+  subscribeToWhisperWorker,
+  type WhisperProgressItem,
+} from "@/lib/transcript/whisper/client";
 import { fileEvents } from "@/livestore/file";
-
-interface ProgressItem {
-  file: string;
-  progress: number;
-  total?: number;
-}
 
 type TranscriptionStatus =
   | "idle"
@@ -38,7 +39,7 @@ export const useFileTranscription = () => {
 
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [progress, setProgress] = useState(0);
-  const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
+  const [progressItems, setProgressItems] = useState<WhisperProgressItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const getLanguage = useCallback(() => {
@@ -206,48 +207,39 @@ export const useFileTranscription = () => {
         setProgress(20);
 
         setStatus("loading-model");
-
-        // Create worker if needed
-        if (!worker.current) {
-          worker.current = new Worker(
-            new URL("../../workers/whisper.worker.ts", import.meta.url),
-            { type: "module" }
-          );
-        }
-
+        const whisperWorker = getOrCreateWhisperWorker(worker);
         const language = getLanguage();
 
         return new Promise<RecordingTranscript>((resolve, reject) => {
           pendingResolve.current = resolve;
           pendingReject.current = reject;
 
-          const handleMessage = (e: MessageEvent) => {
-            switch (e.data.status) {
+          const unsubscribe = subscribeToWhisperWorker(whisperWorker, (message) => {
+            switch (message.status) {
               case "loading":
                 setStatus("loading-model");
                 break;
               case "initiate":
-                setProgressItems((prev) => [...prev, e.data]);
+                setProgressItems((prev) => [...prev, message]);
                 break;
               case "progress":
                 setProgressItems((prev) =>
                   prev.map((item) =>
-                    item.file === e.data.file ? { ...item, ...e.data } : item
+                    item.file === message.file ? { ...item, ...message } : item
                   )
                 );
                 break;
               case "done":
                 setProgressItems((prev) =>
-                  prev.filter((item) => item.file !== e.data.file)
+                  prev.filter((item) => item.file !== message.file)
                 );
                 break;
               case "ready":
                 setStatus("transcribing");
                 setProgress(30);
-                // Now send the audio for transcription
-                worker.current?.postMessage({
-                  type: "generate",
-                  data: { audio: audioData, language },
+                generateWhisperTranscript(whisperWorker, {
+                  audio: audioData,
+                  language,
                 });
                 break;
               case "start":
@@ -257,15 +249,15 @@ export const useFileTranscription = () => {
                 // Could show partial transcript here
                 break;
               case "complete": {
-                worker.current?.removeEventListener("message", handleMessage);
+                unsubscribe();
 
                 const text =
-                  typeof e.data.output === "string"
-                    ? e.data.output
-                    : Array.isArray(e.data.output)
-                      ? e.data.output[0]
+                  typeof message.output === "string"
+                    ? message.output
+                    : Array.isArray(message.output)
+                      ? message.output[0]
                       : "";
-                const chunks = Array.isArray(e.data.chunks) ? e.data.chunks : [];
+                const chunks = Array.isArray(message.chunks) ? message.chunks : [];
                 const evaluation = evaluateTranscriptCandidate({
                   audio: audioData,
                   text,
@@ -295,19 +287,15 @@ export const useFileTranscription = () => {
                 break;
               }
               case "error":
-                worker.current?.removeEventListener("message", handleMessage);
-                setError(e.data.data);
+                unsubscribe();
+                setError(message.data);
                 setStatus("error");
-                pendingReject.current?.(new Error(e.data.data));
+                pendingReject.current?.(new Error(message.data));
                 break;
             }
-          };
+          });
 
-          // Add listener before sending any messages
-          worker.current?.addEventListener("message", handleMessage);
-
-          // Now send load message
-          worker.current?.postMessage({ type: "load" });
+          loadWhisperModel(whisperWorker);
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Transcription failed";

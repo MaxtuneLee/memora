@@ -1,0 +1,258 @@
+:root {
+  color-scheme: light dark;
+  font-family: var(--font-sans, "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif);
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f5f5f4;
+  --color-background-tertiary: #fafaf9;
+  --color-background-info: #eff6ff;
+  --color-background-danger: #fef2f2;
+  --color-background-success: #ecfdf5;
+  --color-background-warning: #fffbeb;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-tertiary: #71717a;
+  --color-text-info: #1d4ed8;
+  --color-text-danger: #b91c1c;
+  --color-text-success: #047857;
+  --color-text-warning: #b45309;
+  --color-border-tertiary: rgba(24, 24, 27, 0.15);
+  --color-border-secondary: rgba(24, 24, 27, 0.3);
+  --color-border-primary: rgba(24, 24, 27, 0.4);
+  --color-border-info: rgba(29, 78, 216, 0.35);
+  --color-border-danger: rgba(185, 28, 28, 0.35);
+  --color-border-success: rgba(4, 120, 87, 0.35);
+  --color-border-warning: rgba(180, 83, 9, 0.35);
+  --svg-gray-fill: var(--color-background-secondary);
+  --svg-gray-stroke: var(--color-border-secondary);
+  --svg-gray-text: var(--color-text-primary);
+  --svg-gray-text-secondary: var(--color-text-secondary);
+  --svg-blue-fill: var(--color-background-info);
+  --svg-blue-stroke: var(--color-border-info);
+  --svg-blue-text: var(--color-text-info);
+  --svg-blue-text-secondary: #1e40af;
+  --svg-red-fill: var(--color-background-danger);
+  --svg-red-stroke: var(--color-border-danger);
+  --svg-red-text: var(--color-text-danger);
+  --svg-red-text-secondary: #991b1b;
+  --svg-amber-fill: var(--color-background-warning);
+  --svg-amber-stroke: var(--color-border-warning);
+  --svg-amber-text: var(--color-text-warning);
+  --svg-amber-text-secondary: #92400e;
+  --svg-green-fill: var(--color-background-success);
+  --svg-green-stroke: var(--color-border-success);
+  --svg-green-text: var(--color-text-success);
+  --svg-green-text-secondary: #065f46;
+  --svg-teal-fill: #f0fdfa;
+  --svg-teal-stroke: rgba(13, 148, 136, 0.32);
+  --svg-teal-text: #0f766e;
+  --svg-teal-text-secondary: #115e59;
+  --svg-purple-fill: #faf5ff;
+  --svg-purple-stroke: rgba(147, 51, 234, 0.28);
+  --svg-purple-text: #7e22ce;
+  --svg-purple-text-secondary: #6b21a8;
+  --svg-coral-fill: #fff7ed;
+  --svg-coral-stroke: rgba(234, 88, 12, 0.3);
+  --svg-coral-text: #ea580c;
+  --svg-coral-text-secondary: #c2410c;
+  --svg-pink-fill: #fdf2f8;
+  --svg-pink-stroke: rgba(219, 39, 119, 0.28);
+  --svg-pink-text: #be185d;
+  --svg-pink-text-secondary: #9d174d;
+  --font-sans: "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-mono: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --widget-control-height: 36px;
+  --widget-focus-ring: 0 0 0 3px rgba(24, 24, 27, 0.08);
+  --widget-range-track-height: 4px;
+  --widget-range-thumb-size: 18px;
+  --widget-thumb-shadow: 0 1px 2px rgba(24, 24, 27, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background-primary: #18181b;
+    --color-background-secondary: #27272a;
+    --color-background-tertiary: #09090b;
+    --color-background-info: #172554;
+    --color-background-danger: #450a0a;
+    --color-background-success: #052e16;
+    --color-background-warning: #451a03;
+    --color-text-primary: #fafafa;
+    --color-text-secondary: #d4d4d8;
+    --color-text-tertiary: #a1a1aa;
+    --color-text-info: #93c5fd;
+    --color-text-danger: #fca5a5;
+    --color-text-success: #6ee7b7;
+    --color-text-warning: #fcd34d;
+    --color-border-tertiary: rgba(244, 244, 245, 0.15);
+    --color-border-secondary: rgba(244, 244, 245, 0.28);
+    --color-border-primary: rgba(244, 244, 245, 0.4);
+    --color-border-info: rgba(147, 197, 253, 0.35);
+    --color-border-danger: rgba(252, 165, 165, 0.35);
+    --color-border-success: rgba(110, 231, 183, 0.35);
+    --color-border-warning: rgba(252, 211, 77, 0.35);
+    --svg-blue-text-secondary: #bfdbfe;
+    --svg-red-text-secondary: #fecaca;
+    --svg-amber-text-secondary: #fde68a;
+    --svg-green-text-secondary: #a7f3d0;
+    --svg-teal-fill: #042f2e;
+    --svg-teal-stroke: rgba(94, 234, 212, 0.32);
+    --svg-teal-text: #5eead4;
+    --svg-teal-text-secondary: #99f6e4;
+    --svg-purple-fill: #2e1065;
+    --svg-purple-stroke: rgba(196, 181, 253, 0.32);
+    --svg-purple-text: #c4b5fd;
+    --svg-purple-text-secondary: #ddd6fe;
+    --svg-coral-fill: #431407;
+    --svg-coral-stroke: rgba(251, 146, 60, 0.32);
+    --svg-coral-text: #fb923c;
+    --svg-coral-text-secondary: #fdba74;
+    --svg-pink-fill: #500724;
+    --svg-pink-stroke: rgba(244, 114, 182, 0.3);
+    --svg-pink-text: #f472b6;
+    --svg-pink-text-secondary: #f9a8d4;
+    --widget-focus-ring: 0 0 0 3px rgba(244, 244, 245, 0.14);
+    --widget-thumb-shadow: 0 1px 2px rgba(9, 9, 11, 0.36);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background: transparent;
+}
+
+body,
+body * {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+[data-widget-content] {
+  display: block;
+  width: 100%;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+[data-widget-content] :where(button, input, select, textarea) {
+  color: inherit;
+  font: inherit;
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ) {
+  appearance: none;
+  width: 100%;
+  min-height: var(--widget-control-height);
+  padding: 0 12px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: color-mix(in srgb, var(--color-background-primary) 92%, transparent);
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    textarea
+  )::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):hover {
+  border-color: var(--color-border-primary);
+  background: var(--color-background-primary);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):focus-visible {
+  outline: none;
+  border-color: var(--color-border-primary);
+  box-shadow: var(--widget-focus-ring);
+}
+
+[data-widget-content] :where(
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: var(--color-background-secondary);
+}
+
+[data-widget-content] textarea {
+  min-height: calc(var(--widget-control-height) * 1.75);
+  padding-block: 10px;
+  resize: vertical;
+}
+
+[data-widget-content] button {
+  appearance: none;
+  min-height: var(--widget-control-height);
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 0 14px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+[data-widget-content] button:hover {
+  border-color: var(--color-border-primary);
+  background: var(--color-background-secondary);
+}
+
+[data-widget-content] button:focus-visible {
+  outline: none;
+  box-shadow: var(--widget-focus-ring);
+}
+
+[data-widget-content] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+[data-widget-content] a {
+  color: var(--color-text-info);
+}

@@ -5,6 +5,7 @@ import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import { fileEvents } from "@/livestore/file";
 import { folderEvents } from "@/livestore/folder";
 import type { DesktopItem } from "@/types/desktop";
+import { collectFolderDescendants } from "@/lib/tree/folderTree";
 
 type ConfirmAction =
   | { kind: "trash"; item: DesktopItem }
@@ -34,40 +35,9 @@ export function useTrashActions({
 }: UseTrashActionsOptions) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
-  const collectFolderDescendants = useCallback(
+  const collectFolderDescendantsForTrash = useCallback(
     (folderId: string) => {
-      const descendants: { folders: LiveStoreFolder[]; files: LiveStoreFile[] } = {
-        folders: [],
-        files: [],
-      };
-      const queue: string[] = [folderId];
-      const foldersById = new Map(allFolderRows.map((folder) => [folder.id, folder]));
-      const filesByParent = new Map<string | null, LiveStoreFile[]>();
-      allFileRows.forEach((file) => {
-        const key = file.parentId ?? null;
-        const list = filesByParent.get(key) ?? [];
-        list.push(file);
-        filesByParent.set(key, list);
-      });
-      const foldersByParent = new Map<string | null, LiveStoreFolder[]>();
-      allFolderRows.forEach((folder) => {
-        const key = folder.parentId ?? null;
-        const list = foldersByParent.get(key) ?? [];
-        list.push(folder);
-        foldersByParent.set(key, list);
-      });
-
-      while (queue.length > 0) {
-        const currentId = queue.shift();
-        if (!currentId) continue;
-        const folder = foldersById.get(currentId);
-        if (folder) descendants.folders.push(folder);
-        const childFiles = filesByParent.get(currentId) ?? [];
-        childFiles.forEach((file) => descendants.files.push(file));
-        const childFolders = foldersByParent.get(currentId) ?? [];
-        childFolders.forEach((child) => queue.push(child.id));
-      }
-      return descendants;
+      return collectFolderDescendants(folderId, allFolderRows, allFileRows);
     },
     [allFileRows, allFolderRows],
   );
@@ -85,7 +55,7 @@ export function useTrashActions({
         return;
       }
       if (item.type === "folder") {
-        const { folders, files } = collectFolderDescendants(item.id);
+        const { folders, files } = collectFolderDescendantsForTrash(item.id);
         files.forEach((file) => {
           store.commit(
             fileEvents.fileDeleted({
@@ -105,7 +75,7 @@ export function useTrashActions({
         removeItem(item.id);
       }
     },
-    [collectFolderDescendants, removeItem, store],
+    [collectFolderDescendantsForTrash, removeItem, store],
   );
 
   const restoreItem = useCallback(
@@ -120,7 +90,7 @@ export function useTrashActions({
         return;
       }
       if (item.type === "folder") {
-        const { folders, files } = collectFolderDescendants(item.id);
+        const { folders, files } = collectFolderDescendantsForTrash(item.id);
         files.forEach((file) => {
           store.commit(
             fileEvents.fileRestored({
@@ -146,7 +116,7 @@ export function useTrashActions({
         });
       }
     },
-    [collectFolderDescendants, store],
+    [collectFolderDescendantsForTrash, store],
   );
 
   const permanentlyDeleteItem = useCallback(
@@ -163,7 +133,7 @@ export function useTrashActions({
         return;
       }
       if (item.type === "folder") {
-        const { folders, files } = collectFolderDescendants(item.id);
+        const { folders, files } = collectFolderDescendantsForTrash(item.id);
         for (const file of files) {
           await onDeleteFile(mapToMeta(file));
           store.commit(
@@ -184,7 +154,13 @@ export function useTrashActions({
         removeItem(item.id);
       }
     },
-    [collectFolderDescendants, mapToMeta, onDeleteFile, removeItem, store],
+    [
+      collectFolderDescendantsForTrash,
+      mapToMeta,
+      onDeleteFile,
+      removeItem,
+      store,
+    ],
   );
 
   const emptyTrash = useCallback(async () => {
@@ -192,7 +168,7 @@ export function useTrashActions({
     const fileIdsToPurge = new Set(trashedFileItems.map((f) => f.id));
 
     for (const folder of trashedFolderItems) {
-      const { folders, files } = collectFolderDescendants(folder.id);
+      const { folders, files } = collectFolderDescendantsForTrash(folder.id);
       for (const file of files) {
         if (file.purgedAt || fileIdsToPurge.has(file.id)) continue;
         filesToPurge.push(mapToMeta(file));
@@ -222,7 +198,14 @@ export function useTrashActions({
         }),
       );
     }
-  }, [collectFolderDescendants, mapToMeta, onDeleteFile, store, trashedFileItems, trashedFolderItems]);
+  }, [
+    collectFolderDescendantsForTrash,
+    mapToMeta,
+    onDeleteFile,
+    store,
+    trashedFileItems,
+    trashedFolderItems,
+  ]);
 
   const requestTrash = useCallback((item: DesktopItem) => {
     setConfirmAction({ kind: "trash", item });

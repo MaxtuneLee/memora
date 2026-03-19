@@ -1,0 +1,187 @@
+svg :where(.t, .ts, .th, .box, .node, .arr, .leader, [class^="c-"], [class*=" c-"]) {
+  --p: var(--color-text-primary);
+  --s: var(--color-text-secondary);
+  --t: var(--color-text-tertiary);
+  --bg2: var(--color-background-secondary);
+  --b: var(--color-border-tertiary);
+}
+
+svg .t,
+svg .ts,
+svg .th {
+  font-family: var(--font-sans);
+}
+
+svg .t,
+svg .th {
+  fill: var(--p);
+  font-size: 14px;
+}
+
+svg .ts {
+  fill: var(--s);
+  font-size: 12px;
+}
+
+svg .t,
+svg .ts {
+  font-weight: 400;
+}
+
+svg .th {
+  font-weight: 500;
+}
+
+svg :is(rect, circle, ellipse, polygon).box,
+svg .box > :is(rect, circle, ellipse, polygon) {
+  fill: var(--bg2);
+  stroke: var(--b);
+  stroke-width: 0.5px;
+}
+
+svg .node {
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+svg .node:hover {
+  opacity: 0.88;
+}
+
+svg .arr {
+  fill: none;
+  marker-end: url(#arrow);
+  stroke: var(--t);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5px;
+}
+
+svg .leader {
+  fill: none;
+  opacity: 0.9;
+  stroke: var(--t);
+  stroke-dasharray: 3 3;
+  stroke-linecap: round;
+  stroke-width: 0.5px;
+}
+
+svg .c-gray {
+  --svg-ramp-fill: var(--svg-gray-fill);
+  --svg-ramp-stroke: var(--svg-gray-stroke);
+  --svg-ramp-text: var(--svg-gray-text);
+  --svg-ramp-text-secondary: var(--svg-gray-text-secondary);
+}
+
+svg .c-blue {
+  --svg-ramp-fill: var(--svg-blue-fill);
+  --svg-ramp-stroke: var(--svg-blue-stroke);
+  --svg-ramp-text: var(--svg-blue-text);
+  --svg-ramp-text-secondary: var(--svg-blue-text-secondary);
+}
+
+svg .c-red {
+  --svg-ramp-fill: var(--svg-red-fill);
+  --svg-ramp-stroke: var(--svg-red-stroke);
+  --svg-ramp-text: var(--svg-red-text);
+  --svg-ramp-text-secondary: var(--svg-red-text-secondary);
+}
+
+svg .c-amber {
+  --svg-ramp-fill: var(--svg-amber-fill);
+  --svg-ramp-stroke: var(--svg-amber-stroke);
+  --svg-ramp-text: var(--svg-amber-text);
+  --svg-ramp-text-secondary: var(--svg-amber-text-secondary);
+}
+
+svg .c-green {
+  --svg-ramp-fill: var(--svg-green-fill);
+  --svg-ramp-stroke: var(--svg-green-stroke);
+  --svg-ramp-text: var(--svg-green-text);
+  --svg-ramp-text-secondary: var(--svg-green-text-secondary);
+}
+
+svg .c-teal {
+  --svg-ramp-fill: var(--svg-teal-fill);
+  --svg-ramp-stroke: var(--svg-teal-stroke);
+  --svg-ramp-text: var(--svg-teal-text);
+  --svg-ramp-text-secondary: var(--svg-teal-text-secondary);
+}
+
+svg .c-purple {
+  --svg-ramp-fill: var(--svg-purple-fill);
+  --svg-ramp-stroke: var(--svg-purple-stroke);
+  --svg-ramp-text: var(--svg-purple-text);
+  --svg-ramp-text-secondary: var(--svg-purple-text-secondary);
+}
+
+svg .c-coral {
+  --svg-ramp-fill: var(--svg-coral-fill);
+  --svg-ramp-stroke: var(--svg-coral-stroke);
+  --svg-ramp-text: var(--svg-coral-text);
+  --svg-ramp-text-secondary: var(--svg-coral-text-secondary);
+}
+
+svg .c-pink {
+  --svg-ramp-fill: var(--svg-pink-fill);
+  --svg-ramp-stroke: var(--svg-pink-stroke);
+  --svg-ramp-text: var(--svg-pink-text);
+  --svg-ramp-text-secondary: var(--svg-pink-text-secondary);
+}
+
+svg :is(rect, circle, ellipse, polygon):where(
+    .c-gray,
+    .c-blue,
+    .c-red,
+    .c-amber,
+    .c-green,
+    .c-teal,
+    .c-purple,
+    .c-coral,
+    .c-pink
+  ),
+svg :where(
+    .c-gray,
+    .c-blue,
+    .c-red,
+    .c-amber,
+    .c-green,
+    .c-teal,
+    .c-purple,
+    .c-coral,
+    .c-pink
+  )
+  > :is(rect, circle, ellipse, polygon) {
+  fill: var(--svg-ramp-fill);
+  stroke: var(--svg-ramp-stroke);
+}
+
+svg :where(
+    .c-gray,
+    .c-blue,
+    .c-red,
+    .c-amber,
+    .c-green,
+    .c-teal,
+    .c-purple,
+    .c-coral,
+    .c-pink
+  )
+  > :is(.t, .th) {
+  fill: var(--svg-ramp-text);
+}
+
+svg :where(
+    .c-gray,
+    .c-blue,
+    .c-red,
+    .c-amber,
+    .c-green,
+    .c-teal,
+    .c-purple,
+    .c-coral,
+    .c-pink
+  )
+  > .ts {
+  fill: var(--svg-ramp-text-secondary);
+}
