@@ -21,7 +21,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "tsdown": "^0.15.0",
+    "tsdown": "^0.21.4",
     "typescript": "~5.9.3"
   },
   "dependencies": {

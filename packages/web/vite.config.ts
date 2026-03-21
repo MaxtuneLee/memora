@@ -146,8 +146,13 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
-    minify: false,
-    sourcemap: true,
+    // minify: false,
+    // sourcemap: true,
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true,
+      }
+    }
   },
   worker: {
     format: "es",
