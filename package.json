@@ -9,8 +9,7 @@
     "lint:web": "pnpm --filter @memora/web lint",
     "build:ai-core": "pnpm --filter @memora/ai-core build",
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
-    "build": "pnpm build:web",
-    "lint": "pnpm lint:web"
+    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:fs\" & \"pnpm build:web\""
   },
   "keywords": [],
   "author": "",
@@ -20,6 +19,8 @@
     "valibot": "^1.2.0"
   },
   "devDependencies": {
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "vite-plus": "catalog:"
   }
 }

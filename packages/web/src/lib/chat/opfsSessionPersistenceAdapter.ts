@@ -36,7 +36,7 @@ export const createOpfsSessionPersistenceAdapter = (
 
       await updateChatSession(sessionId, (session) => {
         const nextStore = { ...session.agentStore };
-        const agentData = { ...(nextStore[agentId] ?? {}) };
+        const agentData = { ...nextStore[agentId] };
         agentData[key] = cloneData(data);
         nextStore[agentId] = agentData;
         return {
@@ -80,7 +80,7 @@ export const createOpfsSessionPersistenceAdapter = (
 
       await updateChatSession(sessionId, (session) => {
         const nextStore = { ...session.agentStore };
-        const agentData = { ...(nextStore[agentId] ?? {}) };
+        const agentData = { ...nextStore[agentId] };
         delete agentData[key];
         nextStore[agentId] = agentData;
         return {
