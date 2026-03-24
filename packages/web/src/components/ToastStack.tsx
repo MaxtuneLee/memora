@@ -45,12 +45,12 @@ export default function ToastStack({ render }: ToastStackProps) {
             className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-lg"
             render={(props, state) => {
               const {
-                onDrag,
-                onDragEnd,
-                onDragStart,
-                onAnimationStart,
-                onAnimationEnd,
-                onAnimationIteration,
+                onDrag: _onDrag,
+                onDragEnd: _onDragEnd,
+                onDragStart: _onDragStart,
+                onAnimationStart: _onAnimationStart,
+                onAnimationEnd: _onAnimationEnd,
+                onAnimationIteration: _onAnimationIteration,
                 ...rest
               } = props;
               return (

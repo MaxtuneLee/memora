@@ -43,7 +43,7 @@ export interface CreateChatToolsOptions {
   ) => Promise<WriteApprovalDecision> | WriteApprovalDecision;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line @typescript-eslint/no-explicit-any
 export type StoreQueryable = { query: (...args: any[]) => any };
 
 export interface ActiveFileRow {

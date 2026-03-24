@@ -152,7 +152,6 @@ export const createDatabaseTools = (
           const scopedIds = new Set(referenceScope.fileIds);
           const rowList = rows as unknown[];
           if (
-            rowList.length > 0 &&
             rowList.some(
               (row) =>
                 typeof row !== "object" ||

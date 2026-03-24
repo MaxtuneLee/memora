@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "tsc -b && vp build",
-    "lint": "eslint .",
+    "lint": "vp lint .",
     "preview": "vp preview",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg"
   },
@@ -49,7 +49,6 @@
     "vite-plugin-route-builder": "^0.4.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
     "@types/audioworklet": "^0.0.92",
     "@types/dom-webcodecs": "^0.1.18",
     "@types/node": "^24.10.1",
@@ -60,12 +59,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "@webgpu/types": "^0.1.69",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
     "vite": "catalog:",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-static-copy": "^3.1.4",

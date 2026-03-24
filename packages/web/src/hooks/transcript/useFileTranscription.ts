@@ -119,7 +119,7 @@ export const useFileTranscription = () => {
 
       try {
         await video.play();
-      } catch (_error) {
+      } catch {
         throw new Error("Video playback was blocked. Click play then retry.");
       }
 
@@ -156,7 +156,7 @@ export const useFileTranscription = () => {
       transcript: RecordingTranscript
     ): Promise<void> => {
       const transcriptPath = `${FILES_DIR}/${meta.id}/${meta.id}${TRANSCRIPT_SUFFIX}`;
-      
+
       // Save transcript JSON
       await opfsWrite(transcriptPath, JSON.stringify(transcript), {
         overwrite: true,
@@ -173,7 +173,7 @@ export const useFileTranscription = () => {
       const metaToSave = { ...updatedMeta };
       delete (metaToSave as Record<string, unknown>).audioUrl;
       delete (metaToSave as Record<string, unknown>).transcript;
-      
+
       await opfsWrite(meta.metaPath, JSON.stringify(metaToSave), {
         overwrite: true,
       });
