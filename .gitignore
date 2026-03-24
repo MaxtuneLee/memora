@@ -162,3 +162,5 @@ opencode.json
 packages/.DS_Store
 
 .claude/
+
+.superpowers/

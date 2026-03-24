@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
-import { livestoreDevtoolsPlugin } from "@livestore/devtools-vite";
+// import { DevTools } from "@vitejs/devtools";
 import path from "node:path";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -18,15 +18,12 @@ const APP_VERSION =
     }
   ).version ?? "0.0.0";
 
-// https://vite.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
-    livestoreDevtoolsPlugin({
-      schemaPath: "./src/livestore/schema.ts",
-    }),
+    // DevTools(),
     tailwindcss(),
     routeBuilderPlugin({
       pagePattern: "./src/pages/**/*.{tsx,sync.tsx}",
@@ -123,8 +120,7 @@ export default defineConfig({
           },
           {
             urlPattern: ({ sameOrigin, url }) =>
-              sameOrigin &&
-              /\.(?:mjs|wasm|onnx)$/i.test(url.pathname),
+              sameOrigin && /\.(?:mjs|wasm|onnx)$/i.test(url.pathname),
             handler: "CacheFirst",
             options: {
               cacheName: "memora-ai-assets",
@@ -149,10 +145,11 @@ export default defineConfig({
     // minify: false,
     // sourcemap: true,
     rolldownOptions: {
+      // devtools: {},
       experimental: {
         lazyBarrel: true,
-      }
-    }
+      },
+    },
   },
   worker: {
     format: "es",
@@ -162,4 +159,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  experimental: {
+    bundledDev: true,
+  },
+  // devtools: {
+  //   enabled: true,
+  // },
 });

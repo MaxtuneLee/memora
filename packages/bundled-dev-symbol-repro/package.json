@@ -1,0 +1,27 @@
+{
+  "name": "@memora/bundled-dev-symbol-repro",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev --strictPort --port 9010",
+    "build": "vp build",
+    "preview": "vp preview",
+    "verify:served": "node ./scripts/verifyServed.mjs"
+  },
+  "dependencies": {
+    "@livestore/adapter-web": "0.3.1",
+    "@livestore/livestore": "0.3.1",
+    "@livestore/react": "0.3.1",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "typescript": "~5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
