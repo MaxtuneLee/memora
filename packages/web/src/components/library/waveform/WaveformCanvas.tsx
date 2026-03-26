@@ -1,10 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 
-import {
-  drawRoundedRect,
-  interpolateColor,
-  resamplePeaksToBars,
-} from "@/lib/audio/waveformCanvas";
+import { drawRoundedRect, interpolateColor, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
 
 interface WaveformCanvasProps {
   peaks: number[];
@@ -202,12 +198,8 @@ export const WaveformCanvas = memo(function WaveformCanvas({
         const lastTime = lastProgressTimeRef.current ?? now;
         const deltaMs = Math.max(0, Math.min(64, now - lastTime));
         lastProgressTimeRef.current = now;
-        const frameEase =
-          1 -
-          Math.pow(1 - currentProps.smoothingFactor, deltaMs / 16.67);
-        const effectiveEase = isDraggingRef.current
-          ? Math.max(frameEase, 0.3)
-          : frameEase;
+        const frameEase = 1 - Math.pow(1 - currentProps.smoothingFactor, deltaMs / 16.67);
+        const effectiveEase = isDraggingRef.current ? Math.max(frameEase, 0.3) : frameEase;
         smoothedProgressRef.current += progressDiff * effectiveEase;
       }
 
@@ -241,14 +233,7 @@ export const WaveformCanvas = memo(function WaveformCanvas({
           context.fillStyle = currentProps.unplayedColor;
         }
 
-        drawRoundedRect(
-          context,
-          x,
-          y,
-          currentProps.barWidth,
-          barHeight,
-          currentProps.barRadius,
-        );
+        drawRoundedRect(context, x, y, currentProps.barWidth, barHeight, currentProps.barRadius);
       }
 
       animationFrameRef.current = requestAnimationFrame(animate);

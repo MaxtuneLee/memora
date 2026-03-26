@@ -21,11 +21,7 @@ import type {
 import { ContextManager, createContextManager } from "./context";
 import { ToolRegistry, createToolRegistry } from "./tools";
 import { PromptComposer, createPromptComposer } from "./prompt";
-import {
-  TransformPipeline,
-  createTransformPipeline,
-  responsesTransform,
-} from "./transform";
+import { TransformPipeline, createTransformPipeline, responsesTransform } from "./transform";
 import { parseSSEStream, parseResponsesStream } from "./stream";
 import { InMemoryAdapter } from "./persistence";
 import { generateId, now } from "./utils";
@@ -87,17 +83,15 @@ const mergeSystemPromptWithMemory = (
 
   const memorySections: string[] = [];
   if (normalizedPersonality) {
-    memorySections.push([
-      "## User Personality Context",
-      normalizedPersonality,
-    ].join("\n\n"));
+    memorySections.push(["## User Personality Context", normalizedPersonality].join("\n\n"));
   }
 
   if (normalizedNotices.length > 0) {
-    memorySections.push([
-      "## Stable User Preferences",
-      ...normalizedNotices.map((notice) => `- ${notice}`),
-    ].join("\n"));
+    memorySections.push(
+      ["## Stable User Preferences", ...normalizedNotices.map((notice) => `- ${notice}`)].join(
+        "\n",
+      ),
+    );
   }
 
   if (memorySections.length === 0) {
@@ -108,10 +102,7 @@ const mergeSystemPromptWithMemory = (
     return memorySections.join("\n\n");
   }
 
-  return [
-    normalizedSystemPrompt,
-    ...memorySections,
-  ].join("\n\n");
+  return [normalizedSystemPrompt, ...memorySections].join("\n\n");
 };
 
 export interface AgentOptions {
@@ -154,9 +145,7 @@ export class Agent {
     await this.context.load();
   }
 
-  registerTool<TParams, TResult>(
-    tool: Partial<ToolDefinition<TParams, TResult>>,
-  ): void {
+  registerTool<TParams, TResult>(tool: Partial<ToolDefinition<TParams, TResult>>): void {
     if (tool.type === "function" && tool.name && tool.parameters && tool.execute) {
       this.tools.register(tool as ToolDefinition<TParams, TResult>);
     } else if (tool.type && tool.type !== "function") {
@@ -250,10 +239,7 @@ export class Agent {
           await this.context.append(assistantMessage);
 
           if (this.hooks.onComplete) {
-            await this.hooks.onComplete(
-              this.createHookContext(),
-              assistantMessage,
-            );
+            await this.hooks.onComplete(this.createHookContext(), assistantMessage);
           }
 
           yield {
@@ -271,9 +257,7 @@ export class Agent {
           id: generateId(),
           role: "assistant",
           content: [
-            ...(thinkResult.text
-              ? [{ type: "text" as const, text: thinkResult.text }]
-              : []),
+            ...(thinkResult.text ? [{ type: "text" as const, text: thinkResult.text }] : []),
             ...thinkResult.toolCalls,
           ],
           createdAt: now(),
@@ -307,11 +291,7 @@ export class Agent {
           };
 
           if (this.hooks.onAfterAction) {
-            await this.hooks.onAfterAction(
-              this.createHookContext(),
-              toolCall,
-              result,
-            );
+            await this.hooks.onAfterAction(this.createHookContext(), toolCall, result);
           }
 
           toolResultContents.push({
@@ -334,19 +314,13 @@ export class Agent {
         };
 
         if (this.hooks.onBeforeObservation) {
-          await this.hooks.onBeforeObservation(
-            this.createHookContext(),
-            observationMessage,
-          );
+          await this.hooks.onBeforeObservation(this.createHookContext(), observationMessage);
         }
 
         await this.context.append(observationMessage);
 
         if (this.hooks.onAfterObservation) {
-          await this.hooks.onAfterObservation(
-            this.createHookContext(),
-            observationMessage,
-          );
+          await this.hooks.onAfterObservation(this.createHookContext(), observationMessage);
         }
       }
 
@@ -379,12 +353,8 @@ export class Agent {
     const systemPrompt = await this.prompt.compose();
     let finalSystemPrompt = systemPrompt.trim();
     try {
-      const personality = await this.context.loadMemory<string>(
-        PERSONALITY_MEMORY_KEY,
-      );
-      const notices = await this.context.loadMemory<MemoryNotice[]>(
-        NOTICES_MEMORY_KEY,
-      );
+      const personality = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
+      const notices = await this.context.loadMemory<MemoryNotice[]>(NOTICES_MEMORY_KEY);
       finalSystemPrompt = mergeSystemPromptWithMemory(
         finalSystemPrompt,
         typeof personality === "string" ? personality : "",
@@ -412,8 +382,7 @@ export class Agent {
     if (apiFormat === "responses") {
       const inputItems = responsesTransform(messages);
       const functionTools = this.tools.toResponsesFormat();
-      const configBuiltins = (this.config.builtinTools ??
-        []) as ResponsesBuiltinToolDefinition[];
+      const configBuiltins = (this.config.builtinTools ?? []) as ResponsesBuiltinToolDefinition[];
       const allTools: ResponsesToolDefinition[] = [
         ...functionTools,
         ...this.builtinTools,
@@ -426,9 +395,7 @@ export class Agent {
         stream: true,
         ...(finalSystemPrompt ? { instructions: finalSystemPrompt } : {}),
         ...(allTools.length > 0 ? { tools: allTools } : {}),
-        ...(this.config.temperature !== undefined
-          ? { temperature: this.config.temperature }
-          : {}),
+        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
         ...(this.config.maxTokens !== undefined
           ? { max_output_tokens: this.config.maxTokens }
           : {}),
@@ -455,12 +422,8 @@ export class Agent {
           include_usage: true,
         },
         ...(toolDefs.length > 0 ? { tools: toolDefs } : {}),
-        ...(this.config.temperature !== undefined
-          ? { temperature: this.config.temperature }
-          : {}),
-        ...(this.config.maxTokens !== undefined
-          ? { max_tokens: this.config.maxTokens }
-          : {}),
+        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
+        ...(this.config.maxTokens !== undefined ? { max_tokens: this.config.maxTokens } : {}),
       };
 
       payload = JSON.stringify(requestPayload);

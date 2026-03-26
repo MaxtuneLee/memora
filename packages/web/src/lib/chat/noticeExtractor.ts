@@ -29,16 +29,13 @@ const NOTICE_EXTRACTOR_PROMPT: PromptSegment = {
     "Ignore one-off task formatting requests, temporary constraints, factual profile details, and sensitive inferences.",
     "Each notice must be a single English sentence in third-person form starting with 'User ...' or the user's implicit preference.",
     'Return exactly this JSON shape: {"notices":["..."]}.',
-    "If there is no durable preference, return {\"notices\":[]}",
+    'If there is no durable preference, return {"notices":[]}',
   ].join("\n"),
 };
 
 const extractTextFromMessage = (message: AgentMessage): string => {
   return message.content
-    .filter(
-      (content): content is { type: "text"; text: string } =>
-        content.type === "text",
-    )
+    .filter((content): content is { type: "text"; text: string } => content.type === "text")
     .map((content) => content.text)
     .join("");
 };
@@ -79,10 +76,7 @@ const parseExtractionResponse = (text: string): string[] => {
   return normalizeNoticeTexts(parsed.notices);
 };
 
-const buildUserPrompt = (
-  userMessage: string,
-  assistantMessage: string,
-): string => {
+const buildUserPrompt = (userMessage: string, assistantMessage: string): string => {
   return [
     "Review the exchange and extract durable communication preferences.",
     "User message:",

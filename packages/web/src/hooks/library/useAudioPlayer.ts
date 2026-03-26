@@ -43,10 +43,7 @@ export const useAudioPlayer = (
         predictedTime = Math.max(predictedTime, 0);
 
         const targetTime = targetTimeRef.current || predictedTime;
-        const correction = Math.max(
-          -0.12,
-          Math.min(0.12, targetTime - predictedTime),
-        );
+        const correction = Math.max(-0.12, Math.min(0.12, targetTime - predictedTime));
         const blendedTime = predictedTime + correction * SMOOTHING_FACTOR;
 
         displayTimeRef.current = blendedTime;
@@ -165,8 +162,7 @@ export const useAudioPlayer = (
       const audio = audioRef.current;
       if (!audio) return;
       const resolvedDuration = duration || audio.duration;
-      const hasResolvedDuration =
-        Number.isFinite(resolvedDuration) && resolvedDuration > 0;
+      const hasResolvedDuration = Number.isFinite(resolvedDuration) && resolvedDuration > 0;
       const clampedTime = hasResolvedDuration
         ? Math.min(Math.max(time, 0), resolvedDuration)
         : Math.max(time, 0);

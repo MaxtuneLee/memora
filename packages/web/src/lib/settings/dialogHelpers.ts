@@ -1,9 +1,5 @@
 import type { provider as ProviderRow } from "@/livestore/provider";
-import type {
-  ModelInfo,
-  ProviderModelGroup,
-  ProviderModelOption,
-} from "@/types/settingsDialog";
+import type { ModelInfo, ProviderModelGroup, ProviderModelOption } from "@/types/settingsDialog";
 
 const normalizePositiveInteger = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
@@ -20,10 +16,7 @@ const normalizePositiveInteger = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const pickTopProviderValue = (
-  record: Record<string, unknown>,
-  field: string,
-): unknown => {
+const pickTopProviderValue = (record: Record<string, unknown>, field: string): unknown => {
   const topProvider = record.top_provider;
   if (!topProvider || typeof topProvider !== "object" || Array.isArray(topProvider)) {
     return undefined;
@@ -98,9 +91,7 @@ export const toastIconColor = (type?: string): string => {
   }
 };
 
-export const parseProviderModels = (
-  provider: Pick<ProviderRow, "models">,
-): ModelInfo[] => {
+export const parseProviderModels = (provider: Pick<ProviderRow, "models">): ModelInfo[] => {
   try {
     const parsed = JSON.parse(provider.models || "[]") as unknown;
     if (!Array.isArray(parsed)) {
@@ -116,9 +107,7 @@ export const parseProviderModels = (
   }
 };
 
-export const flattenProviderModels = (
-  providers: ProviderRow[],
-): ProviderModelOption[] => {
+export const flattenProviderModels = (providers: ProviderRow[]): ProviderModelOption[] => {
   return providers.flatMap((provider) => {
     return parseProviderModels(provider).map((model) => ({
       providerId: provider.id,
@@ -145,11 +134,7 @@ export const filterProviderModelGroups = (
         const modelName = (model.name ?? "").toLowerCase();
         const modelId = model.id.toLowerCase();
         const providerName = provider.name.toLowerCase();
-        return (
-          modelName.includes(query) ||
-          modelId.includes(query) ||
-          providerName.includes(query)
-        );
+        return modelName.includes(query) || modelId.includes(query) || providerName.includes(query);
       });
 
       return {
@@ -166,12 +151,7 @@ export const getSelectedModelLabel = (input: {
   selectedModel: string;
   emptyLabel?: string;
 }): string => {
-  const {
-    providers,
-    selectedProviderId,
-    selectedModel,
-    emptyLabel = "Select a model...",
-  } = input;
+  const { providers, selectedProviderId, selectedModel, emptyLabel = "Select a model..." } = input;
 
   if (!selectedModel) {
     return emptyLabel;
@@ -179,10 +159,7 @@ export const getSelectedModelLabel = (input: {
 
   const allModels = flattenProviderModels(providers);
   const entry = allModels.find((modelEntry) => {
-    return (
-      modelEntry.providerId === selectedProviderId &&
-      modelEntry.model.id === selectedModel
-    );
+    return modelEntry.providerId === selectedProviderId && modelEntry.model.id === selectedModel;
   });
 
   if (!entry) {

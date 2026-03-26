@@ -89,9 +89,7 @@ const TodoTaskRow = ({
                   opacity: task.done ? 1 : 0.45,
                 }
           }
-          transition={
-            reducedMotion ? undefined : { duration: 0.18, ease: PANEL_EASE }
-          }
+          transition={reducedMotion ? undefined : { duration: 0.18, ease: PANEL_EASE }}
         >
           <CheckIcon className="size-3.5" weight="bold" />
         </motion.span>
@@ -99,9 +97,7 @@ const TodoTaskRow = ({
       <span
         className={cn(
           "min-w-0 text-sm leading-6 whitespace-pre-wrap",
-          task.done
-            ? "text-[#a59f95] line-through decoration-[#c8c2b8]"
-            : "text-memora-text",
+          task.done ? "text-[#a59f95] line-through decoration-[#c8c2b8]" : "text-memora-text",
         )}
       >
         {task.text}
@@ -121,9 +117,7 @@ export function TodoPanel({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [retryNonce, setRetryNonce] = useState(0);
   const composerInputRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef(files);
@@ -265,9 +259,7 @@ export function TodoPanel({
     <div className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[17px] font-bold text-memora-text">
-            Today Tasks
-          </h2>
+          <h2 className="text-[17px] font-bold text-memora-text">Today Tasks</h2>
         </div>
         <motion.button
           type="button"
@@ -408,9 +400,7 @@ export function TodoPanel({
               layout={!reducedMotion}
               className="space-y-4"
               transition={
-                reducedMotion
-                  ? undefined
-                  : { layout: { duration: 0.32, ease: PANEL_EASE } }
+                reducedMotion ? undefined : { layout: { duration: 0.32, ease: PANEL_EASE } }
               }
             >
               <motion.section layout={!reducedMotion} className="space-y-2">

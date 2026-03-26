@@ -90,9 +90,7 @@ export const providerMaterializers = {
       createdAt: event.createdAt,
       updatedAt: event.createdAt,
     }),
-  "v1.ProviderUpdated": (
-    event: ProviderUpdatedEvent & { models?: string },
-  ) =>
+  "v1.ProviderUpdated": (event: ProviderUpdatedEvent & { models?: string }) =>
     providerTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),

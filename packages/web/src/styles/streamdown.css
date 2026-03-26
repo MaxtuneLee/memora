@@ -4,33 +4,16 @@
     var(--color-background-primary) 96%,
     var(--color-background-secondary)
   );
-  --color-sidebar: color-mix(
-    in srgb,
-    var(--color-mocha) 6%,
-    var(--color-background-secondary)
-  );
-  --color-border: color-mix(
-    in srgb,
-    var(--color-text-primary) 10%,
-    transparent
-  );
-  --color-muted: color-mix(
-    in srgb,
-    var(--color-mocha) 5%,
-    var(--color-background-secondary)
-  );
+  --color-sidebar: color-mix(in srgb, var(--color-mocha) 6%, var(--color-background-secondary));
+  --color-border: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  --color-muted: color-mix(in srgb, var(--color-mocha) 5%, var(--color-background-secondary));
   --color-muted-foreground: var(--color-text-tertiary);
   --color-foreground: var(--color-text-primary);
 }
 
 .streamdown-rich [data-streamdown="inline-code"] {
-  border: 1px solid
-    color-mix(in srgb, var(--color-mocha) 10%, var(--color-border));
-  background: color-mix(
-    in srgb,
-    var(--color-mocha) 4%,
-    var(--color-background-primary)
-  );
+  border: 1px solid color-mix(in srgb, var(--color-mocha) 10%, var(--color-border));
+  background: color-mix(in srgb, var(--color-mocha) 4%, var(--color-background-primary));
   border-radius: 0.45rem;
 }
 
@@ -38,17 +21,9 @@
   position: relative;
   gap: 0.35rem;
   margin-block: 1rem;
-  border-color: color-mix(
-    in srgb,
-    var(--color-mocha) 8%,
-    var(--color-border)
-  );
+  border-color: color-mix(in srgb, var(--color-mocha) 8%, var(--color-border));
   border-radius: 0.95rem;
-  background: color-mix(
-    in srgb,
-    var(--color-background-primary) 98%,
-    var(--color-sidebar)
-  );
+  background: color-mix(in srgb, var(--color-background-primary) 98%, var(--color-sidebar));
   box-shadow: 0 1px 0 color-mix(in srgb, white 40%, transparent);
   padding: 0.5rem;
 }
@@ -62,11 +37,7 @@
   min-height: unset;
   height: auto;
   padding-inline: 0.25rem;
-  color: color-mix(
-    in srgb,
-    var(--color-text-secondary) 90%,
-    var(--color-mocha) 10%
-  );
+  color: color-mix(in srgb, var(--color-text-secondary) 90%, var(--color-mocha) 10%);
   font-family: var(--font-mono);
   font-size: 0.71rem;
   font-weight: 500;
@@ -100,11 +71,7 @@
   justify-content: flex-end;
   pointer-events: auto;
   border: none;
-  background: color-mix(
-    in srgb,
-    var(--color-background-primary) 92%,
-    var(--color-sidebar)
-  );
+  background: color-mix(in srgb, var(--color-background-primary) 92%, var(--color-sidebar));
   border-radius: 0.6rem;
   box-shadow: none;
 }
@@ -122,11 +89,7 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-copy-button"]:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--color-mocha) 7%,
-    var(--color-background-primary)
-  );
+  background: color-mix(in srgb, var(--color-mocha) 7%, var(--color-background-primary));
   color: var(--color-text-primary);
 }
 
@@ -140,11 +103,7 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-body"] {
-  border-color: color-mix(
-    in srgb,
-    var(--color-mocha) 6%,
-    var(--color-border)
-  );
+  border-color: color-mix(in srgb, var(--color-mocha) 6%, var(--color-border));
   border-radius: 0.7rem;
   background: color-mix(
     in srgb,

@@ -30,10 +30,7 @@ export class InMemoryAdapter implements PersistenceAdapter {
     return Array.from(this.getAgentStore(agentId).keys());
   }
 
-  async grep(
-    agentId: string,
-    pattern: string,
-  ): Promise<Array<{ key: string; matches: string[] }>> {
+  async grep(agentId: string, pattern: string): Promise<Array<{ key: string; matches: string[] }>> {
     const results: Array<{ key: string; matches: string[] }> = [];
     const regex = new RegExp(pattern, "gi");
     const agentStore = this.getAgentStore(agentId);

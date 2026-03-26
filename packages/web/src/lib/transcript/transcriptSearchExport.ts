@@ -55,9 +55,7 @@ const appendToken = (current: string, nextToken: string): string => {
   return `${current}${nextToken}`;
 };
 
-const buildTextWithRanges = (
-  words: RecordingWord[],
-): { text: string; ranges: WordRange[] } => {
+const buildTextWithRanges = (words: RecordingWord[]): { text: string; ranges: WordRange[] } => {
   let text = "";
   const ranges: WordRange[] = [];
 
@@ -72,11 +70,7 @@ const buildTextWithRanges = (
   return { text, ranges };
 };
 
-const buildSnippet = (
-  text: string,
-  startChar: number,
-  endChar: number,
-): string => {
+const buildSnippet = (text: string, startChar: number, endChar: number): string => {
   const start = Math.max(0, startChar - SNIPPET_PADDING);
   const end = Math.min(text.length, endChar + SNIPPET_PADDING);
   const prefix = start > 0 ? "…" : "";
@@ -179,9 +173,7 @@ export const buildCaptionCues = (words: RecordingWord[]): TranscriptCue[] => {
     const duration = Math.max(0, chunkEndSec - chunkStartSec);
     const cleanText = chunkText.trim();
     const nextWord = words[i + 1];
-    const gapToNext = nextWord
-      ? Math.max(0, nextWord.timestamp[0] - word.timestamp[1])
-      : 0;
+    const gapToNext = nextWord ? Math.max(0, nextWord.timestamp[0] - word.timestamp[1]) : 0;
 
     const hasTerminalPunctuation = PUNCTUATION_END_RE.test(word.text.trim());
     const exceededGap = gapToNext > GAP_THRESHOLD_SECONDS;
@@ -189,13 +181,7 @@ export const buildCaptionCues = (words: RecordingWord[]): TranscriptCue[] => {
     const exceededDuration = duration >= MAX_SECONDS_PER_CUE;
     const isLastWord = i === words.length - 1;
 
-    if (
-      hasTerminalPunctuation ||
-      exceededGap ||
-      exceededChars ||
-      exceededDuration ||
-      isLastWord
-    ) {
+    if (hasTerminalPunctuation || exceededGap || exceededChars || exceededDuration || isLastWord) {
       if (cleanText) {
         cues.push({
           id: `cue-${chunkStart}-${i}`,

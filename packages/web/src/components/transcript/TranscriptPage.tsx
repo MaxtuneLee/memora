@@ -3,12 +3,7 @@ import { GearSixIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { RecordingsGrid } from "@/components/library/FileGrid";
-import {
-  AppMenu,
-  AppMenuContent,
-  AppMenuItem,
-  AppMenuTrigger,
-} from "@/components/menu/AppMenu";
+import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
 import type { SettingsSectionId } from "@/types/settings";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
@@ -25,14 +20,13 @@ export const Component = () => {
 
   const navigate = useNavigate();
 
-  const settingsItems: Array<{ label: string; section: SettingsSectionId }> =
-    useMemo(
-      () => [
-        { label: "Model settings", section: "ai-provider" },
-        { label: "Language preferences", section: "general" },
-      ],
-      []
-    );
+  const settingsItems: Array<{ label: string; section: SettingsSectionId }> = useMemo(
+    () => [
+      { label: "Model settings", section: "ai-provider" },
+      { label: "Language preferences", section: "general" },
+    ],
+    [],
+  );
 
   const handleLanguageChange = (value: string) => {
     const trimmed = value.trim();
@@ -48,12 +42,8 @@ export const Component = () => {
       <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
-              Transcripts
-            </h1>
-            <p className="mt-2 text-sm text-zinc-500">
-              Browse your saved transcript history.
-            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Transcripts</h1>
+            <p className="mt-2 text-sm text-zinc-500">Browse your saved transcript history.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -73,10 +63,7 @@ export const Component = () => {
                     Transcription
                   </div>
                   <div className="mt-2">
-                    <LanguageSelector
-                      language={language}
-                      setLanguage={handleLanguageChange}
-                    />
+                    <LanguageSelector language={language} setLanguage={handleLanguageChange} />
                   </div>
                 </div>
                 <div className="my-2 h-px bg-zinc-100" />
@@ -102,12 +89,8 @@ export const Component = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Transcript history
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              All saved transcripts from this device.
-            </p>
+            <h2 className="text-lg font-semibold text-zinc-900">Transcript history</h2>
+            <p className="mt-1 text-sm text-zinc-500">All saved transcripts from this device.</p>
           </div>
           <Button
             onClick={() => navigate("/files")}

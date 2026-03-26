@@ -77,12 +77,9 @@ export const ChatPageMessagesPanel = ({
 
   return (
     <div className="w-full space-y-4">
-      {sessionsError && (
-        <p className="hidden text-xs text-red-600 md:block">{sessionsError}</p>
-      )}
+      {sessionsError && <p className="hidden text-xs text-red-600 md:block">{sessionsError}</p>}
       {messages.map((message) => {
-        const isCurrentAssistant =
-          message.role === "assistant" && message.id === lastAssistantId;
+        const isCurrentAssistant = message.role === "assistant" && message.id === lastAssistantId;
         return (
           <ChatMessage
             key={message.id}
@@ -90,9 +87,7 @@ export const ChatPageMessagesPanel = ({
             isStreaming={isStreaming && isCurrentAssistant}
             thinkingSteps={isCurrentAssistant ? thinkingSteps : undefined}
             status={isCurrentAssistant ? status : undefined}
-            thinkingCollapsed={
-              isCurrentAssistant ? panelCollapsed : undefined
-            }
+            thinkingCollapsed={isCurrentAssistant ? panelCollapsed : undefined}
             savingAttachmentIds={savingAttachmentIds}
             onSaveImageToLibrary={onSaveImageToLibrary}
             onSendWidgetPrompt={onSendWidgetPrompt}
@@ -114,8 +109,8 @@ export const ChatPageMessagesPanel = ({
           className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-800"
         >
           <p>
-            The model has been running for a while (
-            {iterationLimitPrompt.iterations} iterations). Continue running?
+            The model has been running for a while ({iterationLimitPrompt.iterations} iterations).
+            Continue running?
           </p>
           <div className="mt-3 flex items-center gap-2">
             <button

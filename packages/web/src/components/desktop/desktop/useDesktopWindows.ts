@@ -1,10 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import {
-  buildWindowOrder,
-  buildZIndexMap,
-  getWindowIds,
-} from "./utils";
+import { buildWindowOrder, buildZIndexMap, getWindowIds } from "./utils";
 import {
   DEFAULT_WINDOW_SIZE,
   ROOT_WINDOW_ID,
@@ -19,95 +15,81 @@ export const useDesktopWindows = () => {
   const [folderWindows, setFolderWindows] = useState<FolderWindowState[]>([]);
   const [windowOrder, setWindowOrder] = useState<string[]>([]);
 
-  const openPreviewWindow = useCallback((fileId: string) => {
-    setPreviewWindows((previous) => {
-      const existing = previous.find((window) => window.fileId === fileId);
-      if (existing) {
-        setWindowOrder((order) => {
-          return buildWindowOrder(
-            order,
-            getWindowIds(previous, folderWindows),
-            existing.id,
-          );
-        });
-        return previous;
-      }
+  const openPreviewWindow = useCallback(
+    (fileId: string) => {
+      setPreviewWindows((previous) => {
+        const existing = previous.find((window) => window.fileId === fileId);
+        if (existing) {
+          setWindowOrder((order) => {
+            return buildWindowOrder(order, getWindowIds(previous, folderWindows), existing.id);
+          });
+          return previous;
+        }
 
-      const offsetCount = (previous.length + folderWindows.length) % 6;
-      const nextId = `preview:${fileId}`;
-      const nextWindows = [
-        ...previous,
-        {
-          id: nextId,
-          fileId,
-          position: {
-            x: 80 + offsetCount * WINDOW_OFFSET,
-            y: 80 + offsetCount * WINDOW_OFFSET,
+        const offsetCount = (previous.length + folderWindows.length) % 6;
+        const nextId = `preview:${fileId}`;
+        const nextWindows = [
+          ...previous,
+          {
+            id: nextId,
+            fileId,
+            position: {
+              x: 80 + offsetCount * WINDOW_OFFSET,
+              y: 80 + offsetCount * WINDOW_OFFSET,
+            },
+            size: DEFAULT_WINDOW_SIZE,
           },
-          size: DEFAULT_WINDOW_SIZE,
-        },
-      ];
-      setWindowOrder((order) => {
-        return buildWindowOrder(
-          order,
-          getWindowIds(nextWindows, folderWindows),
-          nextId,
-        );
-      });
-      return nextWindows;
-    });
-  }, [folderWindows]);
-
-  const openFolderWindow = useCallback((folderId: string | null) => {
-    setFolderWindows((previous) => {
-      const existing = previous.find((window) => window.folderId === folderId);
-      if (existing) {
+        ];
         setWindowOrder((order) => {
-          return buildWindowOrder(
-            order,
-            getWindowIds(previewWindows, previous),
-            existing.id,
-          );
+          return buildWindowOrder(order, getWindowIds(nextWindows, folderWindows), nextId);
         });
-        return previous;
-      }
-
-      const offsetCount = (previous.length + previewWindows.length) % 6;
-      const nextId = folderId ? `folder:${folderId}` : ROOT_WINDOW_ID;
-      const nextWindows = [
-        ...previous,
-        {
-          id: nextId,
-          folderId,
-          position: {
-            x: 100 + offsetCount * WINDOW_OFFSET,
-            y: 100 + offsetCount * WINDOW_OFFSET,
-          },
-          size: DEFAULT_WINDOW_SIZE,
-          viewMode: "grid" as const,
-        },
-      ];
-      setWindowOrder((order) => {
-        return buildWindowOrder(
-          order,
-          getWindowIds(previewWindows, nextWindows),
-          nextId,
-        );
+        return nextWindows;
       });
-      return nextWindows;
-    });
-  }, [previewWindows]);
+    },
+    [folderWindows],
+  );
+
+  const openFolderWindow = useCallback(
+    (folderId: string | null) => {
+      setFolderWindows((previous) => {
+        const existing = previous.find((window) => window.folderId === folderId);
+        if (existing) {
+          setWindowOrder((order) => {
+            return buildWindowOrder(order, getWindowIds(previewWindows, previous), existing.id);
+          });
+          return previous;
+        }
+
+        const offsetCount = (previous.length + previewWindows.length) % 6;
+        const nextId = folderId ? `folder:${folderId}` : ROOT_WINDOW_ID;
+        const nextWindows = [
+          ...previous,
+          {
+            id: nextId,
+            folderId,
+            position: {
+              x: 100 + offsetCount * WINDOW_OFFSET,
+              y: 100 + offsetCount * WINDOW_OFFSET,
+            },
+            size: DEFAULT_WINDOW_SIZE,
+            viewMode: "grid" as const,
+          },
+        ];
+        setWindowOrder((order) => {
+          return buildWindowOrder(order, getWindowIds(previewWindows, nextWindows), nextId);
+        });
+        return nextWindows;
+      });
+    },
+    [previewWindows],
+  );
 
   const openTrashWindow = useCallback(() => {
     setFolderWindows((previous) => {
       const existing = previous.find((window) => window.id === TRASH_WINDOW_ID);
       if (existing) {
         setWindowOrder((order) => {
-          return buildWindowOrder(
-            order,
-            getWindowIds(previewWindows, previous),
-            existing.id,
-          );
+          return buildWindowOrder(order, getWindowIds(previewWindows, previous), existing.id);
         });
         return previous;
       }
@@ -127,43 +109,51 @@ export const useDesktopWindows = () => {
         },
       ];
       setWindowOrder((order) => {
-        return buildWindowOrder(
-          order,
-          getWindowIds(previewWindows, nextWindows),
-          TRASH_WINDOW_ID,
-        );
+        return buildWindowOrder(order, getWindowIds(previewWindows, nextWindows), TRASH_WINDOW_ID);
       });
       return nextWindows;
     });
   }, [previewWindows]);
 
-  const closePreviewWindow = useCallback((id: string) => {
-    setPreviewWindows((previous) => {
-      const next = previous.filter((window) => window.id !== id);
-      setWindowOrder((order) => buildWindowOrder(order, getWindowIds(next, folderWindows)));
-      return next;
-    });
-  }, [folderWindows]);
+  const closePreviewWindow = useCallback(
+    (id: string) => {
+      setPreviewWindows((previous) => {
+        const next = previous.filter((window) => window.id !== id);
+        setWindowOrder((order) => buildWindowOrder(order, getWindowIds(next, folderWindows)));
+        return next;
+      });
+    },
+    [folderWindows],
+  );
 
-  const closeFolderWindow = useCallback((id: string) => {
-    setFolderWindows((previous) => {
-      const next = previous.filter((window) => window.id !== id);
-      setWindowOrder((order) => buildWindowOrder(order, getWindowIds(previewWindows, next)));
-      return next;
-    });
-  }, [previewWindows]);
+  const closeFolderWindow = useCallback(
+    (id: string) => {
+      setFolderWindows((previous) => {
+        const next = previous.filter((window) => window.id !== id);
+        setWindowOrder((order) => buildWindowOrder(order, getWindowIds(previewWindows, next)));
+        return next;
+      });
+    },
+    [previewWindows],
+  );
 
-  const focusPreviewWindow = useCallback((id: string) => {
-    setWindowOrder((order) => {
-      return buildWindowOrder(order, getWindowIds(previewWindows, folderWindows), id);
-    });
-  }, [folderWindows, previewWindows]);
+  const focusPreviewWindow = useCallback(
+    (id: string) => {
+      setWindowOrder((order) => {
+        return buildWindowOrder(order, getWindowIds(previewWindows, folderWindows), id);
+      });
+    },
+    [folderWindows, previewWindows],
+  );
 
-  const focusFolderWindow = useCallback((id: string) => {
-    setWindowOrder((order) => {
-      return buildWindowOrder(order, getWindowIds(previewWindows, folderWindows), id);
-    });
-  }, [folderWindows, previewWindows]);
+  const focusFolderWindow = useCallback(
+    (id: string) => {
+      setWindowOrder((order) => {
+        return buildWindowOrder(order, getWindowIds(previewWindows, folderWindows), id);
+      });
+    },
+    [folderWindows, previewWindows],
+  );
 
   const movePreviewWindow = useCallback((id: string, position: { x: number; y: number }) => {
     setPreviewWindows((previous) => {
@@ -213,25 +203,23 @@ export const useDesktopWindows = () => {
     });
   }, []);
 
-  const replaceFolderWindowFolder = useCallback((
-    currentFolderId: string | null,
-    nextFolderId: string | null,
-  ) => {
-    setFolderWindows((previous) => {
-      return previous.map((window) => {
-        return window.folderId === currentFolderId
-          ? { ...window, folderId: nextFolderId }
-          : window;
+  const replaceFolderWindowFolder = useCallback(
+    (currentFolderId: string | null, nextFolderId: string | null) => {
+      setFolderWindows((previous) => {
+        return previous.map((window) => {
+          return window.folderId === currentFolderId
+            ? { ...window, folderId: nextFolderId }
+            : window;
+        });
       });
-    });
-  }, []);
+    },
+    [],
+  );
 
   const zIndexMap = useMemo(() => {
     return buildZIndexMap(windowOrder);
   }, [windowOrder]);
-  const focusedWindowId = windowOrder.length
-    ? windowOrder[windowOrder.length - 1]
-    : null;
+  const focusedWindowId = windowOrder.length ? windowOrder[windowOrder.length - 1] : null;
 
   return {
     previewWindows,

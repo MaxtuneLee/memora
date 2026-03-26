@@ -42,10 +42,10 @@ export const useWidgetIframe = () => {
     }
 
     iframeDocumentRef.current = iframeDocument;
-    userStyleRef.current =
-      iframeDocument.querySelector<HTMLStyleElement>("[data-widget-user-style]");
-    contentRef.current =
-      iframeDocument.querySelector<HTMLDivElement>("[data-widget-content]");
+    userStyleRef.current = iframeDocument.querySelector<HTMLStyleElement>(
+      "[data-widget-user-style]",
+    );
+    contentRef.current = iframeDocument.querySelector<HTMLDivElement>("[data-widget-content]");
     setIframeReady(Boolean(userStyleRef.current && contentRef.current));
     queueMicrotask(() => {
       syncIframeHeight();
@@ -66,8 +66,7 @@ export const useWidgetIframe = () => {
 
     const syncRuntimeDom = () => {
       const nextHasRuntimeDom =
-        content.childElementCount > 0 ||
-        (content.textContent?.trim().length ?? 0) !== 0;
+        content.childElementCount > 0 || (content.textContent?.trim().length ?? 0) !== 0;
       setHasRuntimeDom(nextHasRuntimeDom);
       syncIframeHeight();
     };

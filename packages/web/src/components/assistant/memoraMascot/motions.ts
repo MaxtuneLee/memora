@@ -399,11 +399,7 @@ export function getEyeStrokeWidthMotion(
   }
 }
 
-export function getBlinkMotion(
-  state: MemoraMascotState,
-  animate: boolean,
-  side: "left" | "right",
-) {
+export function getBlinkMotion(state: MemoraMascotState, animate: boolean, side: "left" | "right") {
   const delay = side === "left" ? 0 : 0.02;
 
   if (!animate) {

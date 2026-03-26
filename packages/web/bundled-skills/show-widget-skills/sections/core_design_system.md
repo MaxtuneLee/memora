@@ -3,13 +3,16 @@
 These rules apply to ALL use cases.
 
 ### Philosophy
+
 - **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
 
 ### Streaming
+
 Output streams token-by-token. Structure code so useful content appears early.
+
 - **HTML**: `<style>` (short) → content HTML → `<script>` last.
 - **SVG**: `<defs>` (markers) → visual elements immediately.
 - Prefer inline `style="..."` over `<style>` blocks — inputs/controls must look correct mid-stream.
@@ -17,6 +20,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - Gradients, shadows, and blur flash during streaming DOM diffs. Use solid flat fills instead.
 
 ### Rules
+
 - No `<!-- comments -->` or `/* comments */` (waste tokens, break streaming)
 - No font-size below 11px
 - No emoji — use CSS shapes or SVG paths
@@ -40,6 +44,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
 
 ### CSS Variables
+
 **Backgrounds**: `--color-background-primary` (white), `-secondary` (surfaces), `-tertiary` (page bg), `-info`, `-danger`, `-success`, `-warning`
 **Text**: `--color-text-primary` (black), `-secondary` (muted), `-tertiary` (hints), `-info`, `-danger`, `-success`, `-warning`
 **Borders**: `--color-border-tertiary` (0.15α, default), `-secondary` (0.3α, hover), `-primary` (0.4α), semantic `-info/-danger/-success/-warning`
@@ -48,13 +53,16 @@ Output streams token-by-token. Structure code so useful content appears early.
 All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 **Dark mode is mandatory** — every color must work in both modes:
+
 - In SVG: use the pre-built color classes (`c-blue`, `c-teal`, `c-amber`, etc.) for colored nodes — they handle light/dark mode automatically. Never write `<style>` blocks for colors.
 - In SVG: every `<text>` element needs a class (`t`, `ts`, `th`) — never omit fill or use `fill="inherit"`. Inside a `c-{color}` parent, text classes auto-adjust to the ramp.
 - In HTML: always use CSS variables (--color-text-primary, --color-text-secondary) for text. Never hardcode colors like color: #333 — invisible in dark mode.
 - Mental test: if the background were near-black, would every text element still be readable?
 
 ### sendPrompt(text)
+
 A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
+
 `<a href="https://...">` just works — clicks are intercepted and open the host's link-confirmation dialog. Or call `openLink(url)` directly.

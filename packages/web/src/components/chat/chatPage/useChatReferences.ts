@@ -67,8 +67,7 @@ export const useChatReferences = ({
 }: UseChatReferencesParams): UseChatReferencesResult => {
   const [referencePickerOpen, setReferencePickerOpen] = useState(false);
   const [referencePickerQuery, setReferencePickerQuery] = useState("");
-  const [referencePickerSource, setReferencePickerSource] =
-    useState<ReferencePickerSource>(null);
+  const [referencePickerSource, setReferencePickerSource] = useState<ReferencePickerSource>(null);
   const [referenceNotice, setReferenceNotice] = useState<string | null>(null);
   const activeFileById = useMemo(
     () => new Map(activeFileRows.map((file) => [file.id, file])),
@@ -79,13 +78,10 @@ export const useChatReferences = ({
     [activeFolderRows],
   );
   const resolvedReferenceScope = useMemo(
-    () =>
-      resolveReferenceScope(activeReferences, activeFileRows, activeFolderRows),
+    () => resolveReferenceScope(activeReferences, activeFileRows, activeFolderRows),
     [activeFileRows, activeFolderRows, activeReferences],
   );
-  const referenceScopeRef = useRef<ResolvedReferenceScope>(
-    resolvedReferenceScope,
-  );
+  const referenceScopeRef = useRef<ResolvedReferenceScope>(resolvedReferenceScope);
   useEffect(() => {
     referenceScopeRef.current = resolvedReferenceScope;
   }, [resolvedReferenceScope]);
@@ -108,22 +104,12 @@ export const useChatReferences = ({
 
   useEffect(() => {
     setActiveReferences((prev) => {
-      if (
-        prev.length > 0 &&
-        activeFileById.size === 0 &&
-        activeFolderById.size === 0
-      ) {
+      if (prev.length > 0 && activeFileById.size === 0 && activeFolderById.size === 0) {
         return prev;
       }
-      const next = sanitizeActiveReferences(
-        prev,
-        activeFileById,
-        activeFolderById,
-      );
+      const next = sanitizeActiveReferences(prev, activeFileById, activeFolderById);
       if (next.length !== prev.length) {
-        setReferenceNotice(
-          "Some references were removed because they are no longer available.",
-        );
+        setReferenceNotice("Some references were removed because they are no longer available.");
       }
       return next;
     });
@@ -151,15 +137,10 @@ export const useChatReferences = ({
   const referencePickerOptions = useMemo<ReferencePickerOption[]>(() => {
     const normalizedQuery = referencePickerQuery.trim().toLowerCase();
     const include = (name: string) => {
-      return (
-        normalizedQuery.length === 0 ||
-        name.toLowerCase().includes(normalizedQuery)
-      );
+      return normalizedQuery.length === 0 || name.toLowerCase().includes(normalizedQuery);
     };
 
-    const selectedKeys = new Set(
-      activeReferences.map((reference) => buildReferenceKey(reference)),
-    );
+    const selectedKeys = new Set(activeReferences.map((reference) => buildReferenceKey(reference)));
 
     const folderOptions = activeFolderRows
       .filter((folder) => include(folder.name))
@@ -180,12 +161,7 @@ export const useChatReferences = ({
       }));
 
     return [...folderOptions, ...fileOptions].slice(0, 80);
-  }, [
-    activeFileRows,
-    activeFolderRows,
-    activeReferences,
-    referencePickerQuery,
-  ]);
+  }, [activeFileRows, activeFolderRows, activeReferences, referencePickerQuery]);
 
   const handleSelectReference = useCallback(
     (option: ReferencePickerOption) => {
@@ -205,9 +181,7 @@ export const useChatReferences = ({
       });
 
       if (referencePickerSource === "mention" && inputRef.current) {
-        inputRef.current.value = removeTrailingReferenceMention(
-          inputRef.current.value,
-        );
+        inputRef.current.value = removeTrailingReferenceMention(inputRef.current.value);
       }
       closeReferencePicker();
       inputRef.current?.focus();
@@ -218,9 +192,7 @@ export const useChatReferences = ({
   const handleRemoveReference = useCallback(
     (reference: ChatSessionReference) => {
       setActiveReferences((prev) =>
-        prev.filter(
-          (item) => !(item.type === reference.type && item.id === reference.id),
-        ),
+        prev.filter((item) => !(item.type === reference.type && item.id === reference.id)),
       );
     },
     [setActiveReferences],
@@ -273,16 +245,10 @@ export const useChatReferences = ({
     );
     if (validReferences.length !== activeReferences.length) {
       setActiveReferences(validReferences);
-      setReferenceNotice(
-        "Some references were removed because they are no longer available.",
-      );
+      setReferenceNotice("Some references were removed because they are no longer available.");
     }
 
-    const nextScope = resolveReferenceScope(
-      validReferences,
-      activeFileRows,
-      activeFolderRows,
-    );
+    const nextScope = resolveReferenceScope(validReferences, activeFileRows, activeFolderRows);
     referenceScopeRef.current = nextScope;
     if (nextScope.truncated) {
       setReferenceNotice(

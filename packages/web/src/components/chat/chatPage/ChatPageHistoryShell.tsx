@@ -54,14 +54,10 @@ export const ChatPageHistoryShell = ({
             <ClockCounterClockwiseIcon className="size-3.5" weight="bold" />
             History
           </button>
-          <p className="min-w-0 truncate text-xs font-medium text-zinc-500">
-            {activeSessionTitle}
-          </p>
+          <p className="min-w-0 truncate text-xs font-medium text-zinc-500">{activeSessionTitle}</p>
         </div>
         {sessionsError && (
-          <p className="mx-auto mt-2 max-w-2xl text-xs text-red-600">
-            {sessionsError}
-          </p>
+          <p className="mx-auto mt-2 max-w-2xl text-xs text-red-600">{sessionsError}</p>
         )}
       </div>
     </>

@@ -24,16 +24,12 @@ export class PromptComposer {
   }
 
   async compose(): Promise<string> {
-    const sorted = Array.from(this.segments.values()).sort(
-      (a, b) => b.priority - a.priority,
-    );
+    const sorted = Array.from(this.segments.values()).sort((a, b) => b.priority - a.priority);
 
     const parts: string[] = [];
     for (const segment of sorted) {
       const content =
-        typeof segment.content === "function"
-          ? await segment.content()
-          : segment.content;
+        typeof segment.content === "function" ? await segment.content() : segment.content;
       if (content.trim()) {
         parts.push(content.trim());
       }

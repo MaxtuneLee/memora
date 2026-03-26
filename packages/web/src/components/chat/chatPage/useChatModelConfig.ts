@@ -19,10 +19,7 @@ export const useChatModelConfig = ({
   activeSessionId: string;
 }) => {
   const selectedProvider = useMemo(() => {
-    return (
-      providers.find((provider) => provider.id === settings.selectedProviderId) ??
-      null
-    );
+    return providers.find((provider) => provider.id === settings.selectedProviderId) ?? null;
   }, [providers, settings.selectedProviderId]);
   const selectedModel = settings.selectedModel.trim();
   const selectedProviderModels = useMemo(() => {
@@ -30,11 +27,12 @@ export const useChatModelConfig = ({
   }, [selectedProvider]);
   const selectedModelInfo = useMemo(() => {
     return selectedModel
-      ? selectedProviderModels.find((model) => model.id === selectedModel) ?? null
+      ? (selectedProviderModels.find((model) => model.id === selectedModel) ?? null)
       : null;
   }, [selectedModel, selectedProviderModels]);
-  const selectedApiFormat = (selectedProvider?.apiFormat ??
-    "chat-completions") as "chat-completions" | "responses";
+  const selectedApiFormat = (selectedProvider?.apiFormat ?? "chat-completions") as
+    | "chat-completions"
+    | "responses";
   const selectedApiKey = selectedProvider?.apiKey.trim() ?? "";
   const selectedEndpoint = useMemo(() => {
     if (!selectedProvider) {
@@ -76,8 +74,7 @@ export const useChatModelConfig = ({
     selectedModel,
     selectedProvider,
   ]);
-  const isConfigured =
-    !!selectedProvider && !!selectedModel && !!selectedEndpoint;
+  const isConfigured = !!selectedProvider && !!selectedModel && !!selectedEndpoint;
 
   useEffect(() => {
     if (!IS_DEV || !selectedProvider || !selectedModel) {
@@ -97,12 +94,7 @@ export const useChatModelConfig = ({
         maxOutputTokens: model.maxOutputTokens,
       })),
     });
-  }, [
-    selectedModel,
-    selectedModelInfo,
-    selectedProvider,
-    selectedProviderModels,
-  ]);
+  }, [selectedModel, selectedModelInfo, selectedProvider, selectedProviderModels]);
 
   return {
     agentConfig,

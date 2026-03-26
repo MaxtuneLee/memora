@@ -31,10 +31,7 @@ export type SkillReadResult = SkillReadSuccess | SkillReadFailure;
 export interface SkillStore {
   listSkills: () => MaybePromise<SkillCatalogEntry[]>;
   activateSkill: (name: string) => MaybePromise<SkillActivationRecord | null>;
-  readSkillResource: (
-    name: string,
-    path: string,
-  ) => MaybePromise<SkillReadResult>;
+  readSkillResource: (name: string, path: string) => MaybePromise<SkillReadResult>;
 }
 
 export interface CreateSkillCatalogPromptOptions {
@@ -67,10 +64,8 @@ export const createSkillCatalogPromptSegment = (
   store: SkillStore,
   options: CreateSkillCatalogPromptOptions = {},
 ): PromptSegment => {
-  const activateToolName =
-    options.activateToolName ?? DEFAULT_ACTIVATE_TOOL_NAME;
-  const readResourceToolName =
-    options.readResourceToolName ?? DEFAULT_READ_RESOURCE_TOOL_NAME;
+  const activateToolName = options.activateToolName ?? DEFAULT_ACTIVATE_TOOL_NAME;
+  const readResourceToolName = options.readResourceToolName ?? DEFAULT_READ_RESOURCE_TOOL_NAME;
   const heading = options.heading ?? DEFAULT_HEADING;
   const contextLabel = options.contextLabel ?? DEFAULT_CONTEXT_LABEL;
 
@@ -103,10 +98,8 @@ export const createSkillTools = (
   store: SkillStore,
   options: CreateSkillToolsOptions = {},
 ): ToolDefinition[] => {
-  const activateToolName =
-    options.activateToolName ?? DEFAULT_ACTIVATE_TOOL_NAME;
-  const readResourceToolName =
-    options.readResourceToolName ?? DEFAULT_READ_RESOURCE_TOOL_NAME;
+  const activateToolName = options.activateToolName ?? DEFAULT_ACTIVATE_TOOL_NAME;
+  const readResourceToolName = options.readResourceToolName ?? DEFAULT_READ_RESOURCE_TOOL_NAME;
   const contextLabel = options.contextLabel ?? DEFAULT_CONTEXT_LABEL;
 
   return [

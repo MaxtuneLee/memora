@@ -50,9 +50,7 @@ const appendEvent = (
   return [...events, { ...event, at: Date.now() }].slice(-MAX_DEBUG_EVENTS);
 };
 
-export const getShowWidgetDebugState = (
-  toolCallId: string,
-): ShowWidgetDebugState => {
+export const getShowWidgetDebugState = (toolCallId: string): ShowWidgetDebugState => {
   if (!toolCallId) {
     return createEmptyState("");
   }

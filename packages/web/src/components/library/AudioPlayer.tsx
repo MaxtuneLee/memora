@@ -231,11 +231,7 @@ export const AudioPlayer = memo(
           ) : (
             <div className="flex h-24 items-end justify-center gap-[2px] px-2">
               {PLACEHOLDER_HEIGHTS.map((h, i) => (
-                <div
-                  key={i}
-                  className="w-1 rounded-full bg-zinc-200"
-                  style={{ height: `${h}%` }}
-                />
+                <div key={i} className="w-1 rounded-full bg-zinc-200" style={{ height: `${h}%` }} />
               ))}
             </div>
           )}

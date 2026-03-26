@@ -1,10 +1,7 @@
 import type { MutableRefObject } from "react";
 import { useCallback, useRef } from "react";
 
-import {
-  WHISPER_MAX_SAMPLES,
-  WHISPER_SAMPLE_RATE,
-} from "@/lib/transcript/transcriptUtils";
+import { WHISPER_MAX_SAMPLES, WHISPER_SAMPLE_RATE } from "@/lib/transcript/transcriptUtils";
 import { generateWhisperTranscript } from "@/lib/transcript/whisper/client";
 
 export const useSpeechQueue = ({
@@ -14,9 +11,7 @@ export const useSpeechQueue = ({
   workerRef: MutableRefObject<Worker | null>;
   languageRef: { current: string };
 }) => {
-  const pendingSegmentsRef = useRef<
-    Array<{ audio: Float32Array; startSec: number }>
-  >([]);
+  const pendingSegmentsRef = useRef<Array<{ audio: Float32Array; startSec: number }>>([]);
   const currentSegmentRef = useRef<{
     audio: Float32Array;
     startSec: number;
@@ -52,11 +47,7 @@ export const useSpeechQueue = ({
         return;
       }
 
-      for (
-        let offset = 0;
-        offset < audio.length;
-        offset += WHISPER_MAX_SAMPLES
-      ) {
+      for (let offset = 0; offset < audio.length; offset += WHISPER_MAX_SAMPLES) {
         const chunk = audio.subarray(offset, offset + WHISPER_MAX_SAMPLES);
         pendingSegmentsRef.current.push({
           audio: chunk,

@@ -1,16 +1,6 @@
-import {
-  DndContext,
-  pointerWithin,
-} from "@dnd-kit/core";
+import { DndContext, pointerWithin } from "@dnd-kit/core";
 import { Tooltip } from "@base-ui/react/tooltip";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useStore } from "@livestore/react";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -39,9 +29,7 @@ import { useDesktopExternalIntent } from "@/components/desktop/desktop/useDeskto
 import { useDesktopNativeDrop } from "@/components/desktop/desktop/useDesktopNativeDrop";
 import { useDesktopSize } from "@/components/desktop/desktop/useDesktopSize";
 import { useDesktopWindows } from "@/components/desktop/desktop/useDesktopWindows";
-import {
-  TRASH_ITEM_ID,
-} from "@/components/desktop/desktop/types";
+import { TRASH_ITEM_ID } from "@/components/desktop/desktop/types";
 import {
   getColumnsForWidth,
   layoutDesktopItems,
@@ -138,12 +126,7 @@ export function Desktop({
     navigateFolderWindow,
     replaceFolderWindowFolder,
   } = useDesktopWindows();
-  const {
-    activeDragId,
-    sensors,
-    handleDragStart,
-    handleDragEnd,
-  } = useDesktopDnD({
+  const { activeDragId, sensors, handleDragStart, handleDragEnd } = useDesktopDnD({
     items,
     store,
   });
@@ -164,14 +147,11 @@ export function Desktop({
       const mergeItem = (item: DesktopItemType) => {
         const existing = next.get(item.id);
         const position = existing?.position ?? { x: 0, y: 0 };
-        next.set(
-          item.id,
-          {
-            ...item,
-            position,
-            ...(item.type === "folder" ? { hasStoredPosition: false } : {}),
-          } satisfies DesktopItemType,
-        );
+        next.set(item.id, {
+          ...item,
+          position,
+          ...(item.type === "folder" ? { hasStoredPosition: false } : {}),
+        } satisfies DesktopItemType);
       };
 
       fileItems.forEach(mergeItem);
@@ -203,10 +183,7 @@ export function Desktop({
     });
   }, [itemsArray]);
   const sortedRootLayout = useMemo(() => {
-    return layoutDesktopItems(
-      sortDesktopItems(rootItems),
-      getColumnsForWidth(desktopSize.width),
-    );
+    return layoutDesktopItems(sortDesktopItems(rootItems), getColumnsForWidth(desktopSize.width));
   }, [desktopSize.width, rootItems]);
 
   const {
@@ -236,44 +213,51 @@ export function Desktop({
     }
   }, [clearSelection, closeContextMenu, contextMenu.isOpen]);
 
-  const handleDesktopContextMenu = useCallback((event: MouseEvent) => {
-    event.preventDefault();
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) {
-      return;
-    }
-    openContextMenu(
-      { x: event.clientX, y: event.clientY },
-      null,
-      null,
-      { left: rect.left, top: rect.top },
-    );
-  }, [openContextMenu]);
+  const handleDesktopContextMenu = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault();
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      openContextMenu({ x: event.clientX, y: event.clientY }, null, null, {
+        left: rect.left,
+        top: rect.top,
+      });
+    },
+    [openContextMenu],
+  );
 
-  const handleItemContextMenu = useCallback((
-    event: MouseEvent,
-    id: string | null,
-    parentId: string | null = null,
-    origin: { left: number; top: number } | null = null,
-  ) => {
-    openContextMenu({ x: event.clientX, y: event.clientY }, id, parentId, origin);
-  }, [openContextMenu]);
+  const handleItemContextMenu = useCallback(
+    (
+      event: MouseEvent,
+      id: string | null,
+      parentId: string | null = null,
+      origin: { left: number; top: number } | null = null,
+    ) => {
+      openContextMenu({ x: event.clientX, y: event.clientY }, id, parentId, origin);
+    },
+    [openContextMenu],
+  );
 
-  const handleNewFolder = useCallback((parentId: string | null = null) => {
-    closeContextMenu();
-    const id = crypto.randomUUID();
-    store.commit(
-      folderEvents.folderCreated({
-        id,
-        name: "New Folder",
-        parentId,
-        positionX: null,
-        positionY: null,
-        createdAt: new Date(),
-      }),
-    );
-    setRenamingIds((previous) => new Set(previous).add(id));
-  }, [closeContextMenu, store]);
+  const handleNewFolder = useCallback(
+    (parentId: string | null = null) => {
+      closeContextMenu();
+      const id = crypto.randomUUID();
+      store.commit(
+        folderEvents.folderCreated({
+          id,
+          name: "New Folder",
+          parentId,
+          positionX: null,
+          positionY: null,
+          createdAt: new Date(),
+        }),
+      );
+      setRenamingIds((previous) => new Set(previous).add(id));
+    },
+    [closeContextMenu, store],
+  );
 
   const handleRename = useCallback(() => {
     closeContextMenu();
@@ -288,34 +272,37 @@ export function Desktop({
     setRenamingIds((previous) => new Set(previous).add(targetId));
   }, [closeContextMenu, contextMenu.targetId, items]);
 
-  const handleRenameCommit = useCallback((id: string, name: string) => {
-    setRenamingIds((previous) => {
-      const next = new Set(previous);
-      next.delete(id);
-      return next;
-    });
-    const item = items.get(id);
-    if (!item || item.type === "widget") {
-      return;
-    }
-    if (item.type === "file") {
+  const handleRenameCommit = useCallback(
+    (id: string, name: string) => {
+      setRenamingIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+      const item = items.get(id);
+      if (!item || item.type === "widget") {
+        return;
+      }
+      if (item.type === "file") {
+        store.commit(
+          fileEvents.fileUpdated({
+            id,
+            name,
+            updatedAt: new Date(),
+          }),
+        );
+        return;
+      }
       store.commit(
-        fileEvents.fileUpdated({
+        folderEvents.folderUpdated({
           id,
           name,
           updatedAt: new Date(),
         }),
       );
-      return;
-    }
-    store.commit(
-      folderEvents.folderUpdated({
-        id,
-        name,
-        updatedAt: new Date(),
-      }),
-    );
-  }, [items, store]);
+    },
+    [items, store],
+  );
 
   const handleRenameCancel = useCallback((id: string) => {
     setRenamingIds((previous) => {
@@ -343,21 +330,24 @@ export function Desktop({
     requestTrash(item);
   }, [closeContextMenu, contextMenu.targetId, items, requestTrash]);
 
-  const handleOpenItem = useCallback((item: DesktopItemType, activeFolderId?: string | null) => {
-    if (item.type === "widget" && item.widgetType === "trash") {
-      openTrashWindow();
-      return;
-    }
-    if (item.type === "file") {
-      openPreviewWindow(item.id);
-      return;
-    }
-    if (activeFolderId !== undefined) {
-      replaceFolderWindowFolder(activeFolderId, item.id);
-      return;
-    }
-    openFolderWindow(item.id);
-  }, [openFolderWindow, openPreviewWindow, openTrashWindow, replaceFolderWindowFolder]);
+  const handleOpenItem = useCallback(
+    (item: DesktopItemType, activeFolderId?: string | null) => {
+      if (item.type === "widget" && item.widgetType === "trash") {
+        openTrashWindow();
+        return;
+      }
+      if (item.type === "file") {
+        openPreviewWindow(item.id);
+        return;
+      }
+      if (activeFolderId !== undefined) {
+        replaceFolderWindowFolder(activeFolderId, item.id);
+        return;
+      }
+      openFolderWindow(item.id);
+    },
+    [openFolderWindow, openPreviewWindow, openTrashWindow, replaceFolderWindowFolder],
+  );
 
   useDesktopExternalIntent({
     externalIntent,
@@ -419,7 +409,9 @@ export function Desktop({
             isOpen={contextMenu.isOpen}
             position={contextMenu.position}
             targetId={contextMenu.targetId}
-            targetType={contextMenu.targetId ? items.get(contextMenu.targetId)?.type ?? null : null}
+            targetType={
+              contextMenu.targetId ? (items.get(contextMenu.targetId)?.type ?? null) : null
+            }
             onClose={closeContextMenu}
             onNewFolder={() => handleNewFolder(contextMenu.parentId ?? null)}
             onNewNote={() => closeContextMenu()}
@@ -474,9 +466,7 @@ export function Desktop({
           {nativeDragOver && (
             <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-blue-50/60 backdrop-blur-[2px]">
               <div className="rounded-2xl border-2 border-dashed border-blue-400 bg-white/80 px-8 py-6 shadow-lg">
-                <p className="text-sm font-medium text-blue-600">
-                  Drop files here to upload
-                </p>
+                <p className="text-sm font-medium text-blue-600">Drop files here to upload</p>
               </div>
             </div>
           )}

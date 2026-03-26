@@ -10,10 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence } from "motion/react";
 import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
-import {
-  ReferencePicker,
-  type ReferencePickerOption,
-} from "@/components/chat/ReferencePicker";
+import { ReferencePicker, type ReferencePickerOption } from "@/components/chat/ReferencePicker";
 import { StatusBar } from "@/components/chat/StatusBar";
 import type { ChatMessage as AgentChatMessage, AgentStatus } from "@/hooks/chat/useAgent";
 import type { file as LiveStoreFile } from "@/livestore/file";
@@ -155,9 +152,7 @@ export const ChatPageComposerPanel = ({
           </AnimatePresence>
           {memoryUpdatedNotice && (
             <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              <span>
-                Memory updated. Review or delete it in Settings &gt; Memory.
-              </span>
+              <span>Memory updated. Review or delete it in Settings &gt; Memory.</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -214,9 +209,7 @@ export const ChatPageComposerPanel = ({
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <p className="text-xs font-medium text-zinc-600">
                   References
-                  <span className="ml-1 text-zinc-400">
-                    ({activeReferences.length})
-                  </span>
+                  <span className="ml-1 text-zinc-400">({activeReferences.length})</span>
                 </p>
                 <div className="flex items-center gap-2">
                   {resolvedReferenceScope.isActive && (

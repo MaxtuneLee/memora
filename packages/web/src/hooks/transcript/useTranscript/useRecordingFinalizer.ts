@@ -66,8 +66,7 @@ export const useRecordingFinalizer = ({
         const durationSec = recordingStartRef.current
           ? (performance.now() - recordingStartRef.current) / 1000
           : 0;
-        const mimeType =
-          mediaRecorderRef.current?.mimeType || DEFAULT_AUDIO_MIME;
+        const mimeType = mediaRecorderRef.current?.mimeType || DEFAULT_AUDIO_MIME;
         const blob = new Blob(mediaChunksRef.current, { type: mimeType });
         if (blob.size === 0) {
           pendingSaveRef.current = false;

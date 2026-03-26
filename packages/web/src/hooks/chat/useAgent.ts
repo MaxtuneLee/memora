@@ -36,23 +36,20 @@ export type {
 } from "@/hooks/chat/useAgent/types";
 
 export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    options.initialMessages ?? [],
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>(options.initialMessages ?? []);
   const [isStreaming, setIsStreaming] = useState(false);
   const [status, setStatus] = useState<AgentStatus>({ type: "idle" });
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [thinkingCollapsed, setThinkingCollapsed] = useState(false);
-  const [iterationLimitPrompt, setIterationLimitPrompt] =
-    useState<IterationLimitPrompt | null>(null);
+  const [iterationLimitPrompt, setIterationLimitPrompt] = useState<IterationLimitPrompt | null>(
+    null,
+  );
   const [error, setError] = useState<Error | null>(null);
   const agentRef = useRef<Agent | null>(null);
   const initializedRef = useRef(false);
   const thinkingStepsRef = useRef<ThinkingStep[]>([]);
   const agentSignatureRef = useRef("");
-  const initialMessagesRef = useRef<ChatMessage[]>(
-    options.initialMessages ?? [],
-  );
+  const initialMessagesRef = useRef<ChatMessage[]>(options.initialMessages ?? []);
   const updateMessageById = useCallback(
     (messageId: string, updater: (message: ChatMessage) => ChatMessage) => {
       setMessages((previous) => {
@@ -106,11 +103,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
       options.config.apiKey ?? "",
     ].join("::");
 
-    if (
-      agentRef.current &&
-      initializedRef.current &&
-      agentSignatureRef.current === signature
-    ) {
+    if (agentRef.current && initializedRef.current && agentSignatureRef.current === signature) {
       return agentRef.current;
     }
 
@@ -125,9 +118,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     options.tools?.forEach((tool) => agent.registerTool(tool));
     options.promptSegments?.forEach((seg) => agent.addPromptSegment(seg));
     options.transformers?.forEach((t) => agent.useTransformer(t));
-    options.responseTransformers?.forEach((t) =>
-      agent.useResponseTransformer(t),
-    );
+    options.responseTransformers?.forEach((t) => agent.useResponseTransformer(t));
 
     await agent.init();
     agentRef.current = agent;
@@ -163,9 +154,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
 
   const appendStepText = useCallback((id: string, delta: string) => {
     setThinkingSteps((prev) => {
-      const next = prev.map((s) =>
-        s.id === id ? { ...s, text: s.text + delta } : s,
-      );
+      const next = prev.map((s) => (s.id === id ? { ...s, text: s.text + delta } : s));
       thinkingStepsRef.current = next;
       return next;
     });
@@ -174,9 +163,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   const addChildStep = useCallback((parentId: string, child: ThinkingStep) => {
     setThinkingSteps((prev) => {
       const next = prev.map((s) =>
-        s.id === parentId
-          ? { ...s, children: [...(s.children ?? []), child] }
-          : s,
+        s.id === parentId ? { ...s, children: [...(s.children ?? []), child] } : s,
       );
       thinkingStepsRef.current = next;
       return next;
@@ -195,16 +182,14 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
       if (isStreaming) return;
 
       const normalizedInput = normalizeTurnInput(input);
-      const userMessageId =
-        turnOptions?.existingUserMessage?.id ?? crypto.randomUUID();
+      const userMessageId = turnOptions?.existingUserMessage?.id ?? crypto.randomUUID();
       const userAttachments = normalizedInput.images.map((image) => image.attachment);
-      const userMsg: ChatMessage =
-        turnOptions?.existingUserMessage ?? {
-          id: userMessageId,
-          role: "user",
-          content: turnOptions?.userMessageContent ?? normalizedInput.text,
-          ...(userAttachments.length > 0 ? { attachments: userAttachments } : {}),
-        };
+      const userMsg: ChatMessage = turnOptions?.existingUserMessage ?? {
+        id: userMessageId,
+        role: "user",
+        content: turnOptions?.userMessageContent ?? normalizedInput.text,
+        ...(userAttachments.length > 0 ? { attachments: userAttachments } : {}),
+      };
       const agentInput = turnOptions?.existingUserMessage
         ? {
             id: userMsg.id,
@@ -242,10 +227,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
       }
 
       const streamingId = crypto.randomUUID();
-      setMessages((prev) => [
-        ...prev,
-        { id: streamingId, role: "assistant", content: "" },
-      ]);
+      setMessages((prev) => [...prev, { id: streamingId, role: "assistant", content: "" }]);
 
       const reasoningStepIdRef = { current: "" };
       const searchStepIdRef = { current: "" };
@@ -389,31 +371,31 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     widgetBuffer.clearBufferedWidgetState();
   }, [widgetBuffer]);
 
-  const reset = useCallback(async (options?: {
-    messages?: ChatMessage[];
-    contextMessages?: ChatMessage[];
-  }) => {
-    widgetBuffer.flushAllBufferedWidgets();
-    agentRef.current?.abort();
-    const nextMessages = options?.messages ?? [];
-    const nextContextMessages = options?.contextMessages ?? nextMessages;
-    initialMessagesRef.current = nextMessages;
-    setMessages(nextMessages);
-    setIsStreaming(false);
-    setStatus({ type: "idle" });
-    setThinkingSteps([]);
-    thinkingStepsRef.current = [];
-    setThinkingCollapsed(false);
-    setIterationLimitPrompt(null);
-    setError(null);
-    widgetBuffer.clearBufferedWidgetState();
+  const reset = useCallback(
+    async (options?: { messages?: ChatMessage[]; contextMessages?: ChatMessage[] }) => {
+      widgetBuffer.flushAllBufferedWidgets();
+      agentRef.current?.abort();
+      const nextMessages = options?.messages ?? [];
+      const nextContextMessages = options?.contextMessages ?? nextMessages;
+      initialMessagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      setIsStreaming(false);
+      setStatus({ type: "idle" });
+      setThinkingSteps([]);
+      thinkingStepsRef.current = [];
+      setThinkingCollapsed(false);
+      setIterationLimitPrompt(null);
+      setError(null);
+      widgetBuffer.clearBufferedWidgetState();
 
-    const agent = await getAgent();
-    await agent.context.clear();
-    for (const message of toAgentHistoryMessages(nextContextMessages)) {
-      await agent.context.append(message);
-    }
-  }, [getAgent, widgetBuffer]);
+      const agent = await getAgent();
+      await agent.context.clear();
+      for (const message of toAgentHistoryMessages(nextContextMessages)) {
+        await agent.context.append(message);
+      }
+    },
+    [getAgent, widgetBuffer],
+  );
 
   return {
     messages,

@@ -13,7 +13,12 @@ import type {
 } from "@/types/desktop";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 
-import { TRASH_WINDOW_ID, WINDOW_Z_BASE, type FolderWindowState, type PreviewWindowState } from "./types";
+import {
+  TRASH_WINDOW_ID,
+  WINDOW_Z_BASE,
+  type FolderWindowState,
+  type PreviewWindowState,
+} from "./types";
 import {
   getColumnsForWidth,
   getDesktopBreadcrumbs,
@@ -214,26 +219,26 @@ export const DesktopWindowLayer = ({
       })}
 
       <DragOverlay dropAnimation={null}>
-        {activeDragId ? (
-          (() => {
-            const dragItem = items.get(activeDragId);
-            if (!dragItem) {
-              return null;
-            }
+        {activeDragId
+          ? (() => {
+              const dragItem = items.get(activeDragId);
+              if (!dragItem) {
+                return null;
+              }
 
-            return (
-              <DesktopItem
-                item={dragItem}
-                isSelected
-                onSelect={() => {}}
-                onContextMenu={() => {}}
-                onOpenItem={() => {}}
-                layout="grid"
-                draggable={false}
-              />
-            );
-          })()
-        ) : null}
+              return (
+                <DesktopItem
+                  item={dragItem}
+                  isSelected
+                  onSelect={() => {}}
+                  onContextMenu={() => {}}
+                  onOpenItem={() => {}}
+                  layout="grid"
+                  draggable={false}
+                />
+              );
+            })()
+          : null}
       </DragOverlay>
     </>
   );

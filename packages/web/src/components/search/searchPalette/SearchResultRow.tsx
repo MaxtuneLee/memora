@@ -70,9 +70,7 @@ export function SearchResultRow({
 
       <div className="relative z-10 min-w-0 flex-1">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="truncate text-[15px] font-semibold text-zinc-800">
-            {item.title}
-          </p>
+          <p className="truncate text-[15px] font-semibold text-zinc-800">{item.title}</p>
           <span className="shrink-0 text-sm text-zinc-300">-</span>
           <p className="truncate text-sm text-zinc-400">
             {item.description || CATEGORY_LABELS[item.kind]}

@@ -149,7 +149,8 @@ body {
   font: inherit;
 }
 
-[data-widget-content] :where(
+[data-widget-content]
+  :where(
     input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
         [type="file"]
       ),
@@ -172,7 +173,8 @@ body {
     color 160ms ease;
 }
 
-[data-widget-content] :where(
+[data-widget-content]
+  :where(
     input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
         [type="file"]
       ),
@@ -181,7 +183,8 @@ body {
   color: var(--color-text-tertiary);
 }
 
-[data-widget-content] :where(
+[data-widget-content]
+  :where(
     input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
         [type="file"]
       ),
@@ -192,7 +195,8 @@ body {
   background: var(--color-background-primary);
 }
 
-[data-widget-content] :where(
+[data-widget-content]
+  :where(
     input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
         [type="file"]
       ),
@@ -204,7 +208,8 @@ body {
   box-shadow: var(--widget-focus-ring);
 }
 
-[data-widget-content] :where(
+[data-widget-content]
+  :where(
     input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
         [type="file"]
       ),

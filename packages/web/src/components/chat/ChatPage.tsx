@@ -36,10 +36,7 @@ export const Component = () => {
   const { openSettings } = useSettingsDialog();
   const openSettingsPanel = useCallback(
     (section?: string) => {
-      openSettings(
-        (section as Parameters<typeof openSettings>[0] | undefined) ??
-          "general",
-      );
+      openSettings((section as Parameters<typeof openSettings>[0] | undefined) ?? "general");
     },
     [openSettings],
   );
@@ -57,9 +54,7 @@ export const Component = () => {
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
   const activeFileRows = store.useQuery(chatActiveFilesQuery$) as LiveStoreFile[];
-  const activeFolderRows = store.useQuery(
-    chatActiveFoldersQuery$,
-  ) as LiveStoreFolder[];
+  const activeFolderRows = store.useQuery(chatActiveFoldersQuery$) as LiveStoreFolder[];
   const activeImageRows = useMemo(() => {
     return activeFileRows.filter((file) => file.type === "image");
   }, [activeFileRows]);
@@ -115,9 +110,7 @@ export const Component = () => {
   }, [references.referencePromptSegment]);
 
   const persistence = useMemo(() => {
-    return activeSessionId
-      ? createOpfsSessionPersistenceAdapter(activeSessionId)
-      : undefined;
+    return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
   }, [activeSessionId]);
 
   const {
@@ -265,8 +258,7 @@ export const Component = () => {
   }, []);
 
   useEffect(() => {
-    const behavior =
-      messages.length > previousMessageCountRef.current ? "smooth" : "auto";
+    const behavior = messages.length > previousMessageCountRef.current ? "smooth" : "auto";
     previousMessageCountRef.current = messages.length;
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, [messages.length, isStreaming, thinkingSteps]);
@@ -352,15 +344,10 @@ export const Component = () => {
 
   const displayedMessages = messages;
   const hasMessages = displayedMessages.length > 0;
-  const composerScrollInset =
-    composerOverlayHeight > 0 ? composerOverlayHeight : 320;
-  const composerFadeHeight = Math.min(
-    Math.max(composerOverlayHeight + 40, 160),
-    320,
-  );
+  const composerScrollInset = composerOverlayHeight > 0 ? composerOverlayHeight : 320;
+  const composerFadeHeight = Math.min(Math.max(composerOverlayHeight + 40, 160), 320);
   const activeSessionTitle =
-    sessions.find((session) => session.id === activeSessionId)?.title ??
-    "Select a session";
+    sessions.find((session) => session.id === activeSessionId)?.title ?? "Select a session";
   const timeGreeting = useMemo(() => resolveTimeGreeting(new Date()), []);
   const onboardingGreetingName = resolveGreetingName(settings.onboardingName);
   const effectiveGreetingName = onboardingGreetingName ?? greetingName;
@@ -434,8 +421,7 @@ export const Component = () => {
         onOpenSettings: openSettingsPanel,
         onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
         onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,
-        onToggleImageLibrary: () =>
-          composerImages.setImagePickerOpen((value) => !value),
+        onToggleImageLibrary: () => composerImages.setImagePickerOpen((value) => !value),
         onCloseImagePicker: composerImages.closeImagePicker,
         onImagePickerQueryChange: composerImages.setImagePickerQuery,
         onSelectLibraryImage: composerImages.handleSelectLibraryImage,
@@ -456,9 +442,7 @@ export const Component = () => {
         onCompositionEnd: turnActions.handleCompositionEnd,
         onCreateSession: () => void handleCreateSession(),
         onImageButtonClick: () =>
-          composerImages.handleImageButtonClick(
-            references.closeReferencePicker,
-          ),
+          composerImages.handleImageButtonClick(references.closeReferencePicker),
         onReferenceButtonClick: references.handleReferenceButtonClick,
         onAbort: abort,
         onRemoveComposerImage: composerImages.handleRemoveComposerImage,

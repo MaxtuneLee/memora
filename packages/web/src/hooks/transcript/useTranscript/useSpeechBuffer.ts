@@ -1,9 +1,6 @@
 import { useCallback, useRef } from "react";
 
-import {
-  WHISPER_MAX_SAMPLES,
-  WHISPER_SAMPLE_RATE,
-} from "@/lib/transcript/transcriptUtils";
+import { WHISPER_MAX_SAMPLES, WHISPER_SAMPLE_RATE } from "@/lib/transcript/transcriptUtils";
 
 export const useSpeechBuffer = ({
   enqueueSpeech,
@@ -48,8 +45,7 @@ export const useSpeechBuffer = ({
         const chunk = consumeSpeechBuffer(WHISPER_MAX_SAMPLES);
         speechBufferSizeRef.current -= WHISPER_MAX_SAMPLES;
         if (speechStartSecRef.current != null) {
-          const chunkStartSec =
-            speechStartSecRef.current + speechBufferOffsetSecRef.current;
+          const chunkStartSec = speechStartSecRef.current + speechBufferOffsetSecRef.current;
           enqueueSpeech(chunk, chunkStartSec);
           speechBufferOffsetSecRef.current += chunk.length / WHISPER_SAMPLE_RATE;
         }
@@ -66,8 +62,7 @@ export const useSpeechBuffer = ({
     const chunk = consumeSpeechBuffer(speechBufferSizeRef.current);
     speechBufferSizeRef.current = 0;
     if (speechStartSecRef.current != null) {
-      const chunkStartSec =
-        speechStartSecRef.current + speechBufferOffsetSecRef.current;
+      const chunkStartSec = speechStartSecRef.current + speechBufferOffsetSecRef.current;
       enqueueSpeech(chunk, chunkStartSec);
       speechBufferOffsetSecRef.current += chunk.length / WHISPER_SAMPLE_RATE;
     }

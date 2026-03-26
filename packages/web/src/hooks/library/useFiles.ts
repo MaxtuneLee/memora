@@ -8,14 +8,8 @@ import {
 } from "@/lib/library/fileService";
 import { activeFilesQuery$ } from "@/lib/library/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
-import {
-  type FileItem,
-  type FileMeta,
-} from "@/types/library";
-import {
-  fileEvents,
-  type file as LiveStoreFile,
-} from "@/livestore/file";
+import { type FileItem, type FileMeta } from "@/types/library";
+import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
 
 interface UseFilesOptions {
   mediaOnly?: boolean;
@@ -35,9 +29,7 @@ export const useFiles = (options: UseFilesOptions = {}) => {
 
   const buildFiles = useCallback(
     async (rows: readonly LiveStoreFile[]) => {
-      const eligibleRows = mediaOnly
-        ? rows.filter((file) => isMediaFile(file))
-        : rows;
+      const eligibleRows = mediaOnly ? rows.filter((file) => isMediaFile(file)) : rows;
 
       return Promise.all(
         eligibleRows.map(async (row) => {
@@ -55,11 +47,8 @@ export const useFiles = (options: UseFilesOptions = {}) => {
           return {
             ...meta,
             transcript,
-            transcriptPreview:
-              transcript?.text?.slice(0, 280) ?? meta.transcriptPreview ?? null,
-            audioUrl: isMediaFile(meta)
-              ? audioUrlCacheRef.current.get(meta.id)
-              : undefined,
+            transcriptPreview: transcript?.text?.slice(0, 280) ?? meta.transcriptPreview ?? null,
+            audioUrl: isMediaFile(meta) ? audioUrlCacheRef.current.get(meta.id) : undefined,
           } satisfies FileItem;
         }),
       );
@@ -89,9 +78,7 @@ export const useFiles = (options: UseFilesOptions = {}) => {
     async (meta: FileItem) => {
       const url = await getFileAudioUrl(meta);
       setFiles((prev) =>
-        prev.map((item) =>
-          item.id === meta.id ? { ...item, audioUrl: url ?? undefined } : item,
-        ),
+        prev.map((item) => (item.id === meta.id ? { ...item, audioUrl: url ?? undefined } : item)),
       );
       setActiveFileId(meta.id);
     },

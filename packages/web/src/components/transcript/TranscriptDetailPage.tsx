@@ -14,17 +14,8 @@ import { RecordingHeader } from "@/components/transcript/transcriptDetail/Record
 import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
 import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
 import { fileEvents } from "@/livestore/file";
-import {
-  FILES_DIR,
-  TRANSCRIPT_SUFFIX,
-  type FileType,
-  type RecordingWord,
-} from "@/types/library";
-import {
-  buildSrt,
-  downloadText,
-  searchTranscript,
-} from "@/lib/transcript/transcriptSearchExport";
+import { FILES_DIR, TRANSCRIPT_SUFFIX, type FileType, type RecordingWord } from "@/types/library";
+import { buildSrt, downloadText, searchTranscript } from "@/lib/transcript/transcriptSearchExport";
 
 const buildExportFileName = (name: string, ext: "txt" | "srt"): string => {
   const sanitized = name
@@ -82,8 +73,7 @@ export const Component = () => {
   const transcriptWords = recording?.transcript?.words ?? EMPTY_WORDS;
   const transcriptText = recording?.transcript?.text ?? "";
   const transcriptDiagnostics = recording?.transcript?.diagnostics;
-  const hasSearchableTranscript =
-    transcriptWords.length > 0 || transcriptText.trim().length > 0;
+  const hasSearchableTranscript = transcriptWords.length > 0 || transcriptText.trim().length > 0;
   const hasTranscript =
     !!recording?.transcript && (hasSearchableTranscript || !!transcriptDiagnostics);
 
@@ -259,8 +249,7 @@ export const Component = () => {
     (nextIndex: number) => {
       if (searchMatches.length === 0) return;
       const normalized =
-        ((nextIndex % searchMatches.length) + searchMatches.length) %
-        searchMatches.length;
+        ((nextIndex % searchMatches.length) + searchMatches.length) % searchMatches.length;
       const match = searchMatches[normalized];
       setActiveMatchIndex(normalized);
 
@@ -275,7 +264,11 @@ export const Component = () => {
     if (!recording) return;
 
     const content =
-      transcriptText.trim() || transcriptWords.map((word) => word.text).join("").trim();
+      transcriptText.trim() ||
+      transcriptWords
+        .map((word) => word.text)
+        .join("")
+        .trim();
     if (!content) return;
 
     downloadText(content, buildExportFileName(recording.name, "txt"));
@@ -342,10 +335,7 @@ export const Component = () => {
   const transcriptWordCount =
     transcriptWords.length > 0
       ? transcriptWords.length
-      : transcriptText
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean).length;
+      : transcriptText.trim().split(/\s+/).filter(Boolean).length;
   const transcriptStatusLabel = isTranscribing
     ? "Transcribing now"
     : hasSearchableTranscript
@@ -363,9 +353,7 @@ export const Component = () => {
     recordingTypeLabel,
     recordingDurationLabel,
     transcriptStatusLabel,
-    transcriptWordCount > 0
-      ? `${transcriptWordCount.toLocaleString()} words`
-      : "No text yet",
+    transcriptWordCount > 0 ? `${transcriptWordCount.toLocaleString()} words` : "No text yet",
   ] as const;
 
   return (

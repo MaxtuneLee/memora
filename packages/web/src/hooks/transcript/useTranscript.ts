@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@livestore/react";
 import { MicVAD } from "@ricky0123/vad-web";
 import { dir as opfsDir } from "@memora/fs";
-import {
-  type RecordingWord,
-  type TranscriptDiagnostics,
-} from "@/types/library";
+import { type RecordingWord, type TranscriptDiagnostics } from "@/types/library";
 import {
   TRANSFORMERS_CACHE_DIR,
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
@@ -57,22 +54,15 @@ export const useTranscript = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">(
-    "idle",
-  );
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
   const isWebGpuAvailable = !!(navigator.gpu && "GPUBufferUsage" in window);
-  const {
-    pendingSegmentsRef,
-    currentSegmentRef,
-    isProcessingRef,
-    tryProcessNext,
-    enqueueSpeech,
-  } = useSpeechQueue({
-    workerRef: worker,
-    languageRef,
-  });
+  const { pendingSegmentsRef, currentSegmentRef, isProcessingRef, tryProcessNext, enqueueSpeech } =
+    useSpeechQueue({
+      workerRef: worker,
+      languageRef,
+    });
   const {
     collectingRef,
     speechBufferSizeRef,
@@ -84,19 +74,13 @@ export const useTranscript = () => {
   } = useSpeechBuffer({
     enqueueSpeech,
   });
-  const {
-    clearWordAnimations,
-    enqueueWordAnimation,
-  } = useWordAnimation({
+  const { clearWordAnimations, enqueueWordAnimation } = useWordAnimation({
     accumulatedTextRef,
     setAccumulatedText,
     setCurrentSegmentPrefix,
     setCurrentSegment,
   });
-  const {
-    pendingSaveRef,
-    maybeFinalizeRecording,
-  } = useRecordingFinalizer({
+  const { pendingSaveRef, maybeFinalizeRecording } = useRecordingFinalizer({
     store,
     mediaRecorderRef,
     mediaChunksRef,
@@ -158,8 +142,7 @@ export const useTranscript = () => {
           if (recordingStartRef.current) {
             const now = performance.now();
             speechStartTimeRef.current = now;
-            speechStartSecRef.current =
-              (now - recordingStartRef.current) / 1000;
+            speechStartSecRef.current = (now - recordingStartRef.current) / 1000;
           }
         },
         onVADMisfire: () => {
@@ -267,14 +250,8 @@ export const useTranscript = () => {
     pendingSaveRef.current = false;
     mediaChunksRef.current = [];
 
-    const mimeCandidates = [
-      "audio/webm;codecs=opus",
-      "audio/webm",
-      "audio/ogg;codecs=opus",
-    ];
-    const mimeType = mimeCandidates.find((type) =>
-      MediaRecorder.isTypeSupported(type),
-    );
+    const mimeCandidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+    const mimeType = mimeCandidates.find((type) => MediaRecorder.isTypeSupported(type));
 
     const recorder = new MediaRecorder(mediaStream, {
       mimeType: mimeType || undefined,
@@ -367,9 +344,7 @@ export const useTranscript = () => {
           );
           break;
         case "done":
-          setProgressItems((previous) =>
-            previous.filter((item) => item.file !== message.file),
-          );
+          setProgressItems((previous) => previous.filter((item) => item.file !== message.file));
           break;
         case "ready":
           setStatus("ready");
@@ -404,21 +379,16 @@ export const useTranscript = () => {
           setLastSegmentDiagnostics(evaluation.diagnostics);
           const offsetSec = currentSegmentRef.current?.startSec ?? 0;
           const adjustedChunks: RecordingWord[] = evaluation.words.map((chunk) => ({
-              text: chunk.text,
-              timestamp: [
-                chunk.timestamp[0] + offsetSec,
-                chunk.timestamp[1] + offsetSec,
-              ],
-            }));
+            text: chunk.text,
+            timestamp: [chunk.timestamp[0] + offsetSec, chunk.timestamp[1] + offsetSec],
+          }));
           currentSegmentRef.current = null;
 
           if (evaluation.shouldKeep && evaluation.words.length > 0) {
             enqueueWordAnimation(evaluation.words, evaluation.text);
           } else if (evaluation.shouldKeep) {
             setAccumulatedText((prev) => {
-              const nextText = prev
-                ? `${prev} ${evaluation.text.trim()}`
-                : evaluation.text.trim();
+              const nextText = prev ? `${prev} ${evaluation.text.trim()}` : evaluation.text.trim();
               accumulatedTextRef.current = nextText;
               return nextText;
             });

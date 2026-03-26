@@ -47,9 +47,7 @@ export type SaveRecordingResult = {
 export const saveRecording = async (input: SaveRecordingInput): Promise<SaveRecordingResult> => {
   const createdAt = input.createdAt ?? Date.now();
   const transcript =
-    input.transcriptText ||
-    (input.transcriptWords?.length ?? 0) > 0 ||
-    input.transcriptDiagnostics
+    input.transcriptText || (input.transcriptWords?.length ?? 0) > 0 || input.transcriptDiagnostics
       ? ({
           text: input.transcriptText ?? "",
           words: input.transcriptWords ?? [],
@@ -107,7 +105,7 @@ export const migrateLegacyRecordings = async () => {
   await Promise.all(
     legacyMetas.map(async ({ meta, transcript }) => {
       await migrateLegacyRecording(meta, transcript);
-    })
+    }),
   );
 };
 

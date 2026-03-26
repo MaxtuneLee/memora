@@ -20,10 +20,7 @@ export const TranscriptDiagnosticsPanel = ({
         Transcript diagnostics
       </summary>
       <div className="border-t border-zinc-200 p-4">
-        <TranscriptDiagnosticsCard
-          diagnostics={diagnostics}
-          title="Transcript Diagnostics"
-        />
+        <TranscriptDiagnosticsCard diagnostics={diagnostics} title="Transcript Diagnostics" />
       </div>
     </details>
   );

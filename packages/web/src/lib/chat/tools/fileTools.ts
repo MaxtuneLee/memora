@@ -4,11 +4,7 @@ import * as v from "valibot";
 
 import { fileTable } from "@/livestore/file";
 
-import {
-  EMPTY_REFERENCE_SCOPE,
-  type CreateChatToolsOptions,
-  type StoreQueryable,
-} from "./shared";
+import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
 const WRITABLE_PATH_PREFIXES = ["/chat/", "/files/"] as const;
 
@@ -46,8 +42,7 @@ export const createFileTools = (
           offset?: number;
           limit?: number;
         };
-        const referenceScope =
-          options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         if (referenceScope.isActive) {
           const allowedPaths = new Set(referenceScope.allowedPaths);
           if (!allowedPaths.has(payload.path)) {
@@ -86,8 +81,7 @@ export const createFileTools = (
           ignore_case?: boolean;
           max_matches?: number;
         };
-        const referenceScope =
-          options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         const scopedIds = new Set(referenceScope.fileIds);
         const activeRows = store.query(
           fileTable.where({ deletedAt: null, purgedAt: null }),

@@ -36,18 +36,12 @@ export const useChatComposerImages = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const composerImagesRef = useRef<ChatImageAttachment[]>([]);
   const dragDepthRef = useRef(0);
-  const [composerImages, setComposerImages] = useState<ChatImageAttachment[]>(
-    [],
-  );
+  const [composerImages, setComposerImages] = useState<ChatImageAttachment[]>([]);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [imagePickerQuery, setImagePickerQuery] = useState("");
-  const [composerNotice, setComposerNotice] = useState<ComposerNotice | null>(
-    null,
-  );
+  const [composerNotice, setComposerNotice] = useState<ComposerNotice | null>(null);
   const [composerDragActive, setComposerDragActive] = useState(false);
-  const [savingImageAttachmentIds, setSavingImageAttachmentIds] = useState<
-    string[]
-  >([]);
+  const [savingImageAttachmentIds, setSavingImageAttachmentIds] = useState<string[]>([]);
 
   const savingImageAttachmentIdSet = useMemo(() => {
     return new Set(savingImageAttachmentIds);
@@ -70,16 +64,13 @@ export const useChatComposerImages = ({
     };
   }, [composerNotice]);
 
-  const cleanupComposerImages = useCallback(
-    (attachments: ChatImageAttachment[]) => {
-      void Promise.all(
-        attachments.map(async (attachment) => {
-          await deleteChatImageAttachmentAsset(attachment);
-        }),
-      );
-    },
-    [],
-  );
+  const cleanupComposerImages = useCallback((attachments: ChatImageAttachment[]) => {
+    void Promise.all(
+      attachments.map(async (attachment) => {
+        await deleteChatImageAttachmentAsset(attachment);
+      }),
+    );
+  }, []);
 
   useEffect(() => {
     cleanupComposerImages(composerImagesRef.current);
@@ -119,10 +110,7 @@ export const useChatComposerImages = ({
       .slice(0, 40);
   }, [activeImageRows, composerImages, imagePickerQuery]);
 
-  const remainingImageSlots = Math.max(
-    0,
-    MAX_CHAT_IMAGE_ATTACHMENTS - composerImages.length,
-  );
+  const remainingImageSlots = Math.max(0, MAX_CHAT_IMAGE_ATTACHMENTS - composerImages.length);
 
   const closeImagePicker = useCallback(() => {
     setImagePickerOpen(false);
@@ -131,35 +119,32 @@ export const useChatComposerImages = ({
     dragDepthRef.current = 0;
   }, []);
 
-  const pushComposerImages = useCallback(
-    (nextAttachments: ChatImageAttachment[]) => {
-      if (nextAttachments.length === 0) {
-        return;
+  const pushComposerImages = useCallback((nextAttachments: ChatImageAttachment[]) => {
+    if (nextAttachments.length === 0) {
+      return;
+    }
+
+    setComposerImages((prev) => {
+      const remainingSlotsInState = MAX_CHAT_IMAGE_ATTACHMENTS - prev.length;
+      if (remainingSlotsInState <= 0) {
+        setComposerNotice({
+          type: "error",
+          text: `You can attach up to ${MAX_CHAT_IMAGE_ATTACHMENTS} images per message.`,
+        });
+        return prev;
       }
 
-      setComposerImages((prev) => {
-        const remainingSlotsInState = MAX_CHAT_IMAGE_ATTACHMENTS - prev.length;
-        if (remainingSlotsInState <= 0) {
-          setComposerNotice({
-            type: "error",
-            text: `You can attach up to ${MAX_CHAT_IMAGE_ATTACHMENTS} images per message.`,
-          });
-          return prev;
-        }
+      const accepted = nextAttachments.slice(0, remainingSlotsInState);
+      if (accepted.length < nextAttachments.length) {
+        setComposerNotice({
+          type: "info",
+          text: `Only the first ${MAX_CHAT_IMAGE_ATTACHMENTS} images were kept.`,
+        });
+      }
 
-        const accepted = nextAttachments.slice(0, remainingSlotsInState);
-        if (accepted.length < nextAttachments.length) {
-          setComposerNotice({
-            type: "info",
-            text: `Only the first ${MAX_CHAT_IMAGE_ATTACHMENTS} images were kept.`,
-          });
-        }
-
-        return [...prev, ...accepted];
-      });
-    },
-    [],
-  );
+      return [...prev, ...accepted];
+    });
+  }, []);
 
   const addLocalImagesToComposer = useCallback(
     async (files: File[]) => {
@@ -200,10 +185,7 @@ export const useChatComposerImages = ({
       const errors: string[] = [];
       for (const file of filesToAttach) {
         try {
-          const attachment = await createLocalChatImageAttachment(
-            activeSessionId,
-            file,
-          );
+          const attachment = await createLocalChatImageAttachment(activeSessionId, file);
           nextAttachments.push(attachment);
         } catch (error) {
           errors.push(error instanceof Error ? error.message : String(error));
@@ -254,8 +236,7 @@ export const useChatComposerImages = ({
     (file: LiveStoreFile) => {
       if (
         composerImagesRef.current.some(
-          (attachment) =>
-            attachment.source === "library" && attachment.fileId === file.id,
+          (attachment) => attachment.source === "library" && attachment.fileId === file.id,
         )
       ) {
         setComposerNotice({
@@ -272,10 +253,7 @@ export const useChatComposerImages = ({
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text:
-            error instanceof Error
-              ? error.message
-              : "Could not attach that image.",
+          text: error instanceof Error ? error.message : "Could not attach that image.",
         });
       }
     },
@@ -291,9 +269,7 @@ export const useChatComposerImages = ({
         cleanupComposerImages([nextAttachment]);
       }
 
-      setComposerImages((prev) =>
-        prev.filter((attachment) => attachment.id !== attachmentId),
-      );
+      setComposerImages((prev) => prev.filter((attachment) => attachment.id !== attachmentId));
     },
     [cleanupComposerImages],
   );
@@ -301,9 +277,7 @@ export const useChatComposerImages = ({
   const handleComposerPaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
       const imageFiles = Array.from(event.clipboardData.items)
-        .filter(
-          (item) => item.kind === "file" && item.type.startsWith("image/"),
-        )
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
         .map((item) => item.getAsFile())
         .filter((file): file is File => file !== null);
 
@@ -413,9 +387,7 @@ export const useChatComposerImages = ({
         updateMessage(messageId, (message) => ({
           ...message,
           attachments: message.attachments?.map((attachment) =>
-            attachment.id === attachmentId
-              ? { ...attachment, savedFileId: result.id }
-              : attachment,
+            attachment.id === attachmentId ? { ...attachment, savedFileId: result.id } : attachment,
           ),
         }));
         setComposerNotice({
@@ -425,10 +397,7 @@ export const useChatComposerImages = ({
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text:
-            error instanceof Error
-              ? error.message
-              : "Could not save that image.",
+          text: error instanceof Error ? error.message : "Could not save that image.",
         });
       } finally {
         setSavingImageAttachmentIds((prev) => {

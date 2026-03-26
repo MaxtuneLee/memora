@@ -48,7 +48,10 @@ export const AudioPlayerController = ({
     seek,
   } = useAudioPlayer(audioRef, audioReadyToken, duration ?? undefined);
 
-  const { data: waveformData, isLoading: isWaveformLoading } = useWaveformData(audioUrl, WAVEFORM_BAR_COUNT);
+  const { data: waveformData, isLoading: isWaveformLoading } = useWaveformData(
+    audioUrl,
+    WAVEFORM_BAR_COUNT,
+  );
 
   const [uiTime, setUiTime] = useState(0);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
@@ -118,9 +121,7 @@ export const AudioPlayerController = ({
           {/* Transcript view */}
           <div
             className={`transition-all duration-500 ease-out ${
-              showTranscript
-                ? "min-h-64 opacity-100"
-                : "h-0 opacity-0 overflow-hidden"
+              showTranscript ? "min-h-64 opacity-100" : "h-0 opacity-0 overflow-hidden"
             }`}
           >
             <div className="p-4">
@@ -128,18 +129,12 @@ export const AudioPlayerController = ({
                 <div className="flex flex-col items-center justify-center gap-4 py-12">
                   <div className="size-8 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-600" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-zinc-700">
-                      Transcribing audio...
-                    </p>
+                    <p className="text-sm font-medium text-zinc-700">Transcribing audio...</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      {transcriptionStatus === "loading-model" &&
-                        "Loading AI model..."}
-                      {transcriptionStatus === "decoding" &&
-                        "Decoding audio..."}
-                      {transcriptionStatus === "transcribing" &&
-                        "Processing speech..."}
-                      {transcriptionStatus === "saving" &&
-                        "Saving transcript..."}
+                      {transcriptionStatus === "loading-model" && "Loading AI model..."}
+                      {transcriptionStatus === "decoding" && "Decoding audio..."}
+                      {transcriptionStatus === "transcribing" && "Processing speech..."}
+                      {transcriptionStatus === "saving" && "Saving transcript..."}
                     </p>
                     <div className="mt-3 h-1.5 w-48 mx-auto overflow-hidden rounded-full bg-zinc-200">
                       <div
@@ -150,19 +145,13 @@ export const AudioPlayerController = ({
                   </div>
                 </div>
               ) : transcript?.words && transcript.words.length > 0 ? (
-                <TranscriptWords
-                  words={transcript.words}
-                  currentTime={uiTime}
-                  onSeek={seek}
-                />
+                <TranscriptWords words={transcript.words} currentTime={uiTime} onSeek={seek} />
               ) : transcript?.text ? (
                 <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
                   {transcript.text}
                 </p>
               ) : (
-                <p className="text-sm text-zinc-500 text-center py-8">
-                  No transcript available
-                </p>
+                <p className="text-sm text-zinc-500 text-center py-8">No transcript available</p>
               )}
             </div>
           </div>

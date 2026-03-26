@@ -93,19 +93,11 @@ const normalizeTokenUsage = (value: unknown): TokenUsage | undefined => {
     candidate.input_tokens ?? candidate.inputTokens ?? candidate.prompt_tokens,
   );
   const outputTokens = normalizeUsageValue(
-    candidate.output_tokens ??
-      candidate.outputTokens ??
-      candidate.completion_tokens,
+    candidate.output_tokens ?? candidate.outputTokens ?? candidate.completion_tokens,
   );
-  const totalTokens = normalizeUsageValue(
-    candidate.total_tokens ?? candidate.totalTokens,
-  );
+  const totalTokens = normalizeUsageValue(candidate.total_tokens ?? candidate.totalTokens);
 
-  if (
-    inputTokens === undefined &&
-    outputTokens === undefined &&
-    totalTokens === undefined
-  ) {
+  if (inputTokens === undefined && outputTokens === undefined && totalTokens === undefined) {
     return undefined;
   }
 
@@ -147,9 +139,7 @@ const extractReasoningText = (delta: SSEChunkDelta): string | undefined => {
   return reasoningDetails || undefined;
 };
 
-export async function* parseSSEStream(
-  response: Response,
-): AsyncGenerator<AgentEvent> {
+export async function* parseSSEStream(response: Response): AsyncGenerator<AgentEvent> {
   if (!response.body) {
     throw new Error("Response body is null");
   }
@@ -159,10 +149,7 @@ export async function* parseSSEStream(
   let buffer = "";
 
   let reasoningText = "";
-  const pendingToolCalls = new Map<
-    number,
-    { id: string; name: string; arguments: string }
-  >();
+  const pendingToolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
   const flushReasoning = (): AgentEvent[] => {
     if (!reasoningText) {
@@ -350,9 +337,7 @@ async function* readSSELines(response: Response): AsyncGenerator<string> {
   }
 }
 
-export async function* parseResponsesStream(
-  response: Response,
-): AsyncGenerator<AgentEvent> {
+export async function* parseResponsesStream(response: Response): AsyncGenerator<AgentEvent> {
   const pendingFunctionCalls = new Map<
     string,
     { itemId: string; callId: string; name: string; arguments: string }
@@ -492,19 +477,14 @@ export async function* parseResponsesStream(
         const itemId = event.item?.id ?? "";
 
         if (itemType === "function_call") {
-          const callId =
-            event.item?.call_id ??
-            pendingFunctionCallItemIds.get(itemId) ??
-            itemId;
+          const callId = event.item?.call_id ?? pendingFunctionCallItemIds.get(itemId) ?? itemId;
           const fc = pendingFunctionCalls.get(callId);
           const bufferedArgs = fc?.arguments ?? "";
           const args = event.item?.arguments ?? fc?.arguments ?? "{}";
           const name = event.item?.name ?? fc?.name ?? "";
 
           if (args && args !== bufferedArgs) {
-            const delta = args.startsWith(bufferedArgs)
-              ? args.slice(bufferedArgs.length)
-              : args;
+            const delta = args.startsWith(bufferedArgs) ? args.slice(bufferedArgs.length) : args;
 
             if (delta) {
               if (fc) {
@@ -548,10 +528,7 @@ export async function* parseResponsesStream(
 
       case "response.function_call_arguments.delta": {
         if (event.delta) {
-          const callId =
-            pendingFunctionCallItemIds.get(event.item_id ?? "") ??
-            event.item_id ??
-            "";
+          const callId = pendingFunctionCallItemIds.get(event.item_id ?? "") ?? event.item_id ?? "";
           const fc = pendingFunctionCalls.get(callId);
           if (fc) {
             fc.arguments += event.delta;

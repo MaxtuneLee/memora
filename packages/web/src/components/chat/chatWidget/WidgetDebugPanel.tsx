@@ -2,10 +2,7 @@ import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import type { ShowWidgetDebugState } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
-import {
-  formatDebugTimestamp,
-  formatStreamFootprint,
-} from "./constants";
+import { formatDebugTimestamp, formatStreamFootprint } from "./constants";
 
 export const WidgetDebugPanel = ({
   widget,
@@ -52,11 +49,7 @@ export const WidgetDebugPanel = ({
           </div>
           <div>
             <span className="text-zinc-500">script</span>:{" "}
-            {parsedCode.hasScript
-              ? parsedCode.scriptReady
-                ? "ready"
-                : "streaming"
-              : "none"}
+            {parsedCode.hasScript ? (parsedCode.scriptReady ? "ready" : "streaming") : "none"}
           </div>
           <div>
             <span className="text-zinc-500">runtime dom</span>:{" "}

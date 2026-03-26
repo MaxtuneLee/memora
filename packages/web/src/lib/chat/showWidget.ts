@@ -20,16 +20,8 @@ export const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
   art: ["sections/svg_setup.md", "sections/art_and_illustration.md"],
   mockup: ["sections/ui_components.md", "sections/color_palette.md"],
   interactive: ["sections/ui_components.md", "sections/color_palette.md"],
-  chart: [
-    "sections/ui_components.md",
-    "sections/color_palette.md",
-    "sections/charts_chart_js.md",
-  ],
-  diagram: [
-    "sections/color_palette.md",
-    "sections/svg_setup.md",
-    "sections/diagram_types.md",
-  ],
+  chart: ["sections/ui_components.md", "sections/color_palette.md", "sections/charts_chart_js.md"],
+  diagram: ["sections/color_palette.md", "sections/svg_setup.md", "sections/diagram_types.md"],
 };
 
 export const OPTIONAL_MODULE_SUPPLEMENTS: Record<ShowWidgetModule, string[]> = {
@@ -88,9 +80,7 @@ const toUniqueArray = (values: string[]): string[] => {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 };
 
-const getModuleForGuidelinePath = (
-  path: string,
-): ShowWidgetModule | null => {
+const getModuleForGuidelinePath = (path: string): ShowWidgetModule | null => {
   const normalized = normalizePath(path);
 
   for (const [moduleName, guidelinePath] of Object.entries(MODULE_GUIDELINE_PATHS)) {
@@ -145,9 +135,9 @@ export const parsePartialShowWidgetArguments = (
   }
 
   try {
-    const parsed = parsePartialJson(raw, Allow.ALL) as
-      | Partial<Record<keyof ShowWidgetArguments, unknown>>
-      | null;
+    const parsed = parsePartialJson(raw, Allow.ALL) as Partial<
+      Record<keyof ShowWidgetArguments, unknown>
+    > | null;
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return null;
@@ -166,11 +156,9 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
   }
 
   const candidate = value as Partial<ChatWidget>;
-  const toolCallId =
-    typeof candidate.toolCallId === "string" ? candidate.toolCallId.trim() : "";
+  const toolCallId = typeof candidate.toolCallId === "string" ? candidate.toolCallId.trim() : "";
   const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
-  const widgetCode =
-    typeof candidate.widgetCode === "string" ? candidate.widgetCode : "";
+  const widgetCode = typeof candidate.widgetCode === "string" ? candidate.widgetCode : "";
   const loadingMessages = toStringArray(candidate.loadingMessages);
   const errorMessage =
     typeof candidate.errorMessage === "string" && candidate.errorMessage.trim()
@@ -179,9 +167,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
 
   if (
     !toolCallId ||
-    (candidate.phase !== "streaming" &&
-      candidate.phase !== "ready" &&
-      candidate.phase !== "error")
+    (candidate.phase !== "streaming" && candidate.phase !== "ready" && candidate.phase !== "error")
   ) {
     return null;
   }
@@ -196,9 +182,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
   };
 };
 
-export const normalizeChatWidgets = (
-  value: unknown,
-): ChatWidget[] | undefined => {
+export const normalizeChatWidgets = (value: unknown): ChatWidget[] | undefined => {
   if (!Array.isArray(value)) {
     return undefined;
   }
@@ -219,9 +203,7 @@ export const normalizeChatWidgets = (
   return normalized.length > 0 ? normalized : undefined;
 };
 
-export const validateShowWidgetCall = (
-  params: ShowWidgetArguments,
-): string | null => {
+export const validateShowWidgetCall = (params: ShowWidgetArguments): string | null => {
   const normalizedTitle = params.title.trim();
   if (!normalizedTitle) {
     return "title must not be empty.";
@@ -276,15 +258,11 @@ export const createShowWidgetSkillTracker = (): ShowWidgetSkillTracker => {
       return;
     }
 
-    const optionalSupplements =
-      OPTIONAL_MODULE_SUPPLEMENTS[state.lastCategoryRead] ?? [];
+    const optionalSupplements = OPTIONAL_MODULE_SUPPLEMENTS[state.lastCategoryRead] ?? [];
     if (optionalSupplements.includes(normalizedPath)) {
       state = {
         ...state,
-        optionalSupplementsRead: toUniqueArray([
-          ...state.optionalSupplementsRead,
-          normalizedPath,
-        ]),
+        optionalSupplementsRead: toUniqueArray([...state.optionalSupplementsRead, normalizedPath]),
       };
     }
   };
@@ -312,10 +290,7 @@ export const createShowWidgetSkillTracker = (): ShowWidgetSkillTracker => {
       },
       readSkillResource: async (skillName, resourcePath) => {
         const result = await store.readSkillResource(skillName, resourcePath);
-        if (
-          result.ok &&
-          skillName.trim() === SHOW_WIDGET_SKILL_NAME
-        ) {
+        if (result.ok && skillName.trim() === SHOW_WIDGET_SKILL_NAME) {
           markResourceRead(result.path);
         }
         return result;

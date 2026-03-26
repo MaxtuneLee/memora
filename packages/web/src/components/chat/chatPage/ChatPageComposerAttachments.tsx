@@ -41,9 +41,7 @@ export const ChatPageComposerAttachments = ({
         <div className="mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 shadow-sm">
           <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">
-                Attached images
-              </p>
+              <p className="text-sm font-semibold text-zinc-900">Attached images</p>
               <p className="text-xs text-zinc-500">
                 {composerImages.length} attached, {remainingImageSlots} slot
                 {remainingImageSlots === 1 ? "" : "s"} left
@@ -83,8 +81,8 @@ export const ChatPageComposerAttachments = ({
             <div>
               <p className="text-sm font-semibold text-zinc-900">Add images</p>
               <p className="text-xs text-zinc-500">
-                Paste, drop, upload, or pick from your library.{" "}
-                {remainingImageSlots} slot{remainingImageSlots === 1 ? "" : "s"} left.
+                Paste, drop, upload, or pick from your library. {remainingImageSlots} slot
+                {remainingImageSlots === 1 ? "" : "s"} left.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -135,9 +133,7 @@ export const ChatPageComposerAttachments = ({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {file.name}
-                        </p>
+                        <p className="truncate text-sm font-medium">{file.name}</p>
                         <p
                           className={`mt-1 text-[11px] ${
                             isSelected ? "text-zinc-200" : "text-zinc-500"

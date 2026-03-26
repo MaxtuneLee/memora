@@ -13,9 +13,7 @@ export const normalizeSkillName = (value: string): string => {
   return value.trim();
 };
 
-export const normalizeSkillResourcePath = (
-  value: string,
-): string | { error: string } => {
+export const normalizeSkillResourcePath = (value: string): string | { error: string } => {
   const normalized = value.trim().replaceAll("\\", "/");
   if (!normalized) {
     return { error: "A relative resource path is required." };
@@ -25,11 +23,7 @@ export const normalizeSkillResourcePath = (
   }
 
   const segments = normalized.split("/");
-  if (
-    segments.some(
-      (segment) => segment.length === 0 || segment === "." || segment === "..",
-    )
-  ) {
+  if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
     return { error: "Skill resource paths must stay within the skill directory." };
   }
   if (normalized === "SKILL.md") {
@@ -51,10 +45,7 @@ const getSkillMetadataPath = (skillName: string): string => {
   return `${getSkillRootPath(skillName)}/${BUNDLED_SKILL_METADATA_FILE}`;
 };
 
-export const getResourceAbsolutePath = (
-  skillName: string,
-  resourcePath: string,
-): string => {
+export const getResourceAbsolutePath = (skillName: string, resourcePath: string): string => {
   return `${getSkillRootPath(skillName)}/${resourcePath}`;
 };
 
@@ -117,18 +108,14 @@ const writeResourceToOpfs = async (
 
   const response = await fetch(resource.assetUrl);
   if (!response.ok) {
-    throw new Error(
-      `Failed to load bundled skill resource "${resource.path}" for "${skillName}".`,
-    );
+    throw new Error(`Failed to load bundled skill resource "${resource.path}" for "${skillName}".`);
   }
 
   const bytes = await response.arrayBuffer();
   await write(resourcePath, bytes, { overwrite: true });
 };
 
-export const syncBuiltInSkillToOpfs = async (
-  skill: BuiltInSkillManifestEntry,
-): Promise<void> => {
+export const syncBuiltInSkillToOpfs = async (skill: BuiltInSkillManifestEntry): Promise<void> => {
   const metadata = await readStoredMetadata(skill.name);
   const hasSkillDocument = await opfsFile(getSkillDocumentPath(skill.name)).exists();
   if (metadata?.contentHash === skill.contentHash && hasSkillDocument) {

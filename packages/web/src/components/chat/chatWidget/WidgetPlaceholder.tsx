@@ -20,9 +20,7 @@ export const WidgetPlaceholder = ({
                 <span className="absolute inset-0 animate-ping rounded-full bg-zinc-300/80" />
                 <span className="relative size-2.5 rounded-full bg-zinc-600" />
               </span>
-              <p className="truncate text-sm font-medium text-zinc-900">
-                {title}
-              </p>
+              <p className="truncate text-sm font-medium text-zinc-900">{title}</p>
             </div>
             {widgetCodeLength > 0 && (
               <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-100/90 px-2 py-1 font-mono text-[10px] text-zinc-500">

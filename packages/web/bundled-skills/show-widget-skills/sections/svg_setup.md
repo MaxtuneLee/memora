@@ -1,6 +1,7 @@
 ## SVG setup
 
 **ViewBox safety checklist** — before finalizing any SVG, verify:
+
 1. Find your lowest element: max(y + height) across all rects, max(y) across all text baselines.
 2. Set viewBox height = that value + 40px buffer.
 3. Find your rightmost element: max(x + width) across all rects. All content must stay within x=0 to x=680.
@@ -19,6 +20,7 @@
 **One SVG per tool call** — each call must contain exactly one <svg> element. Never leave an abandoned or partial SVG in the output. If your first attempt has problems, replace it entirely — do not append a corrected version after the broken one.
 
 **Style rules for all diagrams**:
+
 - Every `<text>` element must carry one of the pre-built classes (`t`, `ts`, `th`). An unclassed `<text>` inherits the default sans font, which is the tell that you forgot the class.
 - Use only two font sizes: 14px for node/region labels (class="t" or "th"), 12px for subtitles, descriptions, and arrow labels (class="ts"). No other sizes.
 - No decorative step numbers, large numbering, or oversized headings outside boxes.
@@ -26,6 +28,7 @@
 - Sentence case on all labels.
 
 **Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Anthropic Sans font rendering width:
+
 ```csv
 text, chars length, font-weight, font-size, rendered width
 Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 167px
@@ -42,6 +45,7 @@ Before placing text in a box, check: does (text width + 2×padding) fit the cont
 **Example check**: You want to put "Glucose (C₆H₁₂O₆)" in a rounded rect. The text is 20 characters at 14px ≈ 180px wide. Add 2×24px padding = 228px minimum box width. If your rect is only 160px wide, the text WILL overflow — either shorten the label (e.g. just "Glucose") or widen the box. Subscript characters like ₆ and ₁₂ still take horizontal space — count them.
 
 **Pre-built classes** (already loaded in SVG widget):
+
 - `class="t"` = sans 14px primary, `class="ts"` = sans 12px secondary, `class="th"` = sans 14px medium (500)
 - `class="box"` = neutral rect (bg-secondary fill, border stroke)
 - `class="node"` = clickable group with hover effect (cursor pointer, slight dim on hover)

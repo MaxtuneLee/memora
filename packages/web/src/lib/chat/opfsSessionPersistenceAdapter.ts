@@ -20,16 +20,12 @@ const cloneData = <T>(value: T): T => {
 const MEMORY_KEY = "memory";
 const PERSONALITY_KEY = "personality";
 
-export const createOpfsSessionPersistenceAdapter = (
-  sessionId: string,
-): PersistenceAdapter => {
+export const createOpfsSessionPersistenceAdapter = (sessionId: string): PersistenceAdapter => {
   return {
     save: async (agentId, key, data) => {
       if (key === MEMORY_KEY) {
         const nextMemory =
-          typeof data === "object" && data !== null
-            ? { ...(data as Record<string, unknown>) }
-            : {};
+          typeof data === "object" && data !== null ? { ...(data as Record<string, unknown>) } : {};
         await saveGlobalMemory(nextMemory);
         return;
       }
@@ -92,22 +88,16 @@ export const createOpfsSessionPersistenceAdapter = (
 
     list: async (agentId) => {
       const session = await loadChatSession(sessionId);
-      const sessionKeys = session
-        ? Object.keys(session.agentStore[agentId] ?? {})
-        : [];
+      const sessionKeys = session ? Object.keys(session.agentStore[agentId] ?? {}) : [];
       const globalMemory = await loadGlobalMemoryData();
       const personalityDoc = await loadPersonalityDoc();
-      const hasGlobalMemory =
-        !!globalMemory ||
-        normalizePersonalityText(personalityDoc).length > 0;
+      const hasGlobalMemory = !!globalMemory || normalizePersonalityText(personalityDoc).length > 0;
 
       if (!hasGlobalMemory) {
         return sessionKeys;
       }
 
-      return sessionKeys.includes(MEMORY_KEY)
-        ? sessionKeys
-        : [...sessionKeys, MEMORY_KEY];
+      return sessionKeys.includes(MEMORY_KEY) ? sessionKeys : [...sessionKeys, MEMORY_KEY];
     },
 
     grep: async (agentId, pattern) => {
@@ -135,11 +125,9 @@ export const createOpfsSessionPersistenceAdapter = (
       const globalMemory = await loadGlobalMemory();
       const personalityDoc = await loadPersonalityDoc();
       const fallbackPersonality = normalizePersonalityText(personalityDoc);
-      const derivedMemory = globalMemory ?? (
-        fallbackPersonality
-          ? { [PERSONALITY_KEY]: fallbackPersonality, notices: [] }
-          : null
-      );
+      const derivedMemory =
+        globalMemory ??
+        (fallbackPersonality ? { [PERSONALITY_KEY]: fallbackPersonality, notices: [] } : null);
 
       if (derivedMemory) {
         const serialized = JSON.stringify(derivedMemory);

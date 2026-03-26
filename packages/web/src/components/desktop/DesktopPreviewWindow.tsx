@@ -182,11 +182,7 @@ export function DesktopPreviewWindow({
     if (item.fileMeta.type === "audio") {
       return (
         <div className="flex h-full flex-col justify-center gap-4 p-4">
-          <audio
-            controls
-            src={previewUrl ?? undefined}
-            className="w-full"
-          />
+          <audio controls src={previewUrl ?? undefined} className="w-full" />
         </div>
       );
     }
@@ -271,9 +267,7 @@ export function DesktopPreviewWindow({
             {getIcon()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-zinc-900">
-              {item.name}
-            </p>
+            <p className="truncate text-sm font-semibold text-zinc-900">{item.name}</p>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span>
                 <span className="font-medium text-zinc-600">Type:</span> {previewLabel}

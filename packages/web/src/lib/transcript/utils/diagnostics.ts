@@ -53,11 +53,7 @@ const analyzeAudioSignal = (audio: Float32Array): AudioSignalStats => {
   let activeFrames = 0;
   let totalFrames = 0;
 
-  for (
-    let offset = 0;
-    offset < audio.length;
-    offset += AUDIO_ANALYSIS_WINDOW_SAMPLES
-  ) {
+  for (let offset = 0; offset < audio.length; offset += AUDIO_ANALYSIS_WINDOW_SAMPLES) {
     let frameSumSquares = 0;
     let framePeak = 0;
     const end = Math.min(audio.length, offset + AUDIO_ANALYSIS_WINDOW_SAMPLES);
@@ -72,12 +68,8 @@ const analyzeAudioSignal = (audio: Float32Array): AudioSignalStats => {
     }
 
     const frameLength = end - offset;
-    const frameRms =
-      frameLength > 0 ? Math.sqrt(frameSumSquares / frameLength) : 0;
-    if (
-      frameRms >= ACTIVE_FRAME_RMS_THRESHOLD ||
-      framePeak >= ACTIVE_FRAME_PEAK_THRESHOLD
-    ) {
+    const frameRms = frameLength > 0 ? Math.sqrt(frameSumSquares / frameLength) : 0;
+    if (frameRms >= ACTIVE_FRAME_RMS_THRESHOLD || framePeak >= ACTIVE_FRAME_PEAK_THRESHOLD) {
       activeFrames += 1;
     }
     totalFrames += 1;
@@ -131,8 +123,7 @@ const getMostSevereDropReason = ({
 
   if (
     lowAudioEnergy &&
-    (blankAudioMarkerCount > 0 ||
-      repetitionRatio >= HIGH_REPETITION_RATIO_THRESHOLD)
+    (blankAudioMarkerCount > 0 || repetitionRatio >= HIGH_REPETITION_RATIO_THRESHOLD)
   ) {
     return "low-audio-energy";
   }
@@ -163,9 +154,7 @@ export const evaluateTranscriptCandidate = ({
   const blankAudioMarkerCount = countBlankAudioMarkers(text);
   const strippedText = stripBlankAudioMarkers(text);
   const rawTokens = tokenizeTranscriptText(strippedText);
-  const repeatedTailPattern = findRepeatedTailPattern(
-    rawTokens.map((token) => token.normalized),
-  );
+  const repeatedTailPattern = findRepeatedTailPattern(rawTokens.map((token) => token.normalized));
 
   const cleanedText = trimRepeatedTailWords(strippedText);
   const cleanedWords = trimRepeatedTailChunks(
@@ -176,27 +165,20 @@ export const evaluateTranscriptCandidate = ({
   const resolvedTokens = tokenizeTranscriptText(resolvedText);
   const wordCount = resolvedTokens.length;
   const uniqueWordRatio =
-    wordCount > 0
-      ? new Set(resolvedTokens.map((token) => token.normalized)).size / wordCount
-      : 0;
-  const repetitionRatio =
-    wordCount > 0 ? 1 - uniqueWordRatio : rawTokens.length > 0 ? 1 : 0;
+    wordCount > 0 ? new Set(resolvedTokens.map((token) => token.normalized)).size / wordCount : 0;
+  const repetitionRatio = wordCount > 0 ? 1 - uniqueWordRatio : rawTokens.length > 0 ? 1 : 0;
 
   const audioStats = analyzeAudioSignal(audio);
-  const wordsPerSecond =
-    audioStats.durationSec > 0 ? wordCount / audioStats.durationSec : 0;
+  const wordsPerSecond = audioStats.durationSec > 0 ? wordCount / audioStats.durationSec : 0;
 
-  const hasLowContent =
-    resolvedText.length <= 1 || /^(.)\1+$/u.test(resolvedText.trim());
+  const hasLowContent = resolvedText.length <= 1 || /^(.)\1+$/u.test(resolvedText.trim());
   const lowAudioEnergy =
     audioStats.rms < LOW_AUDIO_RMS_THRESHOLD &&
     audioStats.peak < LOW_AUDIO_PEAK_THRESHOLD &&
     audioStats.activeFrameRatio < LOW_ACTIVE_FRAME_RATIO_THRESHOLD;
-  const highRepetition =
-    wordCount >= 8 && repetitionRatio >= HIGH_REPETITION_RATIO_THRESHOLD;
+  const highRepetition = wordCount >= 8 && repetitionRatio >= HIGH_REPETITION_RATIO_THRESHOLD;
   const denseOutput =
-    audioStats.durationSec >= 1 &&
-    wordsPerSecond >= HIGH_WORDS_PER_SECOND_THRESHOLD;
+    audioStats.durationSec >= 1 && wordsPerSecond >= HIGH_WORDS_PER_SECOND_THRESHOLD;
 
   const issues: TranscriptDiagnosticsIssueCode[] = [];
   if (blankAudioMarkerCount > 0) {
@@ -236,18 +218,10 @@ export const evaluateTranscriptCandidate = ({
     );
   }
   if (repeatedTailPattern) {
-    hallucinationScore += clamp(
-      0.18 + repeatedTailPattern.repeatedWords / 48,
-      0.18,
-      0.38,
-    );
+    hallucinationScore += clamp(0.18 + repeatedTailPattern.repeatedWords / 48, 0.18, 0.38);
   }
   if (denseOutput) {
-    hallucinationScore += clamp(
-      (wordsPerSecond - HIGH_WORDS_PER_SECOND_THRESHOLD) / 5,
-      0.08,
-      0.18,
-    );
+    hallucinationScore += clamp((wordsPerSecond - HIGH_WORDS_PER_SECOND_THRESHOLD) / 5, 0.08, 0.18);
   }
   if (hasLowContent) {
     hallucinationScore += 0.22;
@@ -320,26 +294,16 @@ export const summarizeTranscriptDiagnostics = ({
     (sum, segment) => sum + segment.audioDurationSec,
     0,
   );
-  const totalWordCount = segments.reduce(
-    (sum, segment) => sum + segment.wordCount,
-    0,
-  );
+  const totalWordCount = segments.reduce((sum, segment) => sum + segment.wordCount, 0);
   const acceptedSegments = segments.filter((segment) => !segment.dropped);
-  const uniqueIssues = Array.from(
-    new Set(segments.flatMap((segment) => segment.issues)),
-  );
+  const uniqueIssues = Array.from(new Set(segments.flatMap((segment) => segment.issues)));
   const tokens = tokenizeTranscriptText(text);
   const uniqueWordRatio =
-    tokens.length > 0
-      ? new Set(tokens.map((token) => token.normalized)).size / tokens.length
-      : 0;
+    tokens.length > 0 ? new Set(tokens.map((token) => token.normalized)).size / tokens.length : 0;
   const repetitionRatio =
     totalWordCount > 0 ? 1 - uniqueWordRatio : acceptedSegments.length > 0 ? 1 : 0;
   const averageMetric = <Key extends keyof TranscriptDiagnostics>(key: Key) => {
-    return (
-      segments.reduce((sum, segment) => sum + Number(segment[key] ?? 0), 0) /
-      segments.length
-    );
+    return segments.reduce((sum, segment) => sum + Number(segment[key] ?? 0), 0) / segments.length;
   };
 
   return {
@@ -350,8 +314,7 @@ export const summarizeTranscriptDiagnostics = ({
     activeFrameRatio: averageMetric("activeFrameRatio"),
     textLength: text.length,
     wordCount: totalWordCount,
-    wordsPerSecond:
-      totalAudioDurationSec > 0 ? totalWordCount / totalAudioDurationSec : 0,
+    wordsPerSecond: totalAudioDurationSec > 0 ? totalWordCount / totalAudioDurationSec : 0,
     uniqueWordRatio,
     repetitionRatio,
     trailingRepeatPhraseWords: Math.max(
@@ -364,14 +327,12 @@ export const summarizeTranscriptDiagnostics = ({
       (sum, segment) => sum + segment.blankAudioMarkerCount,
       0,
     ),
-    hallucinationScore: Math.max(
-      ...segments.map((segment) => segment.hallucinationScore),
-    ),
+    hallucinationScore: Math.max(...segments.map((segment) => segment.hallucinationScore)),
     qualityScore: averageMetric("qualityScore"),
     dropped: acceptedSegments.length === 0,
     dropReason:
       acceptedSegments.length === 0
-        ? segments.find((segment) => segment.dropReason)?.dropReason ?? null
+        ? (segments.find((segment) => segment.dropReason)?.dropReason ?? null)
         : null,
     issues: uniqueIssues,
     segmentCount: segments.length,

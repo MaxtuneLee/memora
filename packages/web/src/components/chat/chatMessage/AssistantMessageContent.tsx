@@ -12,9 +12,7 @@ import {
   MEMORA_STREAMDOWN_PLUGINS,
   MEMORA_STREAMDOWN_THEME,
 } from "@/lib/streamdown";
-import {
-  parseMemoraJumpContent,
-} from "@/lib/chat/memoraJump";
+import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
 import { cn } from "@/lib/cn";
 
 import { MediaJumpCard } from "./MediaJumpCard";
@@ -51,15 +49,11 @@ export function AssistantMessageContent({
   onToggleThinking?: () => void;
   onSendWidgetPrompt?: (text: string) => Promise<void> | void;
 }) {
-  const liveThinkingSteps =
-    thinkingSteps && thinkingSteps.length > 0 ? thinkingSteps : undefined;
+  const liveThinkingSteps = thinkingSteps && thinkingSteps.length > 0 ? thinkingSteps : undefined;
   const persistedThinkingSteps =
-    message.thinkingSteps && message.thinkingSteps.length > 0
-      ? message.thinkingSteps
-      : undefined;
+    message.thinkingSteps && message.thinkingSteps.length > 0 ? message.thinkingSteps : undefined;
   const visibleThinkingSteps = liveThinkingSteps ?? persistedThinkingSteps;
-  const visibleStatus =
-    liveThinkingSteps && status ? status : { type: "idle" as const };
+  const visibleStatus = liveThinkingSteps && status ? status : { type: "idle" as const };
   const canToggleThinking = Boolean(liveThinkingSteps && onToggleThinking);
   const parsedContent = parseMemoraJumpContent(message.content);
   const hasRenderableText = parsedContent.some(
@@ -88,21 +82,12 @@ export function AssistantMessageContent({
       {message.widgets && message.widgets.length > 0 && (
         <div className="space-y-3">
           {message.widgets.map((widget) => (
-            <ChatWidget
-              key={widget.toolCallId}
-              widget={widget}
-              onSendPrompt={onSendWidgetPrompt}
-            />
+            <ChatWidget key={widget.toolCallId} widget={widget} onSendPrompt={onSendWidgetPrompt} />
           ))}
         </div>
       )}
       {parsedContent.length > 0 ? (
-        <div
-          className={cn(
-            "space-y-3",
-            message.widgets && message.widgets.length > 0 && "mt-3",
-          )}
-        >
+        <div className={cn("space-y-3", message.widgets && message.widgets.length > 0 && "mt-3")}>
           {parsedContent.map((part, index) => {
             if (part.type === "text") {
               if (!part.content.trim()) {

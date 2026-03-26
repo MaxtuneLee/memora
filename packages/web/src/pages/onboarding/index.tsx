@@ -6,10 +6,7 @@ import OnboardingExperience, {
 } from "@/components/onboarding/OnboardingExperience";
 import { generatePersonalityMarkdownWithAI } from "@/lib/chat/personalityGenerator";
 import { settingsProvidersQuery$ } from "@/lib/settings/queries";
-import {
-  loadGlobalMemoryData,
-  saveGlobalMemoryData,
-} from "@/lib/settings/personalityStorage";
+import { loadGlobalMemoryData, saveGlobalMemoryData } from "@/lib/settings/personalityStorage";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
 import { settingsTable } from "@/livestore/setting";
 

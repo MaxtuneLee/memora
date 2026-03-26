@@ -33,9 +33,7 @@ export const findTodoDocument = (files: FileMeta[]): FileMeta | null => {
   return matches[0] ?? null;
 };
 
-const loadTodoDocument = async (
-  file: FileMeta,
-): Promise<TodoDocumentSnapshot> => {
+const loadTodoDocument = async (file: FileMeta): Promise<TodoDocumentSnapshot> => {
   const markdown = await opfsFile(file.storagePath).text();
 
   return {

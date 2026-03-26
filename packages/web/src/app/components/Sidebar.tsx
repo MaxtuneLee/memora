@@ -11,6 +11,7 @@ import {
   SidebarIcon,
   VideoCameraIcon,
 } from "@phosphor-icons/react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { Button } from "@base-ui/react/button";
 import { useStore } from "@livestore/react";
@@ -25,6 +26,46 @@ import { activeFilesQuery$ } from "@/lib/library/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 
 const MAX_RECENT_FILES = 4;
+const PRIMARY_NAV_HIGHLIGHT_TRANSITION = {
+  type: "spring",
+  stiffness: 430,
+  damping: 36,
+  mass: 0.72,
+} as const;
+
+interface PrimaryNavItem {
+  icon: React.ElementType;
+  label: string;
+  to: string;
+  matches: (pathname: string) => boolean;
+}
+
+const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
+  {
+    icon: HouseIcon,
+    label: "Home",
+    to: "/",
+    matches: (pathname) => pathname === "/",
+  },
+  {
+    icon: MicrophoneStageIcon,
+    label: "Transcription",
+    to: "/transcript",
+    matches: (pathname) => pathname.startsWith("/transcript"),
+  },
+  {
+    icon: ChatCircleIcon,
+    label: "Chat",
+    to: "/chat",
+    matches: (pathname) => pathname.startsWith("/chat"),
+  },
+  {
+    icon: DesktopIcon,
+    label: "Desktop",
+    to: "/desktop",
+    matches: (pathname) => pathname.startsWith("/desktop"),
+  },
+] as const;
 
 const getRecentFileHref = (fileId: string, fileType: string): string => {
   if (fileType === "audio" || fileType === "video") {
@@ -51,30 +92,35 @@ interface NavItemProps {
   icon: React.ElementType;
   label: string;
   to: string;
-  isActive?: boolean;
+  isActive: boolean;
+  reducedMotion: boolean;
 }
 
-function NavItem({ icon: Icon, label, to, isActive }: NavItemProps) {
+function NavItem({ icon: Icon, label, to, isActive, reducedMotion }: NavItemProps) {
   return (
     <Link
       to={to}
       className={cn(
-        "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
-        isActive
-          ? "bg-white/80 text-zinc-900 shadow-sm"
-          : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
+        "group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
+        isActive ? "text-zinc-900" : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
       )}
     >
+      {isActive ? (
+        <motion.div
+          layoutId="sidebar-active-item"
+          className="pointer-events-none absolute inset-0 rounded-xl border border-[#e7e1d8] bg-[rgba(255,255,255,0.72)] shadow-sm"
+          transition={reducedMotion ? { duration: 0.12 } : PRIMARY_NAV_HIGHLIGHT_TRANSITION}
+        />
+      ) : null}
+
       <Icon
         weight={isActive ? "fill" : "regular"}
         className={cn(
-          "size-4 shrink-0 transition-colors",
-          isActive
-            ? "text-zinc-900"
-            : "text-zinc-400 group-hover:text-zinc-600",
+          "relative z-10 size-4 shrink-0 transition-colors",
+          isActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600",
         )}
       />
-      <span className="truncate">{label}</span>
+      <span className="relative z-10 truncate">{label}</span>
     </Link>
   );
 }
@@ -104,6 +150,7 @@ function SidebarSection({ title, children, action }: SidebarSectionProps) {
 export function Sidebar() {
   const { store } = useStore();
   const location = useLocation();
+  const reducedMotion = useReducedMotion() ?? false;
   const currentPath = location.pathname;
   const fileRows = store.useQuery(activeFilesQuery$);
   const { openSettings, isSettingsOpen, activeSection } = useSettingsDialog();
@@ -139,11 +186,7 @@ export function Sidebar() {
     <aside className="flex h-full w-[260px] flex-col border-r border-zinc-200/70 bg-[#f7f2e9]/80 backdrop-blur-xl">
       <div className="flex h-12 flex-none items-center justify-between px-4">
         <div className="flex items-center gap-2 font-semibold text-zinc-900 select-none">
-          <img
-            src="/memora-icon.svg"
-            alt="Memora"
-            className="size-6 rounded-md"
-          />
+          <img src="/memora-icon.svg" alt="Memora" className="size-6 rounded-md" />
           <span>Memora</span>
         </div>
         <Button
@@ -177,44 +220,30 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
         <SidebarSection>
-          <NavItem
-            icon={HouseIcon}
-            label="Home"
-            to="/"
-            isActive={currentPath === "/"}
-          />
-          <NavItem
-            icon={MicrophoneStageIcon}
-            label="Transcription"
-            to="/transcript"
-            isActive={currentPath.startsWith("/transcript")}
-          />
-          <NavItem
-            icon={ChatCircleIcon}
-            label="Chat"
-            to="/chat"
-            isActive={currentPath.startsWith("/chat")}
-          />
-          <NavItem
-            icon={DesktopIcon}
-            label="Desktop"
-            to="/desktop"
-            isActive={currentPath.startsWith("/desktop")}
-          />
+          <LayoutGroup id="sidebar-primary-navigation">
+            <div className="space-y-0.5">
+              {PRIMARY_NAV_ITEMS.map((item) => (
+                <NavItem
+                  key={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  to={item.to}
+                  isActive={item.matches(currentPath)}
+                  reducedMotion={reducedMotion}
+                />
+              ))}
+            </div>
+          </LayoutGroup>
         </SidebarSection>
 
-        <SidebarSection
-          title="Recent Files"
-        >
+        <SidebarSection title="Recent Files">
           {recentFiles.length > 0 ? (
             <div className="space-y-0.5">
               {recentFiles.map((file) => {
                 const href = getRecentFileHref(file.id, file.type);
                 const Icon = getRecentFileIcon(file.type);
                 const isActive =
-                  href === "/files"
-                    ? currentPath.startsWith("/files")
-                    : currentPath === href;
+                  href === "/files" ? currentPath.startsWith("/files") : currentPath === href;
 
                 return (
                   <Link
@@ -240,17 +269,13 @@ export function Sidebar() {
                               : "text-zinc-400",
                       )}
                     />
-                    <span className="truncate text-[13px] leading-5 font-medium">
-                      {file.name}
-                    </span>
+                    <span className="truncate text-[13px] leading-5 font-medium">{file.name}</span>
                   </Link>
                 );
               })}
             </div>
           ) : (
-            <div className="px-2.5 py-2 text-sm text-zinc-400">
-              Recent files will show up here.
-            </div>
+            <div className="px-2.5 py-2 text-sm text-zinc-400">Recent files will show up here.</div>
           )}
         </SidebarSection>
       </div>
@@ -261,18 +286,12 @@ export function Sidebar() {
           onClick={() => openSettings("data-storage")}
           className={cn(
             "w-full text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
-            isStorageActive
-              ? "text-zinc-900"
-              : "text-zinc-500 hover:text-zinc-700",
+            isStorageActive ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-700",
           )}
         >
           <div className="flex items-center justify-between gap-4">
-            <span className="text-[10px] font-bold tracking-[0.18em] uppercase">
-              Storage
-            </span>
-            <span className="text-[10px] font-bold">
-              {Math.round(storageUsagePercent)}%
-            </span>
+            <span className="text-[10px] font-bold tracking-[0.18em] uppercase">Storage</span>
+            <span className="text-[10px] font-bold">{Math.round(storageUsagePercent)}%</span>
           </div>
 
           <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-[#ece7dc]">
@@ -282,9 +301,7 @@ export function Sidebar() {
             />
           </div>
 
-          <p className="mt-4 text-[10px] leading-none text-zinc-400">
-            {storageSummary}
-          </p>
+          <p className="mt-4 text-[10px] leading-none text-zinc-400">{storageSummary}</p>
         </button>
 
         <Button
@@ -300,9 +317,7 @@ export function Sidebar() {
             weight={isSettingsOpen ? "fill" : "regular"}
             className={cn(
               "size-4 shrink-0 transition-colors",
-              isSettingsOpen
-                ? "text-zinc-900"
-                : "text-zinc-400 group-hover:text-zinc-600",
+              isSettingsOpen ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600",
             )}
           />
           <span>Settings</span>

@@ -83,10 +83,7 @@ const buildWordRanges = (words: TranscriptWord[]): TranscriptWordRange[] => {
   return ranges;
 };
 
-const findRangeIndexAtOffset = (
-  ranges: TranscriptWordRange[],
-  offset: number,
-): number => {
+const findRangeIndexAtOffset = (ranges: TranscriptWordRange[], offset: number): number => {
   for (let index = 0; index < ranges.length; index += 1) {
     if (offset < ranges[index].end) {
       return index;
@@ -146,8 +143,7 @@ export const createTranscriptTools = (
           return { error: "keyword cannot be empty" };
         }
 
-        const referenceScope =
-          options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         const scopedIds = new Set(referenceScope.fileIds);
         const activeRows = store.query(
           fileTable.where({ deletedAt: null, purgedAt: null }),
@@ -156,10 +152,7 @@ export const createTranscriptTools = (
           if (!row.transcriptPath) return false;
           if (row.type !== "audio" && row.type !== "video") return false;
           if (payload.file_id && row.id !== payload.file_id) return false;
-          if (
-            payload.transcript_path &&
-            row.transcriptPath !== payload.transcript_path
-          ) {
+          if (payload.transcript_path && row.transcriptPath !== payload.transcript_path) {
             return false;
           }
           if (referenceScope.isActive && !scopedIds.has(row.id)) return false;
@@ -171,8 +164,7 @@ export const createTranscriptTools = (
             matches: [],
             count: 0,
             searchedFiles: 0,
-            error:
-              "No matching active transcript files found for the provided filters.",
+            error: "No matching active transcript files found for the provided filters.",
           };
         }
 
@@ -214,25 +206,14 @@ export const createTranscriptTools = (
             const start = result.index;
             const end = start + result[0].length;
             const startIndex = findRangeIndexAtOffset(ranges, start);
-            const endIndex = findRangeIndexAtOffset(
-              ranges,
-              Math.max(end - 1, start),
-            );
+            const endIndex = findRangeIndexAtOffset(ranges, Math.max(end - 1, start));
 
             matches.push({
               fileId: file.id,
               fileName: file.name,
               mediaType: file.type === "video" ? "video" : "audio",
-              timestamp: [
-                ranges[startIndex].timestamp[0],
-                ranges[endIndex].timestamp[1],
-              ],
-              context: buildContextSnippet(
-                transcriptText,
-                start,
-                end,
-                contextChars,
-              ),
+              timestamp: [ranges[startIndex].timestamp[0], ranges[endIndex].timestamp[1]],
+              context: buildContextSnippet(transcriptText, start, end, contextChars),
               match: result[0],
             });
 

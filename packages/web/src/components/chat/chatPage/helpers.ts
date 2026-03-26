@@ -1,9 +1,4 @@
-import {
-  CheckCircleIcon,
-  FileTextIcon,
-  PenNibIcon,
-  SparkleIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, FileTextIcon, PenNibIcon, SparkleIcon } from "@phosphor-icons/react";
 import type { PromptSegment } from "@memora/ai-core";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
@@ -12,20 +7,14 @@ import {
   getChatMessagePreviewText,
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
-import {
-  EMPTY_REFERENCE_SCOPE,
-  type ResolvedReferenceScope,
-} from "@/lib/chat/tools";
+import { EMPTY_REFERENCE_SCOPE, type ResolvedReferenceScope } from "@/lib/chat/tools";
 import {
   type ChatSessionMessage,
   type ChatSessionRecord,
   type ChatSessionReference,
   type ChatSessionSummary,
 } from "@/lib/chat/chatSessionStorage";
-import {
-  loadGlobalMemoryData,
-  loadPersonalityDoc,
-} from "@/lib/settings/personalityStorage";
+import { loadGlobalMemoryData, loadPersonalityDoc } from "@/lib/settings/personalityStorage";
 import type { SuggestionCard } from "./types";
 
 export const suggestions: SuggestionCard[] = [
@@ -55,9 +44,7 @@ export const IS_DEV = import.meta.env.DEV;
 export const MAX_REFERENCED_FILES = 200;
 export const REFERENCE_MENTION_PATTERN = /@([^\s@]*)$/;
 
-export const toAgentMessages = (
-  messages: ChatSessionMessage[],
-): AgentChatMessage[] => {
+export const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessage[] => {
   return messages.map((message) => ({
     id: message.id,
     role: message.role,
@@ -69,9 +56,7 @@ export const toAgentMessages = (
   }));
 };
 
-export const toSessionSummary = (
-  record: ChatSessionRecord,
-): ChatSessionSummary => {
+export const toSessionSummary = (record: ChatSessionRecord): ChatSessionSummary => {
   const lastMessage = [...record.messages]
     .reverse()
     .find((message) => getChatMessagePreviewText(message).length > 0);
@@ -85,9 +70,7 @@ export const toSessionSummary = (
   };
 };
 
-export const buildReferenceKey = (
-  reference: ChatSessionReference,
-): string => {
+export const buildReferenceKey = (reference: ChatSessionReference): string => {
   return `${reference.type}:${reference.id}`;
 };
 
@@ -101,9 +84,7 @@ export const sanitizeActiveReferences = (
 
   for (const reference of references) {
     const exists =
-      reference.type === "file"
-        ? fileById.has(reference.id)
-        : folderById.has(reference.id);
+      reference.type === "file" ? fileById.has(reference.id) : folderById.has(reference.id);
     if (!exists) continue;
     const key = buildReferenceKey(reference);
     if (seen.has(key)) continue;
@@ -125,11 +106,7 @@ export const resolveReferenceScope = (
 ): ResolvedReferenceScope => {
   const fileById = new Map(files.map((file) => [file.id, file]));
   const folderById = new Map(folders.map((folder) => [folder.id, folder]));
-  const validReferences = sanitizeActiveReferences(
-    references,
-    fileById,
-    folderById,
-  );
+  const validReferences = sanitizeActiveReferences(references, fileById, folderById);
 
   if (validReferences.length === 0) {
     return EMPTY_REFERENCE_SCOPE;
@@ -179,9 +156,7 @@ export const resolveReferenceScope = (
 
   const allResolvedIds = Array.from(selectedFileIds);
   const truncated = allResolvedIds.length > MAX_REFERENCED_FILES;
-  const scopedIds = truncated
-    ? allResolvedIds.slice(0, MAX_REFERENCED_FILES)
-    : allResolvedIds;
+  const scopedIds = truncated ? allResolvedIds.slice(0, MAX_REFERENCED_FILES) : allResolvedIds;
   const allowedPathsSet = new Set<string>();
 
   for (const id of scopedIds) {
@@ -190,10 +165,7 @@ export const resolveReferenceScope = (
     if (typeof file.storagePath === "string" && file.storagePath.length > 0) {
       allowedPathsSet.add(file.storagePath);
     }
-    if (
-      typeof file.transcriptPath === "string" &&
-      file.transcriptPath.length > 0
-    ) {
+    if (typeof file.transcriptPath === "string" && file.transcriptPath.length > 0) {
       allowedPathsSet.add(file.transcriptPath);
     }
   }
@@ -203,18 +175,14 @@ export const resolveReferenceScope = (
     fileIds: scopedIds,
     allowedPaths: Array.from(allowedPathsSet),
     referenceLabels: validReferences.map((reference) =>
-      reference.type === "folder"
-        ? `Folder "${reference.name}"`
-        : `File "${reference.name}"`,
+      reference.type === "folder" ? `Folder "${reference.name}"` : `File "${reference.name}"`,
     ),
     totalResolvedFiles: allResolvedIds.length,
     truncated,
   };
 };
 
-export const buildReferenceScopePrompt = (
-  scope: ResolvedReferenceScope,
-): string => {
+export const buildReferenceScopePrompt = (scope: ResolvedReferenceScope): string => {
   if (!scope.isActive) {
     return "";
   }
@@ -228,9 +196,7 @@ export const buildReferenceScopePrompt = (
     ? `Only the first ${MAX_REFERENCED_FILES} resolved files are in scope for this turn.`
     : "";
   const emptyScopeNote =
-    scope.fileIds.length === 0
-      ? "No active files were resolved from the current references."
-      : "";
+    scope.fileIds.length === 0 ? "No active files were resolved from the current references." : "";
 
   return `## Active Reference Scope
 The user has selected session-level file or folder references. Treat this scope as a hard constraint when using file-related tools.
@@ -273,10 +239,7 @@ export const buildSessionSignature = (
   });
 };
 
-export const findMessageIndexById = (
-  messages: AgentChatMessage[],
-  messageId: string,
-): number => {
+export const findMessageIndexById = (messages: AgentChatMessage[], messageId: string): number => {
   return messages.findIndex((message) => message.id === messageId);
 };
 
@@ -320,9 +283,7 @@ export const resolveTimeGreeting = (date: Date): string => {
   return "Good evening";
 };
 
-export const resolveGreetingName = (
-  value: string | null | undefined,
-): string | null => {
+export const resolveGreetingName = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") {
     return null;
   }
@@ -335,12 +296,8 @@ export const resolveGreetingName = (
   return normalized;
 };
 
-export const extractNameFromPersonalityMarkdown = (
-  markdown: string,
-): string | null => {
-  const match = markdown.match(
-    /^##\s+User\s+Identity\s*\n([\s\S]*?)(?=\n##\s+|$)/im,
-  );
+export const extractNameFromPersonalityMarkdown = (markdown: string): string | null => {
+  const match = markdown.match(/^##\s+User\s+Identity\s*\n([\s\S]*?)(?=\n##\s+|$)/im);
   if (!match) {
     return null;
   }
@@ -363,9 +320,7 @@ export const extractNameFromPersonalityMarkdown = (
 
 export const loadGreetingName = async (): Promise<string | null> => {
   const globalMemory = await loadGlobalMemoryData();
-  const fromGlobalMemory = extractNameFromPersonalityMarkdown(
-    globalMemory?.personality ?? "",
-  );
+  const fromGlobalMemory = extractNameFromPersonalityMarkdown(globalMemory?.personality ?? "");
   if (fromGlobalMemory) {
     return fromGlobalMemory;
   }
@@ -374,8 +329,6 @@ export const loadGreetingName = async (): Promise<string | null> => {
   return extractNameFromPersonalityMarkdown(personalityDoc ?? "");
 };
 
-export const hasAttachmentImages = (
-  attachments: ChatImageAttachment[],
-): boolean => {
+export const hasAttachmentImages = (attachments: ChatImageAttachment[]): boolean => {
   return attachments.length > 0;
 };

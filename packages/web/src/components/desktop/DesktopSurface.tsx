@@ -41,16 +41,8 @@ export function DesktopSurface({
 
   const content = (
     <div
-      className={
-        layout === "list"
-          ? "flex flex-col gap-1 p-3"
-          : "relative min-h-full"
-      }
-      style={
-        layout === "list"
-          ? undefined
-          : { padding: DESKTOP_PADDING }
-      }
+      className={layout === "list" ? "flex flex-col gap-1 p-3" : "relative min-h-full"}
+      style={layout === "list" ? undefined : { padding: DESKTOP_PADDING }}
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();

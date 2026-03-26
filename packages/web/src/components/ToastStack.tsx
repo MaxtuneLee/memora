@@ -5,9 +5,7 @@ import { useMemo, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 
 type ToastStackProps = {
-  render: (
-    toast: ReturnType<typeof Toast.useToastManager>["toasts"][number]
-  ) => ReactNode;
+  render: (toast: ReturnType<typeof Toast.useToastManager>["toasts"][number]) => ReactNode;
 };
 
 export default function ToastStack({ render }: ToastStackProps) {
@@ -15,11 +13,11 @@ export default function ToastStack({ render }: ToastStackProps) {
   const orderedToasts = useMemo(() => [...toasts].reverse(), [toasts]);
   const activeToasts = useMemo(
     () => toasts.filter((toast) => toast.transitionStatus !== "ending"),
-    [toasts]
+    [toasts],
   );
   const visibleToasts = useMemo(
     () => orderedToasts.filter((toast) => !toast.limited).slice(0, 3),
-    [orderedToasts]
+    [orderedToasts],
   );
 
   const toastScale = (toast: (typeof toasts)[number]) => {
@@ -34,7 +32,7 @@ export default function ToastStack({ render }: ToastStackProps) {
         className={(state) =>
           cn(
             "fixed bottom-6 right-6 z-[60] flex w-[320px] flex-col",
-            state.expanded ? "gap-3" : "-space-y-8"
+            state.expanded ? "gap-3" : "-space-y-8",
           )
         }
       >
@@ -56,10 +54,7 @@ export default function ToastStack({ render }: ToastStackProps) {
               return (
                 <motion.div
                   {...rest}
-                  className={cn(
-                    props.className,
-                    state.limited ? "pointer-events-none" : ""
-                  )}
+                  className={cn(props.className, state.limited ? "pointer-events-none" : "")}
                   style={{
                     ...props.style,
                     zIndex: "calc(100 - var(--toast-index))",

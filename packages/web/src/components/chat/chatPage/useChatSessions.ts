@@ -20,11 +20,7 @@ import {
   type ChatSessionReference,
   type ChatSessionSummary,
 } from "@/lib/chat/chatSessionStorage";
-import {
-  buildSessionSignature,
-  toAgentMessages,
-  toSessionSummary,
-} from "./helpers";
+import { buildSessionSignature, toAgentMessages, toSessionSummary } from "./helpers";
 
 interface UseChatSessionsParams {
   getIsPreparingTurn: () => boolean;
@@ -43,10 +39,7 @@ interface UseChatSessionsResult {
   activeReferences: ChatSessionReference[];
   setActiveReferences: Dispatch<SetStateAction<ChatSessionReference[]>>;
   persistedSignaturesRef: MutableRefObject<Map<string, string>>;
-  commitPersistedSession: (
-    record: ChatSessionRecord,
-    nextMessages: AgentChatMessage[],
-  ) => void;
+  commitPersistedSession: (record: ChatSessionRecord, nextMessages: AgentChatMessage[]) => void;
   deletingSessionId: string | null;
   pendingDeleteSessionId: string | null;
   handleCreateSession: () => Promise<void>;
@@ -81,17 +74,12 @@ export const useChatSessions = ({
   const [sessionsReady, setSessionsReady] = useState(false);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState("");
-  const [activeSessionInitialMessages, setActiveSessionInitialMessages] =
-    useState<AgentChatMessage[]>([]);
-  const [activeReferences, setActiveReferences] = useState<
-    ChatSessionReference[]
+  const [activeSessionInitialMessages, setActiveSessionInitialMessages] = useState<
+    AgentChatMessage[]
   >([]);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
-    null,
-  );
-  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<
-    string | null
-  >(null);
+  const [activeReferences, setActiveReferences] = useState<ChatSessionReference[]>([]);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
 
   const replaceChatLocation = useCallback(
     (sessionId: string) => {
@@ -159,12 +147,9 @@ export const useChatSessions = ({
 
         const sorted = [...summaries].sort((a, b) => b.updatedAt - a.updatedAt);
         const requestedSummary = initialRequestedSessionIdRef.current
-          ? sorted.find(
-              (summary) => summary.id === initialRequestedSessionIdRef.current,
-            )
+          ? sorted.find((summary) => summary.id === initialRequestedSessionIdRef.current)
           : null;
-        const initialSessionId =
-          requestedSummary?.id ?? forcedSessionId ?? sorted[0]?.id;
+        const initialSessionId = requestedSummary?.id ?? forcedSessionId ?? sorted[0]?.id;
         if (!initialSessionId) {
           throw new Error("No session available");
         }
@@ -190,9 +175,7 @@ export const useChatSessions = ({
           return;
         }
         setSessionsError(
-          error instanceof Error
-            ? error.message
-            : "Failed to initialize chat sessions.",
+          error instanceof Error ? error.message : "Failed to initialize chat sessions.",
         );
       } finally {
         if (!cancelled) {
@@ -220,10 +203,7 @@ export const useChatSessions = ({
 
     const created = await createChatSession();
     const summary = toSessionSummary(created);
-    setSessions((prev) => [
-      summary,
-      ...prev.filter((session) => session.id !== summary.id),
-    ]);
+    setSessions((prev) => [summary, ...prev.filter((session) => session.id !== summary.id)]);
     applyLoadedSession(created.id, [], []);
     replaceChatLocation(created.id);
   }, [
@@ -339,11 +319,7 @@ export const useChatSessions = ({
         applyLoadedSession(nextSessionId, nextMessages, nextReferences);
         replaceChatLocation(nextSessionId);
       } catch (error) {
-        setSessionsError(
-          error instanceof Error
-            ? error.message
-            : "Failed to delete chat session.",
-        );
+        setSessionsError(error instanceof Error ? error.message : "Failed to delete chat session.");
       } finally {
         setDeletingSessionId(null);
       }
@@ -395,9 +371,7 @@ export const useChatSessions = ({
       return;
     }
 
-    const requestedExists = sessions.some(
-      (session) => session.id === requestedSessionId,
-    );
+    const requestedExists = sessions.some((session) => session.id === requestedSessionId);
     if (requestedExists) {
       void handleSelectSession(requestedSessionId);
       return;
@@ -432,10 +406,7 @@ export const useChatSessions = ({
         buildSessionSignature(nextMessages, record.references),
       );
       setSessions((prev) => {
-        const next = [
-          summary,
-          ...prev.filter((session) => session.id !== summary.id),
-        ];
+        const next = [summary, ...prev.filter((session) => session.id !== summary.id)];
         return next.sort((a, b) => b.updatedAt - a.updatedAt);
       });
     },

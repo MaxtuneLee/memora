@@ -154,13 +154,7 @@ export function useTrashActions({
         removeItem(item.id);
       }
     },
-    [
-      collectFolderDescendantsForTrash,
-      mapToMeta,
-      onDeleteFile,
-      removeItem,
-      store,
-    ],
+    [collectFolderDescendantsForTrash, mapToMeta, onDeleteFile, removeItem, store],
   );
 
   const emptyTrash = useCallback(async () => {

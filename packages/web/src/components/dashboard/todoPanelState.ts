@@ -17,10 +17,7 @@ export const createTodoTask = (draft: string): TodoTask | null => {
   };
 };
 
-export const toggleTodoTask = (
-  tasks: TodoTask[],
-  taskId: string,
-): TodoTask[] => {
+export const toggleTodoTask = (tasks: TodoTask[], taskId: string): TodoTask[] => {
   return tasks.map((task) => {
     if (task.id !== taskId) {
       return task;
@@ -33,9 +30,7 @@ export const toggleTodoTask = (
   });
 };
 
-export const splitTodoTasks = (
-  tasks: TodoTask[],
-): { open: TodoTask[]; done: TodoTask[] } => {
+export const splitTodoTasks = (tasks: TodoTask[]): { open: TodoTask[]; done: TodoTask[] } => {
   return tasks.reduce(
     (groups, task) => {
       if (task.done) {

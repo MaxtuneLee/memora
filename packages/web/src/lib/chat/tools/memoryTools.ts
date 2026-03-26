@@ -6,9 +6,7 @@ import { upsertGlobalMemoryNotices } from "@/lib/settings/personalityStorage";
 
 import type { CreateChatToolsOptions } from "./shared";
 
-export const createMemoryTools = (
-  options: CreateChatToolsOptions,
-): ToolDefinition[] => {
+export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefinition[] => {
   return [
     {
       type: "function",
@@ -27,11 +25,7 @@ export const createMemoryTools = (
           reason: string;
         };
         const extractionConfig = options.getMemoryExtractionConfig?.() ?? null;
-        if (
-          !extractionConfig?.endpoint ||
-          !extractionConfig.apiKey ||
-          !extractionConfig.model
-        ) {
+        if (!extractionConfig?.endpoint || !extractionConfig.apiKey || !extractionConfig.model) {
           return {
             updated: false,
             noticeCount: 0,

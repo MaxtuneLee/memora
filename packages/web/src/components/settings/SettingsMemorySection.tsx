@@ -9,9 +9,7 @@ interface SettingsMemorySectionProps {
   open: boolean;
 }
 
-export default function SettingsMemorySection({
-  open,
-}: SettingsMemorySectionProps) {
+export default function SettingsMemorySection({ open }: SettingsMemorySectionProps) {
   const {
     memoryData,
     isMemoryLoading,
@@ -22,9 +20,7 @@ export default function SettingsMemorySection({
     handleClearAllMemory,
   } = useMemorySettings({ open });
   const sortedNotices = useMemo(() => {
-    return [...(memoryData?.notices ?? [])].sort(
-      (left, right) => right.updatedAt - left.updatedAt,
-    );
+    return [...(memoryData?.notices ?? [])].sort((left, right) => right.updatedAt - left.updatedAt);
   }, [memoryData]);
   const hasStoredMemory = !!memoryData?.personality || sortedNotices.length > 0;
 
@@ -33,9 +29,7 @@ export default function SettingsMemorySection({
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900">
-              Assistant memory
-            </h4>
+            <h4 className="text-sm font-semibold text-zinc-900">Assistant memory</h4>
             <p className="mt-1 text-sm text-zinc-500">
               Saved personality context and durable communication preferences.
             </p>
@@ -52,8 +46,8 @@ export default function SettingsMemorySection({
 
       {!hasStoredMemory && !isMemoryLoading ? (
         <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-6 text-sm text-zinc-500">
-          No saved memory yet. Notices will appear here after the assistant
-          learns durable preferences.
+          No saved memory yet. Notices will appear here after the assistant learns durable
+          preferences.
         </div>
       ) : null}
 

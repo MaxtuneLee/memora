@@ -19,8 +19,7 @@ export default function AppLayout() {
   const [hasPersonality, setHasPersonality] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeSection, setActiveSection] =
-    useState<SettingsSectionId>("general");
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const lastSearchTriggerRef = useRef<HTMLElement | null>(null);
   const isOnboardingRoute = location.pathname.startsWith("/onboarding");
   const isChatRoute = location.pathname.startsWith("/chat");
@@ -48,24 +47,21 @@ export default function AppLayout() {
     return isSettingsOpen;
   }, [isOnboardingRoute, isSettingsOpen]);
 
-  const closeSearch = useCallback(
-    (options?: { restoreFocus?: boolean }) => {
-      setIsSearchOpen(false);
-      if (options?.restoreFocus === false) {
-        return;
-      }
+  const closeSearch = useCallback((options?: { restoreFocus?: boolean }) => {
+    setIsSearchOpen(false);
+    if (options?.restoreFocus === false) {
+      return;
+    }
 
-      const nextFocusTarget = lastSearchTriggerRef.current;
-      if (!nextFocusTarget) {
-        return;
-      }
+    const nextFocusTarget = lastSearchTriggerRef.current;
+    if (!nextFocusTarget) {
+      return;
+    }
 
-      window.setTimeout(() => {
-        nextFocusTarget.focus();
-      }, 0);
-    },
-    [],
-  );
+    window.setTimeout(() => {
+      nextFocusTarget.focus();
+    }, 0);
+  }, []);
 
   const openSearch = useCallback(
     (trigger?: HTMLElement | null) => {
@@ -75,10 +71,7 @@ export default function AppLayout() {
 
       if (trigger) {
         lastSearchTriggerRef.current = trigger;
-      } else if (
-        typeof document !== "undefined" &&
-        document.activeElement instanceof HTMLElement
-      ) {
+      } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
         lastSearchTriggerRef.current = document.activeElement;
       }
 
@@ -172,11 +165,7 @@ export default function AppLayout() {
       }
 
       event.preventDefault();
-      toggleSearch(
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null,
-      );
+      toggleSearch(document.activeElement instanceof HTMLElement ? document.activeElement : null);
     };
 
     window.addEventListener("keydown", handleKeyDown);

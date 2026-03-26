@@ -8,19 +8,16 @@ export function useUploadDialog() {
 
   const isOpen = selectedFile !== null;
 
-  const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      setSelectedFile(file);
-      // Pre-fill name: strip extension
-      const baseName = file.name.replace(/\.[^/.]+$/, "");
-      setUploadName(baseName || file.name);
-      // Reset input so re-selecting same file triggers change
-      event.target.value = "";
-    },
-    [],
-  );
+  const handleInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    // Pre-fill name: strip extension
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    setUploadName(baseName || file.name);
+    // Reset input so re-selecting same file triggers change
+    event.target.value = "";
+  }, []);
 
   const handleCancel = useCallback(() => {
     setSelectedFile(null);

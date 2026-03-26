@@ -25,20 +25,14 @@ export type GlobOptions = {
 
 const rootHandlePromise: Promise<FileSystemDirectoryHandle> =
   typeof navigator === "undefined" || !navigator.storage?.getDirectory
-    ? Promise.reject(
-        new Error(
-          "OPFS is not available. navigator.storage.getDirectory is missing."
-        )
-      )
+    ? Promise.reject(new Error("OPFS is not available. navigator.storage.getDirectory is missing."))
     : navigator.storage.getDirectory();
 
 const normalizePath = (input: string) => {
   const raw = input.trim();
   if (!raw) return "/";
   const prefixed = raw.startsWith("/") ? raw : `/${raw}`;
-  return prefixed.length > 1 && prefixed.endsWith("/")
-    ? prefixed.slice(0, -1)
-    : prefixed;
+  return prefixed.length > 1 && prefixed.endsWith("/") ? prefixed.slice(0, -1) : prefixed;
 };
 
 const splitPath = (input: string) => {
@@ -220,11 +214,7 @@ export const file = (path: string) => {
   };
 };
 
-export const write = async (
-  path: string,
-  data: WriteData,
-  options?: WriteOptions
-) => {
+export const write = async (path: string, data: WriteData, options?: WriteOptions) => {
   const normalized = normalizePath(path);
   if (!options?.overwrite) {
     const exists = await file(normalized).exists();
@@ -268,7 +258,7 @@ export const stat = async (path: string): Promise<StatResult> => {
 
 export const ls = async (
   path: string,
-  options?: { recursive?: boolean; includeFiles?: boolean; includeDirs?: boolean }
+  options?: { recursive?: boolean; includeFiles?: boolean; includeDirs?: boolean },
 ) => {
   const normalized = normalizePath(path);
   const includeFiles = options?.includeFiles ?? true;
@@ -312,11 +302,7 @@ const copyDir = async (from: string, to: string, overwrite = true) => {
   }
 };
 
-export const cp = async (
-  from: string,
-  to: string,
-  options?: { overwrite?: boolean }
-) => {
+export const cp = async (from: string, to: string, options?: { overwrite?: boolean }) => {
   const source = normalizePath(from);
   const dest = normalizePath(to);
   const overwrite = options?.overwrite ?? true;
@@ -332,10 +318,7 @@ export const cp = async (
   await copyDir(source, dest, overwrite);
 };
 
-export const rm = async (
-  path: string,
-  options?: { recursive?: boolean; force?: boolean }
-) => {
+export const rm = async (path: string, options?: { recursive?: boolean; force?: boolean }) => {
   const normalized = normalizePath(path);
   try {
     await file(normalized).remove({ force: options?.force });
@@ -355,11 +338,7 @@ export const rm = async (
   }
 };
 
-export const mv = async (
-  from: string,
-  to: string,
-  options?: { overwrite?: boolean }
-) => {
+export const mv = async (from: string, to: string, options?: { overwrite?: boolean }) => {
   await cp(from, to, options);
   await rm(from, { recursive: true, force: true });
 };
@@ -380,14 +359,10 @@ export type GrepOptions = {
   maxMatches?: number;
 };
 
-export const grep = async (
-  pattern: string | RegExp,
-  options?: GrepOptions,
-) => {
+export const grep = async (pattern: string | RegExp, options?: GrepOptions) => {
   const cwd = normalizePath(options?.cwd ?? "/");
   const flags = options?.ignoreCase ? "gi" : "g";
-  const regex =
-    typeof pattern === "string" ? new RegExp(pattern, flags) : pattern;
+  const regex = typeof pattern === "string" ? new RegExp(pattern, flags) : pattern;
   const max = options?.maxMatches ?? Infinity;
   const matches: GrepMatch[] = [];
 
@@ -432,9 +407,7 @@ export const grep = async (
 
 const globToRegExp = (segment: string) => {
   const escaped = segment.replace(/[.+^${}()|\\]/g, "\\$&");
-  const regex = escaped
-    .replace(/\*/g, "[^/]*")
-    .replace(/\?/g, "[^/]");
+  const regex = escaped.replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]");
   return new RegExp(`^${regex}$`);
 };
 
@@ -448,13 +421,8 @@ const resolveGlobBase = (pattern: string, cwd?: string) => {
 export const glob = async (pattern: string, options?: GlobOptions) => {
   const includeFiles = options?.files ?? true;
   const includeDirs = options?.dirs ?? false;
-  const { base, pattern: normalizedPattern } = resolveGlobBase(
-    pattern,
-    options?.cwd
-  );
-  const segments = normalizedPattern
-    ? normalizedPattern.split("/").filter(Boolean)
-    : [];
+  const { base, pattern: normalizedPattern } = resolveGlobBase(pattern, options?.cwd);
+  const segments = normalizedPattern ? normalizedPattern.split("/").filter(Boolean) : [];
   const matches: string[] = [];
 
   const walk = async (currentPath: string, index: number) => {

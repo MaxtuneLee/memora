@@ -104,7 +104,17 @@ export function DesktopWindow({
         onResize(id, clamped);
       }
     },
-    [clampPosition, clampSize, id, onMove, onResize, position.x, position.y, size.height, size.width],
+    [
+      clampPosition,
+      clampSize,
+      id,
+      onMove,
+      onResize,
+      position.x,
+      position.y,
+      size.height,
+      size.width,
+    ],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -177,9 +187,7 @@ export function DesktopWindow({
           >
             <XIcon className="size-3" weight="bold" />
           </button>
-          <span className="truncate text-xs font-semibold text-zinc-700">
-            {title}
-          </span>
+          <span className="truncate text-xs font-semibold text-zinc-700">{title}</span>
         </div>
         {headerActions && (
           <div
@@ -191,9 +199,7 @@ export function DesktopWindow({
         )}
       </div>
 
-      <div className="relative h-[calc(100%-40px)] overflow-hidden rounded-b-xl">
-        {children}
-      </div>
+      <div className="relative h-[calc(100%-40px)] overflow-hidden rounded-b-xl">{children}</div>
 
       <div
         className="absolute bottom-1 right-1 size-4 cursor-se-resize rounded-sm border border-zinc-300 bg-zinc-100 opacity-0"

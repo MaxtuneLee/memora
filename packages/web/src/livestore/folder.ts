@@ -115,15 +115,9 @@ export const folderMaterializers = {
     folderTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),
-        ...(event.parentId !== undefined
-          ? { parentId: event.parentId ?? null }
-          : {}),
-        ...(event.positionX !== undefined
-          ? { positionX: event.positionX ?? null }
-          : {}),
-        ...(event.positionY !== undefined
-          ? { positionY: event.positionY ?? null }
-          : {}),
+        ...(event.parentId !== undefined ? { parentId: event.parentId ?? null } : {}),
+        ...(event.positionX !== undefined ? { positionX: event.positionX ?? null } : {}),
+        ...(event.positionY !== undefined ? { positionY: event.positionY ?? null } : {}),
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),

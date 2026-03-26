@@ -86,21 +86,14 @@ export function ChatImageAttachmentGallery({
   const isComposerTone = tone === "composer";
 
   return (
-    <div
-      className={cn(
-        "grid gap-2.5",
-        attachments.length > 1 ? "grid-cols-2" : "grid-cols-1",
-      )}
-    >
+    <div className={cn("grid gap-2.5", attachments.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
       {attachments.map((attachment) => {
         const previewEntry = previewEntries[attachment.id] ?? {
           status: "loading" as const,
           url: null,
         };
         const canSaveToLibrary =
-          attachment.source === "local" &&
-          !attachment.savedFileId &&
-          Boolean(onSaveToLibrary);
+          attachment.source === "local" && !attachment.savedFileId && Boolean(onSaveToLibrary);
         const isSaving = savingAttachmentIds?.has(attachment.id) ?? false;
 
         return (
@@ -128,9 +121,7 @@ export function ChatImageAttachmentGallery({
                       isComposerTone ? "text-zinc-500" : "text-zinc-300",
                     )}
                   >
-                    {previewEntry.status === "missing"
-                      ? "Image unavailable"
-                      : "Loading image…"}
+                    {previewEntry.status === "missing" ? "Image unavailable" : "Loading image…"}
                   </div>
                 )}
               </div>
@@ -156,7 +147,8 @@ export function ChatImageAttachmentGallery({
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold">{attachment.name}</p>
                     <p className="mt-0.5 text-[11px] text-white/70">
-                      {SOURCE_LABELS[attachment.source]} · {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
+                      {SOURCE_LABELS[attachment.source]} ·{" "}
+                      {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
                     </p>
                   </div>
                   {attachment.savedFileId && (

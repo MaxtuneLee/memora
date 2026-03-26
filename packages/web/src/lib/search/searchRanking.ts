@@ -10,7 +10,9 @@ const tokenize = (value: string): string[] => {
     .filter(Boolean);
 };
 
-const getSearchHaystack = (item: GlobalSearchItem): {
+const getSearchHaystack = (
+  item: GlobalSearchItem,
+): {
   title: string;
   tokens: string[];
   keywordText: string;

@@ -18,17 +18,17 @@ import {
   attachmentToChatInputImage,
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
-import {
-  findMessageIndexById,
-  findRetrySourceMessage,
-} from "./helpers";
+import { findMessageIndexById, findRetrySourceMessage } from "./helpers";
 import type { ComposerNotice, SuggestionCard } from "./types";
 
 interface SendFn {
-  (input: string | ChatTurnInput, options?: {
-    existingUserMessage?: AgentChatMessage;
-    userMessageContent?: string;
-  }): Promise<void>;
+  (
+    input: string | ChatTurnInput,
+    options?: {
+      existingUserMessage?: AgentChatMessage;
+      userMessageContent?: string;
+    },
+  ): Promise<void>;
 }
 
 interface ResetFn {
@@ -56,9 +56,7 @@ interface UseChatTurnActionsParams {
   prepareReferenceScopeForTurn: () => void;
   send: SendFn;
   resetAgent: ResetFn;
-  setActiveSessionInitialMessages: React.Dispatch<
-    React.SetStateAction<AgentChatMessage[]>
-  >;
+  setActiveSessionInitialMessages: React.Dispatch<React.SetStateAction<AgentChatMessage[]>>;
   thinkingCollapsed: boolean;
 }
 
@@ -127,20 +125,14 @@ export const useChatTurnActions = ({
   }, [activeSessionId, inputRef]);
 
   const startAgentTurn = useCallback(
-    async (
-      turnInput: string | ChatTurnInput,
-      options?: Parameters<SendFn>[1],
-    ) => {
+    async (turnInput: string | ChatTurnInput, options?: Parameters<SendFn>[1]) => {
       await send(turnInput, options);
     },
     [send],
   );
 
   const buildReplayTurnInput = useCallback(
-    async (
-      message: AgentChatMessage,
-      nextText: string,
-    ): Promise<string | ChatTurnInput> => {
+    async (message: AgentChatMessage, nextText: string): Promise<string | ChatTurnInput> => {
       const attachments = message.attachments ?? [];
       if (attachments.length === 0) {
         return nextText;
@@ -181,10 +173,7 @@ export const useChatTurnActions = ({
         return;
       }
 
-      const sourceIndex = findMessageIndexById(
-        latestMessagesRef.current,
-        sourceMessage.id,
-      );
+      const sourceIndex = findMessageIndexById(latestMessagesRef.current, sourceMessage.id);
       if (sourceIndex < 0) {
         return;
       }
@@ -218,9 +207,7 @@ export const useChatTurnActions = ({
         setComposerNotice({
           type: "error",
           text:
-            error instanceof Error
-              ? error.message
-              : "Could not prepare that message for resend.",
+            error instanceof Error ? error.message : "Could not prepare that message for resend.",
         });
       } finally {
         setIsPreparingTurn(false);
@@ -251,10 +238,7 @@ export const useChatTurnActions = ({
 
     const trimmed = inputRef.current?.value.trim() ?? "";
     const nextComposerImages = composerImagesRef.current;
-    if (
-      (trimmed.length === 0 && nextComposerImages.length === 0) ||
-      isStreaming
-    ) {
+    if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
       return;
     }
 
@@ -271,9 +255,7 @@ export const useChatTurnActions = ({
 
       try {
         const images = await Promise.all(
-          nextComposerImages.map((attachment) =>
-            attachmentToChatInputImage(attachment),
-          ),
+          nextComposerImages.map((attachment) => attachmentToChatInputImage(attachment)),
         );
         turnInput = {
           text: trimmed,
@@ -282,10 +264,7 @@ export const useChatTurnActions = ({
       } catch (error) {
         setComposerNotice({
           type: "error",
-          text:
-            error instanceof Error
-              ? error.message
-              : "Could not attach those images.",
+          text: error instanceof Error ? error.message : "Could not attach those images.",
         });
         setIsPreparingTurn(false);
         return;
@@ -325,12 +304,7 @@ export const useChatTurnActions = ({
 
   const handleWidgetPrompt = useCallback(
     async (text: string) => {
-      if (
-        !sessionsReady ||
-        !activeSessionId ||
-        isPreparingTurn ||
-        isStreaming
-      ) {
+      if (!sessionsReady || !activeSessionId || isPreparingTurn || isStreaming) {
         return;
       }
 
@@ -362,9 +336,7 @@ export const useChatTurnActions = ({
 
   const handleEditMessage = useCallback(
     async (messageId: string, nextText: string) => {
-      const sourceMessage = latestMessagesRef.current.find(
-        (message) => message.id === messageId,
-      );
+      const sourceMessage = latestMessagesRef.current.find((message) => message.id === messageId);
       if (!sourceMessage) {
         return;
       }
@@ -376,10 +348,7 @@ export const useChatTurnActions = ({
 
   const handleRetryMessage = useCallback(
     async (assistantMessageId: string) => {
-      const sourceMessage = findRetrySourceMessage(
-        latestMessagesRef.current,
-        assistantMessageId,
-      );
+      const sourceMessage = findRetrySourceMessage(latestMessagesRef.current, assistantMessageId);
       if (!sourceMessage) {
         return;
       }
@@ -410,13 +379,16 @@ export const useChatTurnActions = ({
     [submitMessage],
   );
 
-  const handleSuggestionClick = useCallback((suggestion: SuggestionCard) => {
-    if (inputRef.current) {
-      inputRef.current.value = suggestion.title;
-      inputRef.current.focus();
-    }
-    setComposerTextValue(suggestion.title);
-  }, [inputRef]);
+  const handleSuggestionClick = useCallback(
+    (suggestion: SuggestionCard) => {
+      if (inputRef.current) {
+        inputRef.current.value = suggestion.title;
+        inputRef.current.focus();
+      }
+      setComposerTextValue(suggestion.title);
+    },
+    [inputRef],
+  );
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -450,17 +422,13 @@ export const useChatTurnActions = ({
   }, []);
 
   const lastAssistantId = useMemo(() => {
-    return [...messages].reverse().find((message) => message.role === "assistant")
-      ?.id;
+    return [...messages].reverse().find((message) => message.role === "assistant")?.id;
   }, [messages]);
 
   const retryableAssistantIds = useMemo(() => {
     const ids = new Set<string>();
     messages.forEach((message) => {
-      if (
-        message.role === "assistant" &&
-        findRetrySourceMessage(messages, message.id)
-      ) {
+      if (message.role === "assistant" && findRetrySourceMessage(messages, message.id)) {
         ids.add(message.id);
       }
     });

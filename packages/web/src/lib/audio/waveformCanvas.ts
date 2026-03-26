@@ -1,7 +1,4 @@
-export const smoothPeaksSpatially = (
-  peaks: number[],
-  passes: number = 2,
-): number[] => {
+export const smoothPeaksSpatially = (peaks: number[], passes: number = 2): number[] => {
   let result = [...peaks];
 
   for (let pass = 0; pass < passes; pass += 1) {
@@ -20,10 +17,7 @@ export const smoothPeaksSpatially = (
   return result;
 };
 
-export const resamplePeaksToBars = (
-  peaks: number[],
-  barCount: number,
-): number[] => {
+export const resamplePeaksToBars = (peaks: number[], barCount: number): number[] => {
   if (barCount <= 0 || peaks.length === 0) {
     return [];
   }
@@ -31,10 +25,7 @@ export const resamplePeaksToBars = (
   const resampled: number[] = [];
   for (let index = 0; index < barCount; index += 1) {
     const startIndex = Math.floor((index / barCount) * peaks.length);
-    const endIndex = Math.min(
-      Math.ceil(((index + 1) / barCount) * peaks.length),
-      peaks.length,
-    );
+    const endIndex = Math.min(Math.ceil(((index + 1) / barCount) * peaks.length), peaks.length);
 
     let maxPeak = 0;
     for (let peakIndex = startIndex; peakIndex < endIndex; peakIndex += 1) {
@@ -76,12 +67,7 @@ export const drawRoundedRect = (
   context.lineTo(x + width - safeRadius, y);
   context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
   context.lineTo(x + width, y + height - safeRadius);
-  context.quadraticCurveTo(
-    x + width,
-    y + height,
-    x + width - safeRadius,
-    y + height,
-  );
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
   context.lineTo(x + safeRadius, y + height);
   context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
   context.lineTo(x, y + safeRadius);
@@ -90,11 +76,7 @@ export const drawRoundedRect = (
   context.fill();
 };
 
-export const interpolateColor = (
-  firstColor: string,
-  secondColor: string,
-  t: number,
-): string => {
+export const interpolateColor = (firstColor: string, secondColor: string, t: number): string => {
   const hex1 = firstColor.replace("#", "");
   const hex2 = secondColor.replace("#", "");
 

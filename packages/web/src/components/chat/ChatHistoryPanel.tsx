@@ -27,9 +27,7 @@ const formatSessionUpdatedAt = (timestamp: number): string => {
   return SESSION_DATE_FORMATTER.format(new Date(timestamp));
 };
 
-const groupSessionsByDate = (
-  sessions: ChatSessionSummary[],
-): SessionGroup[] => {
+const groupSessionsByDate = (sessions: ChatSessionSummary[]): SessionGroup[] => {
   const todayStart = getDayStart(Date.now());
   const last7Start = todayStart - 6 * DAY_MS;
 
@@ -79,17 +77,14 @@ function ChatHistoryPanelComponent({
 }: ChatHistoryPanelProps) {
   const groups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const activeTitle =
-    sessions.find((session) => session.id === activeSessionId)?.title ??
-    "History";
+    sessions.find((session) => session.id === activeSessionId)?.title ?? "History";
 
   return (
     <div className="flex h-full flex-col bg-[#f7f2e9]/85">
       <div className="shrink-0 border-b border-zinc-200/60 px-3 py-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-zinc-900">
-              Chat History
-            </h2>
+            <h2 className="truncate text-sm font-semibold text-zinc-900">Chat History</h2>
             <p className="truncate text-xs text-zinc-500">{activeTitle}</p>
           </div>
           {onCloseMobileDrawer && (
@@ -136,8 +131,7 @@ function ChatHistoryPanelComponent({
                   {group.sessions.map((session) => {
                     const isActive = session.id === activeSessionId;
                     const selectDisabled = isStreaming && !isActive;
-                    const deleteDisabled =
-                      isStreaming || deletingSessionId === session.id;
+                    const deleteDisabled = isStreaming || deletingSessionId === session.id;
                     return (
                       <div
                         key={session.id}
@@ -161,9 +155,7 @@ function ChatHistoryPanelComponent({
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-medium">
-                              {session.title}
-                            </p>
+                            <p className="truncate text-sm font-medium">{session.title}</p>
                             <span
                               className={cn(
                                 "shrink-0 text-[10px]",
@@ -227,7 +219,4 @@ const areChatHistoryPanelPropsEqual = (
   );
 };
 
-export const ChatHistoryPanel = memo(
-  ChatHistoryPanelComponent,
-  areChatHistoryPanelPropsEqual,
-);
+export const ChatHistoryPanel = memo(ChatHistoryPanelComponent, areChatHistoryPanelPropsEqual);

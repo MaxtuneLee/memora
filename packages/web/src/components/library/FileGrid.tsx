@@ -33,12 +33,7 @@ export const FileGrid = ({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {files.map((file) => (
-        <FileCard
-          key={file.id}
-          file={file}
-          href={getHref(file)}
-          onDelete={onDelete}
-        />
+        <FileCard key={file.id} file={file} href={getHref(file)} onDelete={onDelete} />
       ))}
     </div>
   );
@@ -49,10 +44,7 @@ interface RecordingsGridProps {
   onDelete: (recording: RecordingItem) => void;
 }
 
-export const RecordingsGrid = ({
-  recordings,
-  onDelete,
-}: RecordingsGridProps) => {
+export const RecordingsGrid = ({ recordings, onDelete }: RecordingsGridProps) => {
   return (
     <FileGrid
       files={recordings}

@@ -10,12 +10,10 @@ import {
 import type { TodoTask } from "@/components/dashboard/todoMarkdown";
 
 test("creates a new open todo task from trimmed multiline text", () => {
-  expect(createTodoTask("  Draft the parser\nwith a second line  ")).toMatchObject(
-    {
-      text: "Draft the parser\nwith a second line",
-      done: false,
-    },
-  );
+  expect(createTodoTask("  Draft the parser\nwith a second line  ")).toMatchObject({
+    text: "Draft the parser\nwith a second line",
+    done: false,
+  });
 });
 
 test("returns null when attempting to create an empty todo task", () => {

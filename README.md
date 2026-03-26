@@ -1,6 +1,5 @@
 <img src="packages/web/public/memora-with-title.png" alt="Memora" width="220"/>
 
-
 Memora is a local-first workspace for learning across documents, audio, images, and video. It is under rapid development, and both APIs and features may change significantly.
 
 ## Overview

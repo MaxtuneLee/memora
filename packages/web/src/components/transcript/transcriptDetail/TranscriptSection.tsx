@@ -98,11 +98,7 @@ export const TranscriptSection = ({
               <Button
                 onClick={onExportSrt}
                 disabled={!canExportSrt}
-                title={
-                  canExportSrt
-                    ? "Export SRT"
-                    : "SRT export needs word-level timestamps"
-                }
+                title={canExportSrt ? "Export SRT" : "SRT export needs word-level timestamps"}
                 className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <DownloadSimpleIcon className="size-3.5" />
@@ -198,8 +194,8 @@ export const TranscriptSection = ({
         <div className="space-y-4 p-4 md:p-5">
           {transcriptDiagnostics?.dropped && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              The last auto-transcription was filtered as likely hallucination.
-              Retry it or save a manual transcript.
+              The last auto-transcription was filtered as likely hallucination. Retry it or save a
+              manual transcript.
             </div>
           )}
 

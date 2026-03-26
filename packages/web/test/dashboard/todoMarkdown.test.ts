@@ -75,8 +75,5 @@ Footer text.
 `);
 
   expect(tasks).toHaveLength(2);
-  expect(tasks.map((task) => task.text)).toEqual([
-    "Keep this task",
-    "And this one",
-  ]);
+  expect(tasks.map((task) => task.text)).toEqual(["Keep this task", "And this one"]);
 });

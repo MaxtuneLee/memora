@@ -21,9 +21,7 @@ const BACKGROUND_IMAGE = `
   linear-gradient(180deg, #fffdf8 0%, #fffbf2 52%, #f8f1e3 100%)
 `;
 
-export default function LiveStoreLoadingScreen({
-  status,
-}: LiveStoreLoadingScreenProps) {
+export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScreenProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const progressRatio =
     "progress" in status && status.progress.total > 0
@@ -41,9 +39,7 @@ export default function LiveStoreLoadingScreen({
         <motion.div
           className="absolute left-1/2 top-[18%] h-[26rem] w-[26rem] -translate-x-1/2 rounded-full bg-[#fff7e7]/80 blur-[88px]"
           animate={
-            shouldReduceMotion
-              ? undefined
-              : { opacity: [0.72, 1, 0.72], scale: [0.96, 1.04, 0.96] }
+            shouldReduceMotion ? undefined : { opacity: [0.72, 1, 0.72], scale: [0.96, 1.04, 0.96] }
           }
           transition={{
             duration: 5.8,
@@ -67,9 +63,7 @@ export default function LiveStoreLoadingScreen({
         <motion.div
           className="absolute right-[-5rem] top-[-5rem] h-[16rem] w-[16rem] rounded-full bg-[#cfb27c]/16 blur-[80px]"
           animate={
-            shouldReduceMotion
-              ? undefined
-              : { opacity: [0.22, 0.42, 0.22], scale: [1, 1.12, 1] }
+            shouldReduceMotion ? undefined : { opacity: [0.22, 0.42, 0.22], scale: [1, 1.12, 1] }
           }
           transition={{
             duration: 6.4,

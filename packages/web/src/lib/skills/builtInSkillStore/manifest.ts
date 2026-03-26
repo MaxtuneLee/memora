@@ -1,6 +1,4 @@
-import type {
-  SkillCatalogEntry,
-} from "@memora/ai-core";
+import type { SkillCatalogEntry } from "@memora/ai-core";
 
 export interface BuiltInSkillResourceFile {
   path: string;
@@ -61,14 +59,11 @@ const bundledSkillFiles = Object.keys(bundledSkillAssetUrls).sort((left, right) 
 
 const parseScalarValue = (value: string): string => {
   if (
-    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith('"') && value.endsWith('"')) ||
     (value.startsWith("'") && value.endsWith("'"))
   ) {
     const inner = value.slice(1, -1);
-    return inner
-      .replace(/\\n/g, "\n")
-      .replace(/\\"/g, "\"")
-      .replace(/\\'/g, "'");
+    return inner.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
 
   return value;
@@ -85,11 +80,7 @@ const parseFrontmatter = (
     if (!line || line.startsWith("#")) {
       continue;
     }
-    if (
-      rawLine.startsWith(" ") ||
-      rawLine.startsWith("\t") ||
-      line.startsWith("-")
-    ) {
+    if (rawLine.startsWith(" ") || rawLine.startsWith("\t") || line.startsWith("-")) {
       continue;
     }
 
@@ -111,14 +102,10 @@ const parseFrontmatter = (
     throw new Error(`Missing required "name" in bundled skill ${skillFilePath}`);
   }
   if (!description) {
-    throw new Error(
-      `Missing required "description" in bundled skill ${skillFilePath}`,
-    );
+    throw new Error(`Missing required "description" in bundled skill ${skillFilePath}`);
   }
   if (!SKILL_NAME_PATTERN.test(name)) {
-    throw new Error(
-      `Bundled skill "${name}" must match ${SKILL_NAME_PATTERN.source}`,
-    );
+    throw new Error(`Bundled skill "${name}" must match ${SKILL_NAME_PATTERN.source}`);
   }
 
   return { name, description };
@@ -225,6 +212,4 @@ const createManifestEntries = (): BuiltInSkillManifestEntry[] => {
 };
 
 export const manifestEntries = createManifestEntries();
-export const skillByName = new Map(
-  manifestEntries.map((skill) => [skill.name, skill]),
-);
+export const skillByName = new Map(manifestEntries.map((skill) => [skill.name, skill]));

@@ -1,13 +1,5 @@
-import {
-  pipeline,
-  env,
-  type ProgressCallback,
-} from "@huggingface/transformers";
-import {
-  file as opfsFile,
-  write as opfsWrite,
-  dir as opfsDir,
-} from "@memora/fs";
+import { pipeline, env, type ProgressCallback } from "@huggingface/transformers";
+import { file as opfsFile, write as opfsWrite, dir as opfsDir } from "@memora/fs";
 
 const WHISPER_TIMESTAMPED_MODEL = "onnx-community/whisper-base_timestamped";
 
@@ -24,7 +16,7 @@ type Transcriber = (
     return_timestamps?: "word";
     chunk_length_s?: number;
     max_new_tokens?: number;
-  }
+  },
 ) => Promise<TimestampedTranscription>;
 
 const WHISPER_MAX_TOKENS_PER_SECOND = 8;
@@ -99,23 +91,17 @@ class AutomaticSpeechRecognitionPipeline {
   static model_id = WHISPER_TIMESTAMPED_MODEL;
   static instance: Transcriber | null = null;
 
-  static async getInstance(
-    progress_callback: ProgressCallback
-  ): Promise<Transcriber> {
+  static async getInstance(progress_callback: ProgressCallback): Promise<Transcriber> {
     if (!this.instance) {
       console.log("[Worker] Loading ASR pipeline model...");
-      this.instance = (await pipeline(
-        "automatic-speech-recognition",
-        this.model_id,
-        {
-          progress_callback,
-          dtype: {
-            encoder_model: "fp32",
-            decoder_model_merged: "fp32",
-          },
-          device: "webgpu",
-        }
-      )) as unknown as Transcriber;
+      this.instance = (await pipeline("automatic-speech-recognition", this.model_id, {
+        progress_callback,
+        dtype: {
+          encoder_model: "fp32",
+          decoder_model_merged: "fp32",
+        },
+        device: "webgpu",
+      })) as unknown as Transcriber;
       console.log("[Worker] ASR pipeline model loaded.");
     }
 
@@ -125,20 +111,14 @@ class AutomaticSpeechRecognitionPipeline {
 
 let processing = false;
 
-async function generate({
-  audio,
-  language,
-}: {
-  audio: Float32Array;
-  language: string;
-}) {
+async function generate({ audio, language }: { audio: Float32Array; language: string }) {
   console.log(
     "[Worker] Generate called, processing:",
     processing,
     "audio length:",
     audio.length,
     "language:",
-    language
+    language,
   );
 
   if (processing) {
@@ -152,12 +132,10 @@ async function generate({
     console.log("[Worker] Sending start message");
     self.postMessage({ status: "start" });
 
-    const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance(
-      (x) => {
-        console.log("[Worker] Pipeline load progress:", x);
-        self.postMessage(x);
-      }
-    );
+    const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+      console.log("[Worker] Pipeline load progress:", x);
+      self.postMessage(x);
+    });
 
     console.log("[Worker] Transcribing with timestamps");
     const result = await transcriber(audio, {
@@ -195,13 +173,11 @@ async function load() {
 
   // Load the pipeline and save it for future use.
   try {
-    const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance(
-      (x) => {
-        // We also add a progress callback to the pipeline so that we can
-        // track model loading.
-        console.log("[Worker] Pipeline load progress:", x);
-      }
-    );
+    const transcriber = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+      // We also add a progress callback to the pipeline so that we can
+      // track model loading.
+      console.log("[Worker] Pipeline load progress:", x);
+    });
     console.log("[Worker] Model loaded:", transcriber);
 
     self.postMessage({
@@ -229,12 +205,7 @@ async function load() {
 // Listen for messages from the main thread
 self.addEventListener("message", async (e: MessageEvent) => {
   const { type, data } = e.data;
-  console.log(
-    "[Worker] Received message, type:",
-    type,
-    "data:",
-    data ? Object.keys(data) : "none"
-  );
+  console.log("[Worker] Received message, type:", type, "data:", data ? Object.keys(data) : "none");
 
   switch (type) {
     case "load":

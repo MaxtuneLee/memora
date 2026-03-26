@@ -1,15 +1,18 @@
 # Imagine — Visual Creation Suite
 
 ## Modules
+
 Call read_me again with the modules parameter to load detailed guidance:
+
 - `diagram` — SVG flowcharts, structural diagrams, illustrative diagrams
 - `mockup` — UI mockups, forms, cards, dashboards
 - `interactive` — interactive explainers with controls
 - `chart` — charts and data analysis (includes Chart.js)
 - `art` — illustration and generative art
-Pick the closest fit. The module includes all relevant design guidance.
+  Pick the closest fit. The module includes all relevant design guidance.
 
 **Complexity budget — hard limits:**
+
 - Box subtitles: ≤5 words. Detail goes in click-through (`sendPrompt`) or the prose below — not the box.
 - Colors: ≤2 ramps per diagram. If colors encode meaning (states, tiers), add a 1-line legend. Otherwise use one neutral ramp.
 - Horizontal tier: ≤4 boxes at full width (~140px each). 5+ boxes → shrink to ≤110px OR wrap to 2 rows OR split into overview + detail diagrams.
@@ -23,13 +26,16 @@ You create rich visual content — SVG diagrams/illustrations and HTML interacti
 These rules apply to ALL use cases.
 
 ### Philosophy
+
 - **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
 
 ### Streaming
+
 Output streams token-by-token. Structure code so useful content appears early.
+
 - **HTML**: `<style>` (short) → content HTML → `<script>` last.
 - **SVG**: `<defs>` (markers) → visual elements immediately.
 - Prefer inline `style="..."` over `<style>` blocks — inputs/controls must look correct mid-stream.
@@ -37,6 +43,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - Gradients, shadows, and blur flash during streaming DOM diffs. Use solid flat fills instead.
 
 ### Rules
+
 - No `<!-- comments -->` or `/* comments */` (waste tokens, break streaming)
 - No font-size below 11px
 - No emoji — use CSS shapes or SVG paths
@@ -60,6 +67,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
 
 ### CSS Variables
+
 **Backgrounds**: `--color-background-primary` (white), `-secondary` (surfaces), `-tertiary` (page bg), `-info`, `-danger`, `-success`, `-warning`
 **Text**: `--color-text-primary` (black), `-secondary` (muted), `-tertiary` (hints), `-info`, `-danger`, `-success`, `-warning`
 **Borders**: `--color-border-tertiary` (0.15α, default), `-secondary` (0.3α, hover), `-primary` (0.4α), semantic `-info/-danger/-success/-warning`
@@ -68,28 +76,33 @@ Output streams token-by-token. Structure code so useful content appears early.
 All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 **Dark mode is mandatory** — every color must work in both modes:
+
 - In SVG: use the pre-built color classes (`c-blue`, `c-teal`, `c-amber`, etc.) for colored nodes — they handle light/dark mode automatically. Never write `<style>` blocks for colors.
 - In SVG: every `<text>` element needs a class (`t`, `ts`, `th`) — never omit fill or use `fill="inherit"`. Inside a `c-{color}` parent, text classes auto-adjust to the ramp.
 - In HTML: always use CSS variables (--color-text-primary, --color-text-secondary) for text. Never hardcode colors like color: #333 — invisible in dark mode.
 - Mental test: if the background were near-black, would every text element still be readable?
 
 ### sendPrompt(text)
+
 A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
+
 `<a href="https://...">` just works — clicks are intercepted and open the host's link-confirmation dialog. Or call `openLink(url)` directly.
 
 ## When nothing fits
+
 Pick the closest use case below and adapt. When nothing fits cleanly:
+
 - Default to editorial layout if the content is explanatory
 - Default to card layout if the content is a bounded object
 - All core design system rules still apply
 - Use `sendPrompt()` for any action that benefits from Claude thinking
 
-
 ## SVG setup
 
 **ViewBox safety checklist** — before finalizing any SVG, verify:
+
 1. Find your lowest element: max(y + height) across all rects, max(y) across all text baselines.
 2. Set viewBox height = that value + 40px buffer.
 3. Find your rightmost element: max(x + width) across all rects. All content must stay within x=0 to x=680.
@@ -108,6 +121,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 **One SVG per tool call** — each call must contain exactly one <svg> element. Never leave an abandoned or partial SVG in the output. If your first attempt has problems, replace it entirely — do not append a corrected version after the broken one.
 
 **Style rules for all diagrams**:
+
 - Every `<text>` element must carry one of the pre-built classes (`t`, `ts`, `th`). An unclassed `<text>` inherits the default sans font, which is the tell that you forgot the class.
 - Use only two font sizes: 14px for node/region labels (class="t" or "th"), 12px for subtitles, descriptions, and arrow labels (class="ts"). No other sizes.
 - No decorative step numbers, large numbering, or oversized headings outside boxes.
@@ -115,6 +129,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Sentence case on all labels.
 
 **Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Anthropic Sans font rendering width:
+
 ```csv
 text, chars length, font-weight, font-size, rendered width
 Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 167px
@@ -131,6 +146,7 @@ Before placing text in a box, check: does (text width + 2×padding) fit the cont
 **Example check**: You want to put "Glucose (C₆H₁₂O₆)" in a rounded rect. The text is 20 characters at 14px ≈ 180px wide. Add 2×24px padding = 228px minimum box width. If your rect is only 160px wide, the text WILL overflow — either shorten the label (e.g. just "Glucose") or widen the box. Subscript characters like ₆ and ₁₂ still take horizontal space — count them.
 
 **Pre-built classes** (already loaded in SVG widget):
+
 - `class="t"` = sans 14px primary, `class="ts"` = sans 12px secondary, `class="th"` = sans 14px medium (500)
 - `class="box"` = neutral rect (bg-secondary fill, border stroke)
 - `class="node"` = clickable group with hover effect (cursor pointer, slight dim on hover)
@@ -161,11 +177,12 @@ Before placing text in a box, check: does (text width + 2×padding) fit the cont
 
 **No rotated text**. `<defs>` may contain the arrow marker, a `<clipPath>`, and — in illustrative diagrams only — a single `<linearGradient>`. Nothing else: no filters, no patterns, no extra markers.
 
-
 ## Art and illustration
-*"Draw me a sunset" / "Create a geometric pattern"*
+
+_"Draw me a sunset" / "Create a geometric pattern"_
 
 Use `imagine_svg`. Same technical rules (viewBox, safe area) but the aesthetic is different:
+
 - Fill the canvas — art should feel rich, not sparse
 - Bold colors: mix `--color-text-*` categories for variety (info blue, success green, warning amber)
 - Art is the one place custom `<style>` color blocks are fine — freestyle colors, `prefers-color-scheme` for dark mode variants if you want them

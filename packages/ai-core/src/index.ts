@@ -4,10 +4,7 @@ export type { AgentOptions } from "./loop";
 export { ToolRegistry, createToolRegistry } from "./tools";
 export { ContextManager, createContextManager } from "./context";
 export { PromptComposer, createPromptComposer } from "./prompt";
-export {
-  createSkillCatalogPromptSegment,
-  createSkillTools,
-} from "./skills";
+export { createSkillCatalogPromptSegment, createSkillTools } from "./skills";
 export { TransformPipeline, createTransformPipeline, responsesTransform } from "./transform";
 export { InMemoryAdapter, createInMemoryAdapter } from "./persistence";
 export { parseSSEStream, parseResponsesStream } from "./stream";

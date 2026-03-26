@@ -105,7 +105,7 @@ declare class AudioData {
   /** Copies the samples from the specified plane of the AudioData object to the destination. */
   public copyTo(
     destination: ArrayBuffer,
-    options: { planeIndex: number; frameOffset?: number; frameCount?: number }
+    options: { planeIndex: number; frameOffset?: number; frameCount?: number },
   ): void;
   /** Creates a new AudioData object with reference to the same media resource as the original. */
   public clone(): AudioData;
@@ -121,14 +121,11 @@ declare type AudioEncoderOutputMetadata = {
 };
 declare type AudioEncoderOutputCallback = (
   chunk: EncodedAudioChunk,
-  metadata: AudioEncoderOutputMetadata
+  metadata: AudioEncoderOutputMetadata,
 ) => any;
 declare type AudioEncoderErrorCallback = (error: Error) => any;
 declare class AudioEncoder {
-  constructor(init: {
-    output: AudioEncoderOutputCallback;
-    error: AudioEncoderErrorCallback;
-  });
+  constructor(init: { output: AudioEncoderOutputCallback; error: AudioEncoderErrorCallback });
   readonly decodeQueueSize: number;
   readonly state: WebCodecsState;
   /** Enqueues a control message to configure the audio decoder for decoding chunks. */
@@ -146,10 +143,7 @@ declare class AudioEncoder {
 declare type AudioDecoderOutputCallback = (data: AudioData) => any;
 declare type AudioDecoderErrorCallback = (error: Error) => any;
 declare class AudioDecoder {
-  constructor(init: {
-    output: AudioDecoderOutputCallback;
-    error: AudioDecoderErrorCallback;
-  });
+  constructor(init: { output: AudioDecoderOutputCallback; error: AudioDecoderErrorCallback });
   readonly decodeQueueSize: number;
   readonly state: WebCodecsState;
   /** Enqueues a control message to configure the audio decoder for decoding chunks. */
@@ -234,10 +228,7 @@ declare interface VideoDecoderConfiguration {
 }
 
 declare class VideoDecoder {
-  constructor(options: {
-    output: VideoDecoderOutputCallback;
-    error: VideoDecoderErrorCallback;
-  });
+  constructor(options: { output: VideoDecoderOutputCallback; error: VideoDecoderErrorCallback });
   /** An integer representing the number of decode queue requests. */
   readonly decodeQueueSize: number;
   /** Indicates whether the underlying codec is configured for decoding. */
@@ -273,7 +264,7 @@ declare type VideoEncoderOutputMetadata = {
 
 declare type VideoEncoderOutputCallback = (
   encoded: EncodedVideoChunk,
-  metadata?: VideoEncoderOutputMetadata
+  metadata?: VideoEncoderOutputMetadata,
 ) => any;
 declare type VideoEncoderErrorCallback = (error: Error) => any;
 declare interface VideoEncoderConfiguration {
@@ -303,10 +294,7 @@ declare interface VideoEncoderConfiguration {
   latencyMode?: "quality" | "realtime";
 }
 declare class VideoEncoder {
-  constructor(options: {
-    output: VideoEncoderOutputCallback;
-    error: VideoEncoderErrorCallback;
-  });
+  constructor(options: { output: VideoEncoderOutputCallback; error: VideoEncoderErrorCallback });
   /** An integer representing the number of encode queue requests. */
   readonly encodeQueueSize: number;
   /** Represents the state of the underlying codec and whether it is configured for encoding. */
@@ -391,18 +379,10 @@ declare interface VideoFrameBufferOptions {
 
 declare class VideoFrame {
   constructor(
-    image:
-      | SVGImageElement
-      | HTMLVideoElement
-      | HTMLCanvasElement
-      | ImageBitmap
-      | VideoFrame,
-    options: VideoFrameOptions
+    image: SVGImageElement | HTMLVideoElement | HTMLCanvasElement | ImageBitmap | VideoFrame,
+    options: VideoFrameOptions,
   );
-  constructor(
-    data: ArrayBuffer | ArrayBufferView,
-    options: VideoFrameBufferOptions
-  );
+  constructor(data: ArrayBuffer | ArrayBufferView, options: VideoFrameBufferOptions);
   readonly format: VideoFrameFormat;
   readonly codedWidth: number;
   readonly codedHeight: number;
@@ -423,7 +403,7 @@ declare class VideoFrame {
     options?: {
       rect?: { x: number; y: number; width: number; height: number };
       layout?: { offset: number; stride: number }[];
-    }
+    },
   ): Promise<void>;
   /** Creates a new VideoFrame object with reference to the same media resource as the original. */
   public clone(): VideoFrame;

@@ -120,7 +120,7 @@ test("flushes reasoning before tool calls", async () => {
                 type: "function",
                 function: {
                   name: "search_docs",
-                  arguments: "{\"query\":\"memora\"}",
+                  arguments: '{"query":"memora"}',
                 },
               },
             ],

@@ -113,21 +113,11 @@ const buildScopeSummary = (
   return `${prefix} · ${fileCount} file${fileCount === 1 ? "" : "s"}`;
 };
 
-function UsageDetail({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function UsageDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 text-[11px]">
-      <p className="text-zinc-500">
-        {label}
-      </p>
-      <p className="text-right font-medium text-zinc-800">
-        {value}
-      </p>
+      <p className="text-zinc-500">{label}</p>
+      <p className="text-right font-medium text-zinc-800">{value}</p>
     </div>
   );
 }
@@ -178,25 +168,19 @@ export function ChatContextUsage({
   selectedModelId,
 }: ChatContextUsageProps) {
   const usageSummary = ((): UsageSummary => {
-    const latestMeasuredMessage = [...messages]
-      .reverse()
-      .find((message) => {
-        if (message.role !== "assistant" || !message.usage) {
-          return false;
-        }
+    const latestMeasuredMessage = [...messages].reverse().find((message) => {
+      if (message.role !== "assistant" || !message.usage) {
+        return false;
+      }
 
-        return (
-          message.usage.inputTokens !== undefined ||
-          message.usage.totalTokens !== undefined
-        );
-      });
+      return message.usage.inputTokens !== undefined || message.usage.totalTokens !== undefined;
+    });
 
     const latestInputTokens = latestMeasuredMessage?.usage?.inputTokens;
     const latestOutputTokens = latestMeasuredMessage?.usage?.outputTokens;
     const latestTotalTokens = latestMeasuredMessage?.usage?.totalTokens;
     const draftEstimate =
-      estimateTextTokens(composerText) +
-      composerImageCount * IMAGE_ATTACHMENT_TOKENS;
+      estimateTextTokens(composerText) + composerImageCount * IMAGE_ATTACHMENT_TOKENS;
     const fallbackConversationEstimate =
       messages.reduce((total, message) => total + estimateMessageTokens(message), 0) +
       draftEstimate;
@@ -205,8 +189,7 @@ export function ChatContextUsage({
       latestInputTokens ??
       latestTotalTokens ??
       (fallbackConversationEstimate > 0 ? fallbackConversationEstimate : null);
-    const primaryApproximate =
-      latestInputTokens === undefined && latestTotalTokens === undefined;
+    const primaryApproximate = latestInputTokens === undefined && latestTotalTokens === undefined;
     const projectedNextTurnTokens =
       latestInputTokens !== undefined
         ? latestInputTokens + (latestOutputTokens ?? 0) + draftEstimate
@@ -305,9 +288,7 @@ export function ChatContextUsage({
               status.triggerClassName,
             )}
           >
-            <span className="uppercase tracking-[0.18em]">
-              Ctx
-            </span>
+            <span className="uppercase tracking-[0.18em]">Ctx</span>
             <span className="text-zinc-800">{triggerValue}</span>
             {triggerSecondaryValue && (
               <span className="text-zinc-500">{triggerSecondaryValue}</span>
@@ -316,20 +297,13 @@ export function ChatContextUsage({
         }
       />
       <Tooltip.Portal>
-        <Tooltip.Positioner
-          side="top"
-          align="end"
-          sideOffset={10}
-          className="z-30"
-        >
+        <Tooltip.Positioner side="top" align="end" sideOffset={10} className="z-30">
           <Tooltip.Popup className="w-[min(19rem,calc(100vw-1.5rem))] rounded-2xl border border-zinc-200 bg-white/95 p-3.5 text-xs shadow-xl backdrop-blur-sm">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-900">Context</p>
-                  <p className="mt-1 leading-relaxed text-zinc-500">
-                    {subtitle}
-                  </p>
+                  <p className="mt-1 leading-relaxed text-zinc-500">{subtitle}</p>
                   {resolvedModelLabel && (
                     <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
                       {resolvedModelLabel}
@@ -351,21 +325,15 @@ export function ChatContextUsage({
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                       Now
                     </p>
-                    <p className="mt-1 text-lg font-semibold text-zinc-900">
-                      {primaryLabel}
-                    </p>
-                    <p className="mt-1 text-[11px] text-zinc-500">
-                      {exactPrimaryLabel}
-                    </p>
+                    <p className="mt-1 text-lg font-semibold text-zinc-900">{primaryLabel}</p>
+                    <p className="mt-1 text-[11px] text-zinc-500">{exactPrimaryLabel}</p>
                   </div>
                   {usagePercent && (
                     <div className="text-right">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                         Window
                       </p>
-                      <p className="mt-1 text-sm font-medium text-zinc-800">
-                        {usagePercent}
-                      </p>
+                      <p className="mt-1 text-sm font-medium text-zinc-800">{usagePercent}</p>
                     </div>
                   )}
                 </div>
@@ -396,14 +364,12 @@ export function ChatContextUsage({
                       : "Empty"
                   }
                 />
-                {showScopeSummary && (
-                  <UsageDetail label="References" value={scopeSummary} />
-                )}
+                {showScopeSummary && <UsageDetail label="References" value={scopeSummary} />}
               </div>
 
               <p className="text-[11px] leading-relaxed text-zinc-400">
-                {usageSummary.description} Values with{" "}
-                <span className="font-semibold">~</span> are estimates.
+                {usageSummary.description} Values with <span className="font-semibold">~</span> are
+                estimates.
               </p>
             </div>
           </Tooltip.Popup>

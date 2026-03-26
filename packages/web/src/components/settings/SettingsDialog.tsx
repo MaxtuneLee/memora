@@ -119,9 +119,7 @@ export default function SettingsDialog({
                 className={props.className}
                 initial={{ opacity: 0, scale: 0.96, y: 18 }}
                 animate={
-                  state.open
-                    ? { opacity: 1, scale: 1, y: 0 }
-                    : { opacity: 0, scale: 0.98, y: 10 }
+                  state.open ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.98, y: 10 }
                 }
                 transition={{ type: "spring", stiffness: 420, damping: 28 }}
               />
@@ -162,8 +160,7 @@ export default function SettingsDialog({
                     {activeSectionData?.label ?? "Settings"}
                   </Dialog.Title>
                   <Dialog.Description className="mt-2 text-sm text-zinc-500">
-                    {activeSectionData?.description ??
-                      "Manage your workspace preferences."}
+                    {activeSectionData?.description ?? "Manage your workspace preferences."}
                   </Dialog.Description>
                 </div>
                 <Dialog.Close className="flex size-8 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400">
@@ -181,9 +178,7 @@ export default function SettingsDialog({
       <ToastStack
         render={(toast) => (
           <Toast.Content className="flex items-start gap-3 transition">
-            <span
-              className={cn("mt-1 size-2 rounded-full", toastIconColor(toast.type))}
-            />
+            <span className={cn("mt-1 size-2 rounded-full", toastIconColor(toast.type))} />
             <div className="space-y-1">
               <Toast.Title className="text-sm font-semibold text-zinc-900">
                 {toast.title}

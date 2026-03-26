@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { buildWordAnimationWords } from "@/lib/transcript/transcriptUtils";
 
@@ -39,10 +34,7 @@ export const useWordAnimation = ({
   }, [setCurrentSegment, setCurrentSegmentPrefix]);
 
   const enqueueWordAnimation = useCallback(
-    (
-      chunks: Array<{ text: string; timestamp?: [number, number] }>,
-      finalText: string,
-    ) => {
+    (chunks: Array<{ text: string; timestamp?: [number, number] }>, finalText: string) => {
       const words = buildWordAnimationWords(chunks);
       if (words.length === 0) {
         return;
@@ -94,12 +86,7 @@ export const useWordAnimation = ({
 
       runNext();
     },
-    [
-      accumulatedTextRef,
-      setAccumulatedText,
-      setCurrentSegment,
-      setCurrentSegmentPrefix,
-    ],
+    [accumulatedTextRef, setAccumulatedText, setCurrentSegment, setCurrentSegmentPrefix],
   );
 
   return {
