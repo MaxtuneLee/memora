@@ -1,8 +1,4 @@
-export const downsample = (
-  input: Float32Array,
-  inputRate: number,
-  outputRate: number
-) => {
+export const downsample = (input: Float32Array, inputRate: number, outputRate: number) => {
   if (inputRate === outputRate) return input;
 
   const ratio = inputRate / outputRate;

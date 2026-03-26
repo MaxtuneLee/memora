@@ -39,9 +39,7 @@ export const TranscriptionOutput = ({
             )}
           </>
         ) : (
-          <span className="italic text-zinc-400">
-            Start recording to see transcription...
-          </span>
+          <span className="italic text-zinc-400">Start recording to see transcription...</span>
         )}
       </div>
       {tps && (
@@ -52,5 +50,3 @@ export const TranscriptionOutput = ({
     </div>
   );
 };
-
-

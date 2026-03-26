@@ -79,7 +79,9 @@ export function DesktopContextMenu({
           }
         }
       }}
-    >      <Menu.Portal>
+    >
+      {" "}
+      <Menu.Portal>
         <Menu.Positioner
           className="z-30"
           anchor={virtualAnchor}
@@ -88,59 +90,41 @@ export function DesktopContextMenu({
           sideOffset={0}
           alignOffset={0}
         >
-          <Menu.Popup 
+          <Menu.Popup
             className="min-w-[180px] rounded-xl border border-zinc-200 bg-white/95 backdrop-blur-md p-1.5 shadow-lg animate-in fade-in zoom-in-95 duration-100"
             onClick={handlePopupClick}
           >
             {isDesktopMenu ? (
               <>
-                <Menu.Item
-                  className={menuItemClassName}
-                  onClick={onNewFolder}
-                >
+                <Menu.Item className={menuItemClassName} onClick={onNewFolder}>
                   <FolderPlusIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>New Folder</span>
                 </Menu.Item>
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
-                <Menu.Item
-                  className={menuItemClassName}
-                  onClick={onNewNote}
-                >
+                <Menu.Item className={menuItemClassName} onClick={onNewNote}>
                   <FileTextIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>New Note</span>
                 </Menu.Item>
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
-                <Menu.Item
-                  className={menuItemClassName}
-                  onClick={onUploadAudio}
-                >
+                <Menu.Item className={menuItemClassName} onClick={onUploadAudio}>
                   <UploadIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>Upload File</span>
                 </Menu.Item>
               </>
             ) : (
               <>
-                <Menu.Item
-                  className={menuItemClassName}
-                  onClick={onRename}
-                >
+                <Menu.Item className={menuItemClassName} onClick={onRename}>
                   <PencilSimpleIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>Rename</span>
                 </Menu.Item>
                 {onOpenInNewWindow && (
-                  <Menu.Item
-                    className={menuItemClassName}
-                    onClick={onOpenInNewWindow}
-                  >
+                  <Menu.Item className={menuItemClassName} onClick={onOpenInNewWindow}>
                     <FolderPlusIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                     <span>Open in New Window</span>
                   </Menu.Item>
                 )}
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
-                <Menu.Item
-                  className={deleteItemClassName}
-                  onClick={onDelete}
-                >
+                <Menu.Item className={deleteItemClassName} onClick={onDelete}>
                   <TrashIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-red-600" />
                   <span>Delete</span>
                 </Menu.Item>

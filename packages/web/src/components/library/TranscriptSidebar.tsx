@@ -213,9 +213,7 @@ export const TranscriptSidebar = ({
       <div className="sticky top-0 z-10 mb-0 bg-gradient-to-b from-white via-white/95 to-transparent pt-2 pb-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-zinc-500">
-              Tap any word to jump through the recording.
-            </p>
+            <p className="text-xs text-zinc-500">Tap any word to jump through the recording.</p>
           </div>
           <div className="shrink-0 text-xs tabular-nums text-zinc-400">
             {activeWord ? formatDuration(activeWord.timestamp[0]) : "0:00"}

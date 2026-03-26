@@ -20,9 +20,7 @@ export default function App() {
       schema={schema}
       adapter={adapter}
       renderLoading={(status) => (
-        <LiveStoreLoadingScreen
-          status={createLiveStoreLoadingStatus(status)}
-        />
+        <LiveStoreLoadingScreen status={createLiveStoreLoadingStatus(status)} />
       )}
       batchUpdates={batchUpdates}
       storeId={"main"}

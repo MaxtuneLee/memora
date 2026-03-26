@@ -27,11 +27,7 @@ export const DEFAULT_WELCOME_COPY = {
 
 export const WELCOME_COPY_LIBRARY: Record<WelcomeState, WelcomeCopyLibraryEntry> = {
   empty: {
-    titles: [
-      "Start with one idea.",
-      "The desk is ready.",
-      "A calm place to begin.",
-    ],
+    titles: ["Start with one idea.", "The desk is ready.", "A calm place to begin."],
     descriptions: {
       morning: [
         "The morning is clear. Add a note, a recording, or the first chat to set the pace.",
@@ -56,11 +52,7 @@ export const WELCOME_COPY_LIBRARY: Record<WelcomeState, WelcomeCopyLibraryEntry>
     },
   },
   returning: {
-    titles: [
-      "Pick up the thread.",
-      "Your notes are waiting.",
-      "There is more to follow.",
-    ],
+    titles: ["Pick up the thread.", "Your notes are waiting.", "There is more to follow."],
     descriptions: {
       morning: [
         "There is already a trail here. Use the quiet of the morning to push it a little further.",
@@ -85,11 +77,7 @@ export const WELCOME_COPY_LIBRARY: Record<WelcomeState, WelcomeCopyLibraryEntry>
     },
   },
   active: {
-    titles: [
-      "Everything is in motion.",
-      "Your work has momentum.",
-      "The pieces are on the table.",
-    ],
+    titles: ["Everything is in motion.", "Your work has momentum.", "The pieces are on the table."],
     descriptions: {
       morning: [
         "You have enough material on the table to make real progress this morning.",

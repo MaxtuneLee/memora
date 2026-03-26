@@ -24,9 +24,7 @@ interface SettingsAiProviderSectionProps {
   open: boolean;
 }
 
-export default function SettingsAiProviderSection({
-  open,
-}: SettingsAiProviderSectionProps) {
+export default function SettingsAiProviderSection({ open }: SettingsAiProviderSectionProps) {
   const {
     providers,
     selectedProviderId,
@@ -81,9 +79,7 @@ export default function SettingsAiProviderSection({
             onClick={handleToggleModelDropdown}
             className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 transition hover:border-zinc-300"
           >
-            <span className={selectedModel ? "" : "text-zinc-400"}>
-              {selectedModelLabel}
-            </span>
+            <span className={selectedModel ? "" : "text-zinc-400"}>{selectedModelLabel}</span>
             <CaretDownIcon className="size-4 text-zinc-400" />
           </button>
           <AnimatePresence>
@@ -114,9 +110,7 @@ export default function SettingsAiProviderSection({
                 </div>
                 <div className="max-h-52 overflow-y-auto">
                   {filteredModelGroups.length === 0 ? (
-                    <div className="px-3 py-3 text-xs text-zinc-400">
-                      No matching models.
-                    </div>
+                    <div className="px-3 py-3 text-xs text-zinc-400">No matching models.</div>
                   ) : (
                     filteredModelGroups.map(({ provider, models }) => (
                       <div key={provider.id}>
@@ -125,8 +119,7 @@ export default function SettingsAiProviderSection({
                         </div>
                         {models.map((model) => {
                           const isSelected =
-                            selectedProviderId === provider.id &&
-                            selectedModel === model.id;
+                            selectedProviderId === provider.id && selectedModel === model.id;
                           return (
                             <button
                               key={model.id}
@@ -199,16 +192,10 @@ export default function SettingsAiProviderSection({
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-900">
-                      {provider.name}
-                    </span>
-                    <span className="text-[11px] text-zinc-400">
-                      {models.length} models
-                    </span>
+                    <span className="text-sm font-medium text-zinc-900">{provider.name}</span>
+                    <span className="text-[11px] text-zinc-400">{models.length} models</span>
                   </div>
-                  <div className="mt-0.5 truncate text-xs text-zinc-400">
-                    {provider.baseUrl}
-                  </div>
+                  <div className="mt-0.5 truncate text-xs text-zinc-400">{provider.baseUrl}</div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -218,9 +205,7 @@ export default function SettingsAiProviderSection({
                     title="Fetch models"
                     className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
                   >
-                    <ArrowsClockwiseIcon
-                      className={cn("size-4", isFetching && "animate-spin")}
-                    />
+                    <ArrowsClockwiseIcon className={cn("size-4", isFetching && "animate-spin")} />
                   </button>
                   <button
                     type="button"

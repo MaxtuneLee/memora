@@ -1,12 +1,6 @@
 import type { SettingsSectionId } from "@/types/settings";
 
-export type SearchItemKind =
-  | "file"
-  | "folder"
-  | "chat"
-  | "settings"
-  | "page"
-  | "action";
+export type SearchItemKind = "file" | "folder" | "chat" | "settings" | "page" | "action";
 
 export type DesktopIntent =
   | {

@@ -1,9 +1,4 @@
-import {
-  FileTextIcon,
-  FolderSimpleIcon,
-  MagnifyingGlassIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { FileTextIcon, FolderSimpleIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 
 export interface ReferencePickerOption {
@@ -67,9 +62,7 @@ export const ReferencePicker = ({
                 onClick={() => onSelect(option)}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition",
-                  option.isSelected
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-700 hover:bg-zinc-100",
+                  option.isSelected ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100",
                 )}
               >
                 {option.type === "folder" ? (

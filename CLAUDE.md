@@ -31,6 +31,7 @@ No test scripts are currently defined.
 **Monorepo** managed with pnpm workspaces. Two packages:
 
 ### `packages/web` (`@memora/web`)
+
 Local-first, privacy-focused app for managing multi-modal content (audio, video, images, documents). React 19 + Vite (rolldown-vite) + Tailwind CSS v4.
 
 - **Routing**: File-system based via `vite-plugin-route-builder`. Pages in `src/pages/` auto-generate `src/generated-routes.ts` (do not edit).
@@ -44,6 +45,7 @@ Local-first, privacy-focused app for managing multi-modal content (audio, video,
 - **React Compiler**: Enabled via `babel-plugin-react-compiler`.
 
 ### `packages/fs` (`@memora/fs`)
+
 OPFS filesystem utilities with shell-like API (`cat`, `cp`, `ls`, `mkdir`, `mv`, `rm`, `stat`, `write`, `glob`, `dir`, `file`). Built with `tsdown`.
 
 ## Code Style

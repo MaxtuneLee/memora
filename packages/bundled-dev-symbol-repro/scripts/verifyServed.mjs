@@ -35,10 +35,7 @@ const extractImports = (code, parentUrl) => {
   for (const pattern of patterns) {
     for (const match of code.matchAll(pattern)) {
       const specifier = match[1];
-      if (
-        specifier.startsWith(".") ||
-        specifier.startsWith("/")
-      ) {
+      if (specifier.startsWith(".") || specifier.startsWith("/")) {
         imports.add(new URL(specifier, parentUrl).toString());
       }
     }

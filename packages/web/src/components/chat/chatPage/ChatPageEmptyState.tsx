@@ -22,13 +22,9 @@ export const ChatPageEmptyState = ({
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
       <div className="flex flex-col items-center gap-4">
-        {sessionsError && (
-          <p className="text-center text-xs text-red-600">{sessionsError}</p>
-        )}
+        {sessionsError && <p className="text-center text-xs text-red-600">{sessionsError}</p>}
         <Persona state="idle" className="size-20" />
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-          {greetingTitle}
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{greetingTitle}</h1>
         {!isConfigured && (
           <button
             type="button"
@@ -58,9 +54,7 @@ export const ChatPageEmptyState = ({
             >
               <suggestion.icon className="mt-0.5 size-4 shrink-0 text-zinc-400" />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-zinc-700">
-                  {suggestion.title}
-                </p>
+                <p className="text-sm font-medium text-zinc-700">{suggestion.title}</p>
                 <p className="mt-0.5 text-xs leading-snug text-zinc-400">
                   {suggestion.description}
                 </p>

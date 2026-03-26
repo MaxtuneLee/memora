@@ -23,9 +23,7 @@ interface TailRepeatPattern {
 }
 
 const normalizeTranscriptWord = (value: string) => {
-  return value
-    .toLocaleLowerCase()
-    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+  return value.toLocaleLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 };
 
 const normalizeTranscriptSpacing = (value: string) => {
@@ -46,10 +44,7 @@ const normalizeChunkTokens = (chunks: RecordingWord[]) => {
 };
 
 const arraysEqual = (left: string[], right: string[]) => {
-  return (
-    left.length === right.length &&
-    left.every((value, index) => value === right[index])
-  );
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 };
 
 export const countBlankAudioMarkers = (text: string) => {
@@ -60,17 +55,12 @@ export const stripBlankAudioMarkers = (text: string) => {
   return normalizeTranscriptSpacing(text.replace(BLANK_AUDIO_MARKER_PATTERN, " "));
 };
 
-export const findRepeatedTailPattern = (
-  normalizedWords: string[],
-): TailRepeatPattern | null => {
+export const findRepeatedTailPattern = (normalizedWords: string[]): TailRepeatPattern | null => {
   if (normalizedWords.length < TRAILING_REPEAT_MIN_WORDS) {
     return null;
   }
 
-  const tailWindowStart = Math.max(
-    0,
-    normalizedWords.length - TRAILING_REPEAT_WINDOW_WORDS,
-  );
+  const tailWindowStart = Math.max(0, normalizedWords.length - TRAILING_REPEAT_WINDOW_WORDS);
   const trailingWords = normalizedWords.slice(tailWindowStart);
   let bestPattern: TailRepeatPattern | null = null;
   const maxPhraseLength = Math.min(
@@ -78,11 +68,7 @@ export const findRepeatedTailPattern = (
     Math.floor(trailingWords.length / TRAILING_REPEAT_MIN_CYCLES),
   );
 
-  for (
-    let phraseLength = 1;
-    phraseLength <= maxPhraseLength;
-    phraseLength += 1
-  ) {
+  for (let phraseLength = 1; phraseLength <= maxPhraseLength; phraseLength += 1) {
     const anchor = trailingWords.slice(-phraseLength);
     if (anchor.length !== phraseLength) {
       continue;
@@ -138,9 +124,7 @@ export const trimRepeatedTailWords = (text: string) => {
   }
 
   const tokens = tokenizeTranscript(strippedText);
-  const pattern = findRepeatedTailPattern(
-    tokens.map((token) => token.normalized),
-  );
+  const pattern = findRepeatedTailPattern(tokens.map((token) => token.normalized));
   if (!pattern) {
     return strippedText;
   }

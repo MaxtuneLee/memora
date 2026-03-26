@@ -138,26 +138,24 @@ export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [
   },
 ];
 
-export const SETTINGS_SEARCH_ITEMS: GlobalSearchItem[] = SETTINGS_SECTIONS.map(
-  (section) => ({
-    id: `settings:${section.id}`,
-    kind: "settings",
-    title: section.label,
-    description: section.description,
-    preview: `Open Settings > ${section.label}.`,
-    keywords: [
-      section.id,
-      "settings",
-      "preferences",
-      section.label,
-      ...section.description.split(/\s+/u),
-    ],
-    intent: {
-      type: "open-settings",
-      section: section.id,
-    },
-  }),
-);
+export const SETTINGS_SEARCH_ITEMS: GlobalSearchItem[] = SETTINGS_SECTIONS.map((section) => ({
+  id: `settings:${section.id}`,
+  kind: "settings",
+  title: section.label,
+  description: section.description,
+  preview: `Open Settings > ${section.label}.`,
+  keywords: [
+    section.id,
+    "settings",
+    "preferences",
+    section.label,
+    ...section.description.split(/\s+/u),
+  ],
+  intent: {
+    type: "open-settings",
+    section: section.id,
+  },
+}));
 
 export const STATIC_SEARCH_ITEMS: GlobalSearchItem[] = [
   ...PAGE_SEARCH_ITEMS,

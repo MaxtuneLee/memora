@@ -1,7 +1,4 @@
-import type {
-  RecordingWord,
-  TranscriptDiagnostics,
-} from "@/types/library";
+import type { RecordingWord, TranscriptDiagnostics } from "@/types/library";
 
 export const WHISPER_SAMPLE_RATE = 16_000;
 export const WHISPER_MAX_SECONDS = 30;
@@ -32,8 +29,7 @@ export interface TranscriptCandidateEvaluation {
 }
 
 export const BLANK_AUDIO_MARKER_PATTERN = /\[BLANK_AUDIO\]/giu;
-export const TRANSCRIPT_WORD_PATTERN =
-  /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
+export const TRANSCRIPT_WORD_PATTERN = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
 
 export const TRAILING_REPEAT_WINDOW_WORDS = 48;
 export const TRAILING_REPEAT_MIN_WORDS = 6;

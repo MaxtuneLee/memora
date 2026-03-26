@@ -3,10 +3,7 @@ import type { AgentEvent, TokenUsage } from "@memora/ai-core";
 import { SHOW_WIDGET_TOOL_NAME } from "@/lib/chat/showWidget";
 
 import type { DevAgentLogger } from "./logger";
-import type {
-  AgentStatus,
-  ThinkingStep,
-} from "./types";
+import type { AgentStatus, ThinkingStep } from "./types";
 import type { ShowWidgetBufferController } from "./useShowWidgetBuffer";
 import type { ChatMessage } from "./types";
 
@@ -22,18 +19,11 @@ interface CreateAgentEventHandlerOptions {
   updateStep: (id: string, updates: Partial<ThinkingStep>) => void;
   appendStepText: (id: string, delta: string) => void;
   addChildStep: (parentId: string, child: ThinkingStep) => void;
-  setStatus: (
-    updater:
-      | AgentStatus
-      | ((previous: AgentStatus) => AgentStatus),
-  ) => void;
+  setStatus: (updater: AgentStatus | ((previous: AgentStatus) => AgentStatus)) => void;
   setThinkingCollapsed: (value: boolean) => void;
   setError: (error: Error | null) => void;
   setIterationLimitPrompt: (value: { iterations: number } | null) => void;
-  updateMessageById: (
-    messageId: string,
-    updater: (message: ChatMessage) => ChatMessage,
-  ) => void;
+  updateMessageById: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
   parseIterationLimit: (error: Error) => number | null;
   widgetBuffer: ShowWidgetBufferController;
   reasoningStepIdRef: { current: string };
@@ -72,9 +62,7 @@ export const createAgentEventHandler = ({
         if (event.status === "in_progress") {
           setStatus((previous) => {
             const nextStatus: AgentStatus = { type: "thinking" };
-            return areStatusEqual(previous, nextStatus)
-              ? previous
-              : nextStatus;
+            return areStatusEqual(previous, nextStatus) ? previous : nextStatus;
           });
         }
         logger.logEvent({ type: event.type, status: event.status });
@@ -273,9 +261,7 @@ export const createAgentEventHandler = ({
               details: {
                 isError: event.isError,
                 resultPreview:
-                  typeof event.result === "string"
-                    ? event.result.slice(0, 240)
-                    : event.result,
+                  typeof event.result === "string" ? event.result.slice(0, 240) : event.result,
               },
             },
           });
@@ -292,10 +278,7 @@ export const createAgentEventHandler = ({
           toolCallId: event.toolCall.id,
         });
         if (event.toolCall.name === SHOW_WIDGET_TOOL_NAME) {
-          widgetBuffer.completeWidgetToolCall(
-            event.toolCall.id,
-            event.toolCall.arguments,
-          );
+          widgetBuffer.completeWidgetToolCall(event.toolCall.id, event.toolCall.arguments);
         }
         break;
       }
@@ -325,8 +308,7 @@ export const createAgentEventHandler = ({
           const nextContent =
             event.message.content
               .filter(
-                (content): content is { type: "text"; text: string } =>
-                  content.type === "text",
+                (content): content is { type: "text"; text: string } => content.type === "text",
               )
               .map((content) => content.text)
               .join("") || streamedTextRef.current;

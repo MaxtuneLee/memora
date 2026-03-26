@@ -9,7 +9,14 @@ const resolveFileLabel = (file: File | null): string => {
   if (file.type.startsWith("image/")) return "Image";
   if (file.type.startsWith("text/") || file.type.startsWith("application/")) return "Document";
   const ext = file.name.toLowerCase();
-  if (ext.endsWith(".md") || ext.endsWith(".pdf") || ext.endsWith(".doc") || ext.endsWith(".docx") || ext.endsWith(".txt")) return "Document";
+  if (
+    ext.endsWith(".md") ||
+    ext.endsWith(".pdf") ||
+    ext.endsWith(".doc") ||
+    ext.endsWith(".docx") ||
+    ext.endsWith(".txt")
+  )
+    return "Document";
   if (file.type.startsWith("audio/")) return "Audio";
   return "File";
 };
@@ -55,10 +62,7 @@ export function UploadDialog({
           {selectedFile ? (
             <div className="mt-5 space-y-4">
               <div>
-                <label
-                  htmlFor="upload-name"
-                  className="block text-sm font-medium text-zinc-700"
-                >
+                <label htmlFor="upload-name" className="block text-sm font-medium text-zinc-700">
                   Name
                 </label>
                 <input

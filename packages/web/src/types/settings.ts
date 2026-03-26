@@ -22,7 +22,8 @@ export const SETTINGS_SECTIONS = [
   {
     id: "skills",
     label: "Skills",
-    description: "Skills are tools that the assistant can use to access information and perform extended actions. We do not support third-party skills yet, but you can review the built-in skills here.",
+    description:
+      "Skills are tools that the assistant can use to access information and perform extended actions. We do not support third-party skills yet, but you can review the built-in skills here.",
   },
   {
     id: "data-storage",

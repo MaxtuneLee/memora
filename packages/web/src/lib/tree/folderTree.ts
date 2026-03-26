@@ -107,10 +107,7 @@ export const collectFolderDescendants = <
   return descendants;
 };
 
-export const collectFolderFileIds = <
-  TFolder extends TreeFolderLike,
-  TFile extends TreeFileLike,
->(
+export const collectFolderFileIds = <TFolder extends TreeFolderLike, TFile extends TreeFileLike>(
   folderIds: readonly string[],
   folders: readonly TFolder[],
   files: readonly TFile[],
@@ -135,9 +132,7 @@ export const buildFolderBreadcrumbs = <TFolder extends TreeFolderLike>(
   folderId: string | null,
   rootLabel: string,
 ): Array<{ id: string | null; name: string }> => {
-  const breadcrumbs: Array<{ id: string | null; name: string }> = [
-    { id: null, name: rootLabel },
-  ];
+  const breadcrumbs: Array<{ id: string | null; name: string }> = [{ id: null, name: rootLabel }];
   if (!folderId) {
     return breadcrumbs;
   }

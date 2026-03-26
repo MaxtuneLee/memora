@@ -28,9 +28,7 @@ export function ConfirmDialog({
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(420px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
           <div className="flex flex-col gap-4">
             <div>
-              <Dialog.Title className="text-lg font-semibold text-zinc-900">
-                {title}
-              </Dialog.Title>
+              <Dialog.Title className="text-lg font-semibold text-zinc-900">{title}</Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-zinc-500">
                 {description}
               </Dialog.Description>

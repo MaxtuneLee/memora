@@ -22,18 +22,10 @@ function MetaBadge({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FactItem({
-  label,
-  description,
-}: {
-  label: string;
-  description: string;
-}) {
+function FactItem({ label, description }: { label: string; description: string }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">{label}</p>
       <p className="mt-2 text-sm leading-6 text-zinc-600">{description}</p>
     </div>
   );
@@ -53,8 +45,8 @@ export default function SettingsAboutSection() {
               <span className="text-[#aebe79]">.</span>
             </h3>
             <p className="mt-5 max-w-xl text-[15px] leading-7 text-zinc-600">
-              {APP_DESCRIPTION} Memora keeps files, settings, and workspace
-              state in browser storage.
+              {APP_DESCRIPTION} Memora keeps files, settings, and workspace state in browser
+              storage.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -73,9 +65,7 @@ export default function SettingsAboutSection() {
                 <span>Open GitHub Issues</span>
                 <ArrowUpRightIcon className="size-3.5" />
               </a>
-              <p className="text-sm text-zinc-500">
-                Report bugs or request features.
-              </p>
+              <p className="text-sm text-zinc-500">Report bugs or request features.</p>
             </div>
           </div>
         </div>

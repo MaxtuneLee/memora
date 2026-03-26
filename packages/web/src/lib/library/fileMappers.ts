@@ -1,15 +1,9 @@
 import type { file as LiveStoreFile } from "@/livestore/file";
-import {
-  FILES_DIR,
-  FILE_META_SUFFIX,
-  type FileMeta,
-} from "@/types/library";
+import { FILES_DIR, FILE_META_SUFFIX, type FileMeta } from "@/types/library";
 
 export const mapLiveStoreFileToMeta = (file: LiveStoreFile): FileMeta => {
-  const createdAt =
-    file.createdAt instanceof Date ? file.createdAt.getTime() : Date.now();
-  const updatedAt =
-    file.updatedAt instanceof Date ? file.updatedAt.getTime() : createdAt;
+  const createdAt = file.createdAt instanceof Date ? file.createdAt.getTime() : Date.now();
+  const updatedAt = file.updatedAt instanceof Date ? file.updatedAt.getTime() : createdAt;
 
   return {
     id: file.id,

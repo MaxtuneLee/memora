@@ -1,10 +1,4 @@
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { WidgetDebugPanel } from "@/components/chat/chatWidget/WidgetDebugPanel";
 import { WidgetPlaceholder } from "@/components/chat/chatWidget/WidgetPlaceholder";
@@ -18,10 +12,7 @@ import { useWidgetIframe } from "@/components/chat/chatWidget/useWidgetIframe";
 import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime";
 import { cn } from "@/lib/cn";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
-import {
-  getShowWidgetDebugState,
-  subscribeShowWidgetDebug,
-} from "@/lib/chat/showWidgetDebug";
+import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
 interface ChatWidgetProps {
@@ -80,8 +71,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     widget.loadingMessages.length > 0
       ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
       : "Rendering widget...";
-  const visibleError =
-    widget.errorMessage ?? runtimeError?.message ?? null;
+  const visibleError = widget.errorMessage ?? runtimeError?.message ?? null;
   const hasRenderableHtml = parsedCode.htmlRenderable.trim().length > 0;
   const hasVisibleWidgetDom = hasRenderableHtml || hasRuntimeDom;
   const placeholderCopy = getPlaceholderCopy({
@@ -98,9 +88,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/70">
       <div className="border-b border-zinc-200/80 px-3 py-2">
-        <p className="font-mono text-[11px] text-zinc-500">
-          {getWidgetLabel(widget)}
-        </p>
+        <p className="font-mono text-[11px] text-zinc-500">{getWidgetLabel(widget)}</p>
       </div>
       {!hasVisibleWidgetDom && (
         <WidgetPlaceholder

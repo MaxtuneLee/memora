@@ -30,8 +30,7 @@ const WordsChunk = memo(
       >
         {chunk.map((word, j) => {
           const i = baseIdx + j;
-          const isActive =
-            currentTime >= word.timestamp[0] && currentTime <= word.timestamp[1];
+          const isActive = currentTime >= word.timestamp[0] && currentTime <= word.timestamp[1];
           const isPast = allPast || currentTime > word.timestamp[1];
 
           return (
@@ -63,11 +62,7 @@ const WordsChunk = memo(
   },
 );
 
-export const TranscriptWords = ({
-  words,
-  currentTime,
-  onSeek,
-}: TranscriptWordsProps) => {
+export const TranscriptWords = ({ words, currentTime, onSeek }: TranscriptWordsProps) => {
   const activeWordIndex = useMemo(() => {
     for (let i = words.length - 1; i >= 0; i--) {
       if (currentTime >= words[i].timestamp[0]) return i;

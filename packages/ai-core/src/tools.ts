@@ -1,10 +1,6 @@
 import * as v from "valibot";
 import { toJsonSchema } from "@valibot/to-json-schema";
-import type {
-  ToolDefinition,
-  LLMToolDefinition,
-  ResponsesFunctionToolDefinition,
-} from "./types";
+import type { ToolDefinition, LLMToolDefinition, ResponsesFunctionToolDefinition } from "./types";
 
 export class ToolRegistry {
   private tools = new Map<string, ToolDefinition>();
@@ -76,9 +72,7 @@ export class ToolRegistry {
   }
 }
 
-const enforceStrictSchema = (
-  obj: Record<string, unknown>,
-): Record<string, unknown> => {
+const enforceStrictSchema = (obj: Record<string, unknown>): Record<string, unknown> => {
   if (obj.type === "object") {
     obj.additionalProperties = false;
     const props = obj.properties as Record<string, unknown> | undefined;
@@ -99,9 +93,7 @@ const enforceStrictSchema = (
   return obj;
 };
 
-const schemaToJsonSchema = (
-  schema: v.GenericSchema,
-): Record<string, unknown> => {
+const schemaToJsonSchema = (schema: v.GenericSchema): Record<string, unknown> => {
   const jsonSchema = toJsonSchema(schema) as Record<string, unknown>;
   delete jsonSchema["$schema"];
   return enforceStrictSchema(jsonSchema);

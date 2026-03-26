@@ -1,7 +1,4 @@
-import {
-  RowsIcon,
-  SquaresFourIcon,
-} from "@phosphor-icons/react";
+import { RowsIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { useDroppable } from "@dnd-kit/core";
 import { useCallback, useRef, useState } from "react";
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
@@ -184,39 +181,39 @@ export function DesktopFolderWindow({
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2">
           <div className="flex items-center gap-1 text-xs text-zinc-500">
-            {breadcrumbItems.map((crumb, index) => (
-              <button
-                key={`${crumb.id ?? "root"}-${index}`}
-                type="button"
-                onClick={() => onOpenBreadcrumb(crumb.id)}
-                className={
-                  index === breadcrumbItems.length - 1
-                    ? "text-zinc-700 font-medium"
-                    : "text-zinc-500 hover:text-zinc-700"
+            {breadcrumbItems
+              .map((crumb, index) => (
+                <button
+                  key={`${crumb.id ?? "root"}-${index}`}
+                  type="button"
+                  onClick={() => onOpenBreadcrumb(crumb.id)}
+                  className={
+                    index === breadcrumbItems.length - 1
+                      ? "text-zinc-700 font-medium"
+                      : "text-zinc-500 hover:text-zinc-700"
+                  }
+                >
+                  {crumb.name}
+                </button>
+              ))
+              .reduce<React.ReactNode[]>((acc, node, idx) => {
+                if (idx > 0) {
+                  acc.push(
+                    <span key={`sep-${idx}`} className="mx-1 text-zinc-300">
+                      /
+                    </span>,
+                  );
                 }
-              >
-                {crumb.name}
-              </button>
-            )).reduce<React.ReactNode[]>((acc, node, idx) => {
-              if (idx > 0) {
-                acc.push(
-                  <span key={`sep-${idx}`} className="mx-1 text-zinc-300">
-                    /
-                  </span>,
-                );
-              }
-              acc.push(node);
-              return acc;
-            }, [])}
+                acc.push(node);
+                return acc;
+              }, [])}
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1">
             <button
               type="button"
               onClick={() => onToggleView(id, "grid")}
               className={`flex size-7 items-center justify-center rounded-md transition ${
-                viewMode === "grid"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-500 hover:bg-zinc-100"
+                viewMode === "grid" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
               }`}
               aria-label="Grid view"
             >
@@ -226,9 +223,7 @@ export function DesktopFolderWindow({
               type="button"
               onClick={() => onToggleView(id, "list")}
               className={`flex size-7 items-center justify-center rounded-md transition ${
-                viewMode === "list"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-500 hover:bg-zinc-100"
+                viewMode === "list" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
               }`}
               aria-label="List view"
             >

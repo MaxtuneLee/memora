@@ -72,7 +72,7 @@ export function TrashWindow({
 
   const selectedItem = useMemo(() => {
     const selectedId = localSelection.values().next().value as string | undefined;
-    return selectedId ? items.find((item) => item.id === selectedId) ?? null : null;
+    return selectedId ? (items.find((item) => item.id === selectedId) ?? null) : null;
   }, [items, localSelection]);
 
   return (

@@ -26,9 +26,7 @@ const toLogValue = (value: unknown): unknown => {
 
   try {
     const serialized = JSON.stringify(value, null, 2);
-    return serialized.length > 4000
-      ? `${serialized.slice(0, 4000)}...`
-      : serialized;
+    return serialized.length > 4000 ? `${serialized.slice(0, 4000)}...` : serialized;
   } catch {
     return String(value);
   }
@@ -96,21 +94,15 @@ export const createDevAgentLogger = (sessionId: string): DevAgentLogger => {
         ...(payload.toolCallId ? { toolCallId: payload.toolCallId } : {}),
         ...(payload.isError !== undefined ? { isError: payload.isError } : {}),
         ...(payload.queries ? { queries: payload.queries } : {}),
-        ...(payload.resultsCount !== undefined
-          ? { resultsCount: payload.resultsCount }
-          : {}),
+        ...(payload.resultsCount !== undefined ? { resultsCount: payload.resultsCount } : {}),
         ...(payload.usage ? { usage: formatUsageSummary(payload.usage) } : {}),
         ...(payload.errorMessage ? { errorMessage: payload.errorMessage } : {}),
-        ...(payload.content !== undefined
-          ? { content: toLogValue(payload.content) }
-          : {}),
+        ...(payload.content !== undefined ? { content: toLogValue(payload.content) } : {}),
         ...(payload.delta !== undefined ? { delta: toLogValue(payload.delta) } : {}),
         ...(payload.toolArguments !== undefined
           ? { toolArguments: toLogValue(payload.toolArguments) }
           : {}),
-        ...(payload.toolResult !== undefined
-          ? { toolResult: toLogValue(payload.toolResult) }
-          : {}),
+        ...(payload.toolResult !== undefined ? { toolResult: toLogValue(payload.toolResult) } : {}),
       });
     },
     logTurnEnd: (payload) => {

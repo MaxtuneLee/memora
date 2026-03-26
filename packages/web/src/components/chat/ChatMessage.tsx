@@ -1,11 +1,6 @@
-import {
-  ArrowCounterClockwiseIcon,
-  PencilSimpleIcon,
-} from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import MemoraMascot, {
-  type MemoraMascotState,
-} from "@/components/assistant/MemoraMascot";
+import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/MemoraMascot";
 import { cn } from "@/lib/cn";
 import { motion } from "motion/react";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
@@ -47,8 +42,7 @@ function ChatMessageComponent({
   const isUser = message.role === "user";
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
   const assistantAvatarState = getAssistantAvatarState(status, isStreaming);
-  const [avatarBurstState, setAvatarBurstState] =
-    useState<MemoraMascotState | null>(null);
+  const [avatarBurstState, setAvatarBurstState] = useState<MemoraMascotState | null>(null);
   const avatarBurstTimeoutRef = useRef<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(message.content);
@@ -68,11 +62,7 @@ function ChatMessageComponent({
   }, [isEditing]);
 
   const triggerAvatarBurst = useCallback(() => {
-    const burstStates: MemoraMascotState[] = [
-      "listening",
-      "thinking",
-      "speaking",
-    ];
+    const burstStates: MemoraMascotState[] = ["listening", "thinking", "speaking"];
     const randomBurstState =
       burstStates[Math.floor(Math.random() * burstStates.length)] ?? "speaking";
 
@@ -96,8 +86,7 @@ function ChatMessageComponent({
     };
   }, []);
 
-  const displayedAssistantAvatarState =
-    avatarBurstState ?? assistantAvatarState;
+  const displayedAssistantAvatarState = avatarBurstState ?? assistantAvatarState;
   const shouldAnimateAssistantAvatar =
     !isUser &&
     (avatarBurstState !== null ||
@@ -168,10 +157,7 @@ function ChatMessageComponent({
         className={cn(
           "min-w-0",
           isUser
-            ? cn(
-                "flex flex-col items-end",
-                isEditing ? "w-full max-w-none" : "max-w-[75%]",
-              )
+            ? cn("flex flex-col items-end", isEditing ? "w-full max-w-none" : "max-w-[75%]")
             : "flex min-w-0 flex-1 flex-col",
         )}
       >
@@ -250,15 +236,9 @@ const areStatusesEqual = (
   nextStatus: AgentStatus | undefined,
 ): boolean => {
   const previousToolName =
-    previousStatus && "toolName" in previousStatus
-      ? previousStatus.toolName
-      : undefined;
-  const nextToolName =
-    nextStatus && "toolName" in nextStatus ? nextStatus.toolName : undefined;
-  return (
-    previousStatus?.type === nextStatus?.type &&
-    previousToolName === nextToolName
-  );
+    previousStatus && "toolName" in previousStatus ? previousStatus.toolName : undefined;
+  const nextToolName = nextStatus && "toolName" in nextStatus ? nextStatus.toolName : undefined;
+  return previousStatus?.type === nextStatus?.type && previousToolName === nextToolName;
 };
 
 const areChatMessagePropsEqual = (

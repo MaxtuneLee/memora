@@ -129,7 +129,8 @@ svg .c-pink {
   --svg-ramp-text-secondary: var(--svg-pink-text-secondary);
 }
 
-svg :is(rect, circle, ellipse, polygon):where(
+svg
+  :is(rect, circle, ellipse, polygon):where(
     .c-gray,
     .c-blue,
     .c-red,
@@ -140,48 +141,21 @@ svg :is(rect, circle, ellipse, polygon):where(
     .c-coral,
     .c-pink
   ),
-svg :where(
-    .c-gray,
-    .c-blue,
-    .c-red,
-    .c-amber,
-    .c-green,
-    .c-teal,
-    .c-purple,
-    .c-coral,
-    .c-pink
-  )
+svg
+  :where(.c-gray, .c-blue, .c-red, .c-amber, .c-green, .c-teal, .c-purple, .c-coral, .c-pink)
   > :is(rect, circle, ellipse, polygon) {
   fill: var(--svg-ramp-fill);
   stroke: var(--svg-ramp-stroke);
 }
 
-svg :where(
-    .c-gray,
-    .c-blue,
-    .c-red,
-    .c-amber,
-    .c-green,
-    .c-teal,
-    .c-purple,
-    .c-coral,
-    .c-pink
-  )
+svg
+  :where(.c-gray, .c-blue, .c-red, .c-amber, .c-green, .c-teal, .c-purple, .c-coral, .c-pink)
   > :is(.t, .th) {
   fill: var(--svg-ramp-text);
 }
 
-svg :where(
-    .c-gray,
-    .c-blue,
-    .c-red,
-    .c-amber,
-    .c-green,
-    .c-teal,
-    .c-purple,
-    .c-coral,
-    .c-pink
-  )
+svg
+  :where(.c-gray, .c-blue, .c-red, .c-amber, .c-green, .c-teal, .c-purple, .c-coral, .c-pink)
   > .ts {
   fill: var(--svg-ramp-text-secondary);
 }

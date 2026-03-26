@@ -1,10 +1,6 @@
 import { memo, useEffect, useRef } from "react";
 
-import {
-  drawRoundedRect,
-  formatTimeMarker,
-  resamplePeaksToBars,
-} from "@/lib/audio/waveformCanvas";
+import { drawRoundedRect, formatTimeMarker, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
 
 interface ZoomWaveformCanvasProps {
   peaks: number[];
@@ -147,8 +143,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
         const lastTime = lastTimeStampRef.current ?? now;
         const deltaMs = Math.max(0, Math.min(64, now - lastTime));
         lastTimeStampRef.current = now;
-        const frameEase =
-          1 - Math.pow(1 - currentProps.smoothingFactor, deltaMs / 16.67);
+        const frameEase = 1 - Math.pow(1 - currentProps.smoothingFactor, deltaMs / 16.67);
         smoothedTimeRef.current += timeDiff * frameEase;
       }
 
@@ -194,17 +189,12 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
           bufferContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
           bufferContext.clearRect(0, 0, bufferWidth, currentProps.height);
 
-          const resampledPeaks = resamplePeaksToBars(
-            currentProps.peaks,
-            audioBarCount,
-          );
+          const resampledPeaks = resamplePeaksToBars(currentProps.peaks, audioBarCount);
 
           for (let index = 0; index < totalBarCount; index += 1) {
             const audioIndex = index - paddingBars;
             const amplitude =
-              audioIndex >= 0 && audioIndex < audioBarCount
-                ? resampledPeaks[audioIndex] ?? 0
-                : 0;
+              audioIndex >= 0 && audioIndex < audioBarCount ? (resampledPeaks[audioIndex] ?? 0) : 0;
             const barHeight = Math.max(3, amplitude * maxBarHeight);
             const x = index * totalBarWidth;
             const y = centerY - barHeight / 2;
@@ -233,10 +223,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
       const centerBar = centerTime / secondsPerBar + bufferMetaRef.current.paddingBars;
       const centerX = centerBar * totalBarWidth;
       const halfWidth = width / 2;
-      const sourceX = Math.max(
-        0,
-        Math.min(bufferWidth - width, centerX - halfWidth),
-      );
+      const sourceX = Math.max(0, Math.min(bufferWidth - width, centerX - halfWidth));
 
       context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
       context.clearRect(0, 0, width, currentProps.height);
@@ -270,10 +257,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
         context.stroke();
 
         const markerStep = Math.max(0.5, markerStepSeconds);
-        const visibleStart = Math.max(
-          0,
-          centerTime - currentProps.visibleSeconds / 2,
-        );
+        const visibleStart = Math.max(0, centerTime - currentProps.visibleSeconds / 2);
         const visibleEnd = Math.min(
           currentProps.duration,
           centerTime + currentProps.visibleSeconds / 2,
@@ -285,8 +269,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
         context.textBaseline = "top";
 
         for (let marker = firstMarker; marker <= visibleEnd; marker += markerStep) {
-          const ratio =
-            (marker - centerTime) / currentProps.visibleSeconds + 0.5;
+          const ratio = (marker - centerTime) / currentProps.visibleSeconds + 0.5;
           const x = ratio * width;
           if (x < 0 || x > width) {
             continue;

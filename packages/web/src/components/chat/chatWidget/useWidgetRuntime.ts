@@ -1,11 +1,5 @@
 import Chart from "chart.js/auto";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type MutableRefObject,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
@@ -177,20 +171,14 @@ export const useWidgetRuntime = ({
           type: "widget-script-error",
           summary: "Widget script threw during execution",
           details: {
-            message:
-              error instanceof Error
-                ? error.message
-                : "Widget script failed to execute.",
+            message: error instanceof Error ? error.message : "Widget script failed to execute.",
           },
         },
       );
       queueMicrotask(() => {
         setRuntimeError({
           signature,
-          message:
-            error instanceof Error
-              ? error.message
-              : "Widget script failed to execute.",
+          message: error instanceof Error ? error.message : "Widget script failed to execute.",
         });
       });
     };
@@ -219,9 +207,7 @@ export const useWidgetRuntime = ({
             "error",
             () => {
               reject(
-                new Error(
-                  iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.",
-                ),
+                new Error(iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute."),
               );
             },
             { once: true },
@@ -284,9 +270,7 @@ ${script.content}
             cleanupRef.current = cleanup;
           }
           if (iframeWindow[WIDGET_ERROR_KEY]) {
-            throw new Error(
-              iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.",
-            );
+            throw new Error(iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.");
           }
           syncIframeHeight();
           updateShowWidgetDebug(

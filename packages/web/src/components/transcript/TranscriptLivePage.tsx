@@ -1,17 +1,9 @@
-import {
-  GearSixIcon,
-  SlidersHorizontalIcon,
-  WarningIcon,
-} from "@phosphor-icons/react";
-import { useEffect, useMemo } from "react";
+import { GearSixIcon, SlidersHorizontalIcon, WarningIcon } from "@phosphor-icons/react";
+import { motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 // import { Persona } from "@/components/assistant/Persona";
-import {
-  AppMenu,
-  AppMenuContent,
-  AppMenuItem,
-  AppMenuTrigger,
-} from "@/components/menu/AppMenu";
+import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { BackButton } from "@/components/transcript/BackButton";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
@@ -19,6 +11,15 @@ import { Progress } from "@/components/Progress";
 import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
 import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
+import {
+  FINALIZE_WAVEFORM_EXIT_MS,
+  SAVE_SECONDARY_HANDOFF_MS,
+  SAVE_SUCCESS_SETTLE_MS,
+  SAVE_SUCCESS_REDIRECT_DELAY_MS,
+  START_WAVEFORM_REVEAL_DELAY_MS,
+  getTranscriptionRailState,
+  type TranscriptionRailPhase,
+} from "@/components/transcript/transcriptionControlMotion";
 import type { SettingsSectionId } from "@/types/settings";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useTranscript } from "@/hooks/transcript/useTranscript";
@@ -34,7 +35,6 @@ export const Component = () => {
     currentSegment,
     tps,
     stream,
-    recording,
     paused,
     saveStatus,
     lastSavedId,
@@ -49,17 +49,63 @@ export const Component = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleFinalizeRecording,
-    handleReset,
   } = useTranscript();
 
   const navigate = useNavigate();
   const { openSettings } = useSettingsDialog();
+  const isReady = status === "ready";
+  const [railPhase, setRailPhase] = useState<TranscriptionRailPhase>("idle");
+  const startRevealTimerRef = useRef<number | null>(null);
+  const finalizeTimerRef = useRef<number | null>(null);
+  const recenteringTimerRef = useRef<number | null>(null);
+  const savedTimerRef = useRef<number | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  const clearTimer = (timerRef: { current: number | null }) => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const clearRailTimers = () => {
+    clearTimer(startRevealTimerRef);
+    clearTimer(finalizeTimerRef);
+    clearTimer(recenteringTimerRef);
+    clearTimer(savedTimerRef);
+    clearTimer(redirectTimerRef);
+  };
 
   useEffect(() => {
-    if (saveStatus === "success" && lastSavedId) {
-      void navigate(`/transcript/file/${lastSavedId}`);
+    if (saveStatus !== "success" || !lastSavedId) return;
+
+    clearTimer(finalizeTimerRef);
+    clearTimer(recenteringTimerRef);
+    setRailPhase("saving");
+    clearTimer(savedTimerRef);
+    savedTimerRef.current = window.setTimeout(() => {
+      setRailPhase("saved");
+      savedTimerRef.current = null;
+      clearTimer(redirectTimerRef);
+      redirectTimerRef.current = window.setTimeout(() => {
+        void navigate(`/transcript/file/${lastSavedId}`);
+      }, SAVE_SUCCESS_REDIRECT_DELAY_MS);
+    }, SAVE_SUCCESS_SETTLE_MS);
+    clearTimer(redirectTimerRef);
+  }, [lastSavedId, navigate, saveStatus]);
+
+  useEffect(() => {
+    return () => {
+      clearRailTimers();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) {
+      clearRailTimers();
+      setRailPhase("idle");
     }
-  }, [saveStatus, lastSavedId, navigate]);
+  }, [isReady]);
 
   useEffect(() => {
     if (status !== null) return;
@@ -103,17 +149,46 @@ export const Component = () => {
     };
   }, [isCheckingCache, isModelCached, status]);
 
-  const settingsItems: Array<{ label: string; section: SettingsSectionId }> =
-    useMemo(
-      () => [
-        { label: "Model settings", section: "ai-provider" },
-        { label: "Language preferences", section: "general" },
-      ],
-      [],
-    );
+  const settingsItems: Array<{ label: string; section: SettingsSectionId }> = useMemo(
+    () => [
+      { label: "Model settings", section: "ai-provider" },
+      { label: "Language preferences", section: "general" },
+    ],
+    [],
+  );
 
-  const isReady = status === "ready";
   const shouldShowDiagnostics = import.meta.env.DEV;
+  const layoutState = getTranscriptionRailState(railPhase);
+
+  const handleStartControl = async () => {
+    clearRailTimers();
+    setRailPhase("starting");
+    startRevealTimerRef.current = window.setTimeout(() => {
+      setRailPhase("recording");
+      startRevealTimerRef.current = null;
+    }, START_WAVEFORM_REVEAL_DELAY_MS);
+    try {
+      await handleStartRecording();
+    } catch {
+      clearTimer(startRevealTimerRef);
+      setRailPhase("idle");
+    }
+  };
+
+  const handleFinalizeControl = () => {
+    clearTimer(startRevealTimerRef);
+    clearTimer(redirectTimerRef);
+    setRailPhase("finalizing");
+    handleFinalizeRecording();
+    finalizeTimerRef.current = window.setTimeout(() => {
+      setRailPhase("recentering");
+      finalizeTimerRef.current = null;
+      recenteringTimerRef.current = window.setTimeout(() => {
+        setRailPhase("saving");
+        recenteringTimerRef.current = null;
+      }, SAVE_SECONDARY_HANDOFF_MS);
+    }, FINALIZE_WAVEFORM_EXIT_MS);
+  };
 
   if (!isWebGpuAvailable) {
     return (
@@ -121,12 +196,9 @@ export const Component = () => {
         <div className="flex flex-col items-center gap-4 text-center">
           <WarningIcon className="size-16 text-amber-500" weight="fill" />
           <div>
-            <h2 className="text-2xl font-semibold text-zinc-900">
-              WebGPU is not supported
-            </h2>
+            <h2 className="text-2xl font-semibold text-zinc-900">WebGPU is not supported</h2>
             <p className="mt-2 text-zinc-500">
-              Your browser doesn't support WebGPU, which is required for
-              real-time transcription.
+              Your browser doesn't support WebGPU, which is required for real-time transcription.
             </p>
           </div>
         </div>
@@ -160,8 +232,8 @@ export const Component = () => {
       <div className="sticky bottom-4 z-20 mt-auto">
         <div className="rounded-[28px] border border-zinc-200/80 bg-[rgba(250,248,243,0.92)] p-3 shadow-[0_18px_50px_rgba(24,24,27,0.08)] backdrop-blur-md md:p-4">
           {isReady ? (
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="relative flex min-h-[3.75rem] items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-3 pr-[11.5rem] md:pr-[18rem]">
                 <AppMenu>
                   <AppMenuTrigger className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50">
                     <SlidersHorizontalIcon className="size-4" />
@@ -170,10 +242,7 @@ export const Component = () => {
                   <AppMenuContent className="min-w-55 rounded-xl bg-white shadow-lg">
                     <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
                       <div className="mt-2">
-                        <LanguageSelector
-                          language={language}
-                          setLanguage={updateLanguage}
-                        />
+                        <LanguageSelector language={language} setLanguage={updateLanguage} />
                       </div>
                     </div>
                     <div className="my-2 h-px bg-zinc-100" />
@@ -189,19 +258,33 @@ export const Component = () => {
                     ))}
                   </AppMenuContent>
                 </AppMenu>
-                <AudioVisualizer stream={stream} className="h-6 min-w-0 flex-1" />
+                <motion.div
+                  initial={false}
+                  animate={{
+                    opacity: layoutState.showVisualizer ? 1 : 0,
+                    scaleX: layoutState.showVisualizer ? 1 : 0.78,
+                  }}
+                  transition={{
+                    duration: layoutState.showVisualizer ? 0.24 : 0.18,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="min-w-0 flex-1"
+                  style={{ transformOrigin: "center right" }}
+                >
+                  <AudioVisualizer stream={stream} className="h-6 w-full min-w-0" />
+                </motion.div>
               </div>
 
-              <div className="flex justify-end md:justify-end">
+              <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center">
                 <TranscriptionControls
-                  recording={recording}
+                  controlMode={layoutState.controlMode}
+                  dockedRight={layoutState.dockedRight}
+                  showSecondaryControl={layoutState.showSecondaryControl}
                   paused={paused}
-                  saveStatus={saveStatus}
-                  onReset={handleReset}
-                  onStart={handleStartRecording}
+                  onStart={handleStartControl}
                   onPause={handlePauseRecording}
                   onResume={handleResumeRecording}
-                  onFinalize={handleFinalizeRecording}
+                  onFinalize={handleFinalizeControl}
                   isReady={isReady}
                 />
               </div>

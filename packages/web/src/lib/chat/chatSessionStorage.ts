@@ -53,11 +53,7 @@ const normalizeUsage = (usage: unknown): TokenUsage | undefined => {
   const outputTokens = normalizeTokenCount(candidate.outputTokens);
   const totalTokens = normalizeTokenCount(candidate.totalTokens);
 
-  if (
-    inputTokens === undefined &&
-    outputTokens === undefined &&
-    totalTokens === undefined
-  ) {
+  if (inputTokens === undefined && outputTokens === undefined && totalTokens === undefined) {
     return undefined;
   }
 
@@ -112,18 +108,13 @@ const getSessionPreview = (messages: ChatSessionMessage[]): string => {
 
 const getAutoTitleFromMessages = (messages: ChatSessionMessage[]): string | null => {
   const firstUserMessage = messages.find((message) => {
-    return (
-      message.role === "user" &&
-      getChatMessageTitleText(message) !== null
-    );
+    return message.role === "user" && getChatMessageTitleText(message) !== null;
   });
   if (!firstUserMessage) return null;
   return getChatMessageTitleText(firstUserMessage);
 };
 
-const normalizeThinkingSteps = (
-  steps: unknown,
-): ChatSessionThinkingStep[] | undefined => {
+const normalizeThinkingSteps = (steps: unknown): ChatSessionThinkingStep[] | undefined => {
   if (!Array.isArray(steps)) return undefined;
   const normalized: ChatSessionThinkingStep[] = [];
 
@@ -242,9 +233,7 @@ const normalizeReferences = (references: unknown): ChatSessionReference[] => {
   return normalized;
 };
 
-const normalizeAgentStore = (
-  store: unknown,
-): Record<string, Record<string, unknown>> => {
+const normalizeAgentStore = (store: unknown): Record<string, Record<string, unknown>> => {
   if (typeof store !== "object" || store === null) return {};
   const result: Record<string, Record<string, unknown>> = {};
   for (const [agentId, value] of Object.entries(store)) {
@@ -262,7 +251,7 @@ const parseRecord = (raw: string): ChatSessionRecord | null => {
     const title =
       typeof parsed.title === "string" && parsed.title.trim()
         ? parsed.title.trim()
-        : getAutoTitleFromMessages(messages) ?? DEFAULT_CHAT_SESSION_TITLE;
+        : (getAutoTitleFromMessages(messages) ?? DEFAULT_CHAT_SESSION_TITLE);
     const now = Date.now();
     return {
       schemaVersion: SESSION_SCHEMA_VERSION,
@@ -296,10 +285,7 @@ const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
   };
 };
 
-const runSessionMutation = async <T>(
-  sessionId: string,
-  task: () => Promise<T>,
-): Promise<T> => {
+const runSessionMutation = async <T>(sessionId: string, task: () => Promise<T>): Promise<T> => {
   const queue = sessionQueue.get(sessionId) ?? Promise.resolve();
   const next = queue.then(task, task);
   sessionQueue.set(
@@ -339,9 +325,7 @@ export const createChatSession = async (): Promise<ChatSessionRecord> => {
   return record;
 };
 
-export const loadChatSession = async (
-  sessionId: string,
-): Promise<ChatSessionRecord | null> => {
+export const loadChatSession = async (sessionId: string): Promise<ChatSessionRecord | null> => {
   try {
     const text = await opfsFile(normalizeSessionPath(sessionId)).text();
     return parseRecord(text);
@@ -382,14 +366,12 @@ export const updateChatSession = async (
     const base = existing ?? createEmptyRecord(sessionId);
     const next = await updater(base);
     const normalizedMessages = normalizeMessages(next.messages);
-    const normalizedReferences = normalizeReferences(
-      next.references ?? base.references,
-    );
+    const normalizedReferences = normalizeReferences(next.references ?? base.references);
     const autoTitle = getAutoTitleFromMessages(normalizedMessages);
     const title =
       typeof next.title === "string" && next.title.trim()
         ? next.title.trim()
-        : autoTitle ?? DEFAULT_CHAT_SESSION_TITLE;
+        : (autoTitle ?? DEFAULT_CHAT_SESSION_TITLE);
     const record: ChatSessionRecord = {
       schemaVersion: SESSION_SCHEMA_VERSION,
       id: sessionId,
@@ -422,16 +404,14 @@ export const updateChatSessionMessages = async (
       ...record,
       title: keepExistingTitle
         ? record.title
-        : autoTitle ?? record.title ?? DEFAULT_CHAT_SESSION_TITLE,
+        : (autoTitle ?? record.title ?? DEFAULT_CHAT_SESSION_TITLE),
       messages: normalizedMessages,
       references: options?.references ?? record.references,
     };
   });
 };
 
-export const ensureChatSession = async (
-  sessionId: string,
-): Promise<ChatSessionRecord> => {
+export const ensureChatSession = async (sessionId: string): Promise<ChatSessionRecord> => {
   const existing = await loadChatSession(sessionId);
   if (existing) return existing;
   const record = createEmptyRecord(sessionId);

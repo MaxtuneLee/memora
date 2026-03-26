@@ -19,9 +19,7 @@ interface UseAiProviderSettingsOptions {
   open: boolean;
 }
 
-export const useAiProviderSettings = ({
-  open,
-}: UseAiProviderSettingsOptions) => {
+export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) => {
   const { store } = useStore();
   const providers = store.useQuery(settingsProvidersQuery$) as ProviderRow[];
   const [settings, setSettings] = useClientDocument(settingsTable);
@@ -29,9 +27,7 @@ export const useAiProviderSettings = ({
 
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
-  const [providerForm, setProviderForm] = useState<ProviderFormState>(
-    EMPTY_PROVIDER_FORM,
-  );
+  const [providerForm, setProviderForm] = useState<ProviderFormState>(EMPTY_PROVIDER_FORM);
   const [fetchingModels, setFetchingModels] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -63,15 +59,12 @@ export const useAiProviderSettings = ({
     return () => window.clearTimeout(timer);
   }, [modelDropdownOpen]);
 
-  const handleProviderFormChange = useCallback(
-    (patch: Partial<ProviderFormState>) => {
-      setProviderForm((current) => ({
-        ...current,
-        ...patch,
-      }));
-    },
-    [],
-  );
+  const handleProviderFormChange = useCallback((patch: Partial<ProviderFormState>) => {
+    setProviderForm((current) => ({
+      ...current,
+      ...patch,
+    }));
+  }, []);
 
   const handleToggleApiKey = useCallback(() => {
     setShowApiKey((current) => !current);

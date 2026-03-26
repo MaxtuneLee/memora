@@ -118,8 +118,8 @@ export default function OnboardingExperience({
                 Before we start chatting, let me get to know you better.
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#61574a]">
-                Share your setup and preferences first, and I will shape each conversation
-                around how you think, work, and want to be supported.
+                Share your setup and preferences first, and I will shape each conversation around
+                how you think, work, and want to be supported.
               </p>
             </div>
             <div className="hidden text-[11px] font-semibold tracking-[0.16em] text-[#766b58] uppercase sm:block">
@@ -287,15 +287,11 @@ export default function OnboardingExperience({
                     <motion.div
                       key="stream"
                       initial={
-                        prefersReducedMotion
-                          ? { opacity: 1 }
-                          : { opacity: 0, y: 6, scale: 0.995 }
+                        prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 6, scale: 0.995 }
                       }
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={
-                        prefersReducedMotion
-                          ? { opacity: 0 }
-                          : { opacity: 0, y: -4, scale: 0.995 }
+                        prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.995 }
                       }
                       transition={{ duration: prefersReducedMotion ? 0.12 : 0.28 }}
                       className="space-y-2 px-0.5"
@@ -326,13 +322,15 @@ export default function OnboardingExperience({
                       className="space-y-2 px-0.5 text-sm text-[#4f473c]"
                     >
                       <p>
-                        <span className="font-semibold text-[#342d25]">Endpoint:</span> {endpoint.trim()}
+                        <span className="font-semibold text-[#342d25]">Endpoint:</span>{" "}
+                        {endpoint.trim()}
                       </p>
                       <p>
                         <span className="font-semibold text-[#342d25]">Model:</span> {model.trim()}
                       </p>
                       <p>
-                        <span className="font-semibold text-[#342d25]">API format:</span> {apiFormat}
+                        <span className="font-semibold text-[#342d25]">API format:</span>{" "}
+                        {apiFormat}
                       </p>
                       <p>
                         <span className="font-semibold text-[#342d25]">Name:</span> {name.trim()}
@@ -351,11 +349,7 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {errorMessage ? (
-              <p className="px-0.5 text-xs text-[#9a3b3b]">
-                {errorMessage}
-              </p>
-            ) : null}
+            {errorMessage ? <p className="px-0.5 text-xs text-[#9a3b3b]">{errorMessage}</p> : null}
 
             <div className="flex items-center justify-between pt-1">
               <motion.button
@@ -368,9 +362,7 @@ export default function OnboardingExperience({
                     : { y: -1, scale: 1.01 }
                 }
                 whileTap={
-                  prefersReducedMotion || step === 1 || isSaving
-                    ? undefined
-                    : { scale: 0.98 }
+                  prefersReducedMotion || step === 1 || isSaving ? undefined : { scale: 0.98 }
                 }
                 transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[#d5cab8] bg-[#fff8ec] px-3.5 py-1.5 text-xs font-medium text-[#63594d] transition hover:border-[#b8aa94] hover:text-[#443d33] disabled:cursor-not-allowed disabled:opacity-40"
@@ -389,9 +381,7 @@ export default function OnboardingExperience({
                     : { y: -1, scale: 1.01 }
                 }
                 whileTap={
-                  prefersReducedMotion || !canContinue || isSaving
-                    ? undefined
-                    : { scale: 0.98 }
+                  prefersReducedMotion || !canContinue || isSaving ? undefined : { scale: 0.98 }
                 }
                 transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#1f1a15] px-4 py-2 text-xs font-semibold text-[#f8f1e3] transition hover:bg-[#322b23] disabled:cursor-not-allowed disabled:opacity-50"

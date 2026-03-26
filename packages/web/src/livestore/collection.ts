@@ -90,9 +90,7 @@ export const collectionMaterializers = {
     collectionTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),
-        ...(event.parentId !== undefined
-          ? { parentId: event.parentId ?? null }
-          : {}),
+        ...(event.parentId !== undefined ? { parentId: event.parentId ?? null } : {}),
         ...(event.color !== undefined ? { color: event.color ?? null } : {}),
         updatedAt: event.updatedAt,
       })

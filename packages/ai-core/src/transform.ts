@@ -27,10 +27,7 @@ export class TransformPipeline {
     this.responseTransformers.push(transformer);
   }
 
-  async run(
-    messages: AgentMessage[],
-    context: { tools: ToolDefinition[] },
-  ): Promise<LLMMessage[]> {
+  async run(messages: AgentMessage[], context: { tools: ToolDefinition[] }): Promise<LLMMessage[]> {
     if (this.transformers.length > 0) {
       let result: LLMMessage[] = [];
       for (const transformer of this.transformers) {
@@ -57,9 +54,7 @@ export class TransformPipeline {
   }
 }
 
-const contentToLLM = (
-  content: AgentMessageContent,
-): LLMTextContent | LLMImageContent | null => {
+const contentToLLM = (content: AgentMessageContent): LLMTextContent | LLMImageContent | null => {
   switch (content.type) {
     case "text":
       return { type: "text", text: content.text };
@@ -80,12 +75,10 @@ const defaultTransform = (messages: AgentMessage[]): LLMMessage[] => {
 
   for (const msg of messages) {
     const toolCalls = msg.content.filter(
-      (c): c is AgentMessageContent & { type: "tool_call" } =>
-        c.type === "tool_call",
+      (c): c is AgentMessageContent & { type: "tool_call" } => c.type === "tool_call",
     );
     const toolResults = msg.content.filter(
-      (c): c is AgentMessageContent & { type: "tool_result" } =>
-        c.type === "tool_result",
+      (c): c is AgentMessageContent & { type: "tool_result" } => c.type === "tool_result",
     );
     const otherContent = msg.content.filter(
       (c) => c.type !== "tool_call" && c.type !== "tool_result",
@@ -95,10 +88,7 @@ const defaultTransform = (messages: AgentMessage[]): LLMMessage[] => {
       for (const tr of toolResults) {
         result.push({
           role: "tool",
-          content:
-            typeof tr.result === "string"
-              ? tr.result
-              : JSON.stringify(tr.result),
+          content: typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result),
           tool_call_id: tr.id,
           name: tr.name,
         });
@@ -208,12 +198,10 @@ export const responsesTransform = (messages: AgentMessage[]): ResponsesInputItem
 
   for (const msg of messages) {
     const toolCalls = msg.content.filter(
-      (c): c is AgentMessageContent & { type: "tool_call" } =>
-        c.type === "tool_call",
+      (c): c is AgentMessageContent & { type: "tool_call" } => c.type === "tool_call",
     );
     const toolResults = msg.content.filter(
-      (c): c is AgentMessageContent & { type: "tool_result" } =>
-        c.type === "tool_result",
+      (c): c is AgentMessageContent & { type: "tool_result" } => c.type === "tool_result",
     );
     const otherContent = msg.content.filter(
       (c) => c.type !== "tool_call" && c.type !== "tool_result",
@@ -230,7 +218,8 @@ export const responsesTransform = (messages: AgentMessage[]): ResponsesInputItem
     }
 
     if (responsesContent.length > 0) {
-      const role = msg.role === "tool" ? "user" : (msg.role as "user" | "assistant" | "system" | "developer");
+      const role =
+        msg.role === "tool" ? "user" : (msg.role as "user" | "assistant" | "system" | "developer");
       if (responsesContent.length === 1 && responsesContent[0].type === "input_text") {
         result.push({
           role,
@@ -263,10 +252,7 @@ export const responsesTransform = (messages: AgentMessage[]): ResponsesInputItem
           result.push({
             type: "function_call_output",
             call_id: fcId,
-            output:
-              typeof tr.result === "string"
-                ? tr.result
-                : JSON.stringify(tr.result),
+            output: typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result),
           });
         }
       }

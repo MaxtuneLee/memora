@@ -11,9 +11,7 @@ export interface SearchPaletteContextValue {
   toggleSearch: (trigger?: HTMLElement | null) => void;
 }
 
-const SearchPaletteContext = createContext<SearchPaletteContextValue | null>(
-  null,
-);
+const SearchPaletteContext = createContext<SearchPaletteContextValue | null>(null);
 
 export const useSearchPalette = (): SearchPaletteContextValue => {
   const context = useContext(SearchPaletteContext);

@@ -19,54 +19,55 @@ export const useRecordingDetail = (id: string | undefined) => {
     URL.revokeObjectURL(url);
   }, []);
 
-  const load = useCallback(async (recordingId: string) => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
+  const load = useCallback(
+    async (recordingId: string) => {
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const metas = await listRecordings();
-      const meta = metas.find((item) => item.id === recordingId);
-      if (!meta) {
-        throw new Error("Recording not found");
+      try {
+        const metas = await listRecordings();
+        const meta = metas.find((item) => item.id === recordingId);
+        if (!meta) {
+          throw new Error("Recording not found");
+        }
+
+        const audioUrl = await getRecordingAudioUrl(meta);
+        if (requestId !== requestIdRef.current) {
+          revokeAudioUrl(audioUrl);
+          return;
+        }
+
+        const transcript = meta.transcriptPath ? await getRecordingTranscript(meta) : null;
+        if (requestId !== requestIdRef.current) {
+          revokeAudioUrl(audioUrl);
+          return;
+        }
+
+        const previousAudioUrl = audioUrlRef.current;
+        audioUrlRef.current = audioUrl;
+
+        setRecording({ ...meta, audioUrl: audioUrl ?? undefined, transcript });
+        if (previousAudioUrl && previousAudioUrl !== audioUrl) {
+          window.setTimeout(() => {
+            if (audioUrlRef.current !== previousAudioUrl) {
+              revokeAudioUrl(previousAudioUrl);
+            }
+          }, 0);
+        }
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        setError(err instanceof Error ? err.message : "Failed to load recording");
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
-
-      const audioUrl = await getRecordingAudioUrl(meta);
-      if (requestId !== requestIdRef.current) {
-        revokeAudioUrl(audioUrl);
-        return;
-      }
-
-      const transcript = meta.transcriptPath
-        ? await getRecordingTranscript(meta)
-        : null;
-      if (requestId !== requestIdRef.current) {
-        revokeAudioUrl(audioUrl);
-        return;
-      }
-
-      const previousAudioUrl = audioUrlRef.current;
-      audioUrlRef.current = audioUrl;
-
-      setRecording({ ...meta, audioUrl: audioUrl ?? undefined, transcript });
-      if (previousAudioUrl && previousAudioUrl !== audioUrl) {
-        window.setTimeout(() => {
-          if (audioUrlRef.current !== previousAudioUrl) {
-            revokeAudioUrl(previousAudioUrl);
-          }
-        }, 0);
-      }
-    } catch (err) {
-      if (requestId !== requestIdRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load recording");
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [revokeAudioUrl]);
+    },
+    [revokeAudioUrl],
+  );
 
   const reload = useCallback(() => {
     if (id) {

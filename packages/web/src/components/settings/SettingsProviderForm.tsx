@@ -2,10 +2,7 @@ import { Button } from "@base-ui/react/button";
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/cn";
-import type {
-  ProviderApiFormat,
-  ProviderFormState,
-} from "@/types/settingsDialog";
+import type { ProviderApiFormat, ProviderFormState } from "@/types/settingsDialog";
 
 const API_FORMATS: ProviderApiFormat[] = ["chat-completions", "responses"];
 
@@ -37,9 +34,7 @@ export default function SettingsProviderForm({
       </div>
       <div className="grid gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">
-            Name
-          </label>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Name</label>
           <input
             type="text"
             value={providerForm.name}
@@ -49,9 +44,7 @@ export default function SettingsProviderForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">
-            Base URL
-          </label>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Base URL</label>
           <input
             type="text"
             value={providerForm.baseUrl}
@@ -61,9 +54,7 @@ export default function SettingsProviderForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">
-            API Key
-          </label>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">API Key</label>
           <div className="relative">
             <input
               type={showApiKey ? "text" : "password"}
@@ -78,18 +69,12 @@ export default function SettingsProviderForm({
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
               aria-label={showApiKey ? "Hide API key" : "Show API key"}
             >
-              {showApiKey ? (
-                <EyeSlashIcon className="size-4" />
-              ) : (
-                <EyeIcon className="size-4" />
-              )}
+              {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
             </button>
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">
-            API Format
-          </label>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">API Format</label>
           <div className="flex gap-2">
             {API_FORMATS.map((format) => (
               <button

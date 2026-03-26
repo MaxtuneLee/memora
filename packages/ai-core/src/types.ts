@@ -4,12 +4,7 @@ import * as v from "valibot";
 
 export type MaybePromise<T> = T | Promise<T>;
 
-export const MessageRoleSchema = v.picklist([
-  "user",
-  "assistant",
-  "system",
-  "tool",
-]);
+export const MessageRoleSchema = v.picklist(["user", "assistant", "system", "tool"]);
 export type MessageRole = v.InferOutput<typeof MessageRoleSchema>;
 
 // ─── Agent Messages (internal representation) ───
@@ -54,9 +49,7 @@ export const AgentMessageContentSchema = v.variant("type", [
   ToolCallContentSchema,
   ToolResultContentSchema,
 ]);
-export type AgentMessageContent = v.InferOutput<
-  typeof AgentMessageContentSchema
->;
+export type AgentMessageContent = v.InferOutput<typeof AgentMessageContentSchema>;
 
 export const AgentMessageSchema = v.object({
   id: v.string(),
@@ -250,13 +243,7 @@ export type AgentEvent =
 
 // ─── Loop State ───
 
-export type LoopPhase =
-  | "input"
-  | "think"
-  | "action"
-  | "observation"
-  | "complete"
-  | "error";
+export type LoopPhase = "input" | "think" | "action" | "observation" | "complete" | "error";
 
 export interface LoopState {
   phase: LoopPhase;
@@ -274,37 +261,22 @@ export interface HookContext {
 }
 
 export interface AgentHooks {
-  onAfterInput?: (
-    ctx: HookContext,
-    message: AgentMessage,
-  ) => MaybePromise<void>;
+  onAfterInput?: (ctx: HookContext, message: AgentMessage) => MaybePromise<void>;
   onBeforeThink?: (ctx: HookContext) => MaybePromise<void>;
   onAfterThink?: (
     ctx: HookContext,
     result: { text: string; toolCalls: AgentMessageContent[] },
   ) => MaybePromise<void>;
-  onBeforeAction?: (
-    ctx: HookContext,
-    toolCall: AgentMessageContent,
-  ) => MaybePromise<void>;
+  onBeforeAction?: (ctx: HookContext, toolCall: AgentMessageContent) => MaybePromise<void>;
   onAfterAction?: (
     ctx: HookContext,
     toolCall: AgentMessageContent,
     result: unknown,
   ) => MaybePromise<void>;
-  onBeforeObservation?: (
-    ctx: HookContext,
-    observation: AgentMessage,
-  ) => MaybePromise<void>;
-  onAfterObservation?: (
-    ctx: HookContext,
-    observation: AgentMessage,
-  ) => MaybePromise<void>;
+  onBeforeObservation?: (ctx: HookContext, observation: AgentMessage) => MaybePromise<void>;
+  onAfterObservation?: (ctx: HookContext, observation: AgentMessage) => MaybePromise<void>;
   onError?: (ctx: HookContext, error: Error) => MaybePromise<void>;
-  onComplete?: (
-    ctx: HookContext,
-    finalMessage: AgentMessage,
-  ) => MaybePromise<void>;
+  onComplete?: (ctx: HookContext, finalMessage: AgentMessage) => MaybePromise<void>;
 }
 
 // ─── Message Transformer ───
@@ -321,9 +293,7 @@ export interface ThinkResult {
   usage?: TokenUsage;
 }
 
-export type ResponseTransformer = (
-  events: AgentEvent[],
-) => MaybePromise<ThinkResult>;
+export type ResponseTransformer = (events: AgentEvent[]) => MaybePromise<ThinkResult>;
 
 // ─── Prompt Composer ───
 
@@ -353,10 +323,7 @@ export const AgentConfigSchema = v.object({
   model: v.string(),
   endpoint: v.string(),
   apiKey: v.optional(v.string()),
-  apiFormat: v.optional(
-    v.picklist(["chat-completions", "responses"]),
-    "chat-completions",
-  ),
+  apiFormat: v.optional(v.picklist(["chat-completions", "responses"]), "chat-completions"),
   builtinTools: v.optional(v.array(v.record(v.string(), v.unknown()))),
   maxToolResultChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(100)), 8000),
   maxContextChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1000)), 100000),

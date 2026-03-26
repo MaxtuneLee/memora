@@ -52,11 +52,7 @@ export const getWindowIds = (
   return [...previewIds.map((window) => window.id), ...folderIds.map((window) => window.id)];
 };
 
-export const buildWindowOrder = (
-  order: string[],
-  ids: string[],
-  activeId?: string,
-): string[] => {
+export const buildWindowOrder = (order: string[], ids: string[], activeId?: string): string[] => {
   const idSet = new Set(ids);
   const normalized = order.filter((id) => idSet.has(id));
   ids.forEach((id) => {
@@ -96,10 +92,7 @@ export const getColumnsForWidth = (width: number): number => {
   return Math.max(1, Math.floor(available / GRID_SIZE));
 };
 
-export const layoutDesktopItems = (
-  list: DesktopItemType[],
-  columns: number,
-): DesktopItemType[] => {
+export const layoutDesktopItems = (list: DesktopItemType[], columns: number): DesktopItemType[] => {
   return list.map((item, index) => ({
     ...item,
     position: {

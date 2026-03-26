@@ -1,10 +1,5 @@
 import { Button } from "@base-ui/react/button";
-import {
-  PencilSimpleIcon,
-  SpinnerGapIcon,
-  SubtitlesIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { PencilSimpleIcon, SpinnerGapIcon, SubtitlesIcon, TrashIcon } from "@phosphor-icons/react";
 
 import type { RecordingItem } from "@/types/library";
 
@@ -79,10 +74,7 @@ export const RecordingHeader = ({
               </div>
             </form>
           ) : (
-            <button
-              onClick={onStartRename}
-              className="group flex items-start gap-2 text-left"
-            >
+            <button onClick={onStartRename} className="group flex items-start gap-2 text-left">
               <span className="break-words text-3xl font-semibold tracking-tight text-zinc-900">
                 {recording.name}
               </span>
@@ -119,10 +111,7 @@ export const RecordingHeader = ({
               {isTranscribing ? (
                 <SpinnerGapIcon className="size-4 animate-spin" />
               ) : (
-                <SubtitlesIcon
-                  className="size-4"
-                  weight={showTranscript ? "fill" : "bold"}
-                />
+                <SubtitlesIcon className="size-4" weight={showTranscript ? "fill" : "bold"} />
               )}
               <span>
                 {showTranscript

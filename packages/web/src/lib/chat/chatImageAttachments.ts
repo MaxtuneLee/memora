@@ -38,7 +38,10 @@ const deriveExtension = (mimeType: string, name: string): string => {
   }
 
   const mimePart = mimeType.split("/")[1] ?? "bin";
-  const normalized = mimePart.split("+")[0]?.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const normalized = mimePart
+    .split("+")[0]
+    ?.replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
   return normalized || "bin";
 };
 
@@ -59,10 +62,7 @@ const normalizeOptionalText = (value: unknown): string | undefined => {
   return trimmed || undefined;
 };
 
-export const validateChatImageFile = (file: {
-  type: string;
-  size: number;
-}): string | null => {
+export const validateChatImageFile = (file: { type: string; size: number }): string | null => {
   if (!isImageMimeType(file.type)) {
     return "Only image files can be attached.";
   }
@@ -107,12 +107,7 @@ export const createLocalChatImageAttachment = async (
   }
 
   const attachmentId = crypto.randomUUID();
-  const assetPath = buildChatSessionAssetPath(
-    sessionId,
-    attachmentId,
-    file.type,
-    file.name,
-  );
+  const assetPath = buildChatSessionAssetPath(sessionId, attachmentId, file.type, file.name);
 
   await opfsDir(getChatSessionAssetsDir(sessionId)).create();
   await opfsWrite(assetPath, await file.arrayBuffer(), { overwrite: true });
@@ -151,9 +146,7 @@ export const createLibraryChatImageAttachment = (
   };
 };
 
-export const normalizeChatImageAttachment = (
-  value: unknown,
-): ChatImageAttachment | null => {
+export const normalizeChatImageAttachment = (value: unknown): ChatImageAttachment | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -225,10 +218,7 @@ export const normalizeChatImageAttachments = (
   return normalized.length > 0 ? normalized : undefined;
 };
 
-const resolveOpfsBlob = async (
-  path: string,
-  mimeType: string,
-): Promise<Blob | null> => {
+const resolveOpfsBlob = async (path: string, mimeType: string): Promise<Blob | null> => {
   try {
     const file = opfsFile(path);
     const originFile = await file.getOriginFile();
@@ -246,8 +236,7 @@ const resolveOpfsBlob = async (
 export const resolveChatImageAttachmentBlob = async (
   attachment: ChatImageAttachment,
 ): Promise<Blob | null> => {
-  const path =
-    attachment.source === "local" ? attachment.assetPath : attachment.storagePath;
+  const path = attachment.source === "local" ? attachment.assetPath : attachment.storagePath;
 
   if (!path) {
     return null;
@@ -280,9 +269,7 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
       }
 
       const commaIndex = reader.result.indexOf(",");
-      resolve(
-        commaIndex >= 0 ? reader.result.slice(commaIndex + 1) : reader.result,
-      );
+      resolve(commaIndex >= 0 ? reader.result.slice(commaIndex + 1) : reader.result);
     };
 
     reader.onerror = () => {
@@ -307,9 +294,7 @@ export const attachmentToChatInputImage = async (
   };
 };
 
-const createAttachmentSummary = (
-  attachments: ChatImageAttachment[] | undefined,
-): string => {
+const createAttachmentSummary = (attachments: ChatImageAttachment[] | undefined): string => {
   const images = attachments ?? [];
   if (images.length === 0) {
     return "";
@@ -380,9 +365,7 @@ export const getChatMessageTitleText = (message: {
   return summary || null;
 };
 
-export const deleteChatSessionAssets = async (
-  sessionId: string,
-): Promise<void> => {
+export const deleteChatSessionAssets = async (sessionId: string): Promise<void> => {
   await opfsDir(getChatSessionAssetsDir(sessionId)).remove({
     recursive: true,
     force: true,

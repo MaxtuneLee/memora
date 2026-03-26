@@ -9,9 +9,7 @@ interface SettingsDialogContextValue {
   setIsSettingsOpen: (open: boolean) => void;
 }
 
-const SettingsDialogContext = createContext<SettingsDialogContextValue | null>(
-  null,
-);
+const SettingsDialogContext = createContext<SettingsDialogContextValue | null>(null);
 
 export const useSettingsDialog = () => {
   const context = useContext(SettingsDialogContext);

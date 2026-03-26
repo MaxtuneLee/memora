@@ -6,12 +6,7 @@ type IndexStatus = "pending" | "processing" | "indexed" | "failed";
 
 const FileTypeSchema = Schema.Literal("audio", "video", "image", "document");
 const StorageTypeSchema = Schema.Literal("opfs", "s3", "url");
-const IndexStatusSchema = Schema.Literal(
-  "pending",
-  "processing",
-  "indexed",
-  "failed",
-);
+const IndexStatusSchema = Schema.Literal("pending", "processing", "indexed", "failed");
 
 type FileCreatedEvent = {
   id: string;
@@ -230,34 +225,18 @@ export const fileMaterializers = {
     fileTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),
-        ...(event.parentId !== undefined
-          ? { parentId: event.parentId ?? null }
-          : {}),
-        ...(event.positionX !== undefined
-          ? { positionX: event.positionX ?? null }
-          : {}),
-        ...(event.positionY !== undefined
-          ? { positionY: event.positionY ?? null }
-          : {}),
-        ...(event.collectionId !== undefined
-          ? { collectionId: event.collectionId ?? null }
-          : {}),
+        ...(event.parentId !== undefined ? { parentId: event.parentId ?? null } : {}),
+        ...(event.positionX !== undefined ? { positionX: event.positionX ?? null } : {}),
+        ...(event.positionY !== undefined ? { positionY: event.positionY ?? null } : {}),
+        ...(event.collectionId !== undefined ? { collectionId: event.collectionId ?? null } : {}),
         ...(event.thumbnailPath !== undefined
           ? { thumbnailPath: event.thumbnailPath ?? null }
           : {}),
-        ...(event.durationSec !== undefined
-          ? { durationSec: event.durationSec ?? null }
-          : {}),
+        ...(event.durationSec !== undefined ? { durationSec: event.durationSec ?? null } : {}),
         ...(event.mimeType !== undefined ? { mimeType: event.mimeType } : {}),
-        ...(event.sizeBytes !== undefined
-          ? { sizeBytes: event.sizeBytes }
-          : {}),
-        ...(event.storageType !== undefined
-          ? { storageType: event.storageType }
-          : {}),
-        ...(event.storagePath !== undefined
-          ? { storagePath: event.storagePath }
-          : {}),
+        ...(event.sizeBytes !== undefined ? { sizeBytes: event.sizeBytes } : {}),
+        ...(event.storageType !== undefined ? { storageType: event.storageType } : {}),
+        ...(event.storagePath !== undefined ? { storagePath: event.storagePath } : {}),
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),

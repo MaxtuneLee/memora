@@ -1,16 +1,7 @@
-import {
-  GearSixIcon,
-  PlusIcon,
-  SlidersHorizontalIcon,
-} from "@phosphor-icons/react";
+import { GearSixIcon, PlusIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { Button } from "@base-ui/react/button";
 import { useMemo, type ReactNode } from "react";
-import {
-  AppMenu,
-  AppMenuContent,
-  AppMenuItem,
-  AppMenuTrigger,
-} from "@/components/menu/AppMenu";
+import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
 import type { SettingsSectionId } from "@/types/settings";
@@ -41,14 +32,13 @@ export const TranscriptionHeader = ({
 }: TranscriptionHeaderProps) => {
   const { openSettings } = useSettingsDialog();
 
-  const settingsItems: Array<{ label: string; section: SettingsSectionId }> =
-    useMemo(
-      () => [
-        { label: "Model settings", section: "ai-provider" },
-        { label: "Language preferences", section: "general" },
-      ],
-      [],
-    );
+  const settingsItems: Array<{ label: string; section: SettingsSectionId }> = useMemo(
+    () => [
+      { label: "Model settings", section: "ai-provider" },
+      { label: "Language preferences", section: "general" },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-4 pb-6">
@@ -77,10 +67,7 @@ export const TranscriptionHeader = ({
               <AppMenuContent className="min-w-[220px] rounded-xl bg-white shadow-lg">
                 <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
                   <div className="mt-2">
-                    <LanguageSelector
-                      language={language}
-                      setLanguage={onLanguageChange}
-                    />
+                    <LanguageSelector language={language} setLanguage={onLanguageChange} />
                   </div>
                 </div>
                 <div className="my-2 h-px bg-zinc-100" />

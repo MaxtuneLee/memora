@@ -18,10 +18,7 @@ export const buildWordAnimationWords = (
       const previousStart = allChunks[index - 1]?.timestamp?.[0] ?? 0;
       const start = chunk.timestamp?.[0] ?? previousStart + 0.2;
       const delta = Math.max(0.02, start - previousStart);
-      const delayMs = Math.min(
-        maxDelay,
-        Math.max(minDelay, delta * 1000 * speed),
-      );
+      const delayMs = Math.min(maxDelay, Math.max(minDelay, delta * 1000 * speed));
 
       return {
         text: chunk.text,

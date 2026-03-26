@@ -1,10 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import {
-  getDayPeriod,
-  getWelcomeCopy,
-  getWelcomeState,
-} from "@/components/dashboard/welcomeCopy";
+import { getDayPeriod, getWelcomeCopy, getWelcomeState } from "@/components/dashboard/welcomeCopy";
 
 test("classifies an empty workspace and morning period", () => {
   expect(

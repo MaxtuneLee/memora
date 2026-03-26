@@ -1,18 +1,11 @@
 import { useCallback, useMemo, useRef } from "react";
 
-import type {
-  ChatWidget,
-  ChatWidgetPhase,
-  ShowWidgetArguments,
-} from "@/lib/chat/showWidget";
+import type { ChatWidget, ChatWidgetPhase, ShowWidgetArguments } from "@/lib/chat/showWidget";
 import {
   parsePartialShowWidgetArguments,
   sanitizeShowWidgetArguments,
 } from "@/lib/chat/showWidget";
-import {
-  clearShowWidgetDebug,
-  updateShowWidgetDebug,
-} from "@/lib/chat/showWidgetDebug";
+import { clearShowWidgetDebug, updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 
 import type { ChatMessage } from "./types";
 
@@ -62,9 +55,7 @@ const areParsedShowWidgetSnapshotsEqual = (
   });
 };
 
-const toParsedShowWidgetSnapshot = (
-  rawArgsBuffer: string,
-): ParsedShowWidgetSnapshot | null => {
+const toParsedShowWidgetSnapshot = (rawArgsBuffer: string): ParsedShowWidgetSnapshot | null => {
   const partialArguments = parsePartialShowWidgetArguments(rawArgsBuffer);
   if (!partialArguments) {
     return null;
@@ -98,10 +89,7 @@ export interface ShowWidgetBufferController {
 }
 
 export const useShowWidgetBuffer = (
-  updateMessageById: (
-    messageId: string,
-    updater: (message: ChatMessage) => ChatMessage,
-  ) => void,
+  updateMessageById: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void,
 ): ShowWidgetBufferController => {
   const rawWidgetArgsBufferByToolCallIdRef = useRef(new Map<string, string>());
   const scheduledWidgetFrameByToolCallIdRef = useRef(new Map<string, number>());
@@ -122,8 +110,7 @@ export const useShowWidgetBuffer = (
         const widgetIndex = currentWidgets.findIndex((widget) => {
           return widget.toolCallId === toolCallId;
         });
-        const currentWidget =
-          widgetIndex >= 0 ? currentWidgets[widgetIndex] : undefined;
+        const currentWidget = widgetIndex >= 0 ? currentWidgets[widgetIndex] : undefined;
         const nextWidget = updater(currentWidget);
         if (currentWidget && areWidgetsEqual(currentWidget, nextWidget)) {
           return message;
@@ -182,19 +169,14 @@ export const useShowWidgetBuffer = (
       cancelScheduledWidgetFlush(toolCallId);
 
       const messageId = streamingMessageIdByToolCallIdRef.current.get(toolCallId);
-      const rawArgsBuffer =
-        rawWidgetArgsBufferByToolCallIdRef.current.get(toolCallId) ?? "";
-      const latestDelta =
-        latestWidgetDeltaByToolCallIdRef.current.get(toolCallId) ?? "";
+      const rawArgsBuffer = rawWidgetArgsBufferByToolCallIdRef.current.get(toolCallId) ?? "";
+      const latestDelta = latestWidgetDeltaByToolCallIdRef.current.get(toolCallId) ?? "";
       const nextSnapshot = toParsedShowWidgetSnapshot(rawArgsBuffer);
       const previousSnapshot =
         latestParsedWidgetSnapshotByToolCallIdRef.current.get(toolCallId) ?? null;
 
       if (nextSnapshot) {
-        latestParsedWidgetSnapshotByToolCallIdRef.current.set(
-          toolCallId,
-          nextSnapshot,
-        );
+        latestParsedWidgetSnapshotByToolCallIdRef.current.set(toolCallId, nextSnapshot);
       }
 
       updateShowWidgetDebug(
@@ -236,10 +218,8 @@ export const useShowWidgetBuffer = (
       }
 
       const shouldApplySnapshot =
-        nextSnapshot !== null &&
-        !areParsedShowWidgetSnapshotsEqual(previousSnapshot, nextSnapshot);
-      const shouldApplyPatch =
-        options?.phase !== undefined || options?.errorMessage !== undefined;
+        nextSnapshot !== null && !areParsedShowWidgetSnapshotsEqual(previousSnapshot, nextSnapshot);
+      const shouldApplyPatch = options?.phase !== undefined || options?.errorMessage !== undefined;
       if (!shouldApplySnapshot && !shouldApplyPatch) {
         return;
       }
@@ -250,11 +230,8 @@ export const useShowWidgetBuffer = (
           toolCallId,
           title: fallbackSnapshot?.title ?? currentWidget?.title ?? "",
           loadingMessages:
-            fallbackSnapshot?.loadingMessages ??
-            currentWidget?.loadingMessages ??
-            [],
-          widgetCode:
-            fallbackSnapshot?.widgetCode ?? currentWidget?.widgetCode ?? "",
+            fallbackSnapshot?.loadingMessages ?? currentWidget?.loadingMessages ?? [],
+          widgetCode: fallbackSnapshot?.widgetCode ?? currentWidget?.widgetCode ?? "",
           phase: options?.phase ?? currentWidget?.phase ?? "streaming",
           ...(options?.errorMessage !== undefined
             ? { errorMessage: options.errorMessage }
@@ -322,9 +299,7 @@ export const useShowWidgetBuffer = (
         loadingMessages: currentWidget?.loadingMessages ?? [],
         widgetCode: currentWidget?.widgetCode ?? "",
         phase: currentWidget?.phase ?? "streaming",
-        ...(currentWidget?.errorMessage
-          ? { errorMessage: currentWidget.errorMessage }
-          : {}),
+        ...(currentWidget?.errorMessage ? { errorMessage: currentWidget.errorMessage } : {}),
       }));
     },
     [upsertWidget],
@@ -332,16 +307,12 @@ export const useShowWidgetBuffer = (
 
   const appendWidgetArgsDelta = useCallback(
     (toolCallId: string, delta: string) => {
-      const previousBuffer =
-        rawWidgetArgsBufferByToolCallIdRef.current.get(toolCallId);
+      const previousBuffer = rawWidgetArgsBufferByToolCallIdRef.current.get(toolCallId);
       if (previousBuffer === undefined) {
         return;
       }
 
-      rawWidgetArgsBufferByToolCallIdRef.current.set(
-        toolCallId,
-        `${previousBuffer}${delta}`,
-      );
+      rawWidgetArgsBufferByToolCallIdRef.current.set(toolCallId, `${previousBuffer}${delta}`);
       latestWidgetDeltaByToolCallIdRef.current.set(toolCallId, delta);
       scheduleBufferedWidgetFlush(toolCallId);
     },
@@ -369,8 +340,7 @@ export const useShowWidgetBuffer = (
           summary: "show_widget arguments completed",
           details: {
             title: completeArguments.title ?? "",
-            loadingMessagesCount:
-              completeArguments.loading_messages?.length ?? 0,
+            loadingMessagesCount: completeArguments.loading_messages?.length ?? 0,
             widgetCodeLength: completeArguments.widget_code?.length ?? 0,
           },
         },

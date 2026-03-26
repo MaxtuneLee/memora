@@ -25,10 +25,7 @@ interface LanguageSelectorProps {
   setLanguage: (language: string) => void;
 }
 
-export function LanguageSelector({
-  language,
-  setLanguage,
-}: LanguageSelectorProps) {
+export function LanguageSelector({ language, setLanguage }: LanguageSelectorProps) {
   return (
     <Field.Root className="flex items-center gap-2 justify-between">
       <Field.Label className="text-sm text-zinc-600" render={<div />}>

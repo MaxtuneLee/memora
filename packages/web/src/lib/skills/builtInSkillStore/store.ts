@@ -90,9 +90,7 @@ export const builtInSkillStore: SkillStore = {
     await syncBuiltInSkillToOpfs(manifestEntry);
 
     try {
-      const content = await cat(
-        getResourceAbsolutePath(manifestEntry.name, normalizedPath),
-      );
+      const content = await cat(getResourceAbsolutePath(manifestEntry.name, normalizedPath));
       return {
         ok: true,
         name: manifestEntry.name,

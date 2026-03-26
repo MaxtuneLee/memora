@@ -1,10 +1,7 @@
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
-import {
-  listChatSessions,
-  loadChatSession,
-} from "@/lib/chat/chatSessionStorage";
+import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 
 export const createSessionTools = (): ToolDefinition[] => {
   return [
@@ -42,10 +39,7 @@ export const createSessionTools = (): ToolDefinition[] => {
         const maxMessages = Math.min(payload.max_messages ?? 50, 200);
         const messages = session.messages
           .filter((message) => {
-            return (
-              message.content.trim().length > 0 ||
-              (message.widgets?.length ?? 0) > 0
-            );
+            return message.content.trim().length > 0 || (message.widgets?.length ?? 0) > 0;
           })
           .slice(-maxMessages);
 

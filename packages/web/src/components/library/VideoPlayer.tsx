@@ -79,10 +79,7 @@ export const VideoPlayer = memo(
       togglePlay,
       seek,
     } = useAudioPlayer(mediaRef, readyToken, duration ?? undefined);
-    const captionCues = useMemo(
-      () => buildCaptionCues(transcriptWords),
-      [transcriptWords],
-    );
+    const captionCues = useMemo(() => buildCaptionCues(transcriptWords), [transcriptWords]);
 
     const effectiveDuration = playerDuration || duration || 0;
     const effectiveDurationRef = useRef(effectiveDuration);
@@ -343,11 +340,11 @@ export const VideoPlayer = memo(
           <div className="absolute top-3 right-3 pointer-events-auto">
             <div className="flex items-center gap-2">
               {isFullscreen && captionCues.length > 0 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCaptionsEnabled((prev) => !prev);
-                  scheduleHide();
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCaptionsEnabled((prev) => !prev);
+                    scheduleHide();
                   }}
                   className={`flex size-8 items-center justify-center rounded-lg backdrop-blur-sm transition-colors ${
                     captionsEnabled
@@ -379,9 +376,7 @@ export const VideoPlayer = memo(
         {isFullscreen && captionsEnabled && activeCueIndex >= 0 && (
           <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center px-5 sm:bottom-20">
             <div className="max-w-[min(90vw,980px)] rounded-xl bg-black/45 px-4 py-2 text-center text-[clamp(1rem,1.8vw,1.6rem)] font-medium text-zinc-50 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-              <p className="line-clamp-2 leading-tight">
-                {captionCues[activeCueIndex]?.text}
-              </p>
+              <p className="line-clamp-2 leading-tight">{captionCues[activeCueIndex]?.text}</p>
             </div>
           </div>
         )}

@@ -1,8 +1,4 @@
-import {
-  dir as opfsDir,
-  file as opfsFile,
-  write as opfsWrite,
-} from "@memora/fs";
+import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 const PROFILE_DIR = "/chat/profile";
 export const PERSONALITY_DOC_PATH = `${PROFILE_DIR}/Personality.md`;
@@ -29,9 +25,7 @@ const ensureProfileDir = async (): Promise<void> => {
   await opfsDir(PROFILE_DIR).create();
 };
 
-const normalizeObject = (
-  value: unknown,
-): Record<string, unknown> | null => {
+const normalizeObject = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -63,9 +57,7 @@ const normalizeNotice = (value: unknown): MemoryNotice | null => {
       ? record.updatedAt
       : createdAt;
   const id =
-    typeof record.id === "string" && record.id.trim().length > 0
-      ? record.id
-      : crypto.randomUUID();
+    typeof record.id === "string" && record.id.trim().length > 0 ? record.id : crypto.randomUUID();
 
   return {
     id,
@@ -236,16 +228,12 @@ export const loadGlobalMemoryData = async (): Promise<GlobalMemoryData | null> =
   }
 };
 
-export const saveGlobalMemory = async (
-  memory: Record<string, unknown>,
-): Promise<void> => {
+export const saveGlobalMemory = async (memory: Record<string, unknown>): Promise<void> => {
   const normalized = normalizeGlobalMemoryData(memory) ?? { notices: [] };
   await saveGlobalMemoryData(normalized);
 };
 
-export const saveGlobalMemoryData = async (
-  memory: GlobalMemoryData,
-): Promise<void> => {
+export const saveGlobalMemoryData = async (memory: GlobalMemoryData): Promise<void> => {
   const normalized = serializeGlobalMemoryData(memory);
   if (!hasStoredGlobalMemory(normalized)) {
     await clearGlobalMemory();
@@ -277,9 +265,7 @@ export const deleteGlobalMemoryPersonality = async (): Promise<GlobalMemoryData>
   return nextMemory;
 };
 
-export const deleteGlobalMemoryNotice = async (
-  noticeId: string,
-): Promise<GlobalMemoryData> => {
+export const deleteGlobalMemoryNotice = async (noticeId: string): Promise<GlobalMemoryData> => {
   const existing = await loadGlobalMemoryData();
   const nextMemory: GlobalMemoryData = {
     personality: existing?.personality,

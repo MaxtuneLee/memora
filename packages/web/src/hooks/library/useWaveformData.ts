@@ -5,9 +5,7 @@ export interface WaveformData {
   duration: number;
 }
 
-type WaveformResult =
-  | { url: string; data: WaveformData }
-  | { url: string; error: true };
+type WaveformResult = { url: string; data: WaveformData } | { url: string; error: true };
 
 export const useWaveformData = (
   audioUrl: string | undefined,
@@ -44,10 +42,7 @@ export const useWaveformData = (
         }
 
         const channelData = audioBuffer.getChannelData(0);
-        const samplesPerBar = Math.max(
-          1,
-          Math.floor(channelData.length / barCount),
-        );
+        const samplesPerBar = Math.max(1, Math.floor(channelData.length / barCount));
 
         const peaks: number[] = [];
         let maxPeak = 0;
@@ -66,9 +61,7 @@ export const useWaveformData = (
           if (rms > maxPeak) maxPeak = rms;
         }
 
-        const normalizedPeaks = peaks.map((p) =>
-          maxPeak > 0 ? p / maxPeak : 0,
-        );
+        const normalizedPeaks = peaks.map((p) => (maxPeak > 0 ? p / maxPeak : 0));
 
         if (!cancelled && !controller.signal.aborted) {
           setResult({

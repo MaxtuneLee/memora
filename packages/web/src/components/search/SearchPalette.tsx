@@ -1,23 +1,14 @@
 import { Dialog } from "@base-ui/react/dialog";
-import {
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useStore } from "@livestore/react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
-import type {
-  GlobalSearchItem,
-  SearchNavigationState,
-} from "@/types/search";
+import type { GlobalSearchItem, SearchNavigationState } from "@/types/search";
 import { SearchResultRow } from "./searchPalette/SearchResultRow";
 import { ShortcutHint } from "./searchPalette/ShortcutHint";
 import { useSearchResults } from "./searchPalette/useSearchResults";
@@ -187,11 +178,7 @@ export default function SearchPalette() {
             return (
               <motion.div
                 {...rest}
-                initial={
-                  reducedMotion
-                    ? { opacity: 0 }
-                    : { opacity: 0, y: 18, scale: 0.97 }
-                }
+                initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 18, scale: 0.97 }}
                 animate={
                   state.open
                     ? reducedMotion
@@ -209,10 +196,7 @@ export default function SearchPalette() {
         >
           <div className="px-4 pb-3 pt-4 sm:px-5 sm:pb-4 sm:pt-5">
             <div className="rounded-[14px] border border-[#ebe7e1] bg-transparent">
-              <label
-                htmlFor="global-search-input"
-                className="sr-only"
-              >
+              <label htmlFor="global-search-input" className="sr-only">
                 Search query
               </label>
               <div className="flex items-center gap-3 px-4 py-3.5">
@@ -255,13 +239,9 @@ export default function SearchPalette() {
                 {displaySections.map((section) => (
                   <section key={section.id}>
                     <div className="flex items-center justify-between px-2 pb-2">
-                      <h3 className="text-[13px] font-semibold text-zinc-500">
-                        {section.label}
-                      </h3>
+                      <h3 className="text-[13px] font-semibold text-zinc-500">{section.label}</h3>
                       {section.id === "results" && queryValue.length > 0 ? (
-                        <span className="text-xs text-zinc-400">
-                          {section.items.length}
-                        </span>
+                        <span className="text-xs text-zinc-400">{section.items.length}</span>
                       ) : null}
                     </div>
 

@@ -81,11 +81,13 @@ The dashboard owns a constrained document format and always rewrites the file in
 # Today Tasks
 
 ## Open
+
 - [ ] Draft the storage parser
 - [ ] Multi-line item
-  continues on a second line
+      continues on a second line
 
 ## Done
+
 - [x] Replace the static dashboard card
 ```
 

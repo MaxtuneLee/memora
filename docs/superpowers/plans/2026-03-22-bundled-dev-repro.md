@@ -13,6 +13,7 @@
 ### Task 1: Scaffold The Repro Package
 
 **Files:**
+
 - Create: `packages/bundled-dev-symbol-repro/package.json`
 - Create: `packages/bundled-dev-symbol-repro/tsconfig.json`
 - Create: `packages/bundled-dev-symbol-repro/index.html`
@@ -26,6 +27,7 @@
 ### Task 2: Add The Minimal Runtime Repro
 
 **Files:**
+
 - Create: `packages/bundled-dev-symbol-repro/src/main.ts`
 - Create: `packages/bundled-dev-symbol-repro/src/trigger.ts`
 
@@ -36,6 +38,7 @@
 ### Task 3: Document And Verify The Repro
 
 **Files:**
+
 - Create: `packages/bundled-dev-symbol-repro/README.md`
 
 - [ ] **Step 1: Document install, dev, and browser reproduction steps**

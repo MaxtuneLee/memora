@@ -78,8 +78,7 @@ export const buildFileSearchItems = (
 
   return files.map((file) => {
     const parentPath = buildFolderPathLabel(file.parentId ?? null, folderById);
-    const preview =
-      file.indexSummary?.trim() || formatFileMetadataPreview(file);
+    const preview = file.indexSummary?.trim() || formatFileMetadataPreview(file);
     const typeLabel = FILE_TYPE_LABELS[file.type];
     const pathSegments = buildFolderPathSegments(file.parentId ?? null, folderById);
 
@@ -89,15 +88,8 @@ export const buildFileSearchItems = (
       title: file.name,
       description: `${typeLabel} in ${parentPath}`,
       preview,
-      keywords: [
-        file.name,
-        file.type,
-        typeLabel,
-        file.mimeType,
-        ...pathSegments,
-      ],
-      updatedAt:
-        file.updatedAt instanceof Date ? file.updatedAt.getTime() : undefined,
+      keywords: [file.name, file.type, typeLabel, file.mimeType, ...pathSegments],
+      updatedAt: file.updatedAt instanceof Date ? file.updatedAt.getTime() : undefined,
       intent:
         file.type === "audio" || file.type === "video"
           ? {
@@ -148,8 +140,7 @@ export const buildFolderSearchItems = (
           ? `${childCount} item${childCount === 1 ? "" : "s"} inside ${fullPath}.`
           : `Open folder on desktop at ${fullPath}.`,
       keywords: [folder.name, fullPath, parentPath, "folder", "desktop"],
-      updatedAt:
-        folder.updatedAt instanceof Date ? folder.updatedAt.getTime() : undefined,
+      updatedAt: folder.updatedAt instanceof Date ? folder.updatedAt.getTime() : undefined,
       intent: {
         type: "desktop-intent",
         to: "/",
@@ -171,13 +162,7 @@ export const buildChatSessionSearchItems = (
     title: session.title,
     description: `Chat session • Updated ${formatDateTime(session.updatedAt)}`,
     preview: session.preview || "No messages yet.",
-    keywords: [
-      session.title,
-      "chat",
-      "session",
-      "assistant",
-      "conversation",
-    ],
+    keywords: [session.title, "chat", "session", "assistant", "conversation"],
     updatedAt: session.updatedAt,
     intent: {
       type: "open-chat-session",

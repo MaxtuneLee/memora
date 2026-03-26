@@ -15,11 +15,7 @@ export interface ParsedWidgetScript {
   src: string | null;
 }
 
-const findTagStart = (
-  source: string,
-  tagName: string,
-  fromIndex = 0,
-): number => {
+const findTagStart = (source: string, tagName: string, fromIndex = 0): number => {
   return source.toLowerCase().indexOf(`<${tagName}`, fromIndex);
 };
 
@@ -27,13 +23,8 @@ const findTagEnd = (source: string, fromIndex: number): number => {
   return source.indexOf(">", fromIndex);
 };
 
-const getTagAttribute = (
-  source: string,
-  attributeName: string,
-): string | null => {
-  const quotedMatch = source.match(
-    new RegExp(`${attributeName}\\s*=\\s*(['"])(.*?)\\1`, "i"),
-  );
+const getTagAttribute = (source: string, attributeName: string): string | null => {
+  const quotedMatch = source.match(new RegExp(`${attributeName}\\s*=\\s*(['"])(.*?)\\1`, "i"));
   if (quotedMatch) {
     return quotedMatch[2] ?? null;
   }
@@ -242,8 +233,7 @@ const getRenderableHtml = (html: string): string => {
 
     const rawTag = safeHtml.slice(index, tagEnd + 1);
     const isSelfClosingTag =
-      !isClosingTag &&
-      (VOID_HTML_TAGS.has(tagName) || /\/\s*>$/.test(rawTag));
+      !isClosingTag && (VOID_HTML_TAGS.has(tagName) || /\/\s*>$/.test(rawTag));
 
     if (isClosingTag) {
       const openIndex = openTags.lastIndexOf(tagName);
@@ -261,12 +251,13 @@ const getRenderableHtml = (html: string): string => {
     return safeHtml;
   }
 
-  return `${safeHtml}${[...openTags].reverse().map((tagName) => `</${tagName}>`).join("")}`;
+  return `${safeHtml}${[...openTags]
+    .reverse()
+    .map((tagName) => `</${tagName}>`)
+    .join("")}`;
 };
 
-export const parseShowWidgetCode = (
-  widgetCode: string,
-): ParsedShowWidgetCode => {
+export const parseShowWidgetCode = (widgetCode: string): ParsedShowWidgetCode => {
   const source = widgetCode ?? "";
   let cursor = 0;
   let styleText = "";

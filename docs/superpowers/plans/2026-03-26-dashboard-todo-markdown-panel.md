@@ -13,12 +13,14 @@
 ### Task 1: Add Pure Markdown Parsing And Serialization
 
 **Files:**
+
 - Create: `packages/web/src/components/dashboard/todoMarkdown.ts`
 - Test: `packages/web/test/dashboard/todoMarkdown.test.ts`
 
 - [ ] **Step 1: Write the failing parser and serializer tests**
 
 Add tests for:
+
 - canonical empty document serialization
 - parsing open and done items
 - preserving multiline task text
@@ -32,6 +34,7 @@ Expected: FAIL because the module does not exist yet.
 - [ ] **Step 3: Implement the minimal markdown helpers**
 
 Add:
+
 - a canonical document title and section constants
 - a `TodoTask` type for in-memory tasks
 - `parseTodoMarkdown(markdown: string): TodoTask[]`
@@ -46,6 +49,7 @@ Expected: PASS
 ### Task 2: Add The OPFS + LiveStore TODO Document Repository
 
 **Files:**
+
 - Create: `packages/web/src/components/dashboard/todoDocument.ts`
 - Modify: `packages/web/src/lib/library/fileStorage.ts`
 - Test: `packages/web/test/dashboard/todoDocument.test.ts`
@@ -53,6 +57,7 @@ Expected: PASS
 - [ ] **Step 1: Write the failing repository tests**
 
 Add tests for:
+
 - creating the backing Markdown document when it does not exist
 - reusing an existing active `Today Tasks` file row
 - overwriting document content and metadata on save
@@ -66,12 +71,14 @@ Expected: FAIL because the repository module does not exist yet.
 - [ ] **Step 3: Extend file storage with a generic document save helper only if needed**
 
 If the current `saveFileToOpfs` API already supports markdown documents cleanly, keep changes minimal. Otherwise add the smallest shared helper needed to:
+
 - write a text blob into `/files/<id>/...`
 - preserve the standard metadata layout
 
 - [ ] **Step 4: Implement the dashboard-owned document repository**
 
 Add repository functions to:
+
 - locate the active `Today Tasks` document from live file rows
 - create the document with canonical markdown when missing
 - read and parse its markdown body
@@ -87,12 +94,14 @@ Expected: PASS
 ### Task 3: Build And Test The Dashboard TODO Panel UI
 
 **Files:**
+
 - Create: `packages/web/src/components/dashboard/TodoPanel.tsx`
 - Test: `packages/web/test/dashboard/TodoPanel.test.tsx`
 
 - [ ] **Step 1: Write the failing panel tests**
 
 Cover:
+
 - loading the initial TODO document into `Open` and `Done` sections
 - adding a multiline task
 - toggling a task between open and done
@@ -107,6 +116,7 @@ Expected: FAIL because the component does not exist yet.
 - [ ] **Step 3: Implement the minimal panel component**
 
 Build a focused component that:
+
 - loads the TODO document on mount
 - shows a textarea and `Add` button
 - renders open and done task sections
@@ -123,6 +133,7 @@ Expected: PASS
 ### Task 4: Replace The Static Dashboard Card And Verify
 
 **Files:**
+
 - Modify: `packages/web/src/components/dashboard/DashboardPage.tsx`
 - Modify: `packages/web/src/components/dashboard/TodoPanel.tsx`
 - Test: `packages/web/test/dashboard/todoMarkdown.test.ts`
@@ -153,6 +164,7 @@ Expected: PASS
 - [ ] **Step 5: Review the final diff for accidental scope creep**
 
 Confirm there is:
+
 - no new delete flow
 - no extra task metadata
 - no unintended changes to recent or calendar widgets

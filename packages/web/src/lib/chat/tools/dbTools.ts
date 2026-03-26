@@ -1,11 +1,7 @@
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
-import {
-  EMPTY_REFERENCE_SCOPE,
-  type CreateChatToolsOptions,
-  type StoreQueryable,
-} from "./shared";
+import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
 const ALLOWED_TABLES = new Set(["files", "folders", "collections"]);
 const FORBIDDEN_PATTERN =
@@ -29,14 +25,22 @@ const TABLE_SCHEMAS: Record<
       { name: "mimeType", type: "TEXT", description: "MIME type" },
       { name: "sizeBytes", type: "INTEGER", description: "file size in bytes" },
       { name: "storagePath", type: "TEXT", description: "OPFS path to the actual file" },
-      { name: "transcriptPath", type: "TEXT", description: "OPFS path to transcript JSON (nullable)" },
+      {
+        name: "transcriptPath",
+        type: "TEXT",
+        description: "OPFS path to transcript JSON (nullable)",
+      },
       { name: "parentId", type: "TEXT", description: "parent folder ID (nullable)" },
       { name: "collectionId", type: "TEXT", description: "collection ID (nullable)" },
       { name: "durationSec", type: "REAL", description: "media duration in seconds (nullable)" },
       { name: "indexSummary", type: "TEXT", description: "AI-generated summary (nullable)" },
       { name: "createdAt", type: "INTEGER", description: "creation timestamp (unix ms)" },
       { name: "updatedAt", type: "INTEGER", description: "last update timestamp (unix ms)" },
-      { name: "deletedAt", type: "INTEGER", description: "soft-delete timestamp, non-null = in trash (nullable)" },
+      {
+        name: "deletedAt",
+        type: "INTEGER",
+        description: "soft-delete timestamp, non-null = in trash (nullable)",
+      },
       { name: "purgedAt", type: "INTEGER", description: "permanent delete timestamp (nullable)" },
     ],
   },
@@ -84,9 +88,7 @@ const validateSql = (sql: string): string | null => {
     return null;
   }
 
-  const tables = fromMatch[1]
-    .split(",")
-    .map((table) => table.trim().split(/\s+/)[0].toLowerCase());
+  const tables = fromMatch[1].split(",").map((table) => table.trim().split(/\s+/)[0].toLowerCase());
   for (const table of tables) {
     if (!ALLOWED_TABLES.has(table)) {
       return `Access to table '${table}' is not allowed. Allowed tables: ${[...ALLOWED_TABLES].join(", ")}`;
@@ -143,8 +145,7 @@ export const createDatabaseTools = (
           }
 
           const rows = store.query({ query: sql, bindValues: {} });
-          const referenceScope =
-            options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+          const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
           if (!referenceScope.isActive || !FILES_TABLE_USAGE_PATTERN.test(sql)) {
             return { rows, count: (rows as unknown[]).length };
           }

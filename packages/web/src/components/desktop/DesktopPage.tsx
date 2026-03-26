@@ -5,7 +5,11 @@ import { useLocation, useNavigate } from "react-router";
 import { Desktop, UploadDialog } from "@/components/desktop";
 import { useUploadDialog } from "@/hooks/desktop/useUploadDialog";
 import { fileEvents } from "@/livestore/file";
-import { deleteRecording as deleteFile, getMediaDuration, saveRecording } from "@/lib/library/fileService";
+import {
+  deleteRecording as deleteFile,
+  getMediaDuration,
+  saveRecording,
+} from "@/lib/library/fileService";
 import type { FileType, RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search";
 import ToastStack from "@/components/ToastStack";
@@ -31,8 +35,7 @@ export const Component = () => {
   } = useUploadDialog();
 
   const [uploadParentId, setUploadParentId] = useState<string | null>(null);
-  const [externalIntent, setExternalIntent] =
-    useState<PendingDesktopIntent | null>(null);
+  const [externalIntent, setExternalIntent] = useState<PendingDesktopIntent | null>(null);
 
   const resolveFileType = useCallback((file: File): FileType => {
     if (file.type.startsWith("video/")) return "video";
@@ -40,7 +43,14 @@ export const Component = () => {
     if (file.type.startsWith("text/")) return "document";
     if (file.type.startsWith("application/")) return "document";
     const ext = file.name.toLowerCase();
-    if (ext.endsWith(".md") || ext.endsWith(".pdf") || ext.endsWith(".doc") || ext.endsWith(".docx") || ext.endsWith(".txt")) return "document";
+    if (
+      ext.endsWith(".md") ||
+      ext.endsWith(".pdf") ||
+      ext.endsWith(".doc") ||
+      ext.endsWith(".docx") ||
+      ext.endsWith(".txt")
+    )
+      return "document";
     if (file.type.startsWith("audio/")) return "audio";
     return "audio";
   }, []);
@@ -107,7 +117,16 @@ export const Component = () => {
       setUploadName("");
       setUploadParentId(null);
     }
-  }, [selectedFile, uploadName, uploadParentId, uploadSingleFile, setIsUploading, setSelectedFile, setUploadName, add]);
+  }, [
+    selectedFile,
+    uploadName,
+    uploadParentId,
+    uploadSingleFile,
+    setIsUploading,
+    setSelectedFile,
+    setUploadName,
+    add,
+  ]);
 
   const handleNativeFileDrop = useCallback(
     async (files: File[], parentId: string | null) => {
@@ -151,17 +170,12 @@ export const Component = () => {
     [openFilePicker],
   );
 
-  const handleDeleteFile = useCallback(
-    async (file: RecordingMeta) => {
-      await deleteFile(file);
-    },
-    [],
-  );
+  const handleDeleteFile = useCallback(async (file: RecordingMeta) => {
+    await deleteFile(file);
+  }, []);
 
   const handleExternalIntentHandled = useCallback((requestId: string) => {
-    setExternalIntent((prev) =>
-      prev?.requestId === requestId ? null : prev,
-    );
+    setExternalIntent((prev) => (prev?.requestId === requestId ? null : prev));
   }, []);
 
   useEffect(() => {

@@ -7,10 +7,7 @@ import {
   serializeTodoMarkdown,
   type TodoTask,
 } from "@/components/dashboard/todoMarkdown";
-import {
-  ensureTodoDocument,
-  saveTodoDocument,
-} from "@/components/dashboard/todoDocument";
+import { ensureTodoDocument, saveTodoDocument } from "@/components/dashboard/todoDocument";
 import { saveFileToOpfs } from "@/lib/library/fileStorage";
 
 const testState = vi.hoisted(() => {
@@ -44,10 +41,9 @@ vi.mock("@memora/fs", () => ({
 }));
 
 vi.mock("@/lib/library/fileStorage", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/library/fileStorage")>(
-      "@/lib/library/fileStorage",
-    );
+  const actual = await vi.importActual<typeof import("@/lib/library/fileStorage")>(
+    "@/lib/library/fileStorage",
+  );
 
   return {
     ...actual,
@@ -200,17 +196,12 @@ test("writes updated markdown content and metadata when saving tasks", async () 
 
   const markdown = serializeTodoMarkdown(tasks);
   expect(testState.write).toHaveBeenCalledTimes(2);
-  expect(testState.write).toHaveBeenNthCalledWith(
-    1,
-    existing.storagePath,
-    markdown,
-    { overwrite: true },
-  );
+  expect(testState.write).toHaveBeenNthCalledWith(1, existing.storagePath, markdown, {
+    overwrite: true,
+  });
   expect(testState.write.mock.calls[1]?.[0]).toBe(existing.metaPath);
 
-  const savedMeta = JSON.parse(
-    String(testState.write.mock.calls[1]?.[1] ?? ""),
-  ) as FileMeta;
+  const savedMeta = JSON.parse(String(testState.write.mock.calls[1]?.[1] ?? "")) as FileMeta;
 
   expect(savedMeta.name).toBe(existing.name);
   expect(savedMeta.sizeBytes).toBe(new Blob([markdown]).size);

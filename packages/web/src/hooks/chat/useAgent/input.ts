@@ -2,9 +2,7 @@ import type { AgentMessage } from "@memora/ai-core";
 
 import type { ChatMessage, ChatTurnInput } from "./types";
 
-export const normalizeTurnInput = (
-  input: string | ChatTurnInput,
-): ChatTurnInput => {
+export const normalizeTurnInput = (input: string | ChatTurnInput): ChatTurnInput => {
   if (typeof input === "string") {
     return {
       text: input,
@@ -18,10 +16,7 @@ export const normalizeTurnInput = (
   };
 };
 
-export const buildAgentInput = (
-  input: ChatTurnInput,
-  messageId: string,
-): string | AgentMessage => {
+export const buildAgentInput = (input: ChatTurnInput, messageId: string): string | AgentMessage => {
   if (input.images.length === 0) {
     return input.text;
   }
@@ -48,9 +43,7 @@ export const buildAgentInput = (
   };
 };
 
-export const toAgentHistoryMessages = (
-  messages: ChatMessage[],
-): AgentMessage[] => {
+export const toAgentHistoryMessages = (messages: ChatMessage[]): AgentMessage[] => {
   return messages.flatMap((message, index) => {
     const content: AgentMessage["content"] = [];
     const normalizedText = message.content.trim();

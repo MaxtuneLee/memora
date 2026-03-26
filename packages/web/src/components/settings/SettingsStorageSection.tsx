@@ -9,9 +9,7 @@ interface SettingsStorageSectionProps {
   open: boolean;
 }
 
-export default function SettingsStorageSection({
-  open,
-}: SettingsStorageSectionProps) {
+export default function SettingsStorageSection({ open }: SettingsStorageSectionProps) {
   const {
     breakdownSegments,
     contentCategories,
@@ -56,13 +54,10 @@ export default function SettingsStorageSection({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900">
-              Browser storage
-            </h4>
+            <h4 className="text-sm font-semibold text-zinc-900">Browser storage</h4>
             <p className="mt-1 text-sm text-zinc-500">{storageSummary}</p>
             <p className="mt-2 text-xs text-zinc-400">
-              Includes user content, local databases, caches, and service
-              workers.
+              Includes user content, local databases, caches, and service workers.
             </p>
           </div>
           <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-zinc-600 shadow-sm">
@@ -84,9 +79,7 @@ export default function SettingsStorageSection({
               <div key={segment.id} className="flex items-center gap-1.5">
                 <span className={cn("size-2 rounded-full", segment.color)} />
                 <span>{segment.label}</span>
-                <span className="text-[11px] text-zinc-400">
-                  {formatBytes(segment.size)}
-                </span>
+                <span className="text-[11px] text-zinc-400">{formatBytes(segment.size)}</span>
               </div>
             ))}
           </div>
@@ -98,16 +91,12 @@ export default function SettingsStorageSection({
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900">
-              User content
-            </h4>
+            <h4 className="text-sm font-semibold text-zinc-900">User content</h4>
             <p className="mt-1 text-sm text-zinc-500">
               Files and downloaded models saved by Memora.
             </p>
           </div>
-          <span className="text-sm font-semibold text-zinc-900">
-            {formatBytes(contentUsage)}
-          </span>
+          <span className="text-sm font-semibold text-zinc-900">{formatBytes(contentUsage)}</span>
         </div>
         {visibleContentCategories.length > 0 ? (
           <div className="mt-4 space-y-3">
@@ -141,9 +130,7 @@ export default function SettingsStorageSection({
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900">
-              Persistent storage
-            </h4>
+            <h4 className="text-sm font-semibold text-zinc-900">Persistent storage</h4>
             <p className="mt-1 text-sm text-zinc-500">
               {isStorageSupported
                 ? isStoragePersistent
@@ -164,9 +151,7 @@ export default function SettingsStorageSection({
         </div>
         <div className="mt-4">
           <Button
-            disabled={
-              !isStorageSupported || isStoragePersistent || isPersistRequesting
-            }
+            disabled={!isStorageSupported || isStoragePersistent || isPersistRequesting}
             onClick={() => void handlePersistClick()}
             className="rounded-full border border-zinc-900 bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-300 disabled:bg-zinc-300"
           >

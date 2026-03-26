@@ -35,7 +35,5 @@ export const SEARCH_ITEM_ICONS: Record<SearchItemKind, React.ElementType> = {
 };
 
 export const sortByRecency = (items: GlobalSearchItem[]): GlobalSearchItem[] => {
-  return items
-    .slice()
-    .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
+  return items.slice().sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
 };

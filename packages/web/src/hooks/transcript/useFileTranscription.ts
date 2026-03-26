@@ -2,11 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@livestore/react";
 import { write as opfsWrite } from "@memora/fs";
 
-import type {
-  FileType,
-  RecordingMeta,
-  RecordingTranscript,
-} from "@/types/library";
+import type { FileType, RecordingMeta, RecordingTranscript } from "@/types/library";
 import { TRANSCRIPT_SUFFIX, FILES_DIR } from "@/types/library";
 import { resolveAudioBlob } from "@/lib/library/fileStorage";
 import {
@@ -75,86 +71,88 @@ export const useFileTranscription = () => {
     return output;
   }, []);
 
-  const decodeWithAudioContext = useCallback(async (blob: Blob) => {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioContext = new AudioContext({ sampleRate: 16000 });
-    try {
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      return await decodeAudioBufferToFloat32(audioBuffer);
-    } finally {
-      await audioContext.close();
-    }
-  }, [decodeAudioBufferToFloat32]);
+  const decodeWithAudioContext = useCallback(
+    async (blob: Blob) => {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        return await decodeAudioBufferToFloat32(audioBuffer);
+      } finally {
+        await audioContext.close();
+      }
+    },
+    [decodeAudioBufferToFloat32],
+  );
 
-  const decodeVideoWithMediaElement = useCallback(async (blob: Blob) => {
-    if (typeof document === "undefined") {
-      throw new Error("Video decoding is not available in this environment.");
-    }
-
-    const videoUrl = URL.createObjectURL(blob);
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
-    video.src = videoUrl;
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const onLoaded = () => resolve();
-        const onError = () => reject(new Error("Unable to load video metadata."));
-        video.addEventListener("loadedmetadata", onLoaded, { once: true });
-        video.addEventListener("error", onError, { once: true });
-      });
-
-      const duration = Number.isFinite(video.duration) ? video.duration : 0;
-      if (duration <= 0) {
-        throw new Error("Video has no audio track or duration could not be read.");
+  const decodeVideoWithMediaElement = useCallback(
+    async (blob: Blob) => {
+      if (typeof document === "undefined") {
+        throw new Error("Video decoding is not available in this environment.");
       }
 
-      const sampleRate = 16000;
-      const frameCount = Math.ceil(duration * sampleRate);
-      const offlineContext = new OfflineAudioContext(1, frameCount, sampleRate);
-      const source = (offlineContext as unknown as AudioContext).createMediaElementSource(video);
-      source.connect(offlineContext.destination);
+      const videoUrl = URL.createObjectURL(blob);
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = videoUrl;
 
       try {
-        await video.play();
-      } catch {
-        throw new Error("Video playback was blocked. Click play then retry.");
+        await new Promise<void>((resolve, reject) => {
+          const onLoaded = () => resolve();
+          const onError = () => reject(new Error("Unable to load video metadata."));
+          video.addEventListener("loadedmetadata", onLoaded, { once: true });
+          video.addEventListener("error", onError, { once: true });
+        });
+
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        if (duration <= 0) {
+          throw new Error("Video has no audio track or duration could not be read.");
+        }
+
+        const sampleRate = 16000;
+        const frameCount = Math.ceil(duration * sampleRate);
+        const offlineContext = new OfflineAudioContext(1, frameCount, sampleRate);
+        const source = (offlineContext as unknown as AudioContext).createMediaElementSource(video);
+        source.connect(offlineContext.destination);
+
+        try {
+          await video.play();
+        } catch {
+          throw new Error("Video playback was blocked. Click play then retry.");
+        }
+
+        const rendered = await offlineContext.startRendering();
+        video.pause();
+        source.disconnect();
+
+        return await decodeAudioBufferToFloat32(rendered);
+      } finally {
+        URL.revokeObjectURL(videoUrl);
+        video.src = "";
       }
-
-      const rendered = await offlineContext.startRendering();
-      video.pause();
-      source.disconnect();
-
-      return await decodeAudioBufferToFloat32(rendered);
-    } finally {
-      URL.revokeObjectURL(videoUrl);
-      video.src = "";
-    }
-  }, [decodeAudioBufferToFloat32]);
+    },
+    [decodeAudioBufferToFloat32],
+  );
 
   const decodeAudioToFloat32 = useCallback(
     async (blob: Blob, fileType?: FileType): Promise<Float32Array> => {
       try {
         return await decodeWithAudioContext(blob);
       } catch (error) {
-        const shouldTryVideo =
-          fileType === "video" || blob.type.toLowerCase().startsWith("video/");
+        const shouldTryVideo = fileType === "video" || blob.type.toLowerCase().startsWith("video/");
         if (!shouldTryVideo) {
           throw error;
         }
         return await decodeVideoWithMediaElement(blob);
       }
     },
-    [decodeWithAudioContext, decodeVideoWithMediaElement]
+    [decodeWithAudioContext, decodeVideoWithMediaElement],
   );
 
   const saveTranscript = useCallback(
-    async (
-      meta: RecordingMeta,
-      transcript: RecordingTranscript
-    ): Promise<void> => {
+    async (meta: RecordingMeta, transcript: RecordingTranscript): Promise<void> => {
       const transcriptPath = `${FILES_DIR}/${meta.id}/${meta.id}${TRANSCRIPT_SUFFIX}`;
 
       // Save transcript JSON
@@ -184,10 +182,10 @@ export const useFileTranscription = () => {
           id: meta.id,
           transcriptPath,
           updatedAt: new Date(),
-        })
+        }),
       );
     },
-    [store]
+    [store],
   );
 
   const transcribeFile = useCallback(
@@ -224,15 +222,11 @@ export const useFileTranscription = () => {
                 break;
               case "progress":
                 setProgressItems((prev) =>
-                  prev.map((item) =>
-                    item.file === message.file ? { ...item, ...message } : item
-                  )
+                  prev.map((item) => (item.file === message.file ? { ...item, ...message } : item)),
                 );
                 break;
               case "done":
-                setProgressItems((prev) =>
-                  prev.filter((item) => item.file !== message.file)
-                );
+                setProgressItems((prev) => prev.filter((item) => item.file !== message.file));
                 break;
               case "ready":
                 setStatus("transcribing");
@@ -304,7 +298,7 @@ export const useFileTranscription = () => {
         throw err;
       }
     },
-    [decodeAudioToFloat32, getLanguage, saveTranscript]
+    [decodeAudioToFloat32, getLanguage, saveTranscript],
   );
 
   const reset = useCallback(() => {

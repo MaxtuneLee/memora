@@ -259,8 +259,7 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
     }
 
     const handleToggle = (event: Event) => {
-      const nextState =
-        (event as Event & { newState?: "open" | "closed" }).newState ?? "closed";
+      const nextState = (event as Event & { newState?: "open" | "closed" }).newState ?? "closed";
       const nextOpen = nextState === "open";
       setIsOpen(nextOpen);
 
@@ -316,14 +315,11 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
   ]);
 
   return (
-    <DashboardMenuContext.Provider value={contextValue}>
-      {children}
-    </DashboardMenuContext.Provider>
+    <DashboardMenuContext.Provider value={contextValue}>{children}</DashboardMenuContext.Provider>
   );
 }
 
-interface DashboardMenuTriggerProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface DashboardMenuTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
@@ -335,14 +331,8 @@ export function DashboardMenuTrigger({
   style,
   ...props
 }: DashboardMenuTriggerProps): ReactElement {
-  const {
-    anchorName,
-    isOpen,
-    popoverId,
-    registerTrigger,
-    openMenu,
-    toggleMenu,
-  } = useDashboardMenuContext();
+  const { anchorName, isOpen, popoverId, registerTrigger, openMenu, toggleMenu } =
+    useDashboardMenuContext();
 
   const handleClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -406,8 +396,7 @@ export function DashboardMenuTrigger({
   );
 }
 
-interface DashboardMenuContentProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+interface DashboardMenuContentProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   children: ReactNode;
 }
 
@@ -480,20 +469,14 @@ export function DashboardMenuContent({
 
   return (
     <>
-      <div
-        ref={registerMeasure}
-        aria-hidden="true"
-        className="dashboard-menu-measure"
-      >
+      <div ref={registerMeasure} aria-hidden="true" className="dashboard-menu-measure">
         <div
           className={cn(
             "dashboard-menu-panel dashboard-menu-panel--measure relative outline-none",
             className,
           )}
         >
-          <div className="dashboard-menu-body">
-            {children}
-          </div>
+          <div className="dashboard-menu-body">{children}</div>
         </div>
       </div>
       <div
@@ -505,25 +488,17 @@ export function DashboardMenuContent({
         onKeyDown={handleKeyDown}
         style={mergedStyle}
         {...props}
-        >
-        <div
-          className={cn(
-            "dashboard-menu-panel relative outline-none",
-            className,
-          )}
-        >
+      >
+        <div className={cn("dashboard-menu-panel relative outline-none", className)}>
           <div className="dashboard-menu-shell" />
-          <div className="dashboard-menu-body">
-            {children}
-          </div>
+          <div className="dashboard-menu-body">{children}</div>
         </div>
       </div>
     </>
   );
 }
 
-interface DashboardMenuItemProps
-  extends ComponentPropsWithoutRef<"button"> {
+interface DashboardMenuItemProps extends ComponentPropsWithoutRef<"button"> {
   children: ReactNode;
 }
 

@@ -9,10 +9,7 @@ import type {
   ToolDefinition,
 } from "@memora/ai-core";
 
-import type {
-  ChatImageAttachment,
-  ChatInputImage,
-} from "@/lib/chat/chatImageAttachments";
+import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAttachments";
 import type { ChatWidget } from "@/lib/chat/showWidget";
 
 export interface ChatMessage {
@@ -76,21 +73,12 @@ export interface UseAgentReturn {
   thinkingCollapsed: boolean;
   iterationLimitPrompt: IterationLimitPrompt | null;
   error: Error | null;
-  send: (
-    input: string | ChatTurnInput,
-    options?: RunTurnOptions,
-  ) => Promise<void>;
+  send: (input: string | ChatTurnInput, options?: RunTurnOptions) => Promise<void>;
   continueAfterIterationLimit: () => Promise<void>;
   dismissIterationLimitPrompt: () => void;
   abort: () => void;
-  reset: (options?: {
-    messages?: ChatMessage[];
-    contextMessages?: ChatMessage[];
-  }) => Promise<void>;
-  updateMessage: (
-    messageId: string,
-    updater: (message: ChatMessage) => ChatMessage,
-  ) => void;
+  reset: (options?: { messages?: ChatMessage[]; contextMessages?: ChatMessage[] }) => Promise<void>;
+  updateMessage: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
   saveMemory: (key: string, value: unknown) => Promise<void>;
   loadMemory: <T = unknown>(key: string) => Promise<T | null>;
 }

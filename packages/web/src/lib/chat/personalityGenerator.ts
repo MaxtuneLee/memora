@@ -59,10 +59,7 @@ const PERSONALITY_GENERATOR_PROMPT: PromptSegment = {
 
 const extractTextFromMessage = (message: AgentMessage): string => {
   return message.content
-    .filter(
-      (content): content is { type: "text"; text: string } =>
-        content.type === "text",
-    )
+    .filter((content): content is { type: "text"; text: string } => content.type === "text")
     .map((content) => content.text)
     .join("");
 };
@@ -73,9 +70,7 @@ const validateGeneratedMarkdown = (text: string): string => {
     throw new Error("AI returned empty personality content.");
   }
 
-  const missingHeaders = REQUIRED_HEADERS.filter(
-    (header) => !normalized.includes(header),
-  );
+  const missingHeaders = REQUIRED_HEADERS.filter((header) => !normalized.includes(header));
   if (missingHeaders.length > 0) {
     throw new Error(
       `AI personality output is missing required sections: ${missingHeaders.join(", ")}`,

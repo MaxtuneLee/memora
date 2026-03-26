@@ -60,11 +60,10 @@ export function DesktopItem({
   const allowDrag = isAbsoluteLayout && draggable && !isRenaming;
   const allowDrop = item.type === "folder";
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: item.id,
-      disabled: !allowDrag,
-    });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: item.id,
+    disabled: !allowDrag,
+  });
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: item.id,
     disabled: !allowDrop,
@@ -81,9 +80,7 @@ export function DesktopItem({
         position: "absolute",
         left: item.position.x,
         top: item.position.y,
-        transform: transform
-          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-          : undefined,
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         width: GRID_SIZE,
         zIndex: isDragging ? 12 : isSelected ? 3 : 1,
         cursor: isDragging ? "grabbing" : "default",
@@ -99,13 +96,13 @@ export function DesktopItem({
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     // Reset drag tracking after a short delay (after drag end processing)
     if (wasDraggingRef.current) {
       wasDraggingRef.current = false;
       return;
     }
-    
+
     onSelect(item.id, e.metaKey || e.ctrlKey);
   };
 
@@ -119,7 +116,7 @@ export function DesktopItem({
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Don't preview if we just finished dragging
     if (wasDraggingRef.current) {
       wasDraggingRef.current = false;
@@ -245,11 +242,7 @@ export function DesktopItem({
   );
 
   if (showTooltip) {
-    return (
-      <DesktopFileTip item={item}>
-        {itemContent}
-      </DesktopFileTip>
-    );
+    return <DesktopFileTip item={item}>{itemContent}</DesktopFileTip>;
   }
 
   return itemContent;

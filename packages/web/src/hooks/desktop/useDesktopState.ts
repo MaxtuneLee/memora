@@ -62,23 +62,20 @@ export function useDesktopState(options: UseDesktopStateOptions = {}) {
     [snapToGrid],
   );
 
-  const selectItem = useCallback(
-    (id: string, addToSelection = false) => {
-      setSelectedIds((prev) => {
-        if (addToSelection) {
-          const newSet = new Set(prev);
-          if (newSet.has(id)) {
-            newSet.delete(id);
-          } else {
-            newSet.add(id);
-          }
-          return newSet;
+  const selectItem = useCallback((id: string, addToSelection = false) => {
+    setSelectedIds((prev) => {
+      if (addToSelection) {
+        const newSet = new Set(prev);
+        if (newSet.has(id)) {
+          newSet.delete(id);
+        } else {
+          newSet.add(id);
         }
-        return new Set([id]);
-      });
-    },
-    [],
-  );
+        return newSet;
+      }
+      return new Set([id]);
+    });
+  }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());

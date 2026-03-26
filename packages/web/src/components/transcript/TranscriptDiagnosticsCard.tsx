@@ -1,7 +1,4 @@
-import type {
-  TranscriptDiagnostics,
-  TranscriptDiagnosticsIssueCode,
-} from "@/types/library";
+import type { TranscriptDiagnostics, TranscriptDiagnosticsIssueCode } from "@/types/library";
 
 const ISSUE_LABELS: Record<TranscriptDiagnosticsIssueCode, string> = {
   "blank-audio-marker": "Blank audio marker",
@@ -15,18 +12,10 @@ const ISSUE_LABELS: Record<TranscriptDiagnosticsIssueCode, string> = {
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
-const Metric = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) => {
+const Metric = ({ label, value }: { label: string; value: string }) => {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white/80 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-zinc-400">
-        {label}
-      </div>
+      <div className="text-[11px] uppercase tracking-[0.16em] text-zinc-400">{label}</div>
       <div className="mt-1 text-sm font-medium text-zinc-800">{value}</div>
     </div>
   );
@@ -56,38 +45,21 @@ export const TranscriptDiagnosticsCard = ({
     <section className="rounded-2xl border border-zinc-200 bg-[rgba(250,248,243,0.88)] p-4 shadow-sm backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
-            {title}
-          </div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{title}</div>
           <p className="mt-1 text-sm text-zinc-600">
-            Heuristic quality signals for debugging. This is not Whisper&apos;s
-            true loss.
+            Heuristic quality signals for debugging. This is not Whisper&apos;s true loss.
           </p>
         </div>
-        <div
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${statusTone}`}
-        >
+        <div className={`rounded-full border px-3 py-1 text-xs font-medium ${statusTone}`}>
           {statusLabel}
         </div>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        <Metric
-          label="Hallucination"
-          value={formatPercent(diagnostics.hallucinationScore)}
-        />
-        <Metric
-          label="Words / sec"
-          value={diagnostics.wordsPerSecond.toFixed(2)}
-        />
-        <Metric
-          label="Repetition"
-          value={formatPercent(diagnostics.repetitionRatio)}
-        />
-        <Metric
-          label="Active audio"
-          value={formatPercent(diagnostics.activeFrameRatio)}
-        />
+        <Metric label="Hallucination" value={formatPercent(diagnostics.hallucinationScore)} />
+        <Metric label="Words / sec" value={diagnostics.wordsPerSecond.toFixed(2)} />
+        <Metric label="Repetition" value={formatPercent(diagnostics.repetitionRatio)} />
+        <Metric label="Active audio" value={formatPercent(diagnostics.activeFrameRatio)} />
         <Metric label="Audio RMS" value={diagnostics.audioRms.toFixed(4)} />
         <Metric
           label="Tail repeat"

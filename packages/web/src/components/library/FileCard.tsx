@@ -38,9 +38,7 @@ export const FileCard = ({
   const previewText = preview ?? file.transcriptPreview ?? null;
   const previewValue = previewText?.trim();
   const previewFallback =
-    file.type === "audio" || file.type === "video"
-      ? "No transcript yet."
-      : "No preview available.";
+    file.type === "audio" || file.type === "video" ? "No transcript yet." : "No preview available.";
   const previewContent = previewValue || previewFallback;
   const showDuration =
     (file.type === "audio" || file.type === "video") &&
@@ -85,10 +83,7 @@ export const FileCard = ({
           <Menu.Portal>
             <Menu.Positioner className="z-50" sideOffset={8} align="start">
               <Menu.Popup className="min-w-50 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg *:cursor-pointer">
-                <Menu.Item
-                  className={itemClassName}
-                  onClick={() => onRename?.(file)}
-                >
+                <Menu.Item className={itemClassName} onClick={() => onRename?.(file)}>
                   <PencilSimpleIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>重命名</span>
                 </Menu.Item>
@@ -102,16 +97,9 @@ export const FileCard = ({
                     <ArrowRightIcon className="size-3 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   </Menu.SubmenuTrigger>
                   <Menu.Portal>
-                    <Menu.Positioner
-                      className="z-50"
-                      sideOffset={6}
-                      alignOffset={-4}
-                    >
+                    <Menu.Positioner className="z-50" sideOffset={6} alignOffset={-4}>
                       <Menu.Popup className="min-w-[180px] rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
-                        <Menu.Item
-                          className={itemClassName}
-                          onClick={() => onMove?.(file)}
-                        >
+                        <Menu.Item className={itemClassName} onClick={() => onMove?.(file)}>
                           <FolderSimpleIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                           <span>移动到…</span>
                         </Menu.Item>
@@ -120,18 +108,12 @@ export const FileCard = ({
                   </Menu.Portal>
                 </Menu.SubmenuRoot>
 
-                <Menu.Item
-                  className={itemClassName}
-                  onClick={() => onFavorite?.(file)}
-                >
+                <Menu.Item className={itemClassName} onClick={() => onFavorite?.(file)}>
                   <StarIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
                   <span>收藏</span>
                 </Menu.Item>
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
-                <Menu.Item
-                  className={deleteItemClassName}
-                  onClick={() => onDelete(file)}
-                >
+                <Menu.Item className={deleteItemClassName} onClick={() => onDelete(file)}>
                   <TrashIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-red-600" />
                   <span>删除</span>
                 </Menu.Item>
@@ -144,12 +126,8 @@ export const FileCard = ({
       <div>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-medium text-zinc-900 leading-tight">
-              {file.name}
-            </h3>
-            <p className="mt-1 text-xs text-zinc-400">
-              {formatDateTime(file.createdAt)}
-            </p>
+            <h3 className="font-medium text-zinc-900 leading-tight">{file.name}</h3>
+            <p className="mt-1 text-xs text-zinc-400">{formatDateTime(file.createdAt)}</p>
           </div>
           {showDuration ? (
             <span className="text-xs text-zinc-400 tabular-nums">
@@ -157,9 +135,7 @@ export const FileCard = ({
             </span>
           ) : null}
         </div>
-        <p className="mt-1 text-sm text-zinc-500 line-clamp-2 text-pretty">
-          {previewContent}
-        </p>
+        <p className="mt-1 text-sm text-zinc-500 line-clamp-2 text-pretty">{previewContent}</p>
       </div>
 
       <div className="mt-auto flex items-center justify-between pt-2">

@@ -4,12 +4,7 @@ import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useMemo } from "react";
 
 export function StorageWidget() {
-  const {
-    breakdownSegments,
-    storageQuota,
-    storageUsage,
-    isStoragePersistent,
-  } = useStorageStats();
+  const { breakdownSegments, storageQuota, storageUsage, isStoragePersistent } = useStorageStats();
   const { openSettings } = useSettingsDialog();
   const visibleBreakdownSegments = useMemo(() => {
     return breakdownSegments.filter((segment) => segment.size > 0);
@@ -67,9 +62,7 @@ export function StorageWidget() {
                 <div key={segment.id} className="flex items-center gap-1">
                   <span className={`size-1.5 rounded-full ${segment.color}`} />
                   <span>{segment.label}</span>
-                  <span className="text-zinc-400">
-                    {formatBytes(segment.size)}
-                  </span>
+                  <span className="text-zinc-400">{formatBytes(segment.size)}</span>
                 </div>
               ))}
             </div>

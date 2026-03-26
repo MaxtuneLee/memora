@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  WriteApprovalDecision,
-  WriteApprovalRequest,
-} from "@/lib/chat/tools";
+import type { WriteApprovalDecision, WriteApprovalRequest } from "@/lib/chat/tools";
 
 export const useChatWriteApproval = (activeSessionId: string) => {
-  const [pendingWriteApproval, setPendingWriteApproval] =
-    useState<WriteApprovalRequest | null>(null);
-  const writeApprovalResolverRef = useRef<
-    ((decision: WriteApprovalDecision) => void) | null
-  >(null);
+  const [pendingWriteApproval, setPendingWriteApproval] = useState<WriteApprovalRequest | null>(
+    null,
+  );
+  const writeApprovalResolverRef = useRef<((decision: WriteApprovalDecision) => void) | null>(null);
   const sessionWriteApprovalRef = useRef<string | null>(null);
 
   const resolveWriteApproval = useCallback(

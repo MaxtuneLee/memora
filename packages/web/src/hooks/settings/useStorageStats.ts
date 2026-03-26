@@ -3,15 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FILES_DIR } from "@/types/library";
 
-const AUDIO_EXTENSIONS = new Set([
-  ".webm",
-  ".wav",
-  ".mp3",
-  ".m4a",
-  ".ogg",
-  ".flac",
-  ".mpeg"
-]);
+const AUDIO_EXTENSIONS = new Set([".webm", ".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg"]);
 
 const TRANSCRIPT_EXTENSIONS = new Set([".json", ".transcript.json"]);
 const TEXT_EXTENSIONS = new Set([".txt", ".md", ".rtf"]);
@@ -25,15 +17,7 @@ const IMAGE_EXTENSIONS = new Set([
   ".svg",
   ".heic",
 ]);
-const VIDEO_EXTENSIONS = new Set([
-  ".mp4",
-  ".mov",
-  ".qt",
-  ".m4v",
-  ".mkv",
-  ".avi",
-  ".quicktime",
-]);
+const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".qt", ".m4v", ".mkv", ".avi", ".quicktime"]);
 
 const SKIP_DIRS = new Set([
   "/.opfs-tools-temp-dir",
@@ -63,11 +47,9 @@ const STORAGE_BREAKDOWN_SEGMENT_CONFIG = [
   },
 ] as const;
 
-export type StorageContentCategoryId =
-  (typeof STORAGE_CONTENT_CATEGORY_CONFIG)[number]["id"];
+export type StorageContentCategoryId = (typeof STORAGE_CONTENT_CATEGORY_CONFIG)[number]["id"];
 
-export type StorageBreakdownSegmentId =
-  (typeof STORAGE_BREAKDOWN_SEGMENT_CONFIG)[number]["id"];
+export type StorageBreakdownSegmentId = (typeof STORAGE_BREAKDOWN_SEGMENT_CONFIG)[number]["id"];
 
 export interface StorageMetricSegment {
   label: string;
@@ -123,9 +105,7 @@ const createInitialStorageStatsSnapshot = (): StorageStatsSnapshot => ({
 
 let sharedStorageStatsSnapshot = createInitialStorageStatsSnapshot();
 
-const storageStatsListeners = new Set<
-  (snapshot: StorageStatsSnapshot) => void
->();
+const storageStatsListeners = new Set<(snapshot: StorageStatsSnapshot) => void>();
 
 const publishStorageStatsSnapshot = (snapshot: StorageStatsSnapshot): void => {
   sharedStorageStatsSnapshot = snapshot;
@@ -142,10 +122,7 @@ const toNonNegativeNumber = (value: number | undefined): number => {
   return Math.max(0, value);
 };
 
-const buildUsagePercentageLabel = (
-  storageUsage: number,
-  storageQuota: number,
-): string => {
+const buildUsagePercentageLabel = (storageUsage: number, storageQuota: number): string => {
   if (!storageQuota || !storageUsage) {
     return "0%";
   }
@@ -189,9 +166,7 @@ const getExtension = (name: string) => {
 };
 
 const shouldSkipDir = (path: string) =>
-  Array.from(SKIP_DIRS).some(
-    (dir) => path === dir || path.startsWith(`${dir}/`)
-  );
+  Array.from(SKIP_DIRS).some((dir) => path === dir || path.startsWith(`${dir}/`));
 
 const getDirectorySize = async (path: string) => {
   const directory = opfsDir(path);
@@ -211,10 +186,7 @@ const getDirectorySize = async (path: string) => {
   return total;
 };
 
-const collectSizes = async (
-  path: string,
-  sizes: Record<StorageContentCategoryId, number>,
-) => {
+const collectSizes = async (path: string, sizes: Record<StorageContentCategoryId, number>) => {
   const directory = opfsDir(path);
   const exists = await directory.exists();
   if (!exists) return;
@@ -270,27 +242,16 @@ const buildBreakdownSegmentSizes = ({
       "browser-cache": 0,
       "service-workers": 0,
       other: 0,
-      "unclassified-storage": Math.max(
-        0,
-        totalUsage - normalizedContentUsage,
-      ),
+      "unclassified-storage": Math.max(0, totalUsage - normalizedContentUsage),
     };
   }
 
   const fileSystemUsage = toNonNegativeNumber(usageDetails.fileSystem);
   const browserCacheUsage = toNonNegativeNumber(usageDetails.caches);
-  const serviceWorkerUsage = toNonNegativeNumber(
-    usageDetails.serviceWorkerRegistrations,
-  );
-  const internalDataUsage = Math.max(
-    0,
-    fileSystemUsage - normalizedContentUsage,
-  );
+  const serviceWorkerUsage = toNonNegativeNumber(usageDetails.serviceWorkerRegistrations);
+  const internalDataUsage = Math.max(0, fileSystemUsage - normalizedContentUsage);
   const knownUsage =
-    normalizedContentUsage +
-    internalDataUsage +
-    browserCacheUsage +
-    serviceWorkerUsage;
+    normalizedContentUsage + internalDataUsage + browserCacheUsage + serviceWorkerUsage;
 
   return {
     "user-content": normalizedContentUsage,
@@ -316,8 +277,7 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
     }
 
     try {
-      const estimate =
-        (await navigator.storage.estimate()) as StorageEstimateWithUsageDetails;
+      const estimate = (await navigator.storage.estimate()) as StorageEstimateWithUsageDetails;
       const persisted = await navigator.storage.persisted?.();
       const breakdown = await getStorageBreakdown();
 

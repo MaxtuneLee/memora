@@ -33,11 +33,9 @@
   height: 100%;
   overflow: clip;
   clip-path: inset(
-    0
-    0
-    calc(var(--dashboard-menu-open-height, 188px) - var(--dashboard-menu-trigger-height, 44px))
-    calc(var(--dashboard-menu-open-width, 224px) - var(--dashboard-menu-trigger-width, 164px))
-    round 999px
+    0 0 calc(var(--dashboard-menu-open-height, 188px) - var(--dashboard-menu-trigger-height, 44px))
+      calc(var(--dashboard-menu-open-width, 224px) - var(--dashboard-menu-trigger-width, 164px))
+      round 999px
   );
   transition:
     clip-path 440ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -72,8 +70,7 @@
   inset: 0;
   border-radius: 1.1rem;
   background: #fffdfa;
-  box-shadow:
-    0 12px 28px rgba(34, 33, 29, 0.07);
+  box-shadow: 0 12px 28px rgba(34, 33, 29, 0.07);
   opacity: 0;
   pointer-events: none;
   z-index: 0;
@@ -160,11 +157,10 @@
 @starting-style {
   .dashboard-menu-popover:popover-open .dashboard-menu-panel {
     clip-path: inset(
-      0
-      0
-      calc(var(--dashboard-menu-open-height, 188px) - var(--dashboard-menu-trigger-height, 44px))
-      calc(var(--dashboard-menu-open-width, 224px) - var(--dashboard-menu-trigger-width, 164px))
-      round 999px
+      0 0
+        calc(var(--dashboard-menu-open-height, 188px) - var(--dashboard-menu-trigger-height, 44px))
+        calc(var(--dashboard-menu-open-width, 224px) - var(--dashboard-menu-trigger-width, 164px))
+        round 999px
     );
     border-radius: 999px;
   }

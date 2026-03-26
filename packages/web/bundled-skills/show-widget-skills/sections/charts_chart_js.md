@@ -1,15 +1,22 @@
 ## Charts (Chart.js)
+
 ```html
 <div style="position: relative; width: 100%; height: 300px;">
   <canvas id="myChart"></canvas>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" onload="initChart()"></script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
+  onload="initChart()"
+></script>
 <script>
   function initChart() {
-    new Chart(document.getElementById('myChart'), {
-      type: 'bar',
-      data: { labels: ['Q1','Q2','Q3','Q4'], datasets: [{ label: 'Revenue', data: [12,19,8,15] }] },
-      options: { responsive: true, maintainAspectRatio: false }
+    new Chart(document.getElementById("myChart"), {
+      type: "bar",
+      data: {
+        labels: ["Q1", "Q2", "Q3", "Q4"],
+        datasets: [{ label: "Revenue", data: [12, 19, 8, 15] }],
+      },
+      options: { responsive: true, maintainAspectRatio: false },
     });
   }
   if (window.Chart) initChart();
@@ -17,10 +24,11 @@
 ```
 
 **Chart.js rules**:
+
 - Canvas cannot resolve CSS variables. Use hardcoded hex or Chart.js defaults.
 - Wrap `<canvas>` in `<div>` with explicit `height` and `position: relative`.
 - **Canvas sizing**: set height ONLY on the wrapper div, never on the canvas element itself. Use position: relative on the wrapper and responsive: true, maintainAspectRatio: false in Chart.js options. Never set CSS height directly on canvas — this causes wrong dimensions, especially for horizontal bar charts.
-- For horizontal bar charts: wrapper div height should be at least (number_of_bars * 40) + 80 pixels.
+- For horizontal bar charts: wrapper div height should be at least (number_of_bars \* 40) + 80 pixels.
 - Load UMD build via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` — sets `window.Chart` global. Follow with plain `<script>` (no `type="module"`).
 - **Script load ordering**: CDN scripts may not be loaded when the next `<script>` runs (especially during streaming). Always use `onload="initChart()"` on the CDN script tag, define your chart init in a named function, and add `if (window.Chart) initChart();` as a fallback at the end of your inline script. This guarantees charts render regardless of load order.
 - Multiple charts: use unique IDs (`myChart1`, `myChart2`). Each gets its own canvas+div pair.
@@ -32,13 +40,25 @@
 **Legends** — always disable Chart.js default and build custom HTML. The default uses round dots and no values; custom HTML gives small squares, tight spacing, and percentages:
 
 ```js
-plugins: { legend: { display: false } }
+plugins: {
+  legend: {
+    display: false;
+  }
+}
 ```
 
 ```html
-<div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; font-size: 12px; color: var(--color-text-secondary);">
-  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #3266ad;"></span>Chrome 65%</span>
-  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #73726c;"></span>Safari 18%</span>
+<div
+  style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; font-size: 12px; color: var(--color-text-secondary);"
+>
+  <span style="display: flex; align-items: center; gap: 4px;"
+    ><span style="width: 10px; height: 10px; border-radius: 2px; background: #3266ad;"></span>Chrome
+    65%</span
+  >
+  <span style="display: flex; align-items: center; gap: 4px;"
+    ><span style="width: 10px; height: 10px; border-radius: 2px; background: #73726c;"></span>Safari
+    18%</span
+  >
 </div>
 ```
 

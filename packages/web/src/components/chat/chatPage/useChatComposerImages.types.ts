@@ -17,10 +17,7 @@ export interface StoreLike {
 }
 
 export interface UpdateMessageFn {
-  (
-    messageId: string,
-    updater: (message: AgentChatMessage) => AgentChatMessage,
-  ): void;
+  (messageId: string, updater: (message: AgentChatMessage) => AgentChatMessage): void;
 }
 
 export interface UseChatComposerImagesParams {
@@ -62,8 +59,5 @@ export interface UseChatComposerImagesResult {
   handleComposerDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleComposerDragLeave: (event: DragEvent<HTMLDivElement>) => void;
   handleComposerDrop: (event: DragEvent<HTMLDivElement>) => void;
-  handleSaveImageToLibrary: (
-    messageId: string,
-    attachmentId: string,
-  ) => Promise<void>;
+  handleSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
 }

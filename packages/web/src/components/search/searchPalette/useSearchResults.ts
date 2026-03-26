@@ -1,10 +1,4 @@
-import {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
@@ -42,10 +36,7 @@ export const useSearchResults = ({
     () => buildFolderSearchItems(folderRows, fileRows),
     [fileRows, folderRows],
   );
-  const chatItems = useMemo(
-    () => buildChatSessionSearchItems(chatSessions),
-    [chatSessions],
-  );
+  const chatItems = useMemo(() => buildChatSessionSearchItems(chatSessions), [chatSessions]);
 
   const allSearchItems = useMemo(
     () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems],
@@ -116,9 +107,7 @@ export const useSearchResults = ({
           return;
         }
 
-        const sorted = summaries
-          .slice()
-          .sort((left, right) => right.updatedAt - left.updatedAt);
+        const sorted = summaries.slice().sort((left, right) => right.updatedAt - left.updatedAt);
 
         startTransition(() => {
           setChatSessions(sorted);

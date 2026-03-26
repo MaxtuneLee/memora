@@ -11,9 +11,7 @@ import path from "node:path";
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
 const APP_VERSION =
   (
-    JSON.parse(
-      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-    ) as {
+    JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
       version?: string;
     }
   ).version ?? "0.0.0";
@@ -61,12 +59,7 @@ export default defineConfig({
     VitePWA({
       injectRegister: "auto",
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon.svg",
-        "apple-touch-icon.png",
-        "pwa-192x192.png",
-        "pwa-512x512.png",
-      ],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         id: "/",
         name: "Memora",
@@ -100,8 +93,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) =>
-              url.origin === "https://fonts.googleapis.com",
+            urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com",
             handler: "StaleWhileRevalidate",
             options: {
               cacheName: "google-font-stylesheets",

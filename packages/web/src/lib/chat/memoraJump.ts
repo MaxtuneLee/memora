@@ -19,15 +19,14 @@ export type MemoraJumpContentPart =
 
 const COMPLETE_MEMORA_JUMP_PATTERN =
   /```memora-jumps\s*([\s\S]*?)```|<memora-jump\b([\s\S]*?)\/>/gi;
-const MEMORA_JUMP_TAG_ATTRIBUTE_PATTERN =
-  /([a-zA-Z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const MEMORA_JUMP_TAG_ATTRIBUTE_PATTERN = /([a-zA-Z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
 const HTML_ENTITY_MAP: Record<string, string> = {
   amp: "&",
   apos: "'",
   gt: ">",
   lt: "<",
-  quot: "\"",
+  quot: '"',
   "#39": "'",
 };
 
@@ -78,14 +77,11 @@ export const parseMediaJumpCard = (value: unknown): MediaJumpCardData | null => 
     mediaType: candidate.mediaType,
     startSec: candidate.startSec,
     endSec: Math.max(candidate.endSec, candidate.startSec),
-    context:
-      typeof candidate.context === "string" ? candidate.context.trim() : "",
+    context: typeof candidate.context === "string" ? candidate.context.trim() : "",
   };
 };
 
-const parseLegacyMemoraJumpBlock = (
-  blockPayload: string,
-): MediaJumpCardData[] => {
+const parseLegacyMemoraJumpBlock = (blockPayload: string): MediaJumpCardData[] => {
   try {
     const parsed = JSON.parse(blockPayload) as unknown;
     if (!Array.isArray(parsed)) {
@@ -106,9 +102,7 @@ const parseLegacyMemoraJumpBlock = (
   }
 };
 
-const parseMemoraJumpTagAttributes = (
-  rawAttributeText: string,
-): Record<string, string> => {
+const parseMemoraJumpTagAttributes = (rawAttributeText: string): Record<string, string> => {
   const attributes: Record<string, string> = {};
 
   for (const match of rawAttributeText.matchAll(MEMORA_JUMP_TAG_ATTRIBUTE_PATTERN)) {
@@ -123,13 +117,8 @@ const parseMemoraJumpTagAttributes = (
 const parseMemoraJumpTag = (rawAttributeText: string): MediaJumpCardData | null => {
   const attributes = parseMemoraJumpTagAttributes(rawAttributeText);
   const startSec =
-    typeof attributes.startSec === "string"
-      ? Number(attributes.startSec)
-      : Number.NaN;
-  const endSec =
-    typeof attributes.endSec === "string"
-      ? Number(attributes.endSec)
-      : Number.NaN;
+    typeof attributes.startSec === "string" ? Number(attributes.startSec) : Number.NaN;
+  const endSec = typeof attributes.endSec === "string" ? Number(attributes.endSec) : Number.NaN;
 
   return parseMediaJumpCard({
     fileId: attributes.fileId,
@@ -148,9 +137,7 @@ const stripTrailingIncompleteMemoraJumpMarkup = (value: string): string => {
     const lowerValue = nextValue.toLowerCase();
     const legacyStart = lowerValue.lastIndexOf("```memora-jumps");
     const legacyClose =
-      legacyStart >= 0
-        ? nextValue.indexOf("```", legacyStart + "```memora-jumps".length)
-        : -1;
+      legacyStart >= 0 ? nextValue.indexOf("```", legacyStart + "```memora-jumps".length) : -1;
     const tagStart = lowerValue.lastIndexOf("<memora-jump");
     const tagClose = tagStart >= 0 ? nextValue.indexOf("/>", tagStart) : -1;
 
@@ -168,10 +155,7 @@ const stripTrailingIncompleteMemoraJumpMarkup = (value: string): string => {
   }
 };
 
-const pushTextPart = (
-  parts: MemoraJumpContentPart[],
-  text: string,
-): void => {
+const pushTextPart = (parts: MemoraJumpContentPart[], text: string): void => {
   const normalizedText = normalizeTextPart(text);
   if (!normalizedText.trim()) {
     return;
@@ -189,9 +173,7 @@ const pushTextPart = (
   });
 };
 
-export const parseMemoraJumpContent = (
-  content: string,
-): MemoraJumpContentPart[] => {
+export const parseMemoraJumpContent = (content: string): MemoraJumpContentPart[] => {
   const source = content ?? "";
   const parts: MemoraJumpContentPart[] = [];
   let cursor = 0;

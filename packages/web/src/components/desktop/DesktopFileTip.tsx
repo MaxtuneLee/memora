@@ -59,9 +59,7 @@ export function DesktopFileTip({ item, children }: DesktopFileTipProps) {
                 </p>
               </div>
             )}
-            {!isFile && (
-              <p className="mt-1 text-zinc-500">Folder</p>
-            )}
+            {!isFile && <p className="mt-1 text-zinc-500">Folder</p>}
           </Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>

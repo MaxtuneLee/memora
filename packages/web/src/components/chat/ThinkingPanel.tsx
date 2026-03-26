@@ -53,9 +53,7 @@ export function ThinkingPanel({
           isActive ? "text-teal-600" : "text-zinc-400 hover:text-zinc-600",
         )}
       >
-        {isActive && (
-          <CircleNotchIcon className="size-3 animate-spin" weight="bold" />
-        )}
+        {isActive && <CircleNotchIcon className="size-3 animate-spin" weight="bold" />}
         <span>{headerLabel}</span>
         {expanded ? (
           <CaretDownIcon className="size-3" weight="bold" />
@@ -95,10 +93,7 @@ function StepItem({ step }: { step: ThinkingStep }) {
     return (
       <div className="space-y-1">
         <div className="flex items-start gap-1.5">
-          <BrainIcon
-            className="mt-0.5 size-3 shrink-0 text-zinc-400"
-            weight="bold"
-          />
+          <BrainIcon className="mt-0.5 size-3 shrink-0 text-zinc-400" weight="bold" />
           <p className="text-xs text-zinc-500 leading-relaxed">
             {step.text || (
               <span className="inline-block h-3 w-32 rounded bg-linear-to-r from-zinc-100 via-zinc-50 to-zinc-100 bg-size-[200%_100%] animate-shimmer" />
@@ -114,28 +109,17 @@ function StepItem({ step }: { step: ThinkingStep }) {
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5">
           {step.status === "in_progress" ? (
-            <CircleNotchIcon
-              className="size-3 shrink-0 animate-spin text-teal-500"
-              weight="bold"
-            />
+            <CircleNotchIcon className="size-3 shrink-0 animate-spin text-teal-500" weight="bold" />
           ) : (
-            <MagnifyingGlassIcon
-              className="size-3 shrink-0 text-zinc-400"
-              weight="bold"
-            />
+            <MagnifyingGlassIcon className="size-3 shrink-0 text-zinc-400" weight="bold" />
           )}
           <span className="text-xs text-zinc-500">
-            {step.status === "in_progress"
-              ? "Searching..."
-              : step.text || "Web search"}
+            {step.status === "in_progress" ? "Searching..." : step.text || "Web search"}
           </span>
         </div>
         {step.text && step.status === "done" && (
           <div className="ml-4.5 flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1.5">
-            <MagnifyingGlassIcon
-              className="size-3 shrink-0 text-zinc-400"
-              weight="bold"
-            />
+            <MagnifyingGlassIcon className="size-3 shrink-0 text-zinc-400" weight="bold" />
             <span className="text-xs text-zinc-600">{step.text}</span>
           </div>
         )}
@@ -144,9 +128,7 @@ function StepItem({ step }: { step: ThinkingStep }) {
             {step.children.map((child) => (
               <div key={child.id} className="flex items-center gap-1.5">
                 <GlobeIcon className="size-3 shrink-0 text-zinc-300" />
-                <span className="truncate text-xs text-zinc-400">
-                  {child.text}
-                </span>
+                <span className="truncate text-xs text-zinc-400">{child.text}</span>
               </div>
             ))}
           </div>
@@ -159,15 +141,9 @@ function StepItem({ step }: { step: ThinkingStep }) {
     return (
       <div className="flex items-center gap-1.5">
         {step.status === "in_progress" ? (
-          <CircleNotchIcon
-            className="size-3 shrink-0 animate-spin text-teal-500"
-            weight="bold"
-          />
+          <CircleNotchIcon className="size-3 shrink-0 animate-spin text-teal-500" weight="bold" />
         ) : (
-          <CheckCircleIcon
-            className="size-3 shrink-0 text-zinc-400"
-            weight="fill"
-          />
+          <CheckCircleIcon className="size-3 shrink-0 text-zinc-400" weight="fill" />
         )}
         <span className="text-xs text-zinc-500">{step.text}</span>
       </div>

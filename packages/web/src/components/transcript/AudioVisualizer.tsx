@@ -50,7 +50,7 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
       y: number,
       width: number,
       height: number,
-      radius: number
+      radius: number,
     ) => {
       const clampedRadius = Math.min(radius, width / 2, height / 2);
       ctx.beginPath();
@@ -71,9 +71,7 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
       if (!analyserRef.current || !dataArrayRef.current) return;
 
       animationRef.current = requestAnimationFrame(draw);
-      analyserRef.current.getByteFrequencyData(
-        dataArrayRef.current as Uint8Array<ArrayBuffer>
-      );
+      analyserRef.current.getByteFrequencyData(dataArrayRef.current as Uint8Array<ArrayBuffer>);
 
       const width = canvas.width;
       const height = canvas.height;
@@ -100,10 +98,7 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
       for (let i = 0; i < barCount; i++) {
         const normalizedIndex = i / (barCount - 1 || 1);
         const weightedIndex = Math.pow(normalizedIndex, 1.2);
-        const sampleIndex = Math.min(
-          binCount - 1,
-          Math.floor(minBin + weightedIndex * binRange)
-        );
+        const sampleIndex = Math.min(binCount - 1, Math.floor(minBin + weightedIndex * binRange));
         const sample = dataArrayRef.current[sampleIndex] ?? 0;
         const normalized = sample / 255;
         const responsive = Math.min(1, Math.pow(normalized, 0.55) * 2.6);
@@ -111,8 +106,7 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
         const previousHeight = previousHeightsRef.current[i] ?? targetHeight;
         const heightSmooth = previousHeight * smoothing + targetHeight * (1 - smoothing);
         const leftHeight = previousHeightsRef.current[i - 1] ?? heightSmooth;
-        const barHeight =
-          heightSmooth * (1 - spatialSmoothing) + leftHeight * spatialSmoothing;
+        const barHeight = heightSmooth * (1 - spatialSmoothing) + leftHeight * spatialSmoothing;
         previousHeightsRef.current[i] = barHeight;
         const x = gap * (i + 1) - barWidth / 2;
 

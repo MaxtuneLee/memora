@@ -30,9 +30,7 @@ const createWhisperWorker = (): Worker => {
   });
 };
 
-export const getOrCreateWhisperWorker = (
-  workerRef: MutableRefObject<Worker | null>,
-): Worker => {
+export const getOrCreateWhisperWorker = (workerRef: MutableRefObject<Worker | null>): Worker => {
   if (!workerRef.current) {
     workerRef.current = createWhisperWorker();
   }

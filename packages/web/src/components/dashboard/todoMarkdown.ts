@@ -98,10 +98,7 @@ export const serializeTodoMarkdown = (tasks: TodoTask[]): string => {
         const lines = task.text.split("\n");
         const [firstLine = "", ...restLines] = lines;
 
-        return [
-          `- [${done ? "x" : " "}] ${firstLine}`,
-          ...restLines.map((line) => `  ${line}`),
-        ];
+        return [`- [${done ? "x" : " "}] ${firstLine}`, ...restLines.map((line) => `  ${line}`)];
       });
   };
 
