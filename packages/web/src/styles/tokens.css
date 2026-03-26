@@ -21,7 +21,7 @@
   --color-border-success: rgba(4, 120, 87, 0.35);
   --color-border-warning: rgba(180, 83, 9, 0.35);
   --font-sans: "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif;
-  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-serif: "IBM Plex Serif", serif;
   --font-mono: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
   --svg-gray-fill: var(--color-background-secondary);
   --svg-gray-stroke: var(--color-border-secondary);

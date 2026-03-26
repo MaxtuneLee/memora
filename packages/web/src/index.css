@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap");
 @import "tailwindcss";
 @source "../node_modules/@streamdown/cjk/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/index.js";
@@ -10,6 +12,17 @@
 @theme {
   --animate-shimmer: shimmer 2s infinite;
   --color-mocha: #aebe79;
+  --color-memora-bg: #fcfaf6;
+  --color-memora-sidebar: #f6f4ee;
+  --color-memora-border: #eae6df;
+  --color-memora-text: #1d1c1a;
+  --color-memora-muted: #7b7873;
+  --color-memora-hover: #efece5;
+  --color-memora-card: #ffffff;
+  --color-memora-primary: #1d1c1a;
+  --color-memora-accent: #a4d87a;
+  --shadow-sm-soft: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-md-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 @keyframes shimmer {

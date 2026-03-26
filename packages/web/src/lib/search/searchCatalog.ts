@@ -6,12 +6,24 @@ export const PAGE_SEARCH_ITEMS: GlobalSearchItem[] = [
     id: "page:home",
     kind: "page",
     title: "Home",
-    description: "Desktop workspace and file surface",
-    preview: "Open the Memora desktop with files, folders, previews, and widgets.",
-    keywords: ["desktop", "workspace", "home page", "root"],
+    description: "Dashboard overview and recent activity",
+    preview: "Open the Memora dashboard with summaries, recent activity, and pinned files.",
+    keywords: ["dashboard", "overview", "home page", "root"],
     intent: {
       type: "navigate",
       to: "/",
+    },
+  },
+  {
+    id: "page:desktop",
+    kind: "page",
+    title: "Workspace",
+    description: "Desktop workspace and file surface",
+    preview: "Open the desktop workspace with files, folders, previews, and widgets.",
+    keywords: ["desktop", "workspace", "surface", "folders", "files"],
+    intent: {
+      type: "navigate",
+      to: "/desktop",
     },
   },
   {
@@ -82,11 +94,11 @@ export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [
     kind: "action",
     title: "Upload file",
     description: "Desktop workflow",
-    preview: "Jump to Home and open the existing file upload picker.",
+    preview: "Jump to Workspace and open the existing file upload picker.",
     keywords: ["import", "add file", "attach", "desktop", "upload"],
     intent: {
       type: "desktop-intent",
-      to: "/",
+      to: "/desktop",
       desktopIntent: {
         type: "uploadFile",
         parentId: null,
@@ -98,11 +110,11 @@ export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [
     kind: "action",
     title: "New folder",
     description: "Desktop workflow",
-    preview: "Jump to Home and create a folder on the desktop surface.",
+    preview: "Jump to Workspace and create a folder on the desktop surface.",
     keywords: ["create folder", "desktop", "organize", "new directory"],
     intent: {
       type: "desktop-intent",
-      to: "/",
+      to: "/desktop",
       desktopIntent: {
         type: "newFolder",
         parentId: null,
@@ -114,11 +126,11 @@ export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [
     kind: "action",
     title: "Open trash",
     description: "Desktop workflow",
-    preview: "Jump to Home and open the trash window for deleted files and folders.",
+    preview: "Jump to Workspace and open the trash window for deleted files and folders.",
     keywords: ["bin", "deleted files", "restore", "desktop", "trash"],
     intent: {
       type: "desktop-intent",
-      to: "/",
+      to: "/desktop",
       desktopIntent: {
         type: "openTrash",
       },

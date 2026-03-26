@@ -1,18 +1,51 @@
 import {
   ChatCircleIcon,
-  FilesIcon,
+  DesktopIcon,
+  FileAudioIcon,
+  FileTextIcon,
+  ImageIcon,
   GearIcon,
   HouseIcon,
   MagnifyingGlassIcon,
   MicrophoneStageIcon,
-  PlusIcon,
   SidebarIcon,
+  VideoCameraIcon,
 } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import { Button } from "@base-ui/react/button";
+import { useStore } from "@livestore/react";
 import { Link, useLocation } from "react-router";
+
 import { cn } from "@/lib/cn";
+import { formatBytes } from "@/lib/format";
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
+import { useStorageStats } from "@/hooks/settings/useStorageStats";
+import { activeFilesQuery$ } from "@/lib/library/queries";
+import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
+
+const MAX_RECENT_FILES = 4;
+
+const getRecentFileHref = (fileId: string, fileType: string): string => {
+  if (fileType === "audio" || fileType === "video") {
+    return `/transcript/file/${fileId}`;
+  }
+
+  return "/files";
+};
+
+const getRecentFileIcon = (fileType: string): React.ElementType => {
+  switch (fileType) {
+    case "audio":
+      return FileAudioIcon;
+    case "video":
+      return VideoCameraIcon;
+    case "image":
+      return ImageIcon;
+    default:
+      return FileTextIcon;
+  }
+};
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -54,10 +87,10 @@ interface SidebarSectionProps {
 
 function SidebarSection({ title, children, action }: SidebarSectionProps) {
   return (
-    <div className="mb-6 px-3">
+    <div className="mb-5 px-3">
       {title && (
         <div className="mb-2 flex items-center justify-between px-2.5">
-          <h3 className="text-xs font-semibold tracking-wider text-zinc-400 uppercase select-none">
+          <h3 className="text-[10px] font-bold tracking-[0.18em] text-zinc-400 uppercase select-none">
             {title}
           </h3>
           {action}
@@ -69,10 +102,38 @@ function SidebarSection({ title, children, action }: SidebarSectionProps) {
 }
 
 export function Sidebar() {
+  const { store } = useStore();
   const location = useLocation();
   const currentPath = location.pathname;
-  const { openSettings, isSettingsOpen } = useSettingsDialog();
+  const fileRows = store.useQuery(activeFilesQuery$);
+  const { openSettings, isSettingsOpen, activeSection } = useSettingsDialog();
   const { openSearch, isSearchOpen } = useSearchPalette();
+  const { storageQuota, storageUsage } = useStorageStats();
+
+  const recentFiles = useMemo(() => {
+    return fileRows
+      .map(mapLiveStoreFileToMeta)
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .slice(0, MAX_RECENT_FILES);
+  }, [fileRows]);
+
+  const storageSummary = useMemo(() => {
+    if (!storageQuota) {
+      return "Storage usage not available";
+    }
+
+    return `${formatBytes(storageUsage)} of ${formatBytes(storageQuota)} used`;
+  }, [storageQuota, storageUsage]);
+
+  const storageUsagePercent = useMemo(() => {
+    if (!storageQuota || storageUsage <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, (storageUsage / storageQuota) * 100);
+  }, [storageQuota, storageUsage]);
+
+  const isStorageActive = isSettingsOpen && activeSection === "data-storage";
 
   return (
     <aside className="flex h-full w-[260px] flex-col border-r border-zinc-200/70 bg-[#f7f2e9]/80 backdrop-blur-xl">
@@ -135,38 +196,104 @@ export function Sidebar() {
             isActive={currentPath.startsWith("/chat")}
           />
           <NavItem
-            icon={FilesIcon}
-            label="Files"
-            to="/files"
-            isActive={currentPath.startsWith("/files")}
+            icon={DesktopIcon}
+            label="Desktop"
+            to="/desktop"
+            isActive={currentPath.startsWith("/desktop")}
           />
         </SidebarSection>
 
         <SidebarSection
-          title="Favorites"
-          action={
-            <Button
-              aria-label="Add favorite"
-              className="rounded-sm text-zinc-400 outline-none hover:text-zinc-600 focus-visible:ring-2 focus-visible:ring-zinc-400"
-            >
-              <PlusIcon className="size-3" />
-            </Button>
-          }
+          title="Recent Files"
         >
-          <div className="px-2.5 py-8 text-center text-xs text-zinc-400 italic">
-            No favorites yet
-          </div>
+          {recentFiles.length > 0 ? (
+            <div className="space-y-0.5">
+              {recentFiles.map((file) => {
+                const href = getRecentFileHref(file.id, file.type);
+                const Icon = getRecentFileIcon(file.type);
+                const isActive =
+                  href === "/files"
+                    ? currentPath.startsWith("/files")
+                    : currentPath === href;
+
+                return (
+                  <Link
+                    key={file.id}
+                    to={href}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
+                      isActive
+                        ? "bg-white/55 text-zinc-900"
+                        : "text-zinc-500 hover:bg-white/35 hover:text-zinc-900",
+                    )}
+                  >
+                    <Icon
+                      weight="fill"
+                      className={cn(
+                        "size-4 shrink-0",
+                        file.type === "audio"
+                          ? "text-[#8cbf67]"
+                          : file.type === "video"
+                            ? "text-[#6d8fd4]"
+                            : file.type === "image"
+                              ? "text-[#d0a267]"
+                              : "text-zinc-400",
+                      )}
+                    />
+                    <span className="truncate text-[13px] leading-5 font-medium">
+                      {file.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-2.5 py-2 text-sm text-zinc-400">
+              Recent files will show up here.
+            </div>
+          )}
         </SidebarSection>
       </div>
 
-      <div className="flex-none border-t border-zinc-200/50 p-3">
+      <div className="flex-none border-t border-zinc-200/60 px-6 py-6">
+        <button
+          type="button"
+          onClick={() => openSettings("data-storage")}
+          className={cn(
+            "w-full text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
+            isStorageActive
+              ? "text-zinc-900"
+              : "text-zinc-500 hover:text-zinc-700",
+          )}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[10px] font-bold tracking-[0.18em] uppercase">
+              Storage
+            </span>
+            <span className="text-[10px] font-bold">
+              {Math.round(storageUsagePercent)}%
+            </span>
+          </div>
+
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-[#ece7dc]">
+            <div
+              className="h-full rounded-full bg-[#b9b3aa] transition-[width] duration-200"
+              style={{ width: `${storageUsagePercent}%` }}
+            />
+          </div>
+
+          <p className="mt-4 text-[10px] leading-none text-zinc-400">
+            {storageSummary}
+          </p>
+        </button>
+
         <Button
           onClick={() => openSettings("general")}
           className={cn(
-            "group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
+            "group mt-6 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
             isSettingsOpen
-              ? "bg-white/80 text-zinc-900 shadow-sm"
-              : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
+              ? "bg-white/50 text-zinc-900"
+              : "text-zinc-500 hover:bg-white/35 hover:text-zinc-900",
           )}
         >
           <GearIcon

@@ -1,9 +1,14 @@
 import { Button } from "@base-ui/react/button";
-import { Menu } from "@base-ui/react/menu";
 import { GearSixIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { RecordingsGrid } from "@/components/library/FileGrid";
+import {
+  AppMenu,
+  AppMenuContent,
+  AppMenuItem,
+  AppMenuTrigger,
+} from "@/components/menu/AppMenu";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
 import type { SettingsSectionId } from "@/types/settings";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
@@ -57,40 +62,36 @@ export const Component = () => {
             >
               Create New
             </Button>
-            <Menu.Root>
-              <Menu.Trigger className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50">
+            <AppMenu>
+              <AppMenuTrigger className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50">
                 <SlidersHorizontalIcon className="size-4" />
                 Settings
-              </Menu.Trigger>
-              <Menu.Portal>
-                <Menu.Positioner className="z-50" sideOffset={8}>
-                  <Menu.Popup className="min-w-[220px] rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
-                    <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
-                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
-                        Transcription
-                      </div>
-                      <div className="mt-2">
-                        <LanguageSelector
-                          language={language}
-                          setLanguage={handleLanguageChange}
-                        />
-                      </div>
-                    </div>
-                    <Menu.Separator className="my-2 h-px bg-zinc-100" />
-                    {settingsItems.map((item) => (
-                      <Menu.Item
-                        key={item.section}
-                        onClick={() => openSettings(item.section)}
-                        className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900"
-                      >
-                        <span>{item.label}</span>
-                        <GearSixIcon className="size-4 text-zinc-400" />
-                      </Menu.Item>
-                    ))}
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.Root>
+              </AppMenuTrigger>
+              <AppMenuContent className="min-w-[220px] rounded-xl bg-white shadow-lg">
+                <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
+                    Transcription
+                  </div>
+                  <div className="mt-2">
+                    <LanguageSelector
+                      language={language}
+                      setLanguage={handleLanguageChange}
+                    />
+                  </div>
+                </div>
+                <div className="my-2 h-px bg-zinc-100" />
+                {settingsItems.map((item) => (
+                  <AppMenuItem
+                    key={item.section}
+                    onClick={() => openSettings(item.section)}
+                    className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900"
+                  >
+                    <span>{item.label}</span>
+                    <GearSixIcon className="size-4 text-zinc-400" />
+                  </AppMenuItem>
+                ))}
+              </AppMenuContent>
+            </AppMenu>
           </div>
         </div>
         <div className="text-xs text-zinc-500">
