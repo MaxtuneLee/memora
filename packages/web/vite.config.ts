@@ -160,7 +160,7 @@ export default defineConfig({
     },
   },
   experimental: {
-    bundledDev: true,
+    // bundledDev: true,
   },
   // devtools: {
   //   enabled: true,

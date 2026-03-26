@@ -164,3 +164,4 @@ packages/.DS_Store
 .claude/
 
 .superpowers/
+.tmp/

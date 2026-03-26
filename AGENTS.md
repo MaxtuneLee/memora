@@ -13,7 +13,7 @@
 
 - Install deps: `pnpm install`
 - Run commands for a package: `pnpm --filter @memora/web <command>`
-- Root shortcuts: `pnpm dev:web`, `pnpm build:web`, `pnpm lint:web`
+- Root shortcuts: `pnpm dev:web`, `pnpm build:web`, `pnpm lint:web`, `pnpm test:web`
 
 ### Development
 
@@ -39,10 +39,9 @@
 
 ### Tests
 
-- No test scripts are currently defined in `package.json`.
-- If tests are added later, document:
-  - `pnpm --filter @memora/web test`
-  - `pnpm --filter @memora/web test -- <pattern>` (single test)
+- Web app tests live under `packages/web/test/<module>/...`.
+- Run all web tests: `pnpm --filter @memora/web test`
+- Run a single web test file: `pnpm --filter @memora/web test -- test/<module>/<file>.test.ts`
 
 ## Code style and conventions
 

@@ -1,1 +1,1 @@
-export { Component } from "@/components/desktop/DesktopPage";
+export { Component } from "@/components/dashboard/DashboardPage";
