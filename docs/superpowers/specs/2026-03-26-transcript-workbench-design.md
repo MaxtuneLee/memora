@@ -84,6 +84,12 @@ Below the title bar, include a quiet contextual rail for low-priority but useful
 
 This rail should read as supporting context, not as a grid of feature cards or KPI blocks. It may use muted pills, inline labels, or a thin inset strip, but it must not compete with the main workbench.
 
+Implementation boundary for this rail:
+
+- current language should come from the same existing transcript language source already used by the transcript pages
+- record count may be computed directly from the recordings already fetched for the page; no new aggregate store or backend requirement should be introduced
+- model status should only be shown if an existing transcript-page source can provide it without inventing a new global state dependency; if no suitable existing source is available on the landing page, the rail may omit model status entirely
+
 ### History workbench
 
 The history area becomes one large primary surface containing the transcript list. This should replace the current `RecordingsGrid`-style card wall on the landing page.
@@ -104,7 +110,7 @@ Each row should present transcript-centric information, not generic file-card in
 - transcript preview snippet, if available
 - file type
 - duration, when available
-- updated time or created time, whichever best reflects recent work
+- `updatedAt` when present, otherwise `createdAt`
 - transcript availability/status cue
 - primary path into detail view
 - row actions such as delete, without overwhelming the row
