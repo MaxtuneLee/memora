@@ -15,12 +15,30 @@ export const TranscriptDiagnosticsPanel = ({
   }
 
   return (
-    <details className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <summary className="cursor-pointer list-none px-4 py-4 text-sm font-medium text-zinc-700 marker:hidden">
-        Transcript diagnostics
+    <details
+      data-surface="transcript-diagnostics-panel"
+      className="memora-surface-glow group overflow-hidden rounded-[1.5rem] bg-[var(--color-memora-surface-soft)] px-4 py-2"
+    >
+      <summary className="cursor-pointer list-none py-2 text-left">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
+          Diagnostics
+        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold tracking-[-0.02em] text-[var(--color-memora-text-strong)]">
+              Transcript quality signals
+            </p>
+            <p className="mt-1 text-sm leading-6 text-[var(--color-memora-text-muted)]">
+              Development-only heuristics for checking transcript reliability.
+            </p>
+          </div>
+          <span className="memora-interactive text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-memora-text-soft)]">
+            Expand
+          </span>
+        </div>
       </summary>
-      <div className="border-t border-zinc-200 p-4">
-        <TranscriptDiagnosticsCard diagnostics={diagnostics} title="Transcript Diagnostics" />
+      <div className="pt-4">
+        <TranscriptDiagnosticsCard diagnostics={diagnostics} title="Transcript diagnostics" />
       </div>
     </details>
   );

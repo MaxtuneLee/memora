@@ -11,15 +11,42 @@
 
 @theme {
   --animate-shimmer: shimmer 2s infinite;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-instant: 140ms;
+  --duration-fast: 220ms;
+  --duration-medium: 360ms;
+  --duration-slow: 620ms;
   --color-mocha: #aebe79;
   --color-memora-bg: #fcfaf6;
+  --color-memora-shell: #fffbf2;
+  --color-memora-canvas: #fcfaf6;
+  --color-memora-rail: #f7f2e9;
+  --color-memora-surface: #fffdfa;
+  --color-memora-surface-soft: #fcfaf5;
+  --color-memora-surface-muted: #f6f3ec;
   --color-memora-sidebar: #f6f4ee;
   --color-memora-border: #eae6df;
+  --color-memora-border-soft: #e8e1d5;
   --color-memora-text: #1d1c1a;
+  --color-memora-text-strong: #22211d;
+  --color-memora-text-muted: #716c64;
+  --color-memora-text-soft: #8f897d;
   --color-memora-muted: #7b7873;
   --color-memora-hover: #efece5;
+  --color-memora-hover-strong: #faf7f0;
   --color-memora-card: #ffffff;
   --color-memora-primary: #1d1c1a;
+  --color-memora-olive: #7b875a;
+  --color-memora-olive-soft: #a7af8f;
+  --color-memora-olive-faint: #aab48a;
+  --color-memora-warning-surface: #fdf6f1;
+  --color-memora-warning-border: #eadfd6;
+  --color-memora-warning-text: #7b4f39;
+  --color-memora-file-audio: #8cbf67;
+  --color-memora-file-video: #6d8fd4;
+  --color-memora-file-image: #d0a267;
   --color-memora-accent: #a4d87a;
   --shadow-sm-soft: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   --shadow-md-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
@@ -34,10 +61,138 @@
   }
 }
 
+@keyframes memora-fade-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes memora-soft-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+}
+
+@keyframes memora-gentle-shift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
 .root {
   isolation: isolate;
 }
 
 body {
   position: relative;
+}
+
+.memora-motion-enter {
+  animation: memora-fade-rise var(--duration-slow) var(--ease-out-quint) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+.memora-interactive {
+  transition:
+    color var(--duration-fast) var(--ease-out-quart),
+    background-color var(--duration-fast) var(--ease-out-quart),
+    border-color var(--duration-fast) var(--ease-out-quart),
+    opacity var(--duration-fast) var(--ease-out-quart),
+    box-shadow var(--duration-fast) var(--ease-out-quart);
+}
+
+.memora-surface-glow {
+  position: relative;
+  transition:
+    border-color var(--duration-medium) var(--ease-out-quart),
+    background-color var(--duration-medium) var(--ease-out-quart),
+    box-shadow var(--duration-medium) var(--ease-out-quart),
+    transform var(--duration-medium) var(--ease-out-quart);
+}
+
+.memora-surface-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-medium) var(--ease-out-quart);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-memora-olive-soft) 18%, transparent);
+}
+
+.memora-surface-glow:hover::after,
+.memora-surface-glow:focus-within::after {
+  opacity: 1;
+}
+
+.memora-hint-dot {
+  animation: memora-soft-pulse 2.8s var(--ease-out-quart) infinite;
+}
+
+.memora-gentle-float {
+  animation: memora-gentle-shift 3.2s var(--ease-out-quart) infinite;
+}
+
+.memora-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-memora-text-soft) 28%, transparent) transparent;
+}
+
+.memora-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.memora-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.memora-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-memora-border-soft) 72%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.memora-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-memora-text-soft) 22%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memora-motion-enter,
+  .memora-hint-dot,
+  .memora-gentle-float {
+    animation: none !important;
+  }
+
+  .memora-interactive,
+  .memora-surface-glow,
+  .memora-surface-glow::after,
+  .memora-scrollbar::-webkit-scrollbar-thumb,
+  .memora-scrollbar:hover::-webkit-scrollbar-thumb {
+    transition-duration: 0.01ms !important;
+  }
+
+  .memora-interactive:hover,
+  .memora-interactive:active {
+    transform: none !important;
+  }
 }

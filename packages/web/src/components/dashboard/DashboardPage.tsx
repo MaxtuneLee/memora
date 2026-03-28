@@ -28,10 +28,18 @@ import {
   PRIMARY_WIDGET_GRID_CLASS,
 } from "@/components/dashboard/dashboardLayout";
 import { cn } from "@/lib/cn";
-import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
+import {
+  AppMenu,
+  AppMenuContent,
+  AppMenuItem,
+  AppMenuTrigger,
+} from "@/components/menu/AppMenu";
 import { desktopFilesQuery$ } from "@/lib/desktop/queries";
 import { formatBytes, formatDuration } from "@/lib/format";
-import { listChatSessions, type ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+import {
+  listChatSessions,
+  type ChatSessionSummary,
+} from "@/lib/chat/chatSessionStorage";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import type { SearchNavigationState } from "@/types/search";
 import type { FileMeta } from "@/types/library";
@@ -77,7 +85,15 @@ const DEFAULT_WIDGET_VISIBILITY: WidgetVisibility = {
   todo: true,
   recent: true,
 };
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKDAY_LABELS = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+] as const;
 
 const readWidgetVisibility = (): WidgetVisibility => {
   if (typeof window === "undefined") {
@@ -219,7 +235,10 @@ const buildChatRecentItem = (session: ChatSessionSummary): RecentItem => {
   };
 };
 
-const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[]): RecentItem[] => {
+const buildRecentItems = (
+  files: FileMeta[],
+  chatSessions: ChatSessionSummary[],
+): RecentItem[] => {
   const fileItems = files.map(buildFileRecentItem);
   const chatItems = chatSessions.map(buildChatRecentItem);
   const merged = [...fileItems, ...chatItems]
@@ -267,7 +286,10 @@ const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[])
   ];
 };
 
-const createCalendarDays = (monthDate: Date, activityTimestamps: number[]): CalendarDay[] => {
+const createCalendarDays = (
+  monthDate: Date,
+  activityTimestamps: number[],
+): CalendarDay[] => {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -291,7 +313,9 @@ const createCalendarDays = (monthDate: Date, activityTimestamps: number[]): Cale
 
     if (isCurrentMonth) {
       const isToday =
-        today.getFullYear() === year && today.getMonth() === month && today.getDate() === dayNumber;
+        today.getFullYear() === year &&
+        today.getMonth() === month &&
+        today.getDate() === dayNumber;
 
       return {
         key: `${year}-${month + 1}-${dayNumber}`,
@@ -352,7 +376,9 @@ function MenuActionItem({
       </div>
       <div className="min-w-0">
         <div className="text-sm font-semibold text-memora-text">{title}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
+        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">
+          {note}
+        </div>
       </div>
     </AppMenuItem>
   );
@@ -376,7 +402,9 @@ function WidgetToggleItem({
     >
       <div className="min-w-0">
         <div className="text-sm font-semibold text-memora-text">{label}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
+        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">
+          {note}
+        </div>
       </div>
       <div
         className={cn(
@@ -406,10 +434,15 @@ function RecentRow({ item }: { item: RecentItem }): ReactElement {
           item.shellClassName,
         )}
       >
-        <Icon className={cn("size-5", item.iconClassName)} weight={item.iconWeight ?? "regular"} />
+        <Icon
+          className={cn("size-5", item.iconClassName)}
+          weight={item.iconWeight ?? "regular"}
+        />
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[15px] font-semibold text-memora-text">{item.title}</p>
+        <p className="truncate text-[15px] font-semibold text-memora-text">
+          {item.title}
+        </p>
         <p className="mt-1 truncate text-xs text-[#716c64]">{item.subtitle}</p>
       </div>
       <CaretRightIcon className="size-4 text-[#9a948a] transition-transform group-hover:translate-x-0.5" />
@@ -420,7 +453,9 @@ function RecentRow({ item }: { item: RecentItem }): ReactElement {
 function EmptyWidgetsState({ onReset }: { onReset: () => void }): ReactElement {
   return (
     <div className="rounded-[1.75rem] border border-[#e9e5dc] bg-[#fffdf8] px-6 py-8 text-center">
-      <p className="text-sm font-semibold text-memora-text">All widgets are hidden.</p>
+      <p className="text-sm font-semibold text-memora-text">
+        All widgets are hidden.
+      </p>
       <p className="mt-1 text-sm text-[#716c64]">
         Turn a few back on to rebuild your workspace view.
       </p>
@@ -443,11 +478,14 @@ export const Component = (): ReactElement => {
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
   const [calendarOffset, setCalendarOffset] = useState(0);
-  const [calendarDirection, setCalendarDirection] = useState<CalendarMotionDirection>(0);
-  const [typedWelcomeTitle, setTypedWelcomeTitle] = useState<string>(DEFAULT_WELCOME_COPY.title);
+  const [calendarDirection, setCalendarDirection] =
+    useState<CalendarMotionDirection>(0);
+  const [typedWelcomeTitle, setTypedWelcomeTitle] = useState<string>(
+    DEFAULT_WELCOME_COPY.title,
+  );
   const [hasTypedWelcomeTitle, setHasTypedWelcomeTitle] = useState(false);
-  const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(() =>
-    readWidgetVisibility(),
+  const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(
+    () => readWidgetVisibility(),
   );
 
   useEffect(() => {
@@ -480,7 +518,10 @@ export const Component = (): ReactElement => {
       return;
     }
 
-    window.localStorage.setItem(WIDGETS_STORAGE_KEY, JSON.stringify(widgetVisibility));
+    window.localStorage.setItem(
+      WIDGETS_STORAGE_KEY,
+      JSON.stringify(widgetVisibility),
+    );
   }, [widgetVisibility]);
 
   const files = useMemo(() => {
@@ -506,7 +547,12 @@ export const Component = (): ReactElement => {
       recentCount: recentActivityCount,
       now: new Date(),
     });
-  }, [chatSessions.length, chatSessionsLoaded, files.length, recentActivityCount]);
+  }, [
+    chatSessions.length,
+    chatSessionsLoaded,
+    files.length,
+    recentActivityCount,
+  ]);
 
   useEffect(() => {
     if (!chatSessionsLoaded) {
@@ -549,7 +595,12 @@ export const Component = (): ReactElement => {
         window.clearInterval(intervalId);
       }
     };
-  }, [chatSessionsLoaded, hasTypedWelcomeTitle, reducedMotion, welcomeCopy.title]);
+  }, [
+    chatSessionsLoaded,
+    hasTypedWelcomeTitle,
+    reducedMotion,
+    welcomeCopy.title,
+  ]);
 
   const visibleMonth = useMemo(() => {
     const now = new Date();
@@ -559,12 +610,16 @@ export const Component = (): ReactElement => {
   const calendarDays = useMemo(() => {
     return createCalendarDays(
       visibleMonth,
-      recentItems.map((item) => item.updatedAt).filter((timestamp) => timestamp > 0),
+      recentItems
+        .map((item) => item.updatedAt)
+        .filter((timestamp) => timestamp > 0),
     );
   }, [recentItems, visibleMonth]);
 
   const hasVisibleWidgets =
-    widgetVisibility.calendar || widgetVisibility.todo || widgetVisibility.recent;
+    widgetVisibility.calendar ||
+    widgetVisibility.todo ||
+    widgetVisibility.recent;
   const showTypingCursor =
     chatSessionsLoaded &&
     !reducedMotion &&
@@ -595,7 +650,9 @@ export const Component = (): ReactElement => {
     void navigate("/desktop", { state: createUploadNavigationState() });
   };
 
-  const handleCalendarNavigation = (direction: Exclude<CalendarMotionDirection, 0>) => {
+  const handleCalendarNavigation = (
+    direction: Exclude<CalendarMotionDirection, 0>,
+  ) => {
     setCalendarDirection(direction);
     setCalendarOffset((current) => current + direction);
   };
@@ -612,14 +669,23 @@ export const Component = (): ReactElement => {
   };
 
   const calendarMonthKey = `${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}`;
-  const calendarHeaderMotion = getCalendarHeaderMotion(calendarDirection, reducedMotion);
-  const calendarGridMotion = getCalendarGridMotion(calendarDirection, reducedMotion);
+  const calendarHeaderMotion = getCalendarHeaderMotion(
+    calendarDirection,
+    reducedMotion,
+  );
+  const calendarGridMotion = getCalendarGridMotion(
+    calendarDirection,
+    reducedMotion,
+  );
   const primaryWidgetOrder = getPrimaryWidgetOrder({
     calendar: widgetVisibility.calendar,
     todo: widgetVisibility.todo,
   });
   const calendarWidget = (
-    <div key="calendar" className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6">
+    <div
+      key="calendar"
+      className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6"
+    >
       <div className="mb-4 grid grid-cols-[2rem_1fr_2rem] items-center gap-2">
         <motion.button
           type="button"
@@ -682,7 +748,9 @@ export const Component = (): ReactElement => {
           {calendarDays.map((day) => (
             <motion.div
               key={day.key}
-              whileHover={reducedMotion || day.muted ? undefined : { y: -1, scale: 1.02 }}
+              whileHover={
+                reducedMotion || day.muted ? undefined : { y: -1, scale: 1.02 }
+              }
               className={cn(
                 "relative flex aspect-square items-center justify-center rounded-full text-sm transition-transform",
                 day.muted
@@ -708,7 +776,9 @@ export const Component = (): ReactElement => {
               {day.hasActivity && (
                 <motion.span
                   initial={
-                    reducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4, y: 2 }
+                    reducedMotion
+                      ? { opacity: 1, scale: 1 }
+                      : { opacity: 0, scale: 0.4, y: 2 }
                   }
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{
@@ -738,7 +808,7 @@ export const Component = (): ReactElement => {
         {...heroAnimations}
         className="mx-auto w-full max-w-[1080px] px-6 py-8 md:px-10 md:py-10"
       >
-        <div className="px-6 py-7 md:px-8 md:py-8">
+        <div className="pb-7 md:pb-8">
           <header className="border-b border-[#e9e5dc] pb-4">
             <div className="flex flex-col gap-3">
               <h1
@@ -756,21 +826,28 @@ export const Component = (): ReactElement => {
                   </span>
                 ) : null}
               </h1>
-              <p className="max-w-[34rem] text-sm leading-6 text-[#716c64] md:text-[15px]">
+              <p className=" text-sm leading-6 text-[#716c64] md:text-[15px]">
                 {welcomeCopy.description}
               </p>
             </div>
           </header>
 
-          <div className="mx-auto mt-6 max-w-[920px]">
+          <div className="mt-6">
             <div className="mb-6 flex flex-wrap justify-end gap-2.5">
               <AppMenu>
                 <AppMenuTrigger>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-                    <UploadSimpleIcon className="size-[18px]" weight="regular" />
+                    <UploadSimpleIcon
+                      className="size-[18px]"
+                      weight="regular"
+                    />
                   </span>
                   <span>New file</span>
-                  <CaretDownIcon className="size-3.5 text-[#9a948a]" weight="bold" />
+                  <CaretDownIcon
+                    data-dashboard-menu-caret=""
+                    className="size-3.5 text-[#9a948a]"
+                    weight="bold"
+                  />
                 </AppMenuTrigger>
                 <AppMenuContent className="w-[224px]">
                   <MenuActionItem
@@ -830,10 +907,15 @@ export const Component = (): ReactElement => {
             ) : (
               <div className="space-y-6">
                 {(widgetVisibility.calendar || widgetVisibility.todo) && (
-                  <motion.section {...getSectionMotion(0.08)} className={PRIMARY_WIDGET_GRID_CLASS}>
+                  <motion.section
+                    {...getSectionMotion(0.08)}
+                    className={PRIMARY_WIDGET_GRID_CLASS}
+                  >
                     {primaryWidgetOrder.map((widget) => {
                       if (widget === "todo") {
-                        return <TodoPanel key="todo" files={files} store={store} />;
+                        return (
+                          <TodoPanel key="todo" files={files} store={store} />
+                        );
                       }
 
                       return calendarWidget;
@@ -847,7 +929,9 @@ export const Component = (): ReactElement => {
                     className="overflow-hidden rounded-[1.45rem] border border-[#ebe4d8] bg-white"
                   >
                     <div className="px-5 py-4">
-                      <h2 className="text-[17px] font-bold text-memora-text">Recent</h2>
+                      <h2 className="text-[17px] font-bold text-memora-text">
+                        Recent
+                      </h2>
                     </div>
                     <div>
                       {recentItems.map((item) => (
