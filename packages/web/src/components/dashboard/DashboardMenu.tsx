@@ -65,9 +65,13 @@ interface DashboardMenuLayout {
   triggerWidth: number;
 }
 
-const DashboardMenuContext = createContext<DashboardMenuContextValue | null>(null);
+const DashboardMenuContext = createContext<DashboardMenuContextValue | null>(
+  null,
+);
 
-const getMenuItems = (container: HTMLDivElement | null): HTMLButtonElement[] => {
+const getMenuItems = (
+  container: HTMLDivElement | null,
+): HTMLButtonElement[] => {
   if (!container) {
     return [];
   }
@@ -89,7 +93,9 @@ const useDashboardMenuContext = (): DashboardMenuContextValue => {
   const context = useContext(DashboardMenuContext);
 
   if (!context) {
-    throw new Error("DashboardMenu components must be used within DashboardMenu.");
+    throw new Error(
+      "DashboardMenu components must be used within DashboardMenu.",
+    );
   }
 
   return context;
@@ -259,7 +265,9 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
     }
 
     const handleToggle = (event: Event) => {
-      const nextState = (event as Event & { newState?: "open" | "closed" }).newState ?? "closed";
+      const nextState =
+        (event as Event & { newState?: "open" | "closed" }).newState ??
+        "closed";
       const nextOpen = nextState === "open";
       setIsOpen(nextOpen);
 
@@ -315,7 +323,9 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
   ]);
 
   return (
-    <DashboardMenuContext.Provider value={contextValue}>{children}</DashboardMenuContext.Provider>
+    <DashboardMenuContext.Provider value={contextValue}>
+      {children}
+    </DashboardMenuContext.Provider>
   );
 }
 
@@ -331,8 +341,14 @@ export function DashboardMenuTrigger({
   style,
   ...props
 }: DashboardMenuTriggerProps): ReactElement {
-  const { anchorName, isOpen, popoverId, registerTrigger, openMenu, toggleMenu } =
-    useDashboardMenuContext();
+  const {
+    anchorName,
+    isOpen,
+    popoverId,
+    registerTrigger,
+    openMenu,
+    toggleMenu,
+  } = useDashboardMenuContext();
 
   const handleClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -377,13 +393,13 @@ export function DashboardMenuTrigger({
       aria-haspopup="menu"
       data-open={isOpen ? "true" : "false"}
       className={cn(
-        "inline-flex min-h-11 items-center gap-2 rounded-full border border-[#e7e1d7] bg-[#fffdfa] px-2.5 py-1.5 text-sm font-semibold text-[#3c3934] outline-none transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "group inline-flex min-h-11 items-center justify-start gap-2 rounded-full border border-[#e7e1d7] bg-[#fffdfa] px-2.5 py-1.5 text-left text-sm font-semibold text-[#3c3934] outline-none transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "hover:-translate-y-[1px] hover:bg-[#fffcf6] hover:shadow-[0_8px_20px_rgba(34,33,29,0.05)]",
         "data-[open=true]:border-[#ddd7cb] data-[open=true]:bg-[#fffcf6] data-[open=true]:opacity-0 data-[open=true]:shadow-[0_10px_24px_rgba(34,33,29,0.06)]",
         "data-[open=true]:duration-150",
         "focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf7]",
         "motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:shadow-none motion-reduce:data-[open=true]:opacity-100 motion-reduce:data-[open=true]:shadow-none",
-        "[&_svg]:transition-transform [&_svg]:duration-300 [&_svg]:ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:[&_svg]:rotate-180 motion-reduce:[&_svg]:transition-none",
+        "[&_[data-dashboard-menu-caret]]:transition-transform [&_[data-dashboard-menu-caret]]:duration-300 [&_[data-dashboard-menu-caret]]:ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:[&_[data-dashboard-menu-caret]]:rotate-180 motion-reduce:[&_[data-dashboard-menu-caret]]:transition-none",
         className,
       )}
       onClick={handleClick}
@@ -396,7 +412,10 @@ export function DashboardMenuTrigger({
   );
 }
 
-interface DashboardMenuContentProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+interface DashboardMenuContentProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "children"
+> {
   children: ReactNode;
 }
 
@@ -469,7 +488,11 @@ export function DashboardMenuContent({
 
   return (
     <>
-      <div ref={registerMeasure} aria-hidden="true" className="dashboard-menu-measure">
+      <div
+        ref={registerMeasure}
+        aria-hidden="true"
+        className="dashboard-menu-measure"
+      >
         <div
           className={cn(
             "dashboard-menu-panel dashboard-menu-panel--measure relative outline-none",
@@ -484,12 +507,17 @@ export function DashboardMenuContent({
         id={popoverId}
         popover="auto"
         role="menu"
-        className="dashboard-menu-popover z-50"
+        className="dashboard-menu-popover z-10"
         onKeyDown={handleKeyDown}
         style={mergedStyle}
         {...props}
       >
-        <div className={cn("dashboard-menu-panel relative outline-none", className)}>
+        <div
+          className={cn(
+            "dashboard-menu-panel relative outline-none",
+            className,
+          )}
+        >
           <div className="dashboard-menu-shell" />
           <div className="dashboard-menu-body">{children}</div>
         </div>

@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "@livestore/react";
 import { write as opfsWrite } from "@memora/fs";
-import { AudioPlayer } from "@/components/library/AudioPlayer";
-import { VideoPlayer } from "@/components/library/VideoPlayer";
-import { formatDateTime, formatDuration } from "@/lib/format";
+
+import { BackButton } from "@/components/transcript/BackButton";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useFileTranscription } from "@/hooks/transcript/useFileTranscription";
+import { formatDateTime, formatDuration } from "@/lib/format";
 import { getMediaDuration, resolveRecordingBlob } from "@/lib/library/fileService";
-import { BackButton } from "@/components/transcript/BackButton";
-import { RecordingHeader } from "@/components/transcript/transcriptDetail/RecordingHeader";
-import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
-import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
+import { buildSrt, downloadText, searchTranscript } from "@/lib/transcript/transcriptSearchExport";
 import { fileEvents } from "@/livestore/file";
 import { FILES_DIR, TRANSCRIPT_SUFFIX, type FileType, type RecordingWord } from "@/types/library";
-import { buildSrt, downloadText, searchTranscript } from "@/lib/transcript/transcriptSearchExport";
+import { RecordingHeader } from "@/components/transcript/transcriptDetail/RecordingHeader";
+import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
+import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
+import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
 
 const buildExportFileName = (name: string, ext: "txt" | "srt"): string => {
   const sanitized = name
@@ -37,7 +37,7 @@ const getRecordingTypeLabel = (type: FileType): string => {
     case "video":
       return "Video recording";
     case "image":
-      return "Image";
+      return "Image file";
     case "document":
       return "Document";
     default:
@@ -70,6 +70,7 @@ export const Component = () => {
   const currentTimeRef = useRef(0);
   const seekRef = useRef<number | null>(null);
   const lastAppliedSeekKeyRef = useRef<string | null>(null);
+  const transcriptVisibilitySeedRef = useRef<string | null>(null);
   const transcriptWords = recording?.transcript?.words ?? EMPTY_WORDS;
   const transcriptText = recording?.transcript?.text ?? "";
   const transcriptDiagnostics = recording?.transcript?.diagnostics;
@@ -88,6 +89,20 @@ export const Component = () => {
       setRenameValue(recording.name);
     }
   }, [recording]);
+
+  useEffect(() => {
+    if (!recording?.id) {
+      return;
+    }
+
+    if (transcriptVisibilitySeedRef.current === recording.id) {
+      return;
+    }
+
+    transcriptVisibilitySeedRef.current = recording.id;
+    setShowTranscript(true);
+    setManualTranscript(recording.transcript?.text ?? "");
+  }, [recording?.id, recording?.transcript?.text]);
 
   useEffect(() => {
     setSearchQuery("");
@@ -110,7 +125,11 @@ export const Component = () => {
         const dur = await getMediaDuration(blob);
         if (dur == null) return;
 
-        const updatedMeta = { ...recording, durationSec: dur, updatedAt: Date.now() };
+        const updatedMeta = {
+          ...recording,
+          durationSec: dur,
+          updatedAt: Date.now(),
+        };
         delete (updatedMeta as Record<string, unknown>).audioUrl;
         delete (updatedMeta as Record<string, unknown>).transcript;
 
@@ -230,6 +249,7 @@ export const Component = () => {
   const handleTranscriptSeek = useCallback((time: number) => {
     seekRef.current = time;
   }, []);
+
   const canExportSrt = transcriptWords.length > 0;
 
   const searchMatches = useMemo(() => {
@@ -309,28 +329,23 @@ export const Component = () => {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-sm text-zinc-500">Loading recording...</p>
-        </div>
+      <div className="flex min-h-full items-center justify-center bg-[var(--color-memora-shell)] p-6">
+        <p className="text-sm text-[var(--color-memora-text-muted)]">Loading recording...</p>
       </div>
     );
   }
 
   if (error || !recording) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-sm text-zinc-500">Failed to load recording.</p>
-        </div>
+      <div className="flex min-h-full items-center justify-center bg-[var(--color-memora-shell)] p-6">
+        <p className="text-sm text-[var(--color-memora-text-muted)]">Failed to load recording.</p>
       </div>
     );
   }
 
   const isMedia = recording.type === "audio" || recording.type === "video";
-  const activeMatch = searchMatches[activeMatchIndex];
   const canSearch = hasSearchableTranscript && !isTranscribing;
-  const shouldShowDiagnostics = import.meta.env.DEV;
+  const shouldShowDiagnostics = import.meta.env.DEV || transcriptDiagnostics?.dropped === true;
   const recordingTypeLabel = getRecordingTypeLabel(recording.type);
   const transcriptWordCount =
     transcriptWords.length > 0
@@ -348,7 +363,9 @@ export const Component = () => {
   const recordingDurationLabel =
     typeof recording.durationSec === "number" && recording.durationSec > 0
       ? formatDuration(recording.durationSec)
-      : "Measuring...";
+      : isMedia
+        ? "Measuring..."
+        : "Not timed";
   const metaPills = [
     recordingTypeLabel,
     recordingDurationLabel,
@@ -357,87 +374,116 @@ export const Component = () => {
   ] as const;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
-      <BackButton />
+    <div
+      className="min-h-full bg-memora-bg text-[var(--color-memora-text)]"
+      style={{ fontFamily: "var(--font-sans)" }}
+    >
+      <div className="mx-auto w-full max-w-[1320px] px-6 py-6 md:px-10 md:py-8">
+        <div
+          className="memora-motion-enter flex items-center justify-between gap-3 pb-3"
+          style={{ "--enter-delay": "0ms" } as CSSProperties}
+        >
+          <BackButton />
+          <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
+            Transcript detail
+          </span>
+        </div>
 
-      <RecordingHeader
-        recording={recording}
-        isRenaming={isRenaming}
-        renameValue={renameValue}
-        metaPills={metaPills}
-        isMedia={isMedia}
-        showTranscript={showTranscript}
-        hasTranscript={hasTranscript}
-        isTranscribing={isTranscribing}
-        createdAtLabel={formatDateTime(recording.createdAt)}
-        onRenameChange={setRenameValue}
-        onRenameSubmit={handleRenameSubmit}
-        onRenameCancel={() => {
-          setIsRenaming(false);
-          setRenameValue(recording.name);
-        }}
-        onStartRename={() => setIsRenaming(true)}
-        onToggleTranscript={handleTranscriptToggle}
-        onDelete={async () => {
-          await deleteRecording(recording);
-          navigate("/files");
-        }}
-      />
+        <div data-surface="transcript-detail-workbench" className="mt-2">
+          <RecordingHeader
+            recording={recording}
+            isRenaming={isRenaming}
+            renameValue={renameValue}
+            metaPills={metaPills}
+            isMedia={isMedia}
+            showTranscript={showTranscript}
+            hasTranscript={hasTranscript}
+            isTranscribing={isTranscribing}
+            createdAtLabel={formatDateTime(recording.createdAt)}
+            onRenameChange={setRenameValue}
+            onRenameSubmit={handleRenameSubmit}
+            onRenameCancel={() => {
+              setIsRenaming(false);
+              setRenameValue(recording.name);
+            }}
+            onStartRename={() => setIsRenaming(true)}
+            onToggleTranscript={handleTranscriptToggle}
+            onDelete={async () => {
+              await deleteRecording(recording);
+              void navigate("/files");
+            }}
+          />
 
-      {recording.type === "video" ? (
-        <VideoPlayer
-          videoUrl={recording.audioUrl}
-          readyToken={mediaReadyToken}
-          duration={recording.durationSec || 0}
-          onReady={handleMediaReady}
-          transcriptWords={transcriptWords}
-          timeRef={currentTimeRef}
-          seekRef={seekRef}
-        />
-      ) : (
-        <AudioPlayer
-          audioUrl={recording.audioUrl}
-          audioReadyToken={mediaReadyToken}
-          duration={recording.durationSec || 0}
-          handleAudioReady={handleMediaReady}
-          timeRef={currentTimeRef}
-          seekRef={seekRef}
-        />
-      )}
+          <div
+            className={`grid items-start gap-y-8 pt-5 ${
+              showTranscript
+                ? "xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)] xl:gap-x-1"
+                : ""
+            }`}
+          >
+            <div
+              className={`memora-motion-enter ${showTranscript ? "xl:pr-2" : ""}`}
+              style={{ "--enter-delay": "90ms" } as CSSProperties}
+            >
+              <RecordingPreviewSurface
+                recording={recording}
+                mediaReadyToken={mediaReadyToken}
+                transcriptWords={transcriptWords}
+                currentTimeRef={currentTimeRef}
+                seekRef={seekRef}
+                onMediaReady={handleMediaReady}
+              />
+            </div>
 
-      <TranscriptSection
-        showTranscript={showTranscript}
-        hasSearchableTranscript={hasSearchableTranscript}
-        hasTranscript={hasTranscript}
-        isTranscribing={isTranscribing}
-        canExportSrt={canExportSrt}
-        canSearch={canSearch}
-        transcriptText={transcriptText}
-        transcriptWords={transcriptWords}
-        transcriptDiagnostics={transcriptDiagnostics}
-        transcriptionStatus={transcriptionStatus}
-        transcriptionProgress={transcriptionProgress}
-        currentTimeRef={currentTimeRef}
-        searchQuery={searchQuery}
-        activeMatchIndex={activeMatchIndex}
-        searchMatches={searchMatches}
-        activeMatchId={activeMatch?.id}
-        manualTranscript={manualTranscript}
-        isSavingManual={isSavingManual}
-        onSearchQueryChange={setSearchQuery}
-        onJumpToMatch={jumpToMatch}
-        onManualTranscriptChange={setManualTranscript}
-        onExportTxt={handleExportTxt}
-        onExportSrt={handleExportSrt}
-        onTranscriptToggle={handleTranscriptToggle}
-        onSaveManualTranscript={handleSaveManualTranscript}
-        onSeek={handleTranscriptSeek}
-      />
+            {showTranscript ? (
+              <div
+                className="memora-motion-enter xl:pl-2"
+                style={{ "--enter-delay": "150ms" } as CSSProperties}
+              >
+                <TranscriptSection
+                  showTranscript={showTranscript}
+                  hasSearchableTranscript={hasSearchableTranscript}
+                  hasTranscript={hasTranscript}
+                  isTranscribing={isTranscribing}
+                  canExportSrt={canExportSrt}
+                  canSearch={canSearch}
+                  transcriptText={transcriptText}
+                  transcriptWords={transcriptWords}
+                  transcriptDiagnostics={transcriptDiagnostics}
+                  transcriptionStatus={transcriptionStatus}
+                  transcriptionProgress={transcriptionProgress}
+                  currentTimeRef={currentTimeRef}
+                  searchQuery={searchQuery}
+                  activeMatchIndex={activeMatchIndex}
+                  searchMatches={searchMatches}
+                  manualTranscript={manualTranscript}
+                  isSavingManual={isSavingManual}
+                  onSearchQueryChange={setSearchQuery}
+                  onJumpToMatch={jumpToMatch}
+                  onManualTranscriptChange={setManualTranscript}
+                  onExportTxt={handleExportTxt}
+                  onExportSrt={handleExportSrt}
+                  onTranscriptToggle={handleTranscriptToggle}
+                  onSaveManualTranscript={handleSaveManualTranscript}
+                  onSeek={handleTranscriptSeek}
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
 
-      <TranscriptDiagnosticsPanel
-        diagnostics={transcriptDiagnostics}
-        visible={shouldShowDiagnostics}
-      />
+        {shouldShowDiagnostics ? (
+          <div
+            className="memora-motion-enter mt-10"
+            style={{ "--enter-delay": "220ms" } as CSSProperties}
+          >
+            <TranscriptDiagnosticsPanel
+              diagnostics={transcriptDiagnostics}
+              visible={shouldShowDiagnostics}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };

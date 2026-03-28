@@ -15,10 +15,10 @@ const STAGE_COPY: Record<LiveStoreLoadingStatus["stage"], string> = {
 
 const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;
 const BACKGROUND_IMAGE = `
-  radial-gradient(circle at 50% 24%, rgba(255, 250, 236, 0.98) 0%, rgba(255, 251, 242, 0.82) 34%, rgba(255, 251, 242, 0) 70%),
+  radial-gradient(circle at 50% 24%, rgba(255, 250, 236, 0.98) 0%, color-mix(in srgb, var(--color-memora-bg) 82%, transparent) 34%, transparent 70%),
   radial-gradient(circle at 18% 78%, rgba(135, 154, 79, 0.12) 0%, rgba(135, 154, 79, 0) 42%),
   radial-gradient(circle at 88% 14%, rgba(196, 167, 111, 0.14) 0%, rgba(196, 167, 111, 0) 36%),
-  linear-gradient(180deg, #fffdf8 0%, #fffbf2 52%, #f8f1e3 100%)
+  linear-gradient(180deg, #fffdf8 0%, var(--color-memora-bg) 52%, #f8f1e3 100%)
 `;
 
 export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScreenProps) {
@@ -30,7 +30,7 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
 
   return (
     <div
-      className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#fffbf2] px-6 py-10 text-[#171311]"
+      className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-memora-bg px-6 py-10 text-[#171311]"
       role="status"
       aria-live="polite"
       style={{ backgroundImage: BACKGROUND_IMAGE }}

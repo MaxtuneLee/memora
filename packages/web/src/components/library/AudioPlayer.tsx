@@ -214,10 +214,10 @@ export const AudioPlayer = memo(
     }, [playerTimeRef, seek]);
 
     return (
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-hidden">
         <div className="relative px-5 pt-6 pb-2">
           {waveformData ? (
-            <div className="h-24">
+            <div className="group h-24">
               <WaveformCanvas
                 peaks={waveformData.peaks}
                 progress={0}
@@ -231,7 +231,11 @@ export const AudioPlayer = memo(
           ) : (
             <div className="flex h-24 items-end justify-center gap-[2px] px-2">
               {PLACEHOLDER_HEIGHTS.map((h, i) => (
-                <div key={i} className="w-1 rounded-full bg-zinc-200" style={{ height: `${h}%` }} />
+                <div
+                  key={i}
+                  className="w-1 rounded-full bg-[var(--color-memora-border)] transition-transform duration-300 ease-[var(--ease-out-quart)] odd:translate-y-0 even:translate-y-0"
+                  style={{ height: `${h}%` }}
+                />
               ))}
             </div>
           )}
@@ -240,21 +244,27 @@ export const AudioPlayer = memo(
         <div className="px-5 pb-1">
           <div
             ref={progressRef}
-            className={`relative h-1 cursor-pointer rounded-full bg-zinc-200 transition-all hover:h-1.5 ${isDragging ? "h-1.5" : ""}`}
+            className={`memora-surface-glow group relative h-1 cursor-pointer rounded-full bg-[var(--color-memora-border)] transition-all hover:h-1.5 ${isDragging ? "h-1.5" : ""}`}
             onMouseDown={handleProgressMouseDown}
           >
             <div
               ref={progressFillRef}
-              className="absolute inset-y-0 left-0 rounded-full bg-zinc-800 transition-none"
+              className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-memora-text-strong)] transition-none"
               style={{ width: "0%" }}
             />
           </div>
 
           <div className="mt-1.5 flex items-center justify-between">
-            <span ref={elapsedRef} className="text-[11px] tabular-nums text-zinc-400">
+            <span
+              ref={elapsedRef}
+              className="text-[11px] tabular-nums text-[var(--color-memora-text-soft)]"
+            >
               {formatDuration(0)}
             </span>
-            <span ref={remainingRef} className="text-[11px] tabular-nums text-zinc-400">
+            <span
+              ref={remainingRef}
+              className="text-[11px] tabular-nums text-[var(--color-memora-text-soft)]"
+            >
               -{formatDuration(effectiveDuration)}
             </span>
           </div>
@@ -263,7 +273,7 @@ export const AudioPlayer = memo(
         <div className="flex items-center justify-center gap-8 pb-5 pt-2">
           <button
             onClick={onSkipBack}
-            className="relative flex size-11 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-700"
+            className="memora-interactive relative flex size-11 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-colors hover:text-[var(--color-memora-text)]"
             aria-label="Skip back 15 seconds"
           >
             <ArrowCounterClockwiseIcon className="size-5" />
@@ -272,7 +282,7 @@ export const AudioPlayer = memo(
 
           <button
             onClick={togglePlay}
-            className="flex size-14 items-center justify-center rounded-full bg-zinc-900 text-white transition-transform active:scale-95"
+            className="memora-interactive flex size-14 items-center justify-center rounded-full bg-[var(--color-memora-text-strong)] text-[var(--color-memora-surface)] shadow-[0_18px_40px_-30px_rgba(34,33,29,0.9)] transition-[transform,box-shadow,background-color] hover:shadow-[0_22px_42px_-26px_rgba(34,33,29,0.95)]"
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
@@ -284,7 +294,7 @@ export const AudioPlayer = memo(
 
           <button
             onClick={onSkipForward}
-            className="relative flex size-11 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-700"
+            className="memora-interactive relative flex size-11 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-colors hover:text-[var(--color-memora-text)]"
             aria-label="Skip forward 15 seconds"
           >
             <ArrowClockwiseIcon className="size-5" />

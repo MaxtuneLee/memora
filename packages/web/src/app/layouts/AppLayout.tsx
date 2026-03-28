@@ -179,13 +179,13 @@ export default function AppLayout() {
       <SettingsDialogContextProvider value={settingsValue}>
         <SearchPaletteContextProvider value={searchValue}>
           {!onboardingGateReady ? (
-            <div className="flex h-dvh w-full items-center justify-center bg-[#fffbf2] text-sm text-zinc-500">
+            <div className="flex h-dvh w-full items-center justify-center bg-memora-bg text-sm text-memora-muted">
               Preparing your workspace...
             </div>
           ) : isOnboardingRoute ? (
             <Outlet />
           ) : (
-            <div className="flex h-dvh w-full overflow-hidden bg-[#fffbf2] text-zinc-950 font-sans selection:bg-[#879a4f] selection:text-zinc-950">
+            <div className="flex h-dvh w-full overflow-hidden bg-memora-bg text-memora-text font-sans selection:bg-[#879a4f] selection:text-zinc-950">
               <Sidebar />
               <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">

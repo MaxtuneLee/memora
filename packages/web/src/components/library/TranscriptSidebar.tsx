@@ -50,12 +50,12 @@ const SidebarChunk = memo(
               key={`${word.timestamp[0]}-${i}`}
               ref={isActive ? activeWordRef : undefined}
               onClick={() => onSeek(word.timestamp[0])}
-              className={`cursor-pointer rounded-md px-0.5 py-0.5 transition-colors duration-200 ${
+              className={`inline-block cursor-pointer rounded-md px-0.5 py-0.5 transition-[color,background-color,opacity] duration-200 ease-[var(--ease-out-quart)] ${
                 isActive
-                  ? "bg-zinc-100 font-medium text-zinc-950"
+                  ? "bg-[var(--color-memora-surface-muted)] font-medium text-[var(--color-memora-text-strong)]"
                   : isPast
-                    ? "text-zinc-900 hover:bg-zinc-50"
-                    : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
+                    ? "text-[var(--color-memora-text)] hover:bg-[var(--color-memora-surface-soft)]"
+                    : "text-[var(--color-memora-text-soft)] hover:bg-[var(--color-memora-surface-soft)] hover:text-[var(--color-memora-text-muted)]"
               }`}
             >
               {word.text}
@@ -158,18 +158,18 @@ export const TranscriptSidebar = ({
   if (isTranscribing) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6">
-        <div className="size-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-600" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-memora-border)] border-t-[var(--color-memora-olive)]" />
         <div className="text-center">
-          <p className="text-sm font-medium text-zinc-700">Transcribing...</p>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="text-sm font-medium text-[var(--color-memora-text)]">Transcribing...</p>
+          <p className="mt-1 text-xs text-[var(--color-memora-text-soft)]">
             {transcriptionStatus === "loading-model" && "Loading AI model..."}
             {transcriptionStatus === "decoding" && "Decoding audio..."}
             {transcriptionStatus === "transcribing" && "Processing speech..."}
             {transcriptionStatus === "saving" && "Saving transcript..."}
           </p>
-          <div className="mt-3 mx-auto h-1 w-32 overflow-hidden rounded-full bg-zinc-200">
+          <div className="mx-auto mt-3 h-1 w-32 overflow-hidden rounded-full bg-[var(--color-memora-border)]">
             <div
-              className="h-full rounded-full bg-zinc-600 transition-all duration-300"
+              className="h-full rounded-full bg-[var(--color-memora-olive)] transition-all duration-300"
               style={{ width: `${transcriptionProgress}%` }}
             />
           </div>
@@ -182,8 +182,8 @@ export const TranscriptSidebar = ({
     return (
       <div className="flex h-full items-center justify-center px-6">
         <div className="text-center">
-          <p className="text-sm font-medium text-zinc-700">No transcript yet</p>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="text-sm font-medium text-[var(--color-memora-text)]">No transcript yet</p>
+          <p className="mt-1 text-xs text-[var(--color-memora-text-soft)]">
             Generate one or add a manual draft to review it here.
           </p>
         </div>
@@ -195,9 +195,9 @@ export const TranscriptSidebar = ({
     return (
       <div
         ref={scrollRef}
-        className="h-full overflow-y-auto px-5 py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200 md:px-6 md:py-8"
+        className="memora-scrollbar h-full overflow-y-auto px-5 py-6 md:px-6 md:py-8"
       >
-        <p className="w-full text-sm leading-8 text-zinc-600">{text}</p>
+        <p className="w-full text-sm leading-8 text-[var(--color-memora-text-muted)]">{text}</p>
       </div>
     );
   }
@@ -208,20 +208,24 @@ export const TranscriptSidebar = ({
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200 md:px-5 md:pb-5"
+      data-surface="transcript-reading-pane"
+      className="memora-scrollbar h-full overflow-y-auto px-4 pb-0 md:px-5"
     >
-      <div className="sticky top-0 z-10 mb-0 bg-gradient-to-b from-white via-white/95 to-transparent pt-2 pb-4">
+      <div className="sticky top-0 z-10 mb-0 bg-[var(--color-memora-surface-soft)] pt-3 pb-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-zinc-500">Tap any word to jump through the recording.</p>
+            <p className="flex items-center gap-2 text-xs text-[var(--color-memora-text-muted)]">
+              <span className="memora-hint-dot inline-flex size-1.5 rounded-full bg-[var(--color-memora-olive-soft)]" />
+              Tap any word to jump through the recording.
+            </p>
           </div>
-          <div className="shrink-0 text-xs tabular-nums text-zinc-400">
+          <div className="shrink-0 text-xs tabular-nums text-[var(--color-memora-text-soft)]">
             {activeWord ? formatDuration(activeWord.timestamp[0]) : "0:00"}
           </div>
         </div>
       </div>
 
-      <div className="w-full text-base leading-[1.9] text-zinc-800">
+      <div className="w-full text-base leading-[1.95] text-[var(--color-memora-text)]">
         {chunks.map((chunk, chunkIdx) => (
           <SidebarChunk
             key={chunkIdx}
