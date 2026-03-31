@@ -163,18 +163,7 @@ export const Component = (): ReactElement => {
         </div>
       </motion.header>
       <div className="mt-6">
-        <TranscriptWorkbench
-          items={workbenchItems}
-          onDelete={deleteRecording}
-          emptyAction={
-            <Button
-              onClick={() => navigate("/transcript/live")}
-              className="memora-interactive inline-flex min-h-11 items-center rounded-full border border-[#2b2925] bg-[#22211d] px-4 text-sm font-semibold text-[#fffdfa] shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_24px_-22px_rgba(34,33,29,0.55)] transition-[background-color,border-color,box-shadow,transform] duration-300 ease-[var(--ease-out-quart)] hover:-translate-y-0.5 hover:border-[#4a463e] hover:bg-[#34312b] hover:shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_0_0_1px_rgba(255,251,242,0.08),0_10px_24px_-22px_rgba(34,33,29,0.55)] active:translate-y-0 active:border-[#1f1e1a] active:bg-[#1d1c18] active:shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_6px_14px_-14px_rgba(34,33,29,0.42)]"
-            >
-              New live transcript
-            </Button>
-          }
-        />
+        <TranscriptWorkbench items={workbenchItems} onDelete={deleteRecording} />
       </div>
     </div>
   );

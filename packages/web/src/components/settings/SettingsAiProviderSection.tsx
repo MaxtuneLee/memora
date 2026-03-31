@@ -12,6 +12,15 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemo } from "react";
 
 import SettingsProviderForm from "@/components/settings/SettingsProviderForm";
+import {
+  SETTINGS_ICON_BUTTON_CLASS_NAME,
+  SETTINGS_INSET_PANEL_CLASS_NAME,
+  SETTINGS_PANEL_CLASS_NAME,
+  SETTINGS_ROW_CLASS_NAME,
+  SETTINGS_SECTION_BODY_CLASS_NAME,
+  SETTINGS_SECTION_TITLE_CLASS_NAME,
+  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
+} from "@/components/settings/settingsClassNames";
 import { useAiProviderSettings } from "@/hooks/settings/useAiProviderSettings";
 import { cn } from "@/lib/cn";
 import {
@@ -68,20 +77,29 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
   }, [providers, selectedModel, selectedProviderId]);
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-900">Active model</h4>
-        </div>
-        <div className="relative mt-3">
+    <div className="space-y-4">
+      <section className={SETTINGS_PANEL_CLASS_NAME}>
+        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Model</h3>
+
+        <div className="relative mt-4">
           <button
             type="button"
             onClick={handleToggleModelDropdown}
-            className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 transition hover:border-zinc-300"
+            className="memora-interactive flex w-full items-center justify-between rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-4 py-3 text-left transition-[border-color,background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[var(--color-memora-hover-strong)]"
           >
-            <span className={selectedModel ? "" : "text-zinc-400"}>{selectedModelLabel}</span>
-            <CaretDownIcon className="size-4 text-zinc-400" />
+            <span
+              className={cn(
+                "block text-sm font-medium",
+                selectedModel
+                  ? "text-[var(--color-memora-text-strong)]"
+                  : "text-[var(--color-memora-text-soft)]",
+              )}
+            >
+              {selectedModelLabel}
+            </span>
+            <CaretDownIcon className="size-4 text-[var(--color-memora-text-soft)]" />
           </button>
+
           <AnimatePresence>
             {modelDropdownOpen && allModels.length > 0 && (
               <motion.div
@@ -89,14 +107,14 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg"
+                className="absolute left-0 top-full z-20 mt-2 w-full rounded-[1.4rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] shadow-[0_28px_70px_-46px_rgba(34,33,29,0.32)]"
               >
-                <div className="border-b border-zinc-100 p-2">
+                <div className="border-b border-[var(--color-memora-border-soft)] p-3">
                   <label className="sr-only" htmlFor="model-search-input">
                     Search models
                   </label>
-                  <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5">
-                    <MagnifyingGlassIcon className="size-3.5 text-zinc-400" />
+                  <div className="flex items-center gap-2 rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-3 py-2">
+                    <MagnifyingGlassIcon className="size-3.5 text-[var(--color-memora-text-soft)]" />
                     <input
                       id="model-search-input"
                       ref={modelSearchInputRef}
@@ -104,40 +122,43 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                       value={modelSearchQuery}
                       onChange={(event) => setModelSearchQuery(event.target.value)}
                       placeholder="Search models or providers"
-                      className="w-full bg-transparent text-xs text-zinc-700 outline-none placeholder:text-zinc-400"
+                      className="w-full bg-transparent text-sm text-[var(--color-memora-text)] outline-none placeholder:text-[var(--color-memora-text-soft)]"
                     />
                   </div>
                 </div>
-                <div className="max-h-52 overflow-y-auto">
+                <div className="memora-scrollbar max-h-72 overflow-y-auto py-2">
                   {filteredModelGroups.length === 0 ? (
-                    <div className="px-3 py-3 text-xs text-zinc-400">No matching models.</div>
+                    <div className="px-4 py-4 text-sm text-[var(--color-memora-text-soft)]">
+                      No matching models.
+                    </div>
                   ) : (
                     filteredModelGroups.map(({ provider, models }) => (
                       <div key={provider.id}>
-                        <div className="bg-zinc-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                        <div className="px-4 py-2 text-xs font-medium text-[var(--color-memora-text-soft)]">
                           {provider.name}
                         </div>
                         {models.map((model) => {
                           const isSelected =
                             selectedProviderId === provider.id && selectedModel === model.id;
+
                           return (
                             <button
                               key={model.id}
                               type="button"
                               onClick={() => handleSelectModel(provider.id, model.id)}
                               className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition",
+                                "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition",
                                 isSelected
-                                  ? "bg-zinc-100 font-medium text-zinc-900"
-                                  : "text-zinc-600 hover:bg-zinc-50",
+                                  ? "bg-[var(--color-memora-surface-soft)] font-semibold text-[var(--color-memora-text-strong)]"
+                                  : "text-[var(--color-memora-text-muted)] hover:bg-[var(--color-memora-hover-strong)]",
                               )}
                             >
-                              {isSelected ? (
-                                <CheckIcon className="size-3.5 shrink-0 text-zinc-900" />
-                              ) : null}
-                              <span className={isSelected ? "" : "pl-5.5"}>
-                                {model.name ?? model.id}
+                              <span className="flex size-5 shrink-0 items-center justify-center">
+                                {isSelected ? (
+                                  <CheckIcon className="size-3.5 text-[var(--color-memora-olive)]" />
+                                ) : null}
                               </span>
+                              <span>{model.name ?? model.id}</span>
                             </button>
                           );
                         })}
@@ -148,88 +169,100 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
               </motion.div>
             )}
           </AnimatePresence>
+
           {modelDropdownOpen ? (
-            <div className="fixed inset-0 z-[9]" onClick={handleCloseModelDropdown} />
+            <div className="fixed inset-0 z-10" onClick={handleCloseModelDropdown} />
           ) : null}
         </div>
-        {allModels.length === 0 ? (
-          <p className="mt-2 text-xs text-zinc-400">
-            Add a provider and fetch models to select one.
-          </p>
-        ) : null}
-      </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-900">Providers</h4>
+        {allModels.length === 0 ? (
+          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-4")}>
+            <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>Add a provider to select a model.</p>
+          </div>
+        ) : null}
+      </section>
+
+      <section className={SETTINGS_PANEL_CLASS_NAME}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Providers</h3>
           <Button
             onClick={handleAddProvider}
             disabled={isFormOpen}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
           >
             <PlusIcon className="size-3.5" weight="bold" />
-            Add
+            <span>Add provider</span>
           </Button>
         </div>
 
         {providers.length === 0 && !isAddingProvider ? (
-          <p className="mt-3 text-xs text-zinc-400">No providers configured yet.</p>
-        ) : null}
+          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-5")}>
+            <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No providers configured yet.</p>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {providers.map((provider) => {
+              if (editingProviderId === provider.id) {
+                return null;
+              }
 
-        <div className="mt-3 space-y-2">
-          {providers.map((provider) => {
-            if (editingProviderId === provider.id) {
-              return null;
-            }
+              const models = parseProviderModels(provider);
+              const isFetching = fetchingModels === provider.id;
+              const isSelectedProvider = provider.id === selectedProviderId;
 
-            const models = parseProviderModels(provider);
-            const isFetching = fetchingModels === provider.id;
-
-            return (
-              <div
-                key={provider.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-100 bg-white px-3 py-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-900">{provider.name}</span>
-                    <span className="text-[11px] text-zinc-400">{models.length} models</span>
+              return (
+                <div key={provider.id} className={cn(SETTINGS_ROW_CLASS_NAME, "flex gap-4")}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
+                      {provider.name}
+                    </p>
+                    <p className="mt-1 truncate text-sm text-[var(--color-memora-text-muted)]">
+                      {provider.baseUrl}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-memora-text-soft)]">
+                      {isSelectedProvider ? "Current provider" : `${models.length} cached`}
+                    </p>
                   </div>
-                  <div className="mt-0.5 truncate text-xs text-zinc-400">{provider.baseUrl}</div>
+
+                  <div className="flex shrink-0 items-start gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleFetchModels(provider)}
+                      disabled={isFetching || isFormOpen}
+                      title="Fetch models"
+                      className={SETTINGS_ICON_BUTTON_CLASS_NAME}
+                    >
+                      <ArrowsClockwiseIcon
+                        className={cn("size-4", isFetching ? "animate-spin" : "")}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEditProvider(provider)}
+                      disabled={isFormOpen}
+                      title="Edit"
+                      className={SETTINGS_ICON_BUTTON_CLASS_NAME}
+                    >
+                      <PencilSimpleIcon className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProvider(provider.id)}
+                      disabled={isFormOpen}
+                      title="Remove"
+                      className={cn(
+                        SETTINGS_ICON_BUTTON_CLASS_NAME,
+                        "hover:bg-[var(--color-memora-warning-surface)] hover:text-[var(--color-memora-warning-text)]",
+                      )}
+                    >
+                      <TrashIcon className="size-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void handleFetchModels(provider)}
-                    disabled={isFetching || isFormOpen}
-                    title="Fetch models"
-                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
-                  >
-                    <ArrowsClockwiseIcon className={cn("size-4", isFetching && "animate-spin")} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEditProvider(provider)}
-                    disabled={isFormOpen}
-                    title="Edit"
-                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
-                  >
-                    <PencilSimpleIcon className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProvider(provider.id)}
-                    disabled={isFormOpen}
-                    title="Remove"
-                    className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
-                  >
-                    <TrashIcon className="size-4" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         <AnimatePresence>
           {isFormOpen ? (
@@ -237,8 +270,8 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.15 }}
-              className="mt-3 overflow-hidden"
+              transition={{ duration: 0.18 }}
+              className="mt-4 overflow-hidden"
             >
               <SettingsProviderForm
                 isAddingProvider={isAddingProvider}
@@ -252,7 +285,7 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
             </motion.div>
           ) : null}
         </AnimatePresence>
-      </div>
+      </section>
     </div>
   );
 }
