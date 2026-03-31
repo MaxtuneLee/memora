@@ -8,7 +8,6 @@ import {
   SparkleIcon,
   TrashIcon,
   VideoCameraIcon,
-  WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
@@ -36,11 +35,6 @@ const TYPE_ICONS: Record<RecordingItem["type"], Icon> = {
 
 const getStatusPresentation = (status: TranscriptHistoryRowState["status"]) => {
   switch (status) {
-    case "Diagnostics available":
-      return {
-        icon: WarningCircleIcon,
-        tone: "border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] text-[var(--color-memora-warning-text)]",
-      };
     case "Transcript ready":
       return {
         icon: SparkleIcon,

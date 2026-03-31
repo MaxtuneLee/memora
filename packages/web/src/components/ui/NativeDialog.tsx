@@ -25,7 +25,7 @@ const EXIT_ANIMATION_MS = 180;
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-type DialogState = "closed" | "open" | "closing";
+type DialogState = "closed" | "opening" | "open" | "closing";
 
 const resolveInitialFocus = (
   panel: HTMLDivElement | null,
@@ -165,6 +165,7 @@ export function NativeDialog({
         typeof document !== "undefined" && document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null;
+      setState("opening");
       setMounted(true);
       return;
     }
@@ -174,14 +175,17 @@ export function NativeDialog({
       closeTimerRef.current = null;
     }
 
-    setState("open");
-  }, [finalFocusRef, initialFocusRef, mounted, open, onOpenChange, state]);
+    if (state === "closing") {
+      setState("open");
+    }
+  }, [finalFocusRef, mounted, open, state]);
 
   useEffect(() => {
     if (!open || !mounted) {
       return;
     }
 
+    let settleFrame: number | null = null;
     const animationFrame = window.requestAnimationFrame(() => {
       const dialog = dialogRef.current;
       if (!dialog || dialog.open) {
@@ -190,12 +194,23 @@ export function NativeDialog({
 
       dialog.showModal();
       resolveInitialFocus(panelRef.current, initialFocusRef);
+
+      if (state === "opening") {
+        settleFrame = window.requestAnimationFrame(() => {
+          if (latestOpenRef.current && dialogRef.current?.open) {
+            setState("open");
+          }
+        });
+      }
     });
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      if (settleFrame !== null) {
+        window.cancelAnimationFrame(settleFrame);
+      }
     };
-  }, [initialFocusRef, mounted, open]);
+  }, [initialFocusRef, mounted, open, state]);
 
   if (!mounted) {
     return null;

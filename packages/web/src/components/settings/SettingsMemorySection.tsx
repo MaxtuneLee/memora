@@ -2,7 +2,17 @@ import { Button } from "@base-ui/react/button";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
+import {
+  SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME,
+  SETTINGS_INSET_PANEL_CLASS_NAME,
+  SETTINGS_PANEL_CLASS_NAME,
+  SETTINGS_ROW_CLASS_NAME,
+  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
+  SETTINGS_SECTION_BODY_CLASS_NAME,
+  SETTINGS_SECTION_TITLE_CLASS_NAME,
+} from "@/components/settings/settingsClassNames";
 import { useMemorySettings } from "@/hooks/settings/useMemorySettings";
+import { cn } from "@/lib/cn";
 import { formatMemoryTimestamp } from "@/lib/settings/dialogHelpers";
 
 interface SettingsMemorySectionProps {
@@ -25,99 +35,81 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
   const hasStoredMemory = !!memoryData?.personality || sortedNotices.length > 0;
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-zinc-900">Assistant memory</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              Saved personality context and durable communication preferences.
-            </p>
-          </div>
-          <Button
-            onClick={() => void refreshMemoryData()}
-            disabled={isMemoryLoading}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isMemoryLoading ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button
+          onClick={() => void refreshMemoryData()}
+          disabled={isMemoryLoading}
+          className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
+        >
+          {isMemoryLoading ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       {!hasStoredMemory && !isMemoryLoading ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-6 text-sm text-zinc-500">
-          No saved memory yet. Notices will appear here after the assistant learns durable
-          preferences.
-        </div>
+        <section className={cn(SETTINGS_INSET_PANEL_CLASS_NAME)}>
+          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No saved memory yet.</p>
+        </section>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-zinc-900">Personality</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              The long-form profile used to personalize the assistant.
-            </p>
-          </div>
+      <section className={SETTINGS_PANEL_CLASS_NAME}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Personality</h3>
           <Button
             onClick={() => void handleDeletePersonality()}
             disabled={!memoryData?.personality}
-            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className={SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME}
           >
-            Delete
+            Delete profile
           </Button>
         </div>
+
         {memoryData?.personality ? (
-          <pre className="mt-4 max-h-56 overflow-auto rounded-lg bg-zinc-50 p-3 text-xs leading-6 whitespace-pre-wrap text-zinc-700">
+          <pre className="memora-scrollbar mt-5 max-h-72 overflow-auto rounded-[1.3rem] border border-[var(--color-memora-border-soft)] bg-[var(--color-memora-surface-soft)] p-4 text-sm leading-7 whitespace-pre-wrap text-[var(--color-memora-text)]">
             {memoryData.personality}
           </pre>
         ) : (
-          <p className="mt-4 text-sm text-zinc-400">No saved personality.</p>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-zinc-900">Notices</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              Short reminders about how the assistant should talk to the user.
-            </p>
+          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-5")}>
+            <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No saved personality.</p>
           </div>
-          <div className="flex items-center gap-2">
+        )}
+      </section>
+
+      <section className={SETTINGS_PANEL_CLASS_NAME}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Notices</h3>
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => void handleClearNotices()}
               disabled={sortedNotices.length === 0}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
             >
               Clear notices
             </Button>
             <Button
               onClick={() => void handleClearAllMemory()}
               disabled={!hasStoredMemory}
-              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className={SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME}
             >
               Clear all memory
             </Button>
           </div>
         </div>
+
         {sortedNotices.length > 0 ? (
-          <div className="mt-4 space-y-2">
+          <div className="mt-5 space-y-3">
             {sortedNotices.map((notice) => (
-              <div
-                key={notice.id}
-                className="flex items-start justify-between gap-3 rounded-lg border border-zinc-100 bg-zinc-50/70 px-3 py-3"
-              >
+              <div key={notice.id} className={cn(SETTINGS_ROW_CLASS_NAME, "flex items-start gap-3")}>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-zinc-800">{notice.text}</p>
-                  <p className="mt-1 text-[11px] text-zinc-400">
+                  <p className="text-sm leading-6 text-[var(--color-memora-text)]">{notice.text}</p>
+                  <p className="mt-2 text-[11px] text-[var(--color-memora-text-soft)]">
                     Updated {formatMemoryTimestamp(notice.updatedAt)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => void handleDeleteNotice(notice.id)}
-                  className="flex size-8 items-center justify-center rounded-md text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                  className="memora-interactive flex size-9 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-[background-color,color,transform] duration-300 ease-[var(--ease-out-quart)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-warning-surface)] hover:text-[var(--color-memora-warning-text)]"
                   aria-label="Delete notice"
                 >
                   <TrashIcon className="size-4" />
@@ -126,9 +118,11 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
             ))}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-zinc-400">No saved notices.</p>
+          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-5")}>
+            <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No saved notices.</p>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

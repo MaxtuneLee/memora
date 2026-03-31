@@ -30,6 +30,17 @@ test("native dialog wrapper source uses showModal, close, and cancel-event contr
   expect(source).toContain("closeOnEscape");
 });
 
+test("native dialog source keeps an opening phase before promoting the panel to open", () => {
+  const source = readFileSync(
+    new URL("../../src/components/ui/NativeDialog.tsx", import.meta.url),
+    "utf8",
+  );
+
+  expect(source).toContain('type DialogState = "closed" | "opening" | "open" | "closing"');
+  expect(source).toContain('setState("opening")');
+  expect(source).toContain('window.requestAnimationFrame(() =>');
+});
+
 test("native dialog stylesheet animates the real dialog backdrop", () => {
   const css = readFileSync(
     new URL("../../src/components/ui/nativeDialog.css", import.meta.url),
