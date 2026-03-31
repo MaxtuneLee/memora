@@ -29,7 +29,7 @@ export interface TranscriptWorkbenchRailItem {
 export interface TranscriptHistoryRowState {
   title: string;
   preview: string;
-  status: "Diagnostics available" | "Transcript ready" | "No transcript yet";
+  status: "Transcript ready" | "No transcript yet";
   typeLabel: string;
   timestamp: number;
   timestampSource: "updatedAt" | "createdAt";
@@ -109,11 +109,7 @@ export function getTranscriptHistoryRowState(recording: RecordingItem): Transcri
   return {
     title: recording.name,
     preview,
-    status: recording.transcript?.diagnostics
-      ? "Diagnostics available"
-      : hasTranscriptContent(recording)
-        ? "Transcript ready"
-        : "No transcript yet",
+    status: hasTranscriptContent(recording) ? "Transcript ready" : "No transcript yet",
     typeLabel: FILE_TYPE_LABELS[recording.type],
     ...getTimestampState(recording),
     durationSec: recording.durationSec,

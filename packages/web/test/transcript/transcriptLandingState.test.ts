@@ -35,7 +35,7 @@ test("builds quiet utility rail items from language and loaded recordings", () =
   ]);
 });
 
-test("prefers transcript text for row preview and marks diagnostics when available", () => {
+test("prefers transcript text for row preview and treats diagnostics as transcript ready", () => {
   expect(
     getTranscriptHistoryRowState(
       createRecording({
@@ -69,7 +69,7 @@ test("prefers transcript text for row preview and marks diagnostics when availab
   ).toMatchObject({
     title: "Weekly research sync",
     preview: "A much more useful transcript excerpt.",
-    status: "Diagnostics available",
+    status: "Transcript ready",
     typeLabel: "Audio",
     timestamp: 1_710_000_300_000,
     timestampSource: "updatedAt",

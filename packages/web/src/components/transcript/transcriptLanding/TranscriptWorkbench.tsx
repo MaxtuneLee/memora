@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 
 import type { RecordingItem } from "@/types/library";
 
@@ -14,16 +14,11 @@ interface TranscriptWorkbenchItem {
 interface TranscriptWorkbenchProps {
   items: TranscriptWorkbenchItem[];
   onDelete: (recording: RecordingItem) => void;
-  emptyAction: ReactNode;
 }
 
 const SECTION_EASE = [0.22, 1, 0.36, 1] as const;
 
-export function TranscriptWorkbench({
-  items,
-  onDelete,
-  emptyAction,
-}: TranscriptWorkbenchProps): ReactElement {
+export function TranscriptWorkbench({ items, onDelete }: TranscriptWorkbenchProps): ReactElement {
   const reducedMotion = useReducedMotion() ?? false;
 
   return (
@@ -53,16 +48,13 @@ export function TranscriptWorkbench({
           ))}
         </div>
       ) : (
-        <div className="px-5 py-8">
-          <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
-            <span className="memora-hint-dot inline-flex size-1.5 rounded-full bg-[var(--color-memora-olive-soft)]" />
-            Ready when you are
+        <div className="flex min-h-[16rem] items-center justify-center px-5 py-10">
+          <div className="space-y-3 text-center">
+            <p className="text-[1.95rem] leading-none text-[var(--color-memora-text-soft)]">
+              ฅ^•ﻌ•^ฅ
+            </p>
+            <p className="text-sm font-semibold text-memora-text">No content yet.</p>
           </div>
-          <p className="text-sm font-semibold text-memora-text">No transcripts yet.</p>
-          <p className="mt-1 text-sm leading-6 text-[#716c64]">
-            Start a live recording and it will appear here for quick review.
-          </p>
-          <div className="mt-4">{emptyAction}</div>
         </div>
       )}
     </motion.section>

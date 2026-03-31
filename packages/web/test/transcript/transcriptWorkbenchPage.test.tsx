@@ -36,14 +36,13 @@ test("renders a single dominant transcript workbench surface with a recent headi
       <TranscriptWorkbench
         items={[{ recording, state: getTranscriptHistoryRowState(recording) }]}
         onDelete={() => {}}
-        emptyAction={<button type="button">New live transcript</button>}
       />
     </MemoryRouter>,
   );
 
   expect(html).toContain('data-surface="transcript-workbench"');
   expect(html).toContain("Recent transcripts");
-  expect(html).toContain("Continue from saved recordings on this device.");
+  expect(html).toContain("Weekly research sync");
 });
 
 test("renders transcript history rows with detail links and structured content slots", () => {
@@ -67,29 +66,33 @@ test("renders transcript history rows with detail links and structured content s
   expect(html).toContain("A compact preview excerpt from the transcript.");
 });
 
-test("keeps the empty-state action inside the same workbench surface", () => {
+test("renders a centered cat empty state without a transcript action", () => {
   const html = renderToStaticMarkup(
     <MemoryRouter>
-      <TranscriptWorkbench
-        items={[]}
-        onDelete={() => {}}
-        emptyAction={<button type="button">New live transcript</button>}
-      />
+      <TranscriptWorkbench items={[]} onDelete={() => {}} />
     </MemoryRouter>,
   );
 
   expect(html).toContain('data-surface="transcript-workbench"');
-  expect(html).toContain("No transcripts yet.");
-  expect(html).toContain("New live transcript");
+  expect(html).toContain("ฅ^•ﻌ•^ฅ");
+  expect(html).toContain("No content yet.");
+  expect(html).not.toContain("New live transcript");
+  expect(html).toContain("text-center");
 });
 
 test("uses subtle motion primitives and quiet hover treatment instead of decorative hover animation", () => {
   const workbenchSource = readFileSync(
-    new URL("../../src/components/transcript/transcriptLanding/TranscriptWorkbench.tsx", import.meta.url),
+    new URL(
+      "../../src/components/transcript/transcriptLanding/TranscriptWorkbench.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
   const rowSource = readFileSync(
-    new URL("../../src/components/transcript/transcriptLanding/TranscriptHistoryRow.tsx", import.meta.url),
+    new URL(
+      "../../src/components/transcript/transcriptLanding/TranscriptHistoryRow.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
 
@@ -107,8 +110,8 @@ test("integrates TranscriptPage around a compact title bar, quiet utility rail, 
   );
 
   expect(pageSource).toContain("TranscriptWorkbench");
-  expect(pageSource).toContain("getTranscriptWorkbenchRailItems");
-  expect(pageSource).toContain('data-surface="transcript-utility-rail"');
+  expect(pageSource).toContain("getTranscriptHistoryRowState");
   expect(pageSource).toContain("New live transcript");
+  expect(pageSource).not.toContain("emptyAction=");
   expect(pageSource).not.toContain("RecordingsGrid");
 });

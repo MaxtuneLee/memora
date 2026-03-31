@@ -1,38 +1,47 @@
 import { useMemo } from "react";
 
+import {
+  SETTINGS_INSET_PANEL_CLASS_NAME,
+  SETTINGS_PANEL_CLASS_NAME,
+  SETTINGS_ROW_CLASS_NAME,
+  SETTINGS_SECTION_BODY_CLASS_NAME,
+} from "@/components/settings/settingsClassNames";
+import { cn } from "@/lib/cn";
 import { listBuiltInSkills } from "@/lib/skills/builtInSkills";
 
 export default function SettingsSkillsSection() {
   const skills = useMemo(() => listBuiltInSkills(), []);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {skills.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-6 text-sm text-zinc-500">
-          No built-in skills are bundled with this build.
-        </div>
+        <section className={SETTINGS_INSET_PANEL_CLASS_NAME}>
+          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No built-in skills are bundled with this build.</p>
+        </section>
       ) : (
-        <div className="space-y-3">
+        <section className={cn(SETTINGS_PANEL_CLASS_NAME, "space-y-2")}>
           {skills.map((skill) => (
-            <div key={skill.name} className="rounded-xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-zinc-900">{skill.name}</h4>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                      Built-in
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-zinc-600">{skill.description}</p>
-                </div>
-                <div className="rounded-full bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-500">
-                  {skill.resourceCount} resource
-                  {skill.resourceCount === 1 ? "" : "s"}
-                </div>
+            <div
+              key={skill.name}
+              className={cn(
+                SETTINGS_ROW_CLASS_NAME,
+                "flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
+                  {skill.name}
+                </h4>
+                <p className="mt-1 text-sm leading-6 text-[var(--color-memora-text-muted)]">
+                  {skill.description}
+                </p>
               </div>
+              <span className="shrink-0 text-xs text-[var(--color-memora-text-soft)]">
+                {skill.resourceCount} resource{skill.resourceCount === 1 ? "" : "s"}
+              </span>
             </div>
           ))}
-        </div>
+        </section>
       )}
     </div>
   );

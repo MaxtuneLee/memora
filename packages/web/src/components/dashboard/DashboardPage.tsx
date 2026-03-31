@@ -27,6 +27,7 @@ import {
   getPrimaryWidgetOrder,
   PRIMARY_WIDGET_GRID_CLASS,
 } from "@/components/dashboard/dashboardLayout";
+import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
 import { cn } from "@/lib/cn";
 import {
   AppMenu,
@@ -78,8 +79,6 @@ interface CalendarDay {
 
 const DASHBOARD_FONT_FAMILY = '"Inter", ui-sans-serif, sans-serif';
 const WIDGETS_STORAGE_KEY = "memora:dashboard:widgets";
-const WELCOME_TYPE_START_DELAY_MS = 140;
-const WELCOME_TYPE_INTERVAL_MS = 34;
 const DEFAULT_WIDGET_VISIBILITY: WidgetVisibility = {
   calendar: true,
   todo: true,
@@ -480,10 +479,6 @@ export const Component = (): ReactElement => {
   const [calendarOffset, setCalendarOffset] = useState(0);
   const [calendarDirection, setCalendarDirection] =
     useState<CalendarMotionDirection>(0);
-  const [typedWelcomeTitle, setTypedWelcomeTitle] = useState<string>(
-    DEFAULT_WELCOME_COPY.title,
-  );
-  const [hasTypedWelcomeTitle, setHasTypedWelcomeTitle] = useState(false);
   const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(
     () => readWidgetVisibility(),
   );
@@ -554,54 +549,6 @@ export const Component = (): ReactElement => {
     recentActivityCount,
   ]);
 
-  useEffect(() => {
-    if (!chatSessionsLoaded) {
-      setTypedWelcomeTitle(DEFAULT_WELCOME_COPY.title);
-      return;
-    }
-
-    if (reducedMotion) {
-      setTypedWelcomeTitle(welcomeCopy.title);
-      setHasTypedWelcomeTitle(true);
-      return;
-    }
-
-    if (hasTypedWelcomeTitle) {
-      setTypedWelcomeTitle(welcomeCopy.title);
-      return;
-    }
-
-    setTypedWelcomeTitle("");
-
-    let intervalId: number | undefined;
-    let characterIndex = 0;
-    const timeoutId = window.setTimeout(() => {
-      intervalId = window.setInterval(() => {
-        characterIndex += 1;
-        setTypedWelcomeTitle(welcomeCopy.title.slice(0, characterIndex));
-
-        if (characterIndex >= welcomeCopy.title.length) {
-          if (intervalId !== undefined) {
-            window.clearInterval(intervalId);
-          }
-          setHasTypedWelcomeTitle(true);
-        }
-      }, WELCOME_TYPE_INTERVAL_MS);
-    }, WELCOME_TYPE_START_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (intervalId !== undefined) {
-        window.clearInterval(intervalId);
-      }
-    };
-  }, [
-    chatSessionsLoaded,
-    hasTypedWelcomeTitle,
-    reducedMotion,
-    welcomeCopy.title,
-  ]);
-
   const visibleMonth = useMemo(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() + calendarOffset, 1);
@@ -620,11 +567,6 @@ export const Component = (): ReactElement => {
     widgetVisibility.calendar ||
     widgetVisibility.todo ||
     widgetVisibility.recent;
-  const showTypingCursor =
-    chatSessionsLoaded &&
-    !reducedMotion &&
-    !hasTypedWelcomeTitle &&
-    typedWelcomeTitle.length < welcomeCopy.title.length;
 
   const heroAnimations = reducedMotion
     ? {}
@@ -810,26 +752,12 @@ export const Component = (): ReactElement => {
       >
         <div className="pb-7 md:pb-8">
           <header className="border-b border-[#e9e5dc] pb-4">
-            <div className="flex flex-col gap-3">
-              <h1
-                className="text-[clamp(1.85rem,4.2vw,2.9rem)] leading-[1] font-semibold tracking-[-0.045em] text-[#22211d] sm:whitespace-nowrap"
-                aria-label={welcomeCopy.title}
-                style={{ fontFamily: "var(--font-serif)" }}
-              >
-                <span>{typedWelcomeTitle}</span>
-                {showTypingCursor ? (
-                  <span
-                    aria-hidden="true"
-                    className="ml-[0.08em] inline-block w-[0.65ch] animate-pulse text-[#8d907a]"
-                  >
-                    |
-                  </span>
-                ) : null}
-              </h1>
-              <p className=" text-sm leading-6 text-[#716c64] md:text-[15px]">
-                {welcomeCopy.description}
-              </p>
-            </div>
+            <DashboardWelcomeHeading
+              title={welcomeCopy.title}
+              description={welcomeCopy.description}
+              isReady={chatSessionsLoaded}
+              reducedMotion={reducedMotion}
+            />
           </header>
 
           <div className="mt-6">
@@ -913,9 +841,7 @@ export const Component = (): ReactElement => {
                   >
                     {primaryWidgetOrder.map((widget) => {
                       if (widget === "todo") {
-                        return (
-                          <TodoPanel key="todo" files={files} store={store} />
-                        );
+                        return <TodoPanel key="todo" files={files} store={store} />;
                       }
 
                       return calendarWidget;
