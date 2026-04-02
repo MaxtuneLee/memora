@@ -20,7 +20,7 @@
   --color-border-danger: rgba(185, 28, 28, 0.35);
   --color-border-success: rgba(4, 120, 87, 0.35);
   --color-border-warning: rgba(180, 83, 9, 0.35);
-  --font-sans: "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif;
+  --font-sans: "Noto Sans", "Noto Sans SC", sans-serif;
   --font-serif: "IBM Plex Serif", serif;
   --font-mono: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
   --svg-gray-fill: var(--color-background-secondary);

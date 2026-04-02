@@ -18,7 +18,7 @@ Use this skill before calling `show_widget`.
 
 - `art`: `sections/svg_setup.md`, `sections/art_and_illustration.md`
 - `mockup`: `sections/ui_components.md`, `sections/color_palette.md`
-- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`
+- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`
 - `chart`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/charts_chart_js.md`
 - `diagram`: `sections/color_palette.md`, `sections/svg_setup.md`, `sections/diagram_types.md`
 

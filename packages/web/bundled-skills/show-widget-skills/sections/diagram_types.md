@@ -43,7 +43,7 @@ Use `imagine_svg` for diagrams. The widget automatically wraps SVG output in a c
 | "how does a hash map work"                                 | **Illustrative** | Key falling through a funnel into one of N buckets.                                                       |
 | "draw the database schema" / "show me the ERD"             | **mermaid.js**   | `erDiagram` syntax. Not SVG.                                                                              |
 
-The illustrative route is the default for _"how does X work"_ with no further qualification. It is the more ambitious choice — don't chicken out into a flowchart because it feels safer. Claude draws these well.
+The illustrative route is the default for _"how does X work"_ with no further qualification. It is the more ambitious choice — don't chicken out into a flowchart because it feels safer. memora draws these well.
 
 Don't mix families in one diagram. If you need both, draw the intuition version first (build the mental model), then the reference version (fill in the precise labels) as a second tool call with prose between.
 
@@ -213,11 +213,11 @@ Use `imagine_html` for ERDs. Import and initialize in a `<script type="module">`
   mermaid.initialize({
     startOnLoad: false,
     theme: "base",
-    fontFamily: '"Anthropic Sans", sans-serif',
+    fontFamily: '"Noto Sans", "Noto Sans SC", sans-serif',
     themeVariables: {
       darkMode: dark,
       fontSize: "13px",
-      fontFamily: '"Anthropic Sans", sans-serif',
+      fontFamily: '"Noto Sans", "Noto Sans SC", sans-serif',
       lineColor: dark ? "#9c9a92" : "#73726c",
       textColor: dark ? "#c2c0b6" : "#3d3d3a",
     },
@@ -277,7 +277,7 @@ For building _intuition_. The subject might be physical (an engine, a lung) or c
 - **Physical subjects** get drawn as simplified versions of themselves. Cross-sections, cutaways, schematics. A water heater is a tank with a burner underneath. A lung is a branching tree in a cavity. You're drawing _the thing_, stylised.
 - **Abstract subjects** get drawn as _spatial metaphors_. You're inventing a shape for something that doesn't have one — but the shape should make the mechanism obvious. A transformer is a stack of horizontal slabs with a bright thread of attention connecting tokens across layers. A hash function is a funnel scattering items into a row of buckets. The call stack is literally a stack of frames growing and shrinking. Embeddings are dots clustering in space. The metaphor _is_ the explanation.
 
-This is the most ambitious diagram type and the one Claude is best at. Lean into it. Use colour for intensity (a hot attention weight glows amber, a cold one stays gray). Use repetition for scale (many small circles = many parameters).
+This is the most ambitious diagram type and the one memora is best at. Lean into it. Use colour for intensity (a hot attention weight glows amber, a cold one stays gray). Use repetition for scale (many small circles = many parameters).
 
 **Prefer interactive over static.** A static cross-section is a good answer; a cross-section you can _operate_ is a great one. The decision rule: if the real-world system has a control, give the diagram that control. A water heater has a thermostat — so give the user a slider that shifts the hot/cold boundary, a toggle that fires the burner and animates convection currents. An LLM has input tokens — let the user click one and watch the attention weights re-fan. A cache has a hit rate — let them drag it and watch latency change. Reach for `imagine_html` with inline SVG first; only fall back to static `imagine_svg` when there's genuinely nothing to twiddle.
 

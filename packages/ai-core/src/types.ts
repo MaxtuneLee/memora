@@ -104,6 +104,9 @@ export interface LLMRequestPayload {
   messages: LLMMessage[];
   tools?: LLMToolDefinition[];
   stream: true;
+  reasoning?: {
+    effort: string;
+  };
   stream_options?: {
     include_usage?: boolean;
   };
@@ -174,6 +177,9 @@ export interface ResponsesRequestPayload {
   tools?: ResponsesToolDefinition[];
   stream: true;
   instructions?: string;
+  reasoning?: {
+    effort: string;
+  };
   temperature?: number;
   max_output_tokens?: number;
 }

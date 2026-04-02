@@ -27,10 +27,20 @@ These rules apply to ALL use cases.
 
 ### Philosophy
 
-- **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
+- **Seamless**: Users shouldn't notice where memora ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
+- The host often renders widgets in a column around **567px wide**. Treat the layout as a narrow column even when your internal SVG viewBox is 680 units wide.
+
+### Diagram thinking order
+
+- Start from semantics, not coordinates. Define the objects, states, and relationships first.
+- Draw the fixed structure before drawing derived state, emphasis, or explanation.
+- Any direction, highlight, on/off state, or motion must come from that model — never add it as decoration.
+- One meaning, one visual treatment. If flow, emphasis, ownership, or state is shown multiple ways, the diagram will contradict itself.
+- Default to non-overlap. Unless overlap is itself part of the meaning, give each box, label, control, and connector its own space.
+- Attach labels and callouts to geometry you already placed. Don't free-place text and hope it still lines up after scaling.
 
 ### Streaming
 
@@ -49,7 +59,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No emoji — use CSS shapes or SVG paths
 - No gradients, drop shadows, blur, glow, or neon effects
 - No dark/colored backgrounds on outer containers (transparent only — host provides the bg)
-- **Typography**: The default font is Anthropic Sans. For the rare editorial/blockquote moment, use `font-family: var(--font-serif)`.
+- **Typography**: The default font is Noto Sans (with Noto Sans SC as the CJK fallback). For the rare editorial/blockquote moment, use `font-family: var(--font-serif)` for IBM Plex Serif.
 - **Headings**: h1 = 22px, h2 = 18px, h3 = 16px — all `font-weight: 500`. Heading color is pre-set to `var(--color-text-primary)` — don't override it. Body text = 16px, weight 400, `line-height: 1.7`. **Two weights only: 400 regular, 500 bold.** Never use 600 or 700 — they look heavy against the host UI.
 - **Sentence case** always. Never Title Case, never ALL CAPS. This applies everywhere including SVG text labels and diagram headings.
 - **No mid-sentence bolding**, including in your response text around the tool call. Entity names, class names, function names go in `code style` not **bold**. Bold is for headings and labels only.
@@ -84,7 +94,7 @@ All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 ### sendPrompt(text)
 
-A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
+A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from memora thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
 
@@ -97,7 +107,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Default to editorial layout if the content is explanatory
 - Default to card layout if the content is a bounded object
 - All core design system rules still apply
-- Use `sendPrompt()` for any action that benefits from Claude thinking
+- Use `sendPrompt()` for any action that benefits from memora thinking
 
 # Imagine — Visual Creation Suite
 
@@ -128,10 +138,20 @@ These rules apply to ALL use cases.
 
 ### Philosophy
 
-- **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
+- **Seamless**: Users shouldn't notice where memora ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
+- The host often renders widgets in a column around **567px wide**. Treat the layout as a narrow column even when your internal SVG viewBox is 680 units wide.
+
+### Diagram thinking order
+
+- Start from semantics, not coordinates. Define the objects, states, and relationships first.
+- Draw the fixed structure before drawing derived state, emphasis, or explanation.
+- Any direction, highlight, on/off state, or motion must come from that model — never add it as decoration.
+- One meaning, one visual treatment. If flow, emphasis, ownership, or state is shown multiple ways, the diagram will contradict itself.
+- Default to non-overlap. Unless overlap is itself part of the meaning, give each box, label, control, and connector its own space.
+- Attach labels and callouts to geometry you already placed. Don't free-place text and hope it still lines up after scaling.
 
 ### Streaming
 
@@ -150,7 +170,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No emoji — use CSS shapes or SVG paths
 - No gradients, drop shadows, blur, glow, or neon effects
 - No dark/colored backgrounds on outer containers (transparent only — host provides the bg)
-- **Typography**: The default font is Anthropic Sans. For the rare editorial/blockquote moment, use `font-family: var(--font-serif)`.
+- **Typography**: The default font is Noto Sans (with Noto Sans SC as the CJK fallback). For the rare editorial/blockquote moment, use `font-family: var(--font-serif)` for IBM Plex Serif.
 - **Headings**: h1 = 22px, h2 = 18px, h3 = 16px — all `font-weight: 500`. Heading color is pre-set to `var(--color-text-primary)` — don't override it. Body text = 16px, weight 400, `line-height: 1.7`. **Two weights only: 400 regular, 500 bold.** Never use 600 or 700 — they look heavy against the host UI.
 - **Sentence case** always. Never Title Case, never ALL CAPS. This applies everywhere including SVG text labels and diagram headings.
 - **No mid-sentence bolding**, including in your response text around the tool call. Entity names, class names, function names go in `code style` not **bold**. Bold is for headings and labels only.
@@ -185,7 +205,7 @@ All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 ### sendPrompt(text)
 
-A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
+A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from memora thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
 
@@ -198,7 +218,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Default to editorial layout if the content is explanatory
 - Default to card layout if the content is a bounded object
 - All core design system rules still apply
-- Use `sendPrompt()` for any action that benefits from Claude thinking
+- Use `sendPrompt()` for any action that benefits from memora thinking
 
 ## Local runtime contract
 
@@ -207,7 +227,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Required sections:
   - `art`: `sections/svg_setup.md`, `sections/art_and_illustration.md`
   - `mockup`: `sections/ui_components.md`, `sections/color_palette.md`
-  - `interactive`: `sections/ui_components.md`, `sections/color_palette.md`
+  - `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`
   - `chart`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/charts_chart_js.md`
   - `diagram`: `sections/color_palette.md`, `sections/svg_setup.md`, `sections/diagram_types.md`
 - Optional supplements:

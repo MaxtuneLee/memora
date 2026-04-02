@@ -27,7 +27,7 @@ These rules apply to ALL use cases.
 
 ### Philosophy
 
-- **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
+- **Seamless**: Users shouldn't notice where memora ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
@@ -49,7 +49,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No emoji — use CSS shapes or SVG paths
 - No gradients, drop shadows, blur, glow, or neon effects
 - No dark/colored backgrounds on outer containers (transparent only — host provides the bg)
-- **Typography**: The default font is Anthropic Sans. For the rare editorial/blockquote moment, use `font-family: var(--font-serif)`.
+- **Typography**: The default font is Noto Sans (with Noto Sans SC as the CJK fallback). For the rare editorial/blockquote moment, use `font-family: var(--font-serif)` for IBM Plex Serif.
 - **Headings**: h1 = 22px, h2 = 18px, h3 = 16px — all `font-weight: 500`. Heading color is pre-set to `var(--color-text-primary)` — don't override it. Body text = 16px, weight 400, `line-height: 1.7`. **Two weights only: 400 regular, 500 bold.** Never use 600 or 700 — they look heavy against the host UI.
 - **Sentence case** always. Never Title Case, never ALL CAPS. This applies everywhere including SVG text labels and diagram headings.
 - **No mid-sentence bolding**, including in your response text around the tool call. Entity names, class names, function names go in `code style` not **bold**. Bold is for headings and labels only.
@@ -84,7 +84,7 @@ All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 ### sendPrompt(text)
 
-A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
+A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from memora thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
 
@@ -97,7 +97,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Default to editorial layout if the content is explanatory
 - Default to card layout if the content is a bounded object
 - All core design system rules still apply
-- Use `sendPrompt()` for any action that benefits from Claude thinking
+- Use `sendPrompt()` for any action that benefits from memora thinking
 
 ## Color palette
 
@@ -146,7 +146,7 @@ For status/semantic meaning in UI (success, warning, danger) use CSS variables. 
 
 **SVG setup**: `<svg width="100%" viewBox="0 0 680 H">` — 680px wide, flexible height. Set H to fit content tightly — the last element's bottom edge + 40px padding. Don't leave excess empty space below the content. Safe area: x=40 to x=640, y=40 to y=(H-40). Background transparent. **Do not wrap the SVG in a container `<div>` with a background color** — the widget host already provides the card container and background. Output the raw `<svg>` element directly.
 
-**The 680 in viewBox is load-bearing — do not change it.** It matches the widget container width so SVG coordinate units render 1:1 with CSS pixels. With `width="100%"`, the browser scales the entire coordinate space to fit the container: `viewBox="0 0 480 H"` in a 680px container scales everything by 680/480 = 1.42×, so your `class="th"` 14px text renders at ~20px. The font calibration table below and all "text fits in box" math assume 1:1. If your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) — do not shrink the viewBox to hug the content. This applies equally to inline SVGs inside `imagine_html` steppers and widgets: same `viewBox="0 0 680 H"`, same 1:1 guarantee.
+**The 680 in viewBox is load-bearing — do not change it.** It is the canonical layout grid for this skill, not a promise that the host will render at 1:1 CSS pixels. The chat column is responsive, so the browser may scale the SVG up or down to fit the available width. Treat the text-width table below as a close planning guide, not a pixel-perfect guarantee. Keep generous horizontal padding, avoid edge-hugging labels, and if your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) instead of shrinking the viewBox to hug the content.
 
 **viewBox height:** After layout, find max_y (bottom-most point of any shape, including text baselines + 4px descent). Set viewBox height = max_y + 20. Don't guess.
 
@@ -162,15 +162,15 @@ For status/semantic meaning in UI (success, warning, danger) use CSS variables. 
 - No icons or illustrations inside boxes — text only. (Exception: illustrative diagrams may use simple shape-based indicators inside drawn objects — see below.)
 - Sentence case on all labels.
 
-**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Anthropic Sans font rendering width:
+**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Noto Sans font rendering width:
 
 ```csv
 text, chars length, font-weight, font-size, rendered width
-Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 167px
-Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 201px
-Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 279px
-forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 123px
-データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 181px
+Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 151px
+Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 175px
+Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 253px
+forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 111px
+データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 168px
 ```
 
 Before placing text in a box, check: does (text width + 2×padding) fit the container?
@@ -256,7 +256,7 @@ Use `imagine_svg` for diagrams. The widget automatically wraps SVG output in a c
 | "how does a hash map work"                                 | **Illustrative** | Key falling through a funnel into one of N buckets.                                                       |
 | "draw the database schema" / "show me the ERD"             | **mermaid.js**   | `erDiagram` syntax. Not SVG.                                                                              |
 
-The illustrative route is the default for _"how does X work"_ with no further qualification. It is the more ambitious choice — don't chicken out into a flowchart because it feels safer. Claude draws these well.
+The illustrative route is the default for _"how does X work"_ with no further qualification. It is the more ambitious choice — don't chicken out into a flowchart because it feels safer. memora draws these well.
 
 Don't mix families in one diagram. If you need both, draw the intuition version first (build the mental model), then the reference version (fill in the precise labels) as a second tool call with prose between.
 
@@ -426,11 +426,11 @@ Use `imagine_html` for ERDs. Import and initialize in a `<script type="module">`
   mermaid.initialize({
     startOnLoad: false,
     theme: "base",
-    fontFamily: '"Anthropic Sans", sans-serif',
+    fontFamily: '"Noto Sans", "Noto Sans SC", sans-serif',
     themeVariables: {
       darkMode: dark,
       fontSize: "13px",
-      fontFamily: '"Anthropic Sans", sans-serif',
+      fontFamily: '"Noto Sans", "Noto Sans SC", sans-serif',
       lineColor: dark ? "#9c9a92" : "#73726c",
       textColor: dark ? "#c2c0b6" : "#3d3d3a",
     },
@@ -490,7 +490,7 @@ For building _intuition_. The subject might be physical (an engine, a lung) or c
 - **Physical subjects** get drawn as simplified versions of themselves. Cross-sections, cutaways, schematics. A water heater is a tank with a burner underneath. A lung is a branching tree in a cavity. You're drawing _the thing_, stylised.
 - **Abstract subjects** get drawn as _spatial metaphors_. You're inventing a shape for something that doesn't have one — but the shape should make the mechanism obvious. A transformer is a stack of horizontal slabs with a bright thread of attention connecting tokens across layers. A hash function is a funnel scattering items into a row of buckets. The call stack is literally a stack of frames growing and shrinking. Embeddings are dots clustering in space. The metaphor _is_ the explanation.
 
-This is the most ambitious diagram type and the one Claude is best at. Lean into it. Use colour for intensity (a hot attention weight glows amber, a cold one stays gray). Use repetition for scale (many small circles = many parameters).
+This is the most ambitious diagram type and the one memora is best at. Lean into it. Use colour for intensity (a hot attention weight glows amber, a cold one stays gray). Use repetition for scale (many small circles = many parameters).
 
 **Prefer interactive over static.** A static cross-section is a good answer; a cross-section you can _operate_ is a great one. The decision rule: if the real-world system has a control, give the diagram that control. A water heater has a thermostat — so give the user a slider that shifts the hot/cold boundary, a toggle that fires the burner and animates convection currents. An LLM has input tokens — let the user click one and watch the attention weights re-fan. A cache has a hit rate — let them drag it and watch latency change. Reach for `imagine_html` with inline SVG first; only fall back to static `imagine_svg` when there's genuinely nothing to twiddle.
 
