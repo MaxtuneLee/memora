@@ -65,6 +65,9 @@ const trimContext = (messages: AgentMessage[], maxChars: number): AgentMessage[]
 
 const PERSONALITY_MEMORY_KEY = "personality";
 const NOTICES_MEMORY_KEY = "notices";
+const DEFAULT_REASONING = {
+  effort: "none",
+} as const;
 
 interface MemoryNotice {
   text: string;
@@ -393,6 +396,7 @@ export class Agent {
         model: this.config.model,
         input: inputItems,
         stream: true,
+        reasoning: DEFAULT_REASONING,
         ...(finalSystemPrompt ? { instructions: finalSystemPrompt } : {}),
         ...(allTools.length > 0 ? { tools: allTools } : {}),
         ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
@@ -418,6 +422,7 @@ export class Agent {
         model: this.config.model,
         messages: llmMessages,
         stream: true,
+        reasoning: DEFAULT_REASONING,
         stream_options: {
           include_usage: true,
         },

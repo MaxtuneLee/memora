@@ -27,7 +27,7 @@ These rules apply to ALL use cases.
 
 ### Philosophy
 
-- **Seamless**: Users shouldn't notice where claude.ai ends and your widget begins.
+- **Seamless**: Users shouldn't notice where memora ends and your widget begins.
 - **Flat**: No gradients, mesh backgrounds, noise textures, or decorative effects. Clean flat surfaces.
 - **Compact**: Show the essential inline. Explain the rest in text.
 - **Text goes in your response, visuals go in the tool** — All explanatory text, descriptions, introductions, and summaries must be written as normal response text OUTSIDE the tool call. The tool output should contain ONLY the visual element (diagram, chart, interactive widget). Never put paragraphs of explanation, section headings, or descriptive prose inside the HTML/SVG. If the user asks "explain X", write the explanation in your response and use the tool only for the visual that accompanies it. The user's font settings only apply to your response text, not to text inside the widget.
@@ -49,7 +49,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No emoji — use CSS shapes or SVG paths
 - No gradients, drop shadows, blur, glow, or neon effects
 - No dark/colored backgrounds on outer containers (transparent only — host provides the bg)
-- **Typography**: The default font is Anthropic Sans. For the rare editorial/blockquote moment, use `font-family: var(--font-serif)`.
+- **Typography**: The default font is Noto Sans (with Noto Sans SC as the CJK fallback). For the rare editorial/blockquote moment, use `font-family: var(--font-serif)` for IBM Plex Serif.
 - **Headings**: h1 = 22px, h2 = 18px, h3 = 16px — all `font-weight: 500`. Heading color is pre-set to `var(--color-text-primary)` — don't override it. Body text = 16px, weight 400, `line-height: 1.7`. **Two weights only: 400 regular, 500 bold.** Never use 600 or 700 — they look heavy against the host UI.
 - **Sentence case** always. Never Title Case, never ALL CAPS. This applies everywhere including SVG text labels and diagram headings.
 - **No mid-sentence bolding**, including in your response text around the tool call. Entity names, class names, function names go in `code style` not **bold**. Bold is for headings and labels only.
@@ -84,7 +84,7 @@ All auto-adapt to light/dark mode. For custom colors in HTML, use CSS variables.
 
 ### sendPrompt(text)
 
-A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from Claude thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
+A global function that sends a message to chat as if the user typed it. Use it when the user's next step benefits from memora thinking. Handle filtering, sorting, toggling, and calculations in JS instead.
 
 ### Links
 
@@ -97,7 +97,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - Default to editorial layout if the content is explanatory
 - Default to card layout if the content is a bounded object
 - All core design system rules still apply
-- Use `sendPrompt()` for any action that benefits from Claude thinking
+- Use `sendPrompt()` for any action that benefits from memora thinking
 
 ## SVG setup
 
@@ -112,7 +112,7 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 
 **SVG setup**: `<svg width="100%" viewBox="0 0 680 H">` — 680px wide, flexible height. Set H to fit content tightly — the last element's bottom edge + 40px padding. Don't leave excess empty space below the content. Safe area: x=40 to x=640, y=40 to y=(H-40). Background transparent. **Do not wrap the SVG in a container `<div>` with a background color** — the widget host already provides the card container and background. Output the raw `<svg>` element directly.
 
-**The 680 in viewBox is load-bearing — do not change it.** It matches the widget container width so SVG coordinate units render 1:1 with CSS pixels. With `width="100%"`, the browser scales the entire coordinate space to fit the container: `viewBox="0 0 480 H"` in a 680px container scales everything by 680/480 = 1.42×, so your `class="th"` 14px text renders at ~20px. The font calibration table below and all "text fits in box" math assume 1:1. If your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) — do not shrink the viewBox to hug the content. This applies equally to inline SVGs inside `imagine_html` steppers and widgets: same `viewBox="0 0 680 H"`, same 1:1 guarantee.
+**The 680 in viewBox is load-bearing — do not change it.** It is the canonical layout grid for this skill, not a promise that the host will render at 1:1 CSS pixels. The chat column is responsive, so the browser may scale the SVG up or down to fit the available width. Treat the text-width table below as a close planning guide, not a pixel-perfect guarantee. Keep generous horizontal padding, avoid edge-hugging labels, and if your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) instead of shrinking the viewBox to hug the content.
 
 **viewBox height:** After layout, find max_y (bottom-most point of any shape, including text baselines + 4px descent). Set viewBox height = max_y + 20. Don't guess.
 
@@ -128,15 +128,15 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - No icons or illustrations inside boxes — text only. (Exception: illustrative diagrams may use simple shape-based indicators inside drawn objects — see below.)
 - Sentence case on all labels.
 
-**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Anthropic Sans font rendering width:
+**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Noto Sans font rendering width:
 
 ```csv
 text, chars length, font-weight, font-size, rendered width
-Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 167px
-Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 201px
-Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 279px
-forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 123px
-データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 181px
+Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 151px
+Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 175px
+Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 253px
+forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 111px
+データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 168px
 ```
 
 Before placing text in a box, check: does (text width + 2×padding) fit the container?
@@ -195,14 +195,14 @@ Use `imagine_svg`. Same technical rules (viewBox, safe area) but the aesthetic i
 
 ### Aesthetic
 
-Flat, clean, white surfaces. Minimal 0.5px borders. Generous whitespace. No gradients, no shadows (except functional focus rings). Everything should feel native to claude.ai — like it belongs on the page, not embedded from somewhere else.
+Flat, clean, white surfaces. Minimal 0.5px borders. Generous whitespace. No gradients, no shadows (except functional focus rings). Everything should feel native to memora — like it belongs on the page, not embedded from somewhere else.
 
 ### Tokens
 
 - Borders: always `0.5px solid var(--color-border-tertiary)` (or `-secondary` for emphasis)
 - Corner radius: `var(--border-radius-md)` for most elements, `var(--border-radius-lg)` for cards
 - Cards: white bg (`var(--color-background-primary)`), 0.5px border, radius-lg, padding 1rem 1.25rem
-- Form elements (input, select, textarea, button, range slider) are pre-styled — write bare tags. Text inputs are 36px with hover/focus built in; range sliders have 4px track + 18px thumb; buttons have outline style with hover/active. Only add inline styles to override (e.g., different width).
+- Form elements (input, select, textarea, button, range slider) are pre-styled — write bare tags. Text inputs are 36px with hover/focus built in; range sliders have 6px track + 16px thumb; buttons have outline style with hover/active. Only add inline styles to override (e.g., different width).
 - Buttons: pre-styled with transparent bg, 0.5px border-secondary, hover bg-secondary, active scale(0.98). If it triggers sendPrompt, append a ↗ arrow.
 - **Round every displayed number.** JS float math leaks artifacts — `0.1 + 0.2` gives `0.30000000000000004`, `7 * 1.1` gives `7.700000000000001`. Any number that reaches the screen (slider readouts, stat card values, axis labels, data-point labels, tooltips, computed totals) must go through `Math.round()`, `.toFixed(n)`, or `Intl.NumberFormat`. Pick the precision that makes sense for the context — integers for counts, 1–2 decimals for percentages, `toLocaleString()` for currency. For range sliders, also set `step="1"` (or step="0.1" etc.) so the input itself emits round values.
 - Spacing: use rem for vertical rhythm (1rem, 1.5rem, 2rem), px for component-internal gaps (8px, 12px, 16px)

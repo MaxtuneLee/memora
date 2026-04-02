@@ -1,4 +1,5 @@
 import widgetBaseCss from "@/styles/widgetBase.css?raw";
+import svgCss from "@/styles/svg.css?raw";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 
 export const IS_DEV = import.meta.env.DEV;
@@ -6,7 +7,7 @@ export const WIDGET_BRIDGE_KEY = "__MEMORA_WIDGET_BRIDGE__";
 export const WIDGET_CLEANUP_KEY = "__MEMORA_WIDGET_CLEANUP__";
 export const WIDGET_ERROR_KEY = "__MEMORA_WIDGET_ERROR__";
 export const WIDGET_SCRIPT_ATTR = "data-widget-runtime-script";
-export const WIDGET_IFRAME_SRC_DOC = `<!doctype html><html><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style data-widget-user-style></style></head><body><div data-widget-content></div></body></html>`;
+export const WIDGET_IFRAME_SRC_DOC = `<!doctype html><html><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style data-widget-user-style></style></head><body><div data-widget-content></div></body></html>`;
 
 export interface WidgetIframeWindow extends Window {
   [WIDGET_BRIDGE_KEY]?: {

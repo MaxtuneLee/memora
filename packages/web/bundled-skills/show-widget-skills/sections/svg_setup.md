@@ -8,10 +8,13 @@
 4. For text with text-anchor="end", the text extends LEFT from x. If x=118 and text is 200px wide, it starts at x=-82 — outside the viewBox. Increase x or use text-anchor="start".
 5. Never use negative x or y coordinates. The viewBox starts at 0,0.
 6. Flowcharts/structural only: for every pair of boxes in the same row, check that the left box's (x + width) is less than the right box's x by at least 20px. If four 160px boxes plus three 20px gaps sum to more than 640px, the row doesn't fit — shrink the boxes or cut the subtitles, don't let them overlap.
+7. Default to non-overlap: boxes, labels, controls, and connectors each need their own clear space. If a connector would cross a box or a label would sit on a line, reroute or relayout instead of covering it.
 
 **SVG setup**: `<svg width="100%" viewBox="0 0 680 H">` — 680px wide, flexible height. Set H to fit content tightly — the last element's bottom edge + 40px padding. Don't leave excess empty space below the content. Safe area: x=40 to x=640, y=40 to y=(H-40). Background transparent. **Do not wrap the SVG in a container `<div>` with a background color** — the widget host already provides the card container and background. Output the raw `<svg>` element directly.
 
-**The 680 in viewBox is load-bearing — do not change it.** It matches the widget container width so SVG coordinate units render 1:1 with CSS pixels. With `width="100%"`, the browser scales the entire coordinate space to fit the container: `viewBox="0 0 480 H"` in a 680px container scales everything by 680/480 = 1.42×, so your `class="th"` 14px text renders at ~20px. The font calibration table below and all "text fits in box" math assume 1:1. If your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) — do not shrink the viewBox to hug the content. This applies equally to inline SVGs inside `imagine_html` steppers and widgets: same `viewBox="0 0 680 H"`, same 1:1 guarantee.
+**The 680 in viewBox is load-bearing — do not change it.** It is the canonical layout grid for this skill, not a promise that the host will render at 1:1 CSS pixels. In practice the chat column often renders closer to **567px wide**, so think in terms of a **narrow column**, not a roomy canvas. Treat the text-width table below as a close planning guide, not a pixel-perfect guarantee. Keep generous horizontal padding, avoid edge-hugging labels, and if your diagram content is naturally narrow, **keep viewBox width at 680 and center the content** (e.g. content spans x=180..500) instead of shrinking the viewBox to hug the content.
+
+**Width budgeting is mandatory.** Before finalizing, split the graphic into horizontal bands (main diagram, side labels, legend, caption, controls) and check each band's right edge independently. A diagram that fits can still fail because a caption or legend line blows past the safe width.
 
 **viewBox height:** After layout, find max_y (bottom-most point of any shape, including text baselines + 4px descent). Set viewBox height = max_y + 20. Don't guess.
 
@@ -27,15 +30,15 @@
 - No icons or illustrations inside boxes — text only. (Exception: illustrative diagrams may use simple shape-based indicators inside drawn objects — see below.)
 - Sentence case on all labels.
 
-**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Anthropic Sans font rendering width:
+**Font size calibration for diagram text labels** - Here's csv table to give you better sense of the Noto Sans font rendering width:
 
 ```csv
 text, chars length, font-weight, font-size, rendered width
-Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 167px
-Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 201px
-Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 279px
-forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 123px
-データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 181px
+Authentication Service, chars: 22, font-weight: 500, font-size: 14px, width: 151px
+Background Job Processor, chars: 24, font-weight: 500, font-size: 14px, width: 175px
+Detects and validates incoming tokens, chars: 37, font-weight: 400, font-size: 14px, width: 253px
+forwards request to, chars: 19, font-weight: 400, font-size: 12px, width: 111px
+データベースサーバー接続, chars: 12, font-weight: 400, font-size: 14px, width: 168px
 ```
 
 Before placing text in a box, check: does (text width + 2×padding) fit the container?
@@ -61,6 +64,10 @@ Before placing text in a box, check: does (text width + 2×padding) fit the cont
   Then use `marker-end="url(#arrow)"` on lines. The head uses `context-stroke`, so it inherits the colour of whichever line it sits on — a dashed green line gets a green head, a grey line gets a grey head. Never a colour mismatch. Do not add filters, patterns, or extra markers to `<defs>`. Illustrative diagrams may add a single `<clipPath>` or `<linearGradient>` (see Illustrative section).
 
 **Minimize standalone labels.** Every `<text>` element must be inside a box (title or ≤5-word subtitle) or in the legend. Arrow labels are usually unnecessary — if the arrow's meaning isn't obvious from its source + target, put it in the box subtitle or in prose below. Labels floating in space collide with things and are ambiguous.
+
+**Long explanatory text does not belong in SVG.** If a caption, footer sentence, or legend entry wants most of the row, move it to the response text, shorten it, or break it into multiple lines. Do not let one long text node determine the diagram width.
+
+**Do not use overlap as a layout tool.** If two boxes, a label and a line, or a control and a chart are fighting for the same area, the layout is wrong. Add spacing, reroute the connector, split the diagram, or move the annotation into a margin.
 
 **Stroke width:** Use 0.5px strokes for diagram borders and edges — not 1px or 2px. Thin strokes feel more refined.
 
