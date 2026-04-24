@@ -1,4 +1,4 @@
-import type { AgentEvent, TokenUsage, WebSearchStatus } from "./types";
+import type { ProviderEvent, TokenUsage, WebSearchStatus } from "@memora/ai-core";
 
 // ─── Chat Completions SSE types ───
 
@@ -139,7 +139,7 @@ const extractReasoningText = (delta: SSEChunkDelta): string | undefined => {
   return reasoningDetails || undefined;
 };
 
-export async function* parseSSEStream(response: Response): AsyncGenerator<AgentEvent> {
+export async function* parseSSEStream(response: Response): AsyncGenerator<ProviderEvent> {
   if (!response.body) {
     throw new Error("Response body is null");
   }
@@ -151,7 +151,7 @@ export async function* parseSSEStream(response: Response): AsyncGenerator<AgentE
   let reasoningText = "";
   const pendingToolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
-  const flushReasoning = (): AgentEvent[] => {
+  const flushReasoning = (): ProviderEvent[] => {
     if (!reasoningText) {
       return [];
     }
@@ -161,8 +161,8 @@ export async function* parseSSEStream(response: Response): AsyncGenerator<AgentE
     return [{ type: "reasoning-done", text }];
   };
 
-  const finalizePendingToolCalls = (): AgentEvent[] => {
-    const events: AgentEvent[] = [];
+  const finalizePendingToolCalls = (): ProviderEvent[] => {
+    const events: ProviderEvent[] = [];
 
     for (const [idx, tc] of pendingToolCalls) {
       let parsedArgs: Record<string, unknown> = {};
@@ -337,7 +337,7 @@ async function* readSSELines(response: Response): AsyncGenerator<string> {
   }
 }
 
-export async function* parseResponsesStream(response: Response): AsyncGenerator<AgentEvent> {
+export async function* parseResponsesStream(response: Response): AsyncGenerator<ProviderEvent> {
   const pendingFunctionCalls = new Map<
     string,
     { itemId: string; callId: string; name: string; arguments: string }
@@ -462,12 +462,7 @@ export async function* parseResponsesStream(response: Response): AsyncGenerator<
             };
           }
         } else {
-          yield {
-            type: "output-item-added",
-            itemType,
-            itemId,
-            item: (event.item ?? {}) as Record<string, unknown>,
-          };
+          // Provider transport item events stay internal.
         }
         break;
       }
@@ -516,12 +511,7 @@ export async function* parseResponsesStream(response: Response): AsyncGenerator<
             pendingFunctionCallItemIds.delete(itemId);
           }
         } else {
-          yield {
-            type: "output-item-done",
-            itemType,
-            itemId,
-            item: (event.item ?? {}) as Record<string, unknown>,
-          };
+          // Provider transport item events stay internal.
         }
         break;
       }

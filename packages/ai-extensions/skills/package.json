@@ -1,5 +1,5 @@
 {
-  "name": "@memora/ai-core",
+  "name": "@memora/ai-extension-skills",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,12 +17,14 @@
   ],
   "scripts": {
     "build": "vp pack",
-    "dev": "vp pack --watch",
-    "test": "node --test test/*.test.mjs"
+    "dev": "vp pack --watch"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
     "vite-plus": "catalog:"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@memora/ai-core": "workspace:*",
+    "valibot": "^1.2.0"
+  }
 }

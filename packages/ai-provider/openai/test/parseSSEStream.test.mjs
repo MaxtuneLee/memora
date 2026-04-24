@@ -137,6 +137,11 @@ test("flushes reasoning before tool calls", async () => {
     { type: "reasoning-done", text: "先分析" },
     { type: "tool-call-start", toolCall: { id: "call_1", name: "search_docs" } },
     {
+      type: "tool-call-args-delta",
+      toolCallId: "call_1",
+      delta: '{"query":"memora"}',
+    },
+    {
       type: "tool-call-complete",
       toolCall: {
         id: "call_1",

@@ -1,4 +1,4 @@
-import type { SkillStore } from "@memora/ai-core";
+import type { SkillStore } from "@memora/ai-extension-skills";
 import { Allow, parse as parsePartialJson } from "partial-json";
 
 export const SHOW_WIDGET_TOOL_NAME = "show_widget";

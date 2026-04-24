@@ -10,7 +10,9 @@
     "test:web": "pnpm --filter @memora/web test",
     "build:ai-core": "pnpm --filter @memora/ai-core build",
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
-    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:fs\" & \"pnpm build:web\""
+    "build:fs": "pnpm --filter @memora/fs build",
+    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:fs\" & pnpm build:web",
+    "preview": "pnpm --filter @memora/web preview"
   },
   "keywords": [],
   "author": "",

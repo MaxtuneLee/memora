@@ -5,6 +5,7 @@ import {
   type Agent,
   type AgentConfig,
   type TokenUsage,
+  type ToolDefinition,
 } from "@memora/ai-core";
 
 import { createAgentEventHandler } from "@/hooks/chat/useAgent/createAgentEventHandler";
@@ -49,6 +50,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   const initializedRef = useRef(false);
   const thinkingStepsRef = useRef<ThinkingStep[]>([]);
   const agentSignatureRef = useRef("");
+  const providerRef = useRef(options.provider);
   const initialMessagesRef = useRef<ChatMessage[]>(options.initialMessages ?? []);
   const updateMessageById = useCallback(
     (messageId: string, updater: (message: ChatMessage) => ChatMessage) => {
@@ -94,16 +96,16 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   }, [options.sessionId, widgetBuffer]);
 
   const getAgent = useCallback(async (): Promise<Agent> => {
-    const signature = [
-      options.sessionId,
-      options.config.id ?? "",
-      options.config.endpoint ?? "",
-      options.config.model ?? "",
-      options.config.apiFormat ?? "",
-      options.config.apiKey ?? "",
-    ].join("::");
+    const signature = [options.sessionId, options.config.id ?? "", options.config.model ?? ""].join(
+      "::",
+    );
 
-    if (agentRef.current && initializedRef.current && agentSignatureRef.current === signature) {
+    if (
+      agentRef.current &&
+      initializedRef.current &&
+      agentSignatureRef.current === signature &&
+      providerRef.current === options.provider
+    ) {
       return agentRef.current;
     }
 
@@ -112,28 +114,27 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     const agent = createAgent({
       config: options.config as AgentConfig,
       hooks: options.hooks,
+      provider: options.provider,
       persistence: options.persistence ?? createInMemoryAdapter(),
     });
 
-    options.tools?.forEach((tool) => agent.registerTool(tool));
+    options.tools?.forEach((tool) => agent.registerTool(tool as ToolDefinition));
     options.promptSegments?.forEach((seg) => agent.addPromptSegment(seg));
-    options.transformers?.forEach((t) => agent.useTransformer(t));
-    options.responseTransformers?.forEach((t) => agent.useResponseTransformer(t));
 
     await agent.init();
     agentRef.current = agent;
     initializedRef.current = true;
     agentSignatureRef.current = signature;
+    providerRef.current = options.provider;
     return agent;
   }, [
     options.config,
     options.hooks,
     options.persistence,
     options.promptSegments,
-    options.responseTransformers,
     options.sessionId,
     options.tools,
-    options.transformers,
+    options.provider,
   ]);
 
   const addStep = useCallback((step: ThinkingStep) => {
@@ -264,7 +265,6 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
           addStep,
           updateStep,
           appendStepText,
-          addChildStep,
           setStatus,
           setThinkingCollapsed,
           setError,

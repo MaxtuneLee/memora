@@ -1,58 +1,14 @@
+import type { AgentMessage, AgentMessageContent } from "@memora/ai-core";
+
 import type {
-  AgentMessage,
-  AgentMessageContent,
-  AgentEvent,
+  LLMImageContent,
   LLMMessage,
   LLMTextContent,
-  LLMImageContent,
   LLMToolCall,
-  MessageTransformer,
-  ResponseTransformer,
-  ThinkResult,
-  ToolDefinition,
+  ResponsesInputImage,
   ResponsesInputItem,
   ResponsesInputText,
-  ResponsesInputImage,
 } from "./types";
-
-export class TransformPipeline {
-  private transformers: MessageTransformer[] = [];
-  private responseTransformers: ResponseTransformer[] = [];
-
-  use(transformer: MessageTransformer): void {
-    this.transformers.push(transformer);
-  }
-
-  useResponse(transformer: ResponseTransformer): void {
-    this.responseTransformers.push(transformer);
-  }
-
-  async run(messages: AgentMessage[], context: { tools: ToolDefinition[] }): Promise<LLMMessage[]> {
-    if (this.transformers.length > 0) {
-      let result: LLMMessage[] = [];
-      for (const transformer of this.transformers) {
-        result = await transformer(messages, context);
-        // eslint-disable-next-line no-param-reassign
-        messages = messages;
-      }
-      return result;
-    }
-
-    return defaultTransform(messages);
-  }
-
-  async runResponse(events: AgentEvent[]): Promise<ThinkResult> {
-    if (this.responseTransformers.length > 0) {
-      let result = defaultResponseTransform(events);
-      for (const transformer of this.responseTransformers) {
-        result = await transformer(events);
-      }
-      return result;
-    }
-
-    return defaultResponseTransform(events);
-  }
-}
 
 const contentToLLM = (content: AgentMessageContent): LLMTextContent | LLMImageContent | null => {
   switch (content.type) {
@@ -70,7 +26,7 @@ const contentToLLM = (content: AgentMessageContent): LLMTextContent | LLMImageCo
   }
 };
 
-const defaultTransform = (messages: AgentMessage[]): LLMMessage[] => {
+export const transformChatCompletionsMessages = (messages: AgentMessage[]): LLMMessage[] => {
   const result: LLMMessage[] = [];
 
   for (const msg of messages) {
@@ -104,7 +60,7 @@ const defaultTransform = (messages: AgentMessage[]): LLMMessage[] => {
 
     const llmToolCalls: LLMToolCall[] = toolCalls.map((tc) => ({
       id: tc.id,
-      type: "function" as const,
+      type: "function",
       function: {
         name: tc.name,
         arguments: JSON.stringify(tc.arguments),
@@ -135,37 +91,6 @@ const defaultTransform = (messages: AgentMessage[]): LLMMessage[] => {
   return result;
 };
 
-const defaultResponseTransform = (events: AgentEvent[]): ThinkResult => {
-  let text = "";
-  let reasoning = "";
-  const toolCalls: AgentMessageContent[] = [];
-
-  for (const event of events) {
-    switch (event.type) {
-      case "text-delta":
-        text += event.delta;
-        break;
-      case "reasoning-done":
-        reasoning = event.text;
-        break;
-      case "reasoning-delta":
-        break;
-      case "tool-call-complete":
-        toolCalls.push({
-          type: "tool_call",
-          id: event.toolCall.id,
-          name: event.toolCall.name,
-          arguments: event.toolCall.arguments,
-        });
-        break;
-    }
-  }
-
-  return { text, reasoning, toolCalls };
-};
-
-// ─── Responses API transform ───
-
 const contentToResponses = (
   content: AgentMessageContent,
 ): ResponsesInputText | ResponsesInputImage | null => {
@@ -184,7 +109,7 @@ const contentToResponses = (
   }
 };
 
-export const responsesTransform = (messages: AgentMessage[]): ResponsesInputItem[] => {
+export const transformResponsesInput = (messages: AgentMessage[]): ResponsesInputItem[] => {
   const result: ResponsesInputItem[] = [];
 
   const toolResultMap = new Map<string, { result: unknown; isError?: boolean }>();
@@ -260,8 +185,4 @@ export const responsesTransform = (messages: AgentMessage[]): ResponsesInputItem
   }
 
   return result;
-};
-
-export const createTransformPipeline = (): TransformPipeline => {
-  return new TransformPipeline();
 };
