@@ -4,6 +4,7 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
+import { createOpenAIProvider } from "@memora/ai-provider-openai";
 
 export interface NoticeExtractionConfig {
   apiFormat: "chat-completions" | "responses";
@@ -104,11 +105,13 @@ export const extractNoticeCandidatesWithAI = async (
     config: {
       id: `memora-notice-extractor:${crypto.randomUUID()}`,
       model,
+      maxIterations: 1,
+    },
+    provider: createOpenAIProvider({
       endpoint,
       apiKey,
       apiFormat: config.apiFormat,
-      maxIterations: 1,
-    },
+    }),
     persistence: createInMemoryAdapter(),
   });
 

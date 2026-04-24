@@ -1,4 +1,5 @@
-import { createSkillTools, type ToolDefinition } from "@memora/ai-core";
+import { createSkillTools } from "@memora/ai-extension-skills";
+import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import {

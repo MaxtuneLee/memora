@@ -5,14 +5,10 @@ import type {
   AgentMessage,
   AgentMessageContent,
   HookContext,
-  LLMRequestPayload,
-  ResponsesRequestPayload,
-  ResponsesToolDefinition,
-  ResponsesBuiltinToolDefinition,
   LoopState,
   PersistenceAdapter,
-  MessageTransformer,
-  ResponseTransformer,
+  ProviderAdapter,
+  ProviderEvent,
   ThinkResult,
   ToolDefinition,
   PromptSegment,
@@ -21,8 +17,6 @@ import type {
 import { ContextManager, createContextManager } from "./context";
 import { ToolRegistry, createToolRegistry } from "./tools";
 import { PromptComposer, createPromptComposer } from "./prompt";
-import { TransformPipeline, createTransformPipeline, responsesTransform } from "./transform";
-import { parseSSEStream, parseResponsesStream } from "./stream";
 import { InMemoryAdapter } from "./persistence";
 import { generateId, now } from "./utils";
 
@@ -65,9 +59,6 @@ const trimContext = (messages: AgentMessage[], maxChars: number): AgentMessage[]
 
 const PERSONALITY_MEMORY_KEY = "personality";
 const NOTICES_MEMORY_KEY = "notices";
-const DEFAULT_REASONING = {
-  effort: "none",
-} as const;
 
 interface MemoryNotice {
   text: string;
@@ -110,6 +101,7 @@ const mergeSystemPromptWithMemory = (
 
 export interface AgentOptions {
   config: AgentConfig;
+  provider: ProviderAdapter;
   hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
 }
@@ -119,19 +111,18 @@ export class Agent {
   readonly context: ContextManager;
   readonly tools: ToolRegistry;
   readonly prompt: PromptComposer;
-  readonly transform: TransformPipeline;
 
   private hooks: AgentHooks;
+  private provider: ProviderAdapter;
   private state: LoopState;
-  private builtinTools: ResponsesBuiltinToolDefinition[] = [];
   private abortController: AbortController | null = null;
 
   constructor(options: AgentOptions) {
     this.config = options.config;
+    this.provider = options.provider;
     this.hooks = options.hooks ?? {};
     this.tools = createToolRegistry();
     this.prompt = createPromptComposer();
-    this.transform = createTransformPipeline();
 
     const persistence = options.persistence ?? new InMemoryAdapter();
     this.context = createContextManager(this.config.id, persistence);
@@ -148,24 +139,12 @@ export class Agent {
     await this.context.load();
   }
 
-  registerTool<TParams, TResult>(tool: Partial<ToolDefinition<TParams, TResult>>): void {
-    if (tool.type === "function" && tool.name && tool.parameters && tool.execute) {
-      this.tools.register(tool as ToolDefinition<TParams, TResult>);
-    } else if (tool.type && tool.type !== "function") {
-      this.builtinTools.push(tool as unknown as ResponsesBuiltinToolDefinition);
-    }
+  registerTool<TParams, TResult>(tool: ToolDefinition<TParams, TResult>): void {
+    this.tools.register(tool);
   }
 
   addPromptSegment(segment: PromptSegment): void {
     this.prompt.add(segment);
-  }
-
-  useTransformer(transformer: MessageTransformer): void {
-    this.transform.use(transformer);
-  }
-
-  useResponseTransformer(transformer: ResponseTransformer): void {
-    this.transform.useResponse(transformer);
   }
 
   setHooks(hooks: Partial<AgentHooks>): void {
@@ -191,7 +170,6 @@ export class Agent {
     this.abortController = new AbortController();
 
     try {
-      // Input
       const inputMessage: AgentMessage =
         typeof input === "string"
           ? {
@@ -209,13 +187,11 @@ export class Agent {
         await this.hooks.onAfterInput(hookCtx, inputMessage);
       }
 
-      // Loop: Think - Action - Observation
       const maxIterations = this.config.maxIterations ?? 10;
 
       while (this.state.iteration < maxIterations && !this.state.aborted) {
         this.state.iteration++;
 
-        // Think
         this.state.phase = "think";
         if (this.hooks.onBeforeThink) {
           await this.hooks.onBeforeThink(this.createHookContext());
@@ -230,7 +206,6 @@ export class Agent {
         }
 
         if (thinkResult.toolCalls.length === 0) {
-          // Complete (no tool calls = final response)
           this.state.phase = "complete";
           const assistantMessage: AgentMessage = {
             id: generateId(),
@@ -253,7 +228,6 @@ export class Agent {
           return;
         }
 
-        // Action
         this.state.phase = "action";
 
         const assistantMessage: AgentMessage = {
@@ -306,7 +280,6 @@ export class Agent {
           });
         }
 
-        // Observation
         this.state.phase = "observation";
 
         const observationMessage: AgentMessage = {
@@ -327,148 +300,24 @@ export class Agent {
         }
       }
 
-      if (this.state.aborted) {
-        yield {
-          type: "error",
-          error: new Error("Agent loop aborted"),
-        };
-      } else {
+      if (!this.state.aborted) {
         yield {
           type: "error",
           error: new Error(`Max iterations (${maxIterations}) reached`),
         };
       }
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+    } catch (err) {
       this.state.phase = "error";
+      const error = err instanceof Error ? err : new Error(String(err));
 
       if (this.hooks.onError) {
-        await this.hooks.onError(this.createHookContext(), err);
+        await this.hooks.onError(this.createHookContext(), error);
       }
 
-      yield { type: "error", error: err };
+      yield { type: "error", error };
     } finally {
       this.abortController = null;
     }
-  }
-
-  private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
-    const systemPrompt = await this.prompt.compose();
-    let finalSystemPrompt = systemPrompt.trim();
-    try {
-      const personality = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
-      const notices = await this.context.loadMemory<MemoryNotice[]>(NOTICES_MEMORY_KEY);
-      finalSystemPrompt = mergeSystemPromptWithMemory(
-        finalSystemPrompt,
-        typeof personality === "string" ? personality : "",
-        Array.isArray(notices) ? notices : [],
-      );
-    } catch {
-      // Personality context is best-effort; failures should not block chat.
-    }
-
-    const maxContextChars = this.config.maxContextChars ?? 100000;
-    const allMessages = this.context.getMessages();
-    const messages = trimContext(allMessages, maxContextChars);
-    const apiFormat = this.config.apiFormat ?? "chat-completions";
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (this.config.apiKey) {
-      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
-    }
-
-    let payload: string;
-    let streamParser: (response: Response) => AsyncGenerator<AgentEvent>;
-
-    if (apiFormat === "responses") {
-      const inputItems = responsesTransform(messages);
-      const functionTools = this.tools.toResponsesFormat();
-      const configBuiltins = (this.config.builtinTools ?? []) as ResponsesBuiltinToolDefinition[];
-      const allTools: ResponsesToolDefinition[] = [
-        ...functionTools,
-        ...this.builtinTools,
-        ...configBuiltins,
-      ];
-
-      const requestPayload: ResponsesRequestPayload = {
-        model: this.config.model,
-        input: inputItems,
-        stream: true,
-        reasoning: DEFAULT_REASONING,
-        ...(finalSystemPrompt ? { instructions: finalSystemPrompt } : {}),
-        ...(allTools.length > 0 ? { tools: allTools } : {}),
-        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
-        ...(this.config.maxTokens !== undefined
-          ? { max_output_tokens: this.config.maxTokens }
-          : {}),
-      };
-
-      payload = JSON.stringify(requestPayload);
-      streamParser = parseResponsesStream;
-    } else {
-      const llmMessages = await this.transform.run(messages, {
-        tools: this.tools.list(),
-      });
-
-      if (finalSystemPrompt) {
-        llmMessages.unshift({ role: "system", content: finalSystemPrompt });
-      }
-
-      const toolDefs = this.tools.toLLMFormat();
-
-      const requestPayload: LLMRequestPayload = {
-        model: this.config.model,
-        messages: llmMessages,
-        stream: true,
-        reasoning: DEFAULT_REASONING,
-        stream_options: {
-          include_usage: true,
-        },
-        ...(toolDefs.length > 0 ? { tools: toolDefs } : {}),
-        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
-        ...(this.config.maxTokens !== undefined ? { max_tokens: this.config.maxTokens } : {}),
-      };
-
-      payload = JSON.stringify(requestPayload);
-      streamParser = parseSSEStream;
-    }
-
-    const response = await fetch(this.config.endpoint, {
-      method: "POST",
-      headers,
-      body: payload,
-      signal: this.abortController?.signal,
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`LLM request failed (${response.status}): ${body}`);
-    }
-
-    let text = "";
-    const collectedEvents: AgentEvent[] = [];
-    let usage: TokenUsage | undefined;
-
-    for await (const event of streamParser(response)) {
-      if (this.state.aborted) break;
-
-      yield event;
-      collectedEvents.push(event);
-
-      if (event.type === "text-delta") {
-        text += event.delta;
-      } else if (event.type === "usage") {
-        usage = event.usage;
-      }
-    }
-
-    const result = await this.transform.runResponse(collectedEvents);
-    return {
-      ...result,
-      usage,
-    };
   }
 
   private createHookContext(): HookContext {
@@ -478,7 +327,127 @@ export class Agent {
       getRelevantContext: () => this.context.getRelevantContext(),
     };
   }
+
+  private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
+    const baseSystemPrompt = await this.prompt.compose();
+    const personalityText = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
+    const notices = (await this.context.loadMemory<MemoryNotice[]>(NOTICES_MEMORY_KEY)) ?? [];
+    const systemPrompt = mergeSystemPromptWithMemory(
+      baseSystemPrompt,
+      personalityText ?? "",
+      notices,
+    );
+    const history = this.context.getMessages();
+    const maxContextChars = this.config.maxContextChars ?? 100000;
+    const messages = trimContext(history, maxContextChars);
+
+    let text = "";
+    let reasoning = "";
+    let usage: TokenUsage | undefined;
+    const toolCallArguments = new Map<string, string>();
+    const toolCalls: AgentMessageContent[] = [];
+
+    const stream = this.provider.stream(
+      {
+        model: this.config.model,
+        systemPrompt,
+        messages,
+        tools: this.tools.list(),
+        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
+        ...(this.config.maxTokens !== undefined ? { maxTokens: this.config.maxTokens } : {}),
+      },
+      { signal: this.abortController?.signal },
+    );
+
+    for await (const event of stream) {
+      if (this.state.aborted) break;
+
+      yield event;
+
+      this.applyProviderEvent(event, {
+        appendText: (delta) => {
+          text += delta;
+        },
+        appendReasoning: (delta) => {
+          reasoning += delta;
+        },
+        setUsage: (nextUsage) => {
+          usage = nextUsage;
+        },
+        appendToolArgs: (toolCallId, delta) => {
+          toolCallArguments.set(toolCallId, (toolCallArguments.get(toolCallId) ?? "") + delta);
+        },
+        completeToolCall: (toolCall) => {
+          const bufferedArguments = toolCallArguments.get(toolCall.id);
+          const parsedArguments = bufferedArguments
+            ? parseToolArguments(bufferedArguments, toolCall.arguments)
+            : toolCall.arguments;
+          toolCalls.push({
+            type: "tool_call",
+            id: toolCall.id,
+            name: toolCall.name,
+            arguments: parsedArguments,
+          });
+        },
+      });
+    }
+
+    return { text, reasoning, toolCalls, ...(usage ? { usage } : {}) };
+  }
+
+  private applyProviderEvent(
+    event: ProviderEvent,
+    handlers: {
+      appendText: (delta: string) => void;
+      appendReasoning: (delta: string) => void;
+      setUsage: (usage: TokenUsage) => void;
+      appendToolArgs: (toolCallId: string, delta: string) => void;
+      completeToolCall: (toolCall: {
+        id: string;
+        name: string;
+        arguments: Record<string, unknown>;
+      }) => void;
+    },
+  ): void {
+    switch (event.type) {
+      case "text-delta":
+        handlers.appendText(event.delta);
+        break;
+      case "reasoning-delta":
+        handlers.appendReasoning(event.delta);
+        break;
+      case "reasoning-done":
+        if (!event.text) break;
+        handlers.appendReasoning(event.text);
+        break;
+      case "usage":
+        handlers.setUsage(event.usage);
+        break;
+      case "tool-call-args-delta":
+        handlers.appendToolArgs(event.toolCallId, event.delta);
+        break;
+      case "tool-call-complete":
+        handlers.completeToolCall(event.toolCall);
+        break;
+      default:
+        break;
+    }
+  }
 }
+
+const parseToolArguments = (
+  rawArguments: string,
+  fallback: Record<string, unknown>,
+): Record<string, unknown> => {
+  try {
+    const parsed = JSON.parse(rawArguments);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 export const createAgent = (options: AgentOptions): Agent => {
   return new Agent(options);

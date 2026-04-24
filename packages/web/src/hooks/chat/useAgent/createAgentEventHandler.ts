@@ -18,7 +18,6 @@ interface CreateAgentEventHandlerOptions {
   addStep: (step: ThinkingStep) => void;
   updateStep: (id: string, updates: Partial<ThinkingStep>) => void;
   appendStepText: (id: string, delta: string) => void;
-  addChildStep: (parentId: string, child: ThinkingStep) => void;
   setStatus: (updater: AgentStatus | ((previous: AgentStatus) => AgentStatus)) => void;
   setThinkingCollapsed: (value: boolean) => void;
   setError: (error: Error | null) => void;
@@ -40,7 +39,6 @@ export const createAgentEventHandler = ({
   addStep,
   updateStep,
   appendStepText,
-  addChildStep,
   setStatus,
   setThinkingCollapsed,
   setError,
@@ -126,60 +124,6 @@ export const createAgentEventHandler = ({
           }
           setStatus({ type: "thinking" });
           logger.logEvent({ type: event.type, status: event.status });
-        }
-        break;
-      }
-
-      case "output-item-added": {
-        if (event.itemType === "web_search_call") {
-          if (!searchStepIdRef.current) {
-            const id = crypto.randomUUID();
-            searchStepIdRef.current = id;
-            addStep({
-              id,
-              type: "web-search",
-              text: "",
-              status: "in_progress",
-              children: [],
-            });
-          }
-          setStatus({ type: "searching" });
-          logger.logEvent({ type: event.type, status: "searching" });
-        }
-        break;
-      }
-
-      case "output-item-done": {
-        if (event.itemType === "web_search_call" && searchStepIdRef.current) {
-          const queries = (event.item as { queries?: string[] }).queries ?? [];
-          const results =
-            (
-              event.item as {
-                results?: Array<{ title?: string; url?: string }>;
-              }
-            ).results ?? [];
-          updateStep(searchStepIdRef.current, {
-            text: queries.join(", "),
-            status: "done",
-          });
-
-          for (const result of results) {
-            addChildStep(searchStepIdRef.current, {
-              id: crypto.randomUUID(),
-              type: "web-search",
-              text: result.title ?? result.url ?? "",
-              status: "done",
-            });
-          }
-
-          searchStepIdRef.current = "";
-          setStatus({ type: "thinking" });
-          logger.logEvent({
-            type: event.type,
-            queries,
-            resultsCount: results.length,
-            content: results.map((result) => result.title ?? result.url ?? ""),
-          });
         }
         break;
       }

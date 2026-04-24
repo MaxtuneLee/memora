@@ -3,7 +3,7 @@ packages:
 
 catalog:
   vite: npm:vite@latest
-  vite-plus: latest
+  vite-plus: 0.1.13
   vitest: npm:@voidzero-dev/vite-plus-test@^0.1.14
 
 overrides:

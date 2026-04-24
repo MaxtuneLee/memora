@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import type { MaybePromise, PromptSegment, ToolDefinition } from "./types";
+import type { MaybePromise, PromptSegment, ToolDefinition } from "@memora/ai-core";
 
 export interface SkillCatalogEntry {
   name: string;

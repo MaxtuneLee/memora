@@ -1,10 +1,9 @@
 import type {
   AgentConfig,
   AgentHooks,
-  MessageTransformer,
   PersistenceAdapter,
   PromptSegment,
-  ResponseTransformer,
+  ProviderAdapter,
   TokenUsage,
   ToolDefinition,
 } from "@memora/ai-core";
@@ -57,12 +56,11 @@ export interface UseAgentOptions {
   sessionId: string;
   initialMessages?: ChatMessage[];
   config: Partial<AgentConfig>;
+  provider: ProviderAdapter;
   hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
   tools?: Partial<ToolDefinition>[];
   promptSegments?: PromptSegment[];
-  transformers?: MessageTransformer[];
-  responseTransformers?: ResponseTransformer[];
 }
 
 export interface UseAgentReturn {

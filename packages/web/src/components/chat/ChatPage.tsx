@@ -115,6 +115,7 @@ export const Component = () => {
 
   const {
     agentConfig,
+    provider,
     isConfigured,
     selectedApiFormat,
     selectedApiKey,
@@ -180,6 +181,7 @@ export const Component = () => {
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
+    provider,
     promptSegments,
     tools,
     persistence,

@@ -1,4 +1,4 @@
-import type { SkillCatalogEntry } from "@memora/ai-core";
+import type { SkillCatalogEntry } from "@memora/ai-extension-skills";
 
 export interface BuiltInSkillResourceFile {
   path: string;

@@ -1,4 +1,4 @@
-import { createSkillCatalogPromptSegment } from "@memora/ai-core";
+import { createSkillCatalogPromptSegment } from "@memora/ai-extension-skills";
 
 export { ensureBuiltInSkillsInOpfs } from "./builtInSkillStore/opfs";
 export { builtInSkillStore, listBuiltInSkills } from "./builtInSkillStore/store";

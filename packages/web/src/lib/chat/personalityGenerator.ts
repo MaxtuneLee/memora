@@ -4,6 +4,7 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
+import { createOpenAIProvider } from "@memora/ai-provider-openai";
 import { normalizePersonalityText } from "@/lib/settings/personalityStorage";
 
 type ApiFormat = "chat-completions" | "responses";
@@ -118,11 +119,13 @@ export const generatePersonalityMarkdownWithAI = async (
     config: {
       id: `memora-onboarding-generator:${crypto.randomUUID()}`,
       model,
+      maxIterations: 1,
+    },
+    provider: createOpenAIProvider({
       endpoint,
       apiKey,
       apiFormat: config.apiFormat,
-      maxIterations: 1,
-    },
+    }),
     persistence: createInMemoryAdapter(),
   });
   agent.addPromptSegment(PERSONALITY_GENERATOR_PROMPT);

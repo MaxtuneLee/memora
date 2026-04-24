@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import type { AgentConfig } from "@memora/ai-core";
+import { createOpenAIProvider } from "@memora/ai-provider-openai";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { IS_DEV } from "./helpers";
@@ -54,16 +55,11 @@ export const useChatModelConfig = ({
       return {
         id: sessionScopedAgentId,
         model: "",
-        endpoint: "",
-        apiFormat: "chat-completions",
       };
     }
     return {
       id: sessionScopedAgentId,
       model: selectedModel,
-      endpoint: selectedEndpoint,
-      apiKey: selectedApiKey || undefined,
-      apiFormat: selectedApiFormat,
       maxIterations: 20,
     };
   }, [
@@ -74,6 +70,14 @@ export const useChatModelConfig = ({
     selectedModel,
     selectedProvider,
   ]);
+
+  const provider = useMemo(() => {
+    return createOpenAIProvider({
+      endpoint: selectedEndpoint,
+      apiKey: selectedApiKey || undefined,
+      apiFormat: selectedApiFormat,
+    });
+  }, [selectedApiFormat, selectedApiKey, selectedEndpoint]);
   const isConfigured = !!selectedProvider && !!selectedModel && !!selectedEndpoint;
 
   useEffect(() => {
@@ -98,6 +102,7 @@ export const useChatModelConfig = ({
 
   return {
     agentConfig,
+    provider,
     isConfigured,
     selectedApiFormat,
     selectedApiKey,

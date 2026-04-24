@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc -b && vp build",
+    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:ai-provider-openai\" \"pnpm build:ai-extension-skills\" \"pnpm build:fs\" & pnpm build:web",
     "lint": "vp lint .",
     "test": "vp test test",
     "preview": "vp preview",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg"
+    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg",
+    "build:ai-provider-openai": "pnpm --filter @memora/ai-provider-openai build",
+    "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -47,7 +49,9 @@
     "streamdown": "^2.4.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "vite-plugin-route-builder": "^0.4.1"
+    "vite-plugin-route-builder": "^0.4.1",
+    "@memora/ai-provider-openai": "workspace:*",
+    "@memora/ai-extension-skills": "workspace:*"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",

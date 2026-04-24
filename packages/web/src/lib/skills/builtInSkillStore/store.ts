@@ -1,4 +1,4 @@
-import type { SkillStore } from "@memora/ai-core";
+import type { SkillStore } from "@memora/ai-extension-skills";
 import { cat } from "@memora/fs";
 
 import {

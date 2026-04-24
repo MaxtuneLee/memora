@@ -1,6 +1,5 @@
 import * as v from "valibot";
-import { toJsonSchema } from "@valibot/to-json-schema";
-import type { ToolDefinition, LLMToolDefinition, ResponsesFunctionToolDefinition } from "./types";
+import type { ToolDefinition } from "./types";
 
 export class ToolRegistry {
   private tools = new Map<string, ToolDefinition>();
@@ -49,55 +48,7 @@ export class ToolRegistry {
       return { result: message, isError: true };
     }
   }
-
-  toLLMFormat(): LLMToolDefinition[] {
-    return this.list().map((tool) => ({
-      type: "function" as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: schemaToJsonSchema(tool.parameters),
-      },
-    }));
-  }
-
-  toResponsesFormat(): ResponsesFunctionToolDefinition[] {
-    return this.list().map((tool) => ({
-      type: "function" as const,
-      name: tool.name,
-      description: tool.description,
-      parameters: schemaToJsonSchema(tool.parameters),
-      strict: true,
-    }));
-  }
 }
-
-const enforceStrictSchema = (obj: Record<string, unknown>): Record<string, unknown> => {
-  if (obj.type === "object") {
-    obj.additionalProperties = false;
-    const props = obj.properties as Record<string, unknown> | undefined;
-    if (props) {
-      const allKeys = Object.keys(props);
-      const existing = (obj.required as string[]) ?? [];
-      const missing = allKeys.filter((k) => !existing.includes(k));
-      if (missing.length > 0) {
-        obj.required = [...existing, ...missing];
-      }
-      for (const val of Object.values(props)) {
-        if (val && typeof val === "object") {
-          enforceStrictSchema(val as Record<string, unknown>);
-        }
-      }
-    }
-  }
-  return obj;
-};
-
-const schemaToJsonSchema = (schema: v.GenericSchema): Record<string, unknown> => {
-  const jsonSchema = toJsonSchema(schema) as Record<string, unknown>;
-  delete jsonSchema["$schema"];
-  return enforceStrictSchema(jsonSchema);
-};
 
 export const createToolRegistry = (): ToolRegistry => {
   return new ToolRegistry();
