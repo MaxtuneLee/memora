@@ -40,6 +40,7 @@ interface UseChatSessionsResult {
   setActiveReferences: Dispatch<SetStateAction<ChatSessionReference[]>>;
   persistedSignaturesRef: MutableRefObject<Map<string, string>>;
   commitPersistedSession: (record: ChatSessionRecord, nextMessages: AgentChatMessage[]) => void;
+  updatePersistedSessionSummary: (record: ChatSessionRecord) => void;
   deletingSessionId: string | null;
   pendingDeleteSessionId: string | null;
   handleCreateSession: () => Promise<void>;
@@ -84,7 +85,7 @@ export const useChatSessions = ({
   const replaceChatLocation = useCallback(
     (sessionId: string) => {
       pendingLocationSessionIdRef.current = sessionId;
-      navigate(`/chat?session=${encodeURIComponent(sessionId)}`, {
+      void navigate(`/chat?session=${encodeURIComponent(sessionId)}`, {
         replace: true,
       });
     },
@@ -214,6 +215,14 @@ export const useChatSessions = ({
     replaceChatLocation,
     sessionsReady,
   ]);
+
+  const updatePersistedSessionSummary = useCallback((record: ChatSessionRecord) => {
+    const summary = toSessionSummary(record);
+    setSessions((prev) => {
+      const next = [summary, ...prev.filter((session) => session.id !== summary.id)];
+      return next.sort((a, b) => b.updatedAt - a.updatedAt);
+    });
+  }, []);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
@@ -424,6 +433,7 @@ export const useChatSessions = ({
     setActiveReferences,
     persistedSignaturesRef,
     commitPersistedSession,
+    updatePersistedSessionSummary,
     deletingSessionId,
     pendingDeleteSessionId,
     handleCreateSession,

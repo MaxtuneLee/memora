@@ -101,6 +101,39 @@ body {
   position: relative;
 }
 
+:root,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-memora-olive-soft) 42%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(
+    in srgb,
+    var(--color-memora-olive-soft) 48%,
+    var(--color-memora-border-soft)
+  );
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-memora-olive) 52%, var(--color-memora-text-soft));
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
 .memora-motion-enter {
   animation: memora-fade-rise var(--duration-slow) var(--ease-out-quint) both;
   animation-delay: var(--enter-delay, 0ms);
@@ -150,7 +183,7 @@ body {
 
 .memora-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--color-memora-text-soft) 28%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-memora-olive-soft) 42%, transparent) transparent;
 }
 
 .memora-scrollbar::-webkit-scrollbar {
@@ -163,14 +196,18 @@ body {
 }
 
 .memora-scrollbar::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-memora-border-soft) 72%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-memora-olive-soft) 48%,
+    var(--color-memora-border-soft)
+  );
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
 }
 
 .memora-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-memora-text-soft) 22%, transparent);
+  background: color-mix(in srgb, var(--color-memora-olive) 52%, var(--color-memora-text-soft));
   border: 3px solid transparent;
   background-clip: padding-box;
 }
@@ -187,6 +224,11 @@ body {
   .memora-surface-glow::after,
   .memora-scrollbar::-webkit-scrollbar-thumb,
   .memora-scrollbar:hover::-webkit-scrollbar-thumb {
+    transition-duration: 0.01ms !important;
+  }
+
+  *::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb:hover {
     transition-duration: 0.01ms !important;
   }
 

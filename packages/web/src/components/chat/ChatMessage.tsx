@@ -165,7 +165,7 @@ function ChatMessageComponent({
           className={cn(
             "relative text-sm leading-relaxed",
             isUser
-              ? "w-full rounded-2xl bg-[#efe7db] px-4 py-2.5 text-zinc-900"
+              ? "flex w-full flex-col items-end text-zinc-900"
               : "min-w-0 flex-1 bg-transparent px-0 py-0 text-zinc-800",
           )}
         >
