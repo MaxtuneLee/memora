@@ -5,18 +5,23 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:ai-provider-openai\" \"pnpm build:ai-extension-skills\" \"pnpm build:fs\" & pnpm build:web",
+    "build": "pnpm build:ai-core && pnpm build:local-model-runtime && pnpm build:ai-provider-openai && pnpm build:ai-provider-local && pnpm build:ai-extension-skills && pnpm build:fs && pnpm build:livestore-devtool && vp build",
     "lint": "vp lint .",
     "test": "vp test test",
     "preview": "vp preview",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg",
+    "build:ai-core": "pnpm --filter @memora/ai-core build",
+    "build:fs": "pnpm --filter @memora/fs build",
+    "build:livestore-devtool": "pnpm --filter @memora/livestore-devtool build",
     "build:ai-provider-openai": "pnpm --filter @memora/ai-provider-openai build",
-    "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build"
+    "build:ai-provider-local": "pnpm --filter @memora/ai-provider-local build",
+    "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build",
+    "build:local-model-runtime": "pnpm --filter @memora/local-model-runtime build"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
     "@dnd-kit/core": "^6.3.1",
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "^4.2.0",
     "@livestore/adapter-web": "^0.3.1",
     "@livestore/devtools-vite": "^0.3.1",
     "@livestore/livestore": "^0.3.1",
@@ -26,6 +31,7 @@
     "@livestore/wa-sqlite": "1.0.5-dev.2",
     "@memora/ai-core": "workspace:*",
     "@memora/fs": "workspace:*",
+    "@memora/livestore-devtool": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@ricky0123/vad-react": "^0.0.36",
     "@ricky0123/vad-web": "^0.0.30",
@@ -51,7 +57,9 @@
     "tailwindcss": "^4.1.18",
     "vite-plugin-route-builder": "^0.4.1",
     "@memora/ai-provider-openai": "workspace:*",
-    "@memora/ai-extension-skills": "workspace:*"
+    "@memora/ai-extension-skills": "workspace:*",
+    "@memora/local-model-runtime": "workspace:*",
+    "@memora/ai-provider-local": "workspace:*"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",

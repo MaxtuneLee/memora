@@ -74,6 +74,8 @@ export const createDevAgentLogger = (sessionId: string): DevAgentLogger => {
     };
   }
 
+  let lastStatusKey = "";
+
   return {
     logTurnStart: (payload) => {
       console.info("[agent] turn:start", {
@@ -86,6 +88,16 @@ export const createDevAgentLogger = (sessionId: string): DevAgentLogger => {
       });
     },
     logEvent: (payload) => {
+      if (payload.type === "status") {
+        const nextStatusKey = `${payload.type}:${payload.status ?? ""}`;
+        if (nextStatusKey === lastStatusKey) {
+          return;
+        }
+        lastStatusKey = nextStatusKey;
+      } else if (payload.type !== "text-delta") {
+        lastStatusKey = "";
+      }
+
       console.info("[agent] event", {
         sessionId,
         type: payload.type,

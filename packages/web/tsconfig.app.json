@@ -25,7 +25,8 @@
     "noUncheckedSideEffectImports": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@memora/livestore-devtool": ["../livestore-devtool/dist/index.d.ts"]
     }
   },
   "include": ["src", "test"]

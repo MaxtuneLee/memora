@@ -11,7 +11,8 @@
     "build:ai-core": "pnpm --filter @memora/ai-core build",
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
     "build:fs": "pnpm --filter @memora/fs build",
-    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:fs\" & pnpm build:web",
+    "build:livestore-devtool": "pnpm --filter @memora/livestore-devtool build",
+    "build": "npx concurrently \"pnpm build:ai-core\" \"pnpm build:fs\" \"pnpm build:livestore-devtool\" & pnpm build:web",
     "preview": "pnpm --filter @memora/web preview"
   },
   "keywords": [],
