@@ -23,10 +23,7 @@ export type GlobOptions = {
   dirs?: boolean;
 };
 
-const rootHandlePromise: Promise<FileSystemDirectoryHandle> =
-  typeof navigator === "undefined" || !navigator.storage?.getDirectory
-    ? Promise.reject(new Error("OPFS is not available. navigator.storage.getDirectory is missing."))
-    : navigator.storage.getDirectory();
+let rootHandlePromise: Promise<FileSystemDirectoryHandle> | null = null;
 
 const normalizePath = (input: string) => {
   const raw = input.trim();
@@ -72,7 +69,21 @@ const isTypeMismatchError = (error: unknown) => {
 const isMissingEntryError = (error: unknown) =>
   isNotFoundError(error) || isTypeMismatchError(error);
 
-const getRootHandle = async () => rootHandlePromise;
+const toArrayBuffer = (data: ArrayBufferLike) => {
+  return Uint8Array.from(new Uint8Array(data)).buffer;
+};
+
+const getRootHandle = async () => {
+  if (!rootHandlePromise) {
+    if (typeof navigator === "undefined" || !navigator.storage?.getDirectory) {
+      throw new Error("OPFS is not available. navigator.storage.getDirectory is missing.");
+    }
+
+    rootHandlePromise = navigator.storage.getDirectory();
+  }
+
+  return rootHandlePromise;
+};
 
 const getDirHandle = async (path: string, create = false) => {
   let handle = await getRootHandle();
@@ -95,16 +106,16 @@ const getFileHandle = async (path: string, create = false) => {
 
 const readAsArrayBuffer = async (data: WriteData) => {
   if (typeof data === "string") {
-    return new TextEncoder().encode(data).buffer;
+    return toArrayBuffer(new TextEncoder().encode(data).buffer);
   }
   if (data instanceof Blob) {
     return data.arrayBuffer();
   }
   if (data instanceof ArrayBuffer) {
-    return data;
+    return toArrayBuffer(data);
   }
   if (ArrayBuffer.isView(data)) {
-    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    return toArrayBuffer(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
   }
   throw new Error("Unsupported data type for write.");
 };
@@ -252,7 +263,7 @@ export const stat = async (path: string): Promise<StatResult> => {
     if (!isMissingEntryError(error)) throw error;
   }
 
-  const handle = await getDirHandle(normalized);
+  await getDirHandle(normalized);
   return { kind: "dir", path: normalized };
 };
 
