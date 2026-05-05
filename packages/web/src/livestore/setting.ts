@@ -38,3 +38,5 @@ export const settingsTable = State.SQLite.clientDocument({
 export const settingEvents = {
   settingsSet: settingsTable.set,
 };
+
+export type setting = (typeof settingsTable.default)["value"];

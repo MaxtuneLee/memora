@@ -1,11 +1,14 @@
 import { Events, Schema, State } from "@livestore/livestore";
 
+export type ProviderApiFormat = "chat-completions" | "responses";
+
 type ProviderCreatedEvent = {
   id: string;
   name: string;
   baseUrl: string;
   apiKey: string;
-  apiFormat: "chat-completions" | "responses";
+  apiFormat: ProviderApiFormat;
+  models?: string;
   createdAt: Date;
 };
 
@@ -14,7 +17,8 @@ type ProviderUpdatedEvent = {
   name?: string;
   baseUrl?: string;
   apiKey?: string;
-  apiFormat?: "chat-completions" | "responses";
+  apiFormat?: ProviderApiFormat;
+  models?: string;
   updatedAt: Date;
 };
 
@@ -55,6 +59,7 @@ export const providerEvents = {
       baseUrl: Schema.String,
       apiKey: Schema.String,
       apiFormat: ApiFormatSchema,
+      models: Schema.optional(Schema.String),
       createdAt: Schema.Date,
     }),
   }),
@@ -87,10 +92,11 @@ export const providerMaterializers = {
       baseUrl: event.baseUrl,
       apiKey: event.apiKey,
       apiFormat: event.apiFormat,
+      models: event.models ?? "[]",
       createdAt: event.createdAt,
       updatedAt: event.createdAt,
     }),
-  "v1.ProviderUpdated": (event: ProviderUpdatedEvent & { models?: string }) =>
+  "v1.ProviderUpdated": (event: ProviderUpdatedEvent) =>
     providerTable
       .update({
         ...(event.name !== undefined ? { name: event.name } : {}),

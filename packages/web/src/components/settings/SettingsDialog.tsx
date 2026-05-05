@@ -5,6 +5,7 @@ import {
   CpuIcon,
   DatabaseIcon,
   GearSixIcon,
+  HardDrivesIcon,
   InfoIcon,
   KeyboardIcon,
   SparkleIcon,
@@ -23,6 +24,7 @@ import {
   SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
+import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import ToastStack from "@/components/ToastStack";
@@ -49,6 +51,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   general: GearSixIcon,
   hotkeys: KeyboardIcon,
   "ai-provider": CpuIcon,
+  "local-models": HardDrivesIcon,
   memory: BrainIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
@@ -67,17 +70,12 @@ const SETTINGS_PLACEHOLDER_COPY: Partial<
     summary: "Workspace identity, appearance, and day-to-day defaults are being consolidated here.",
   },
   hotkeys: {
-    summary: "Keyboard workflows and command habits will live in one place instead of being scattered.",
+    summary:
+      "Keyboard workflows and command habits will live in one place instead of being scattered.",
   },
 };
 
-function SettingsPlaceholderSection({
-  summary,
-  title,
-}: {
-  summary: string;
-  title: string;
-}) {
+function SettingsPlaceholderSection({ summary, title }: { summary: string; title: string }) {
   return (
     <section className={SETTINGS_PANEL_CLASS_NAME}>
       <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>{title}</h3>
@@ -200,6 +198,10 @@ export default function SettingsDialog({
       return <SettingsMemorySection open={open} />;
     }
 
+    if (activeSection === "local-models") {
+      return <SettingsLocalModelsSection open={open} />;
+    }
+
     if (activeSection === "skills") {
       return <SettingsSkillsSection />;
     }
@@ -218,7 +220,9 @@ export default function SettingsDialog({
         summary={
           (activeSection === "general" || activeSection === "hotkeys"
             ? SETTINGS_PLACEHOLDER_COPY[activeSection]?.summary
-            : undefined) ?? activeSectionData?.description ?? "Manage your workspace preferences."
+            : undefined) ??
+          activeSectionData?.description ??
+          "Manage your workspace preferences."
         }
       />
     );
@@ -297,7 +301,9 @@ export default function SettingsDialog({
                 id="settings-section-directory"
                 className={cn(
                   "overflow-hidden transition-[grid-template-rows,opacity,margin] duration-300 ease-[var(--ease-out-quart)] md:hidden",
-                  isMobileNavigationOpen ? "mt-4 grid grid-rows-[1fr] opacity-100" : "grid grid-rows-[0fr] opacity-0",
+                  isMobileNavigationOpen
+                    ? "mt-4 grid grid-rows-[1fr] opacity-100"
+                    : "grid grid-rows-[0fr] opacity-0",
                 )}
               >
                 <div className="min-h-0">
