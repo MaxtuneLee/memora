@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useClientDocument, useStore } from "@livestore/react";
+import { useStore } from "@livestore/react";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { type file as LiveStoreFile } from "@/livestore/file";
 import { type folder as LiveStoreFolder } from "@/livestore/folder";
-import { settingsTable } from "@/livestore/setting";
+import { type setting } from "@/livestore/setting";
 import { useAgent } from "@/hooks/chat/useAgent";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
@@ -14,7 +14,13 @@ import {
   chatActiveFoldersQuery$,
   chatProvidersQuery$,
 } from "@/lib/chat/queries";
-import { updateChatSessionMessages } from "@/lib/chat/chatSessionStorage";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import {
+  DEFAULT_CHAT_SESSION_TITLE,
+  updateChatSession,
+  updateChatSessionMessages,
+} from "@/lib/chat/chatSessionStorage";
+import { generateChatSessionTitle } from "@/lib/chat/chatSessionTitleGenerator";
 import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
 import {
   buildSessionSignature,
@@ -29,10 +35,11 @@ import { useChatSessions } from "@/components/chat/chatPage/useChatSessions";
 import { useChatTurnActions } from "@/components/chat/chatPage/useChatTurnActions";
 import { useChatWriteApproval } from "@/components/chat/chatPage/useChatWriteApproval";
 import { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
+import { ONBOARDING_GEMMA_MODEL_ID } from "@/lib/onboarding/onboardingGate";
 
 export const Component = () => {
   const { store } = useStore();
-  const [settings] = useClientDocument(settingsTable);
+  const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const { openSettings } = useSettingsDialog();
   const openSettingsPanel = useCallback(
     (section?: string) => {
@@ -46,6 +53,7 @@ export const Component = () => {
   const previousMessageCountRef = useRef(0);
   const isStreamingRef = useRef(false);
   const isPreparingTurnRef = useRef(false);
+  const titleGenerationSessionIdsRef = useRef<Set<string>>(new Set());
   const abortStreamingRef = useRef<() => void>(() => {});
   const closeImagePickerRef = useRef<() => void>(() => {});
   const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
@@ -58,6 +66,7 @@ export const Component = () => {
   const activeImageRows = useMemo(() => {
     return activeFileRows.filter((file) => file.type === "image");
   }, [activeFileRows]);
+  const titleMetadataKey = "chat-session-title";
   const showWidgetSkillTracker = useMemo(() => {
     return createShowWidgetSkillTracker();
   }, []);
@@ -73,6 +82,7 @@ export const Component = () => {
     setActiveReferences,
     persistedSignaturesRef,
     commitPersistedSession,
+    updatePersistedSessionSummary,
     deletingSessionId,
     pendingDeleteSessionId,
     handleCreateSession,
@@ -105,7 +115,7 @@ export const Component = () => {
     onCloseImagePicker: () => closeImagePickerRef.current(),
   });
 
-  const promptSegments = useMemo(() => {
+  const remotePromptSegments = useMemo(() => {
     return [SYSTEM_PROMPT, BUILT_IN_SKILLS_PROMPT, references.referencePromptSegment];
   }, [references.referencePromptSegment]);
 
@@ -128,7 +138,7 @@ export const Component = () => {
     activeSessionId,
   });
 
-  const tools = useMemo(
+  const remoteTools = useMemo(
     () =>
       createChatTools(store, {
         getReferenceScope: references.getReferenceScope,
@@ -163,6 +173,9 @@ export const Component = () => {
     ],
   );
 
+  const activePromptSegments = remotePromptSegments;
+  const activeTools = remoteTools;
+
   const {
     messages,
     isStreaming,
@@ -182,8 +195,8 @@ export const Component = () => {
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
     provider,
-    promptSegments,
-    tools,
+    promptSegments: activePromptSegments,
+    tools: activeTools,
     persistence,
   });
 
@@ -324,6 +337,46 @@ export const Component = () => {
       })
         .then((record) => {
           commitPersistedSession(record, messages);
+
+          const shouldGenerateTitle =
+            ONBOARDING_GEMMA_MODEL_ID.trim().length > 0 &&
+            record.messages.some((message) => message.role === "user") &&
+            record.title !== DEFAULT_CHAT_SESSION_TITLE &&
+            record.agentStore[titleMetadataKey]?.generated !== true &&
+            !titleGenerationSessionIdsRef.current.has(activeSessionId);
+
+          if (!shouldGenerateTitle) {
+            return;
+          }
+
+          titleGenerationSessionIdsRef.current.add(activeSessionId);
+          void generateChatSessionTitle({
+            messages,
+            modelId: ONBOARDING_GEMMA_MODEL_ID,
+          })
+            .then(async (title) => {
+              if (!title) return null;
+              return updateChatSession(activeSessionId, (session) => ({
+                ...session,
+                title,
+                agentStore: {
+                  ...session.agentStore,
+                  [titleMetadataKey]: {
+                    generated: true,
+                    generatedAt: Date.now(),
+                  },
+                },
+              }));
+            })
+            .then((updatedRecord) => {
+              if (updatedRecord) {
+                updatePersistedSessionSummary(updatedRecord);
+              }
+            })
+            .catch((titleError) => {
+              titleGenerationSessionIdsRef.current.delete(activeSessionId);
+              console.warn("Failed to generate chat session title:", titleError);
+            });
         })
         .catch((persistError) => {
           console.error("Failed to persist chat session:", persistError);
@@ -342,6 +395,7 @@ export const Component = () => {
     persistedSignaturesRef,
     sessionsReady,
     turnActions.isPreparingTurn,
+    updatePersistedSessionSummary,
   ]);
 
   const displayedMessages = messages;
@@ -423,7 +477,6 @@ export const Component = () => {
         onOpenSettings: openSettingsPanel,
         onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
         onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,
-        onToggleImageLibrary: () => composerImages.setImagePickerOpen((value) => !value),
         onCloseImagePicker: composerImages.closeImagePicker,
         onImagePickerQueryChange: composerImages.setImagePickerQuery,
         onSelectLibraryImage: composerImages.handleSelectLibraryImage,

@@ -4,12 +4,6 @@ import { cn } from "@/lib/cn";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const SESSION_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 type SessionGroup = {
   id: "today" | "last-7-days" | "earlier";
@@ -21,10 +15,6 @@ const getDayStart = (timestamp: number): number => {
   const date = new Date(timestamp);
   date.setHours(0, 0, 0, 0);
   return date.getTime();
-};
-
-const formatSessionUpdatedAt = (timestamp: number): string => {
-  return SESSION_DATE_FORMATTER.format(new Date(timestamp));
 };
 
 const groupSessionsByDate = (sessions: ChatSessionSummary[]): SessionGroup[] => {
@@ -154,16 +144,8 @@ function ChatHistoryPanelComponent({
                             "min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left bg-transparent",
                           )}
                         >
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{session.title}</p>
-                            <span
-                              className={cn(
-                                "shrink-0 text-[10px]",
-                                isActive ? "text-zinc-300" : "text-zinc-400",
-                              )}
-                            >
-                              {formatSessionUpdatedAt(session.updatedAt)}
-                            </span>
                           </div>
                           <p
                             className={cn(

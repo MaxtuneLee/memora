@@ -62,14 +62,7 @@ export const useChatModelConfig = ({
       model: selectedModel,
       maxIterations: 20,
     };
-  }, [
-    activeSessionId,
-    selectedApiFormat,
-    selectedApiKey,
-    selectedEndpoint,
-    selectedModel,
-    selectedProvider,
-  ]);
+  }, [activeSessionId, selectedEndpoint, selectedModel, selectedProvider]);
 
   const provider = useMemo(() => {
     return createOpenAIProvider({

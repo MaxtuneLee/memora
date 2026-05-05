@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence } from "motion/react";
 import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
+import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
 import { ReferencePicker, type ReferencePickerOption } from "@/components/chat/ReferencePicker";
 import { StatusBar } from "@/components/chat/StatusBar";
 import type { ChatMessage as AgentChatMessage, AgentStatus } from "@/hooks/chat/useAgent";
@@ -55,7 +56,6 @@ interface ChatPageComposerPanelProps {
   onOpenSettings: (section?: string) => void;
   onDismissMemoryNotice: () => void;
   onOpenLocalImagePicker: () => void;
-  onToggleImageLibrary: () => void;
   onCloseImagePicker: () => void;
   onImagePickerQueryChange: (value: string) => void;
   onSelectLibraryImage: (file: LiveStoreFile) => void;
@@ -112,7 +112,6 @@ export const ChatPageComposerPanel = ({
   onOpenSettings,
   onDismissMemoryNotice,
   onOpenLocalImagePicker,
-  onToggleImageLibrary,
   onCloseImagePicker,
   onImagePickerQueryChange,
   onSelectLibraryImage,
@@ -191,18 +190,15 @@ export const ChatPageComposerPanel = ({
             </p>
           )}
           <ChatPageComposerAttachments
-            composerImages={composerImages}
             remainingImageSlots={remainingImageSlots}
             sessionsReady={sessionsReady}
             imagePickerOpen={imagePickerOpen}
             imagePickerQuery={imagePickerQuery}
             imagePickerOptions={imagePickerOptions}
             onOpenLocalImagePicker={onOpenLocalImagePicker}
-            onToggleImageLibrary={onToggleImageLibrary}
             onCloseImagePicker={onCloseImagePicker}
             onImagePickerQueryChange={onImagePickerQueryChange}
             onSelectLibraryImage={onSelectLibraryImage}
-            onRemoveComposerImage={onRemoveComposerImage}
           />
           {activeReferences.length > 0 && (
             <div className="relative z-10 mb-2 rounded-xl border border-zinc-200 bg-white/80 px-3 py-2">
@@ -287,6 +283,15 @@ export const ChatPageComposerPanel = ({
                   Drop images here to attach them
                 </div>
               )}
+              {composerImages.length > 0 && (
+                <div className="px-3 pb-1 pt-3">
+                  <ChatImageAttachmentGallery
+                    attachments={composerImages}
+                    tone="composer"
+                    onRemove={onRemoveComposerImage}
+                  />
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 onChange={onInputChange}
@@ -297,7 +302,9 @@ export const ChatPageComposerPanel = ({
                 placeholder="Message Memora..."
                 disabled={isPreparingTurn}
                 rows={1}
-                className="w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+                className={`max-h-[180px] w-full resize-none overflow-y-auto bg-transparent px-4 pb-2 text-sm text-zinc-900 outline-none [field-sizing:content] placeholder:text-zinc-400 ${
+                  composerImages.length > 0 ? "pt-2" : "pt-3.5"
+                }`}
               />
               <div className="flex items-center justify-between px-3 pb-2.5">
                 <div className="flex items-center gap-1">

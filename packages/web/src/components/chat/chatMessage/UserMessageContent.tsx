@@ -31,20 +31,6 @@ export function UserMessageContent({
 }) {
   return (
     <>
-      {message.attachments && message.attachments.length > 0 && (
-        <div className={message.content ? "mb-3" : ""}>
-          <ChatImageAttachmentGallery
-            attachments={message.attachments}
-            tone="user"
-            savingAttachmentIds={savingAttachmentIds}
-            onSaveToLibrary={
-              onSaveImageToLibrary
-                ? (attachmentId) => onSaveImageToLibrary(message.id, attachmentId)
-                : undefined
-            }
-          />
-        </div>
-      )}
       {isEditing ? (
         <div className="space-y-3">
           <textarea
@@ -75,7 +61,27 @@ export function UserMessageContent({
           </div>
         </div>
       ) : (
-        message.content
+        <>
+          {message.content && (
+            <div className="max-w-full rounded-2xl bg-[#efe7db] px-4 py-2.5 text-zinc-900">
+              {message.content}
+            </div>
+          )}
+          {message.attachments && message.attachments.length > 0 && (
+            <div className={message.content ? "mt-2" : ""}>
+              <ChatImageAttachmentGallery
+                attachments={message.attachments}
+                tone="user"
+                savingAttachmentIds={savingAttachmentIds}
+                onSaveToLibrary={
+                  onSaveImageToLibrary
+                    ? (attachmentId) => onSaveImageToLibrary(message.id, attachmentId)
+                    : undefined
+                }
+              />
+            </div>
+          )}
+        </>
       )}
     </>
   );
