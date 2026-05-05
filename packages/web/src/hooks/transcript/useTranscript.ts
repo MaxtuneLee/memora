@@ -15,7 +15,10 @@ import {
   type WhisperProgressItem,
 } from "@/lib/transcript/whisper/client";
 import { useRecordingFinalizer } from "@/hooks/transcript/useTranscript/useRecordingFinalizer";
-import { useSpeechBuffer } from "@/hooks/transcript/useTranscript/useSpeechBuffer";
+import {
+  chooseCompletedSpeechAudio,
+  useSpeechBuffer,
+} from "@/hooks/transcript/useTranscript/useSpeechBuffer";
 import { useSpeechQueue } from "@/hooks/transcript/useTranscript/useSpeechQueue";
 import { useWordAnimation } from "@/hooks/transcript/useTranscript/useWordAnimation";
 
@@ -69,7 +72,7 @@ export const useTranscript = () => {
     speechStartTimeRef,
     speechStartSecRef,
     appendSpeechFrame,
-    flushSpeechBuffer,
+    drainSpeechBuffer,
     resetSpeechCollection,
   } = useSpeechBuffer({
     enqueueSpeech,
@@ -158,10 +161,12 @@ export const useTranscript = () => {
             (recordingStartRef.current
               ? (performance.now() - recordingStartRef.current) / 1000
               : 0);
-          if (speechBufferSizeRef.current === 0) {
-            enqueueSpeech(audio, startSec);
-          } else {
-            flushSpeechBuffer();
+          const completedAudio = chooseCompletedSpeechAudio({
+            vadAudio: audio,
+            bufferedAudio: speechBufferSizeRef.current > 0 ? drainSpeechBuffer() : new Float32Array(),
+          });
+          if (completedAudio.length > 0) {
+            enqueueSpeech(completedAudio, startSec);
           }
           speechStartTimeRef.current = null;
           speechStartSecRef.current = null;
@@ -175,8 +180,8 @@ export const useTranscript = () => {
     }
   }, [
     appendSpeechFrame,
+    drainSpeechBuffer,
     enqueueSpeech,
-    flushSpeechBuffer,
     getOrCreateStream,
     resetSpeechCollection,
   ]);
@@ -268,14 +273,14 @@ export const useTranscript = () => {
     mediaRecorderRef.current = recorder;
     recorder.start(1000);
 
-    vadRef.current?.start();
+    void vadRef.current?.start();
   }, [ensureVAD, finalizeIfReady, getOrCreateStream, status]);
 
   const handlePauseRecording = useCallback(() => {
     if (!recordingRef.current || paused) return;
     setPaused(true);
     resetSpeechCollection();
-    vadRef.current?.pause();
+    void vadRef.current?.pause();
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.pause();
     }
@@ -284,7 +289,7 @@ export const useTranscript = () => {
   const handleResumeRecording = useCallback(() => {
     if (!recordingRef.current || !paused) return;
     setPaused(false);
-    vadRef.current?.start();
+    void vadRef.current?.start();
     if (mediaRecorderRef.current?.state === "paused") {
       mediaRecorderRef.current.resume();
     }
@@ -298,7 +303,7 @@ export const useTranscript = () => {
     pendingSaveRef.current = true;
     resetSpeechCollection();
     clearWordAnimations();
-    vadRef.current?.pause();
+    void vadRef.current?.pause();
     if (
       mediaRecorderRef.current?.state === "recording" ||
       mediaRecorderRef.current?.state === "paused"
@@ -426,7 +431,7 @@ export const useTranscript = () => {
 
   useEffect(() => {
     return () => {
-      vadRef.current?.destroy();
+      void vadRef.current?.destroy();
       vadRef.current = null;
       streamRef.current?.getTracks().forEach((track) => track.stop());
       clearWordAnimations();

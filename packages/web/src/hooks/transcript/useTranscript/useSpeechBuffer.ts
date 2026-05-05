@@ -2,6 +2,20 @@ import { useCallback, useRef } from "react";
 
 import { WHISPER_MAX_SAMPLES, WHISPER_SAMPLE_RATE } from "@/lib/transcript/transcriptUtils";
 
+export const chooseCompletedSpeechAudio = ({
+  vadAudio,
+  bufferedAudio,
+}: {
+  vadAudio: Float32Array;
+  bufferedAudio: Float32Array;
+}) => {
+  if (vadAudio.length > 0) {
+    return vadAudio;
+  }
+
+  return bufferedAudio;
+};
+
 export const useSpeechBuffer = ({
   enqueueSpeech,
 }: {
@@ -54,19 +68,15 @@ export const useSpeechBuffer = ({
     [consumeSpeechBuffer, enqueueSpeech],
   );
 
-  const flushSpeechBuffer = useCallback(() => {
+  const drainSpeechBuffer = useCallback(() => {
     if (speechBufferSizeRef.current === 0) {
-      return;
+      return new Float32Array();
     }
 
     const chunk = consumeSpeechBuffer(speechBufferSizeRef.current);
     speechBufferSizeRef.current = 0;
-    if (speechStartSecRef.current != null) {
-      const chunkStartSec = speechStartSecRef.current + speechBufferOffsetSecRef.current;
-      enqueueSpeech(chunk, chunkStartSec);
-      speechBufferOffsetSecRef.current += chunk.length / WHISPER_SAMPLE_RATE;
-    }
-  }, [consumeSpeechBuffer, enqueueSpeech]);
+    return chunk;
+  }, [consumeSpeechBuffer]);
 
   const resetSpeechCollection = useCallback(() => {
     collectingRef.current = false;
@@ -83,7 +93,7 @@ export const useSpeechBuffer = ({
     speechStartTimeRef,
     speechStartSecRef,
     appendSpeechFrame,
-    flushSpeechBuffer,
+    drainSpeechBuffer,
     resetSpeechCollection,
   };
 };
