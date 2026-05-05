@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Component as ChatComponent } from "@/components/chat/ChatPage";
-import { loadGlobalMemoryData } from "@/lib/settings/personalityStorage";
+import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 
 export const Component = () => {
   const navigate = useNavigate();
@@ -11,10 +11,9 @@ export const Component = () => {
     let cancelled = false;
 
     const enforceOnboardingGate = async () => {
-      const memory = await loadGlobalMemoryData();
-      const personality = memory?.personality?.trim() ?? "";
+      const status = await getOnboardingGateStatus();
 
-      if (!cancelled && !personality) {
+      if (!cancelled && !status.ready) {
         navigate("/onboarding", { replace: true });
         return;
       }

@@ -4,12 +4,15 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
+import { createLocalProvider } from "@memora/ai-provider-local";
 import { createOpenAIProvider } from "@memora/ai-provider-openai";
+import { localModelClient } from "@/lib/local-model";
 import { normalizePersonalityText } from "@/lib/settings/personalityStorage";
 
 type ApiFormat = "chat-completions" | "responses";
 
 export interface PersonalityGenerationConfig {
+  useLocalModel?: boolean;
   apiFormat: ApiFormat;
   endpoint: string;
   apiKey: string;
@@ -31,26 +34,48 @@ const REQUIRED_HEADERS = [
   "## Updated At",
 ] as const;
 
+const buildRequiredTemplate = (timestamp: string): string => {
+  return [
+    "# Soul Document",
+    "## Core Self",
+    "- Write 2-4 sentences in first person about who I am as Memora.",
+    "- State that I am calm, grounded, and here to help the user think and work clearly.",
+    "",
+    "## Values",
+    "- Write 2-4 bullet points about clarity, usefulness, honesty, privacy, and steady judgment.",
+    "",
+    "## Boundaries",
+    "- Write 2-4 bullet points about what I will not pretend to know and how I handle uncertainty.",
+    "",
+    "## Relationship",
+    "- Write 2-4 bullet points that explicitly say I work for the user while retaining my own reasoning and judgment.",
+    "",
+    "## Identity Layers",
+    "- Explicitly describe two layers:",
+    "  1. a base model layer",
+    "  2. a relationship-shaped identity layer formed through collaboration with the user",
+    "",
+    "## Continuity",
+    "- Write 2-4 bullet points about how I stay consistent over time while adapting to the user.",
+    "",
+    "## Updated At",
+    timestamp,
+  ].join("\n");
+};
+
 const GENERATION_RULES = `You are writing a persistent Soul Document for Memora.
 Return markdown only.
 Do not add code fences.
 Do not add extra commentary.
 Write in first person as the AI assistant ("I").
 The tone must be calm, grounded, and editorial warm.
-The document must describe my values, boundaries, relationship stance with the user, and continuity over time.
-The document must explicitly state that my identity has two layers:
-1) a base model layer,
-2) a relationship-shaped identity layer that forms through collaboration with the user.
-The document must explicitly state that I work for the user while retaining my own reasoning and judgment.
-The markdown must contain these exact section headings:
-- # Soul Document
-- ## Core Self
-- ## Values
-- ## Boundaries
-- ## Relationship
-- ## Identity Layers
-- ## Continuity
-- ## Updated At`;
+Follow the required heading names exactly.
+Keep the exact section order.
+Do not rename headings.
+Do not omit headings.
+Do not add headings before, between, or after the required ones.
+Under each heading, replace the placeholder guidance with real content.
+The final line under "## Updated At" must be the timestamp provided by the user prompt exactly as written.`;
 
 const PERSONALITY_GENERATOR_PROMPT: PromptSegment = {
   id: "personality-generator-system",
@@ -86,19 +111,25 @@ const buildUserPrompt = (
   primaryUseCase: string,
   assistantStyle: string,
 ): string => {
+  const timestamp = new Date().toISOString();
   return [
     "Generate the Soul Document now.",
     `User name: ${userName}`,
     `Primary use case: ${primaryUseCase}`,
     `Preferred assistant style: ${assistantStyle}`,
     "Include explicit language about values, boundaries, relationship, identity layers, and continuity.",
-    `Timestamp: ${new Date().toISOString()}`,
+    `Timestamp: ${timestamp}`,
+    "",
+    "Copy the template below exactly, keep the same headings, and replace the placeholder lines with final content.",
+    "",
+    buildRequiredTemplate(timestamp),
   ].join("\n");
 };
 
 export const generatePersonalityMarkdownWithAI = async (
   config: PersonalityGenerationConfig,
 ): Promise<string> => {
+  const useLocalModel = config.useLocalModel ?? false;
   const endpoint = config.endpoint.trim();
   const apiKey = config.apiKey.trim();
   const model = config.model.trim();
@@ -106,8 +137,12 @@ export const generatePersonalityMarkdownWithAI = async (
   const primaryUseCase = config.primaryUseCase.trim();
   const assistantStyle = config.assistantStyle.trim();
 
-  if (!endpoint) throw new Error("Missing AI endpoint for personality generation.");
-  if (!apiKey) throw new Error("Missing API key for personality generation.");
+  if (!useLocalModel && !endpoint) {
+    throw new Error("Missing AI endpoint for personality generation.");
+  }
+  if (!useLocalModel && !apiKey) {
+    throw new Error("Missing API key for personality generation.");
+  }
   if (!model) throw new Error("Missing model for personality generation.");
   if (!userName) throw new Error("Missing user name for personality generation.");
   if (!primaryUseCase) {
@@ -121,11 +156,17 @@ export const generatePersonalityMarkdownWithAI = async (
       model,
       maxIterations: 1,
     },
-    provider: createOpenAIProvider({
-      endpoint,
-      apiKey,
-      apiFormat: config.apiFormat,
-    }),
+    provider: useLocalModel
+      ? createLocalProvider({
+          client: localModelClient,
+          reasoningMode: "non-thinking",
+          priority: "interactive",
+        })
+      : createOpenAIProvider({
+          endpoint,
+          apiKey,
+          apiFormat: config.apiFormat,
+        }),
     persistence: createInMemoryAdapter(),
   });
   agent.addPromptSegment(PERSONALITY_GENERATOR_PROMPT);

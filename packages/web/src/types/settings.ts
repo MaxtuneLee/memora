@@ -15,6 +15,11 @@ export const SETTINGS_SECTIONS = [
     description: "Manage AI runtime and model endpoints.",
   },
   {
+    id: "local-models",
+    label: "Local Models",
+    description: "Review downloaded browser models and cache status.",
+  },
+  {
     id: "memory",
     label: "Memory",
     description: "Review and manage the assistant's saved long-term memory.",

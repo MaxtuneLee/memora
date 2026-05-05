@@ -1,11 +1,10 @@
 import { Toast } from "@base-ui/react/toast";
-import { useClientDocument, useStore } from "@livestore/react";
+import { useStore } from "@livestore/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { parseProviderModel } from "@/lib/settings/dialogHelpers";
-import { settingsProvidersQuery$ } from "@/lib/settings/queries";
+import { settingsDocumentQuery$, settingsProvidersQuery$ } from "@/lib/settings/queries";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
-import { settingsTable } from "@/livestore/setting";
+import { settingEvents, type setting } from "@/livestore/setting";
 import type { ModelInfo, ProviderFormState } from "@/types/settingsDialog";
 
 const EMPTY_PROVIDER_FORM: ProviderFormState = {
@@ -22,7 +21,7 @@ interface UseAiProviderSettingsOptions {
 export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) => {
   const { store } = useStore();
   const providers = store.useQuery(settingsProvidersQuery$) as ProviderRow[];
-  const [settings, setSettings] = useClientDocument(settingsTable);
+  const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const { add } = Toast.useToastManager();
 
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
@@ -149,14 +148,19 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
     (id: string) => {
       store.commit(providerEvents.providerDeleted({ id, deletedAt: new Date() }));
       if (settings.selectedProviderId === id) {
-        setSettings({ selectedProviderId: "", selectedModel: "" });
+        store.commit(
+          settingEvents.settingsSet({
+            selectedProviderId: "",
+            selectedModel: "",
+          }),
+        );
       }
       if (editingProviderId === id) {
         setEditingProviderId(null);
       }
       add({ title: "Provider removed", type: "success" });
     },
-    [add, editingProviderId, setSettings, settings.selectedProviderId, store],
+    [add, editingProviderId, settings.selectedProviderId, store],
   );
 
   const handleFetchModels = useCallback(
@@ -223,10 +227,15 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
 
   const handleSelectModel = useCallback(
     (providerId: string, modelId: string) => {
-      setSettings({ selectedProviderId: providerId, selectedModel: modelId });
+      store.commit(
+        settingEvents.settingsSet({
+          selectedProviderId: providerId,
+          selectedModel: modelId,
+        }),
+      );
       setModelDropdownOpen(false);
     },
-    [setSettings],
+    [store],
   );
 
   return {

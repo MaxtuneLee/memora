@@ -4,25 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "@/app/components/Sidebar";
 import SearchPalette from "@/components/search/SearchPalette";
 import SettingsDialog from "@/components/settings/SettingsDialog";
+import { LocalModelDevtoolsPanel } from "@/components/devtools/LocalModelDevtoolsPanel";
 import {
   SearchPaletteContextProvider,
   type SearchPaletteContextValue,
 } from "@/hooks/search/useSearchPalette";
 import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialog";
-import { loadGlobalMemoryData } from "@/lib/settings/personalityStorage";
+import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 import type { SettingsSectionId } from "@/types/settings";
 
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
-  const [hasPersonality, setHasPersonality] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const lastSearchTriggerRef = useRef<HTMLElement | null>(null);
   const isOnboardingRoute = location.pathname.startsWith("/onboarding");
-  const isChatRoute = location.pathname.startsWith("/chat");
 
   const openSettings = useCallback((section: SettingsSectionId) => {
     setIsSearchOpen(false);
@@ -120,13 +120,12 @@ export default function AppLayout() {
     let cancelled = false;
 
     const checkOnboardingGate = async () => {
-      const memory = await loadGlobalMemoryData();
-      const personality = memory?.personality?.trim() ?? "";
+      const status = await getOnboardingGateStatus();
       if (cancelled) {
         return;
       }
 
-      setHasPersonality(!!personality);
+      setOnboardingComplete(status.ready);
       setOnboardingGateReady(true);
     };
 
@@ -142,15 +141,15 @@ export default function AppLayout() {
       return;
     }
 
-    if (!hasPersonality && isChatRoute) {
+    if (!onboardingComplete && !isOnboardingRoute) {
       navigate("/onboarding", { replace: true });
       return;
     }
 
-    if (hasPersonality && isOnboardingRoute) {
-      navigate("/chat", { replace: true });
+    if (onboardingComplete && isOnboardingRoute) {
+      navigate("/", { replace: true });
     }
-  }, [hasPersonality, isChatRoute, isOnboardingRoute, navigate, onboardingGateReady]);
+  }, [isOnboardingRoute, navigate, onboardingComplete, onboardingGateReady]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -201,6 +200,7 @@ export default function AppLayout() {
             activeSection={activeSection}
             onSectionChange={setActiveSection}
           />
+          {import.meta.env.DEV && <LocalModelDevtoolsPanel currentPath={location.pathname} />}
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
     </Toast.Provider>
