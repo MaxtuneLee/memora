@@ -28,7 +28,6 @@ const SKIP_DIRS = new Set([
 export const STORAGE_CONTENT_CATEGORY_CONFIG = [
   { id: "recordings", label: "Recordings", color: "bg-[#b07a63]" },
   { id: "transcripts", label: "Transcripts", color: "bg-[#c39a5b]" },
-  { id: "models", label: "Models", color: "bg-[#879a4f]" },
   { id: "text", label: "Text files", color: "bg-[#6f7d63]" },
   { id: "images", label: "Images", color: "bg-[#9b8d7a]" },
   { id: "videos", label: "Videos", color: "bg-[#7c6f64]" },
@@ -82,13 +81,13 @@ interface StorageStatsSnapshot {
   isStoragePersistent: boolean;
   isStorageSupported: boolean;
   contentCategorySizes: Record<StorageContentCategoryId, number>;
+  modelCacheUsage: number;
   storageUsageDetails?: StorageUsageDetails;
 }
 
 const createEmptyCategorySizes = (): Record<StorageContentCategoryId, number> => ({
   recordings: 0,
   transcripts: 0,
-  models: 0,
   text: 0,
   images: 0,
   videos: 0,
@@ -100,6 +99,7 @@ const createInitialStorageStatsSnapshot = (): StorageStatsSnapshot => ({
   isStoragePersistent: false,
   isStorageSupported: true,
   contentCategorySizes: createEmptyCategorySizes(),
+  modelCacheUsage: 0,
   storageUsageDetails: undefined,
 });
 
@@ -219,30 +219,37 @@ const getStorageBreakdown = async () => {
   const sizes = createEmptyCategorySizes();
 
   await collectSizes(FILES_DIR, sizes);
-  sizes.models += await getDirectorySize("/transformers-cache");
-  return sizes;
+  const modelCacheUsage = await getDirectorySize("/transformers-cache");
+  return {
+    contentCategorySizes: sizes,
+    modelCacheUsage,
+  };
 };
 
 const buildBreakdownSegmentSizes = ({
   contentUsage,
+  modelCacheUsage,
   storageUsage,
   usageDetails,
 }: {
   contentUsage: number;
+  modelCacheUsage: number;
   storageUsage: number;
   usageDetails?: StorageUsageDetails;
 }): Record<StorageBreakdownSegmentId, number> => {
   const totalUsage = toNonNegativeNumber(storageUsage);
   const normalizedContentUsage = toNonNegativeNumber(contentUsage);
+  const normalizedModelCacheUsage = toNonNegativeNumber(modelCacheUsage);
 
   if (!usageDetails) {
+    const internalDataUsage = Math.max(0, normalizedModelCacheUsage);
     return {
       "user-content": normalizedContentUsage,
-      "internal-data": 0,
+      "internal-data": internalDataUsage,
       "browser-cache": 0,
       "service-workers": 0,
       other: 0,
-      "unclassified-storage": Math.max(0, totalUsage - normalizedContentUsage),
+      "unclassified-storage": Math.max(0, totalUsage - normalizedContentUsage - internalDataUsage),
     };
   }
 
@@ -287,7 +294,8 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
         storageUsageDetails: estimate.usageDetails,
         isStoragePersistent: Boolean(persisted),
         isStorageSupported: true,
-        contentCategorySizes: breakdown,
+        contentCategorySizes: breakdown.contentCategorySizes,
+        modelCacheUsage: breakdown.modelCacheUsage,
       });
     } catch {
       publishStorageStatsSnapshot({
@@ -327,11 +335,12 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
       STORAGE_BREAKDOWN_SEGMENT_CONFIG,
       buildBreakdownSegmentSizes({
         contentUsage,
+        modelCacheUsage: snapshot.modelCacheUsage,
         storageUsage: snapshot.storageUsage,
         usageDetails: snapshot.storageUsageDetails,
       }),
     ) as StorageBreakdownSegment[];
-  }, [contentUsage, snapshot.storageUsage, snapshot.storageUsageDetails]);
+  }, [contentUsage, snapshot.modelCacheUsage, snapshot.storageUsage, snapshot.storageUsageDetails]);
   const usagePercentageLabel = useMemo(() => {
     return buildUsagePercentageLabel(snapshot.storageUsage, snapshot.storageQuota);
   }, [snapshot.storageQuota, snapshot.storageUsage]);
@@ -344,6 +353,7 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
     breakdownSegments,
     contentCategories,
     contentUsage,
+    modelCacheUsage: snapshot.modelCacheUsage,
     usagePercentageLabel,
     refreshStorageState,
     autoRefresh,
