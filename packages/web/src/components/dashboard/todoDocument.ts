@@ -2,7 +2,7 @@ import { file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 import { saveFileToOpfs } from "@/lib/library/fileStorage";
 import { fileEvents } from "@/livestore/file";
-import type { FileMeta } from "@/types/library";
+import { FILE_META_SUFFIX, type FileMeta } from "@/types/library";
 
 import {
   TODO_DOCUMENT_NAME,
@@ -12,6 +12,8 @@ import {
 } from "./todoMarkdown";
 
 const TODO_DOCUMENT_MIME_TYPE = "text/markdown";
+let pendingTodoDocumentCreation: Promise<TodoDocumentSnapshot> | null = null;
+let cachedTodoDocumentSnapshot: TodoDocumentSnapshot | null = null;
 
 interface TodoStoreLike {
   commit: (...events: unknown[]) => void;
@@ -23,6 +25,11 @@ export interface TodoDocumentSnapshot {
   markdown: string;
 }
 
+export const resetTodoDocumentStateForTests = (): void => {
+  pendingTodoDocumentCreation = null;
+  cachedTodoDocumentSnapshot = null;
+};
+
 export const findTodoDocument = (files: FileMeta[]): FileMeta | null => {
   const matches = files
     .filter((file) => {
@@ -33,11 +40,37 @@ export const findTodoDocument = (files: FileMeta[]): FileMeta | null => {
   return matches[0] ?? null;
 };
 
-const loadTodoDocument = async (file: FileMeta): Promise<TodoDocumentSnapshot> => {
-  const markdown = await opfsFile(file.storagePath).text();
+const buildTodoMetaPath = (file: Pick<FileMeta, "id" | "storagePath">): string => {
+  if (file.storagePath.endsWith(".md")) {
+    return file.storagePath.slice(0, -".md".length) + FILE_META_SUFFIX;
+  }
+
+  const extensionIndex = file.storagePath.lastIndexOf(".");
+  if (extensionIndex >= 0) {
+    return file.storagePath.slice(0, extensionIndex) + FILE_META_SUFFIX;
+  }
+
+  return `/files/${file.id}/${file.id}${FILE_META_SUFFIX}`;
+};
+
+const hydrateTodoFileMeta = (file: FileMeta): FileMeta => {
+  const cachedMetaPath =
+    cachedTodoDocumentSnapshot?.file.id === file.id
+      ? cachedTodoDocumentSnapshot.file.metaPath
+      : undefined;
 
   return {
-    file,
+    ...file,
+    metaPath: file.metaPath ?? cachedMetaPath ?? buildTodoMetaPath(file),
+  };
+};
+
+const loadTodoDocument = async (file: FileMeta): Promise<TodoDocumentSnapshot> => {
+  const hydratedFile = hydrateTodoFileMeta(file);
+  const markdown = await opfsFile(hydratedFile.storagePath).text();
+
+  return {
+    file: hydratedFile,
     tasks: parseTodoMarkdown(markdown),
     markdown,
   };
@@ -88,10 +121,31 @@ export const ensureTodoDocument = async ({
 }): Promise<TodoDocumentSnapshot> => {
   const existing = findTodoDocument(files);
   if (existing) {
-    return loadTodoDocument(existing);
+    const snapshot = await loadTodoDocument(existing);
+    cachedTodoDocumentSnapshot = snapshot;
+    return snapshot;
   }
 
-  return createTodoDocument({ store });
+  if (cachedTodoDocumentSnapshot) {
+    return cachedTodoDocumentSnapshot;
+  }
+
+  if (pendingTodoDocumentCreation) {
+    return pendingTodoDocumentCreation;
+  }
+
+  const creation = createTodoDocument({ store });
+  const pendingCreation = creation.finally(() => {
+    if (pendingTodoDocumentCreation === pendingCreation) {
+      pendingTodoDocumentCreation = null;
+    }
+  });
+  void creation.then((snapshot) => {
+    cachedTodoDocumentSnapshot = snapshot;
+  });
+  pendingTodoDocumentCreation = pendingCreation;
+
+  return pendingTodoDocumentCreation;
 };
 
 export const saveTodoDocument = async ({
@@ -103,17 +157,18 @@ export const saveTodoDocument = async ({
   store: TodoStoreLike;
   tasks: TodoTask[];
 }): Promise<TodoDocumentSnapshot> => {
+  const hydratedFile = hydrateTodoFileMeta(file);
   const markdown = serializeTodoMarkdown(tasks);
   const updatedAt = Date.now();
   const sizeBytes = new Blob([markdown]).size;
   const nextFile: FileMeta = {
-    ...file,
+    ...hydratedFile,
     sizeBytes,
     updatedAt,
   };
 
-  await opfsWrite(file.storagePath, markdown, { overwrite: true });
-  await opfsWrite(file.metaPath, JSON.stringify(nextFile), { overwrite: true });
+  await opfsWrite(hydratedFile.storagePath, markdown, { overwrite: true });
+  await opfsWrite(hydratedFile.metaPath, JSON.stringify(nextFile), { overwrite: true });
 
   store.commit(
     fileEvents.fileUpdated({

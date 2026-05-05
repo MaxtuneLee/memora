@@ -7,7 +7,11 @@ import {
   serializeTodoMarkdown,
   type TodoTask,
 } from "@/components/dashboard/todoMarkdown";
-import { ensureTodoDocument, saveTodoDocument } from "@/components/dashboard/todoDocument";
+import {
+  ensureTodoDocument,
+  resetTodoDocumentStateForTests,
+  saveTodoDocument,
+} from "@/components/dashboard/todoDocument";
 import { saveFileToOpfs } from "@/lib/library/fileStorage";
 
 const testState = vi.hoisted(() => {
@@ -76,6 +80,7 @@ const createFileMeta = (overrides: Partial<FileMeta> = {}): FileMeta => {
 };
 
 beforeEach(() => {
+  resetTodoDocumentStateForTests();
   testState.fileTextByPath.clear();
   testState.file.mockClear();
   testState.write.mockClear();
@@ -128,6 +133,74 @@ test("creates the backing todo markdown document when it does not exist", async 
   );
 });
 
+test("coalesces concurrent creation requests for the todo document", async () => {
+  let resolveCreate: ((value: { id: string; meta: FileMeta }) => void) | null = null;
+  const createdMeta = createFileMeta({
+    id: "created-once",
+    storagePath: "/files/created-once/created-once.md",
+    metaPath: "/files/created-once/created-once.meta.json",
+  });
+  const pendingCreate = new Promise<{ id: string; meta: FileMeta }>((resolve) => {
+    resolveCreate = resolve;
+  });
+  testState.saveFileToOpfs.mockImplementation(
+    () => pendingCreate,
+  );
+  const store = {
+    commit: vi.fn(),
+  };
+
+  const firstRequest = ensureTodoDocument({
+    files: [],
+    store,
+  });
+  const secondRequest = ensureTodoDocument({
+    files: [],
+    store,
+  });
+
+  expect(testState.saveFileToOpfs).toHaveBeenCalledTimes(1);
+
+  resolveCreate?.({
+    id: createdMeta.id,
+    meta: createdMeta,
+  });
+
+  const [firstResult, secondResult] = await Promise.all([firstRequest, secondRequest]);
+
+  expect(firstResult).toEqual(secondResult);
+  expect(store.commit).toHaveBeenCalledTimes(1);
+});
+
+test("reuses the newly created todo document before the files query catches up", async () => {
+  const createdMeta = createFileMeta({
+    id: "created-before-query-refresh",
+    storagePath: "/files/created-before-query-refresh/created-before-query-refresh.md",
+    metaPath: "/files/created-before-query-refresh/created-before-query-refresh.meta.json",
+  });
+  testState.saveFileToOpfs.mockResolvedValue({
+    id: createdMeta.id,
+    meta: createdMeta,
+  });
+  const store = {
+    commit: vi.fn(),
+  };
+
+  const firstResult = await ensureTodoDocument({
+    files: [],
+    store,
+  });
+  const secondResult = await ensureTodoDocument({
+    files: [],
+    store,
+  });
+
+  expect(testState.saveFileToOpfs).toHaveBeenCalledTimes(1);
+  expect(firstResult).toEqual(secondResult);
+  expect(secondResult.file).toEqual(createdMeta);
+  expect(store.commit).toHaveBeenCalledTimes(1);
+});
+
 test("reuses the most recently updated active todo file when one already exists", async () => {
   const older = createFileMeta({
     id: "older",
@@ -165,6 +238,41 @@ test("reuses the most recently updated active todo file when one already exists"
     done: false,
   });
   expect(store.commit).not.toHaveBeenCalled();
+});
+
+test("reconstructs the todo meta path when saving an existing file from the files query", async () => {
+  const existing = {
+    ...createFileMeta({
+      id: "missing-meta-path",
+      storagePath: "/files/missing-meta-path/missing-meta-path.md",
+      sizeBytes: 12,
+      updatedAt: 100,
+    }),
+    metaPath: undefined,
+  } as unknown as FileMeta;
+  const tasks: TodoTask[] = [
+    {
+      id: "open-0-storage",
+      text: "Fix the duplicate todo document creation",
+      done: false,
+    },
+  ];
+  const store = {
+    commit: vi.fn(),
+  };
+
+  await saveTodoDocument({
+    file: existing,
+    store,
+    tasks,
+  });
+
+  expect(testState.write).toHaveBeenNthCalledWith(
+    2,
+    "/files/missing-meta-path/missing-meta-path.meta.json",
+    expect.any(String),
+    { overwrite: true },
+  );
 });
 
 test("writes updated markdown content and metadata when saving tasks", async () => {
