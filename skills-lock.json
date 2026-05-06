@@ -111,6 +111,12 @@
       "sourceType": "github",
       "computedHash": "3585dec9d286d35da6da40f6682586d1582a78234773148c7e291c5d604dba9e"
     },
+    "turborepo": {
+      "source": "vercel/turborepo",
+      "sourceType": "github",
+      "skillPath": "skills/turborepo/SKILL.md",
+      "computedHash": "619f8ed766ab6d44c46cbbb0a946f4d2a10a527b589fcec53c10f5faa5496d55"
+    },
     "valibot": {
       "source": "open-circle/agent-skills",
       "sourceType": "github",

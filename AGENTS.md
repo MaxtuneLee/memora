@@ -11,24 +11,26 @@
 
 ### Workspace basics
 
-- Install deps: `pnpm install`
-- Run commands for a package: `pnpm --filter @memora/web <command>`
-- Root shortcuts: `pnpm dev:web`, `pnpm build:web`, `pnpm lint:web`, `pnpm test:web`
+- Install deps: `vp install`
+- Run commands for a package: `vp --filter @memora/web <command>`
+- Root shortcuts: `vp run build`, `vp run build:web`, `vp run lint`, `vp run test`, `vp run dev:web`
 
 ### Development
 
-- Dev server: `pnpm --filter @memora/web dev`
+- Dev server: `vp --filter @memora/web dev`
   - Vite runs on port `9001` (see `packages/web/vite.config.ts`).
-- Preview build: `pnpm --filter @memora/web preview`
+- Preview build: `vp --filter @memora/web preview`
 
 ### Build
 
-- Build web app: `pnpm --filter @memora/web build`
-  - Runs `tsc -b` then `vite build`.
+- Build all packages with dependency order: `vp run build`
+- Build web and its internal dependencies: `vp run build:web`
+- Build web package only: `vp --filter @memora/web build`
 
 ### Lint
 
-- Lint web app: `pnpm --filter @memora/web lint`
+- Lint workspace packages: `vp run lint`
+- Lint web app only: `vp --filter @memora/web lint`
   - Oxlint configured for TypeScript and React rules via `packages/web/.oxlintrc.json`.
 
 ### Format
@@ -40,8 +42,9 @@
 ### Tests
 
 - Web app tests live under `packages/web/test/<module>/...`.
-- Run all web tests: `pnpm --filter @memora/web test`
-- Run a single web test file: `pnpm --filter @memora/web test -- test/<module>/<file>.test.ts`
+- Run all package tests: `vp run test`
+- Run all web tests: `vp --filter @memora/web test`
+- Run a single web test file: `vp --filter @memora/web test -- test/<module>/<file>.test.ts`
 
 ## Code style and conventions
 
@@ -124,8 +127,8 @@
 
 ### Dev tips
 
-- Use `pnpm <command> --filter <project_name>` for package-specific runs.
-- Run `pnpm install --filter <project_name>` to ensure tools can see packages.
+- Use `vp --filter <project_name> <command>` for package-specific runs.
+- Run `vp install` after dependency changes.
 - Confirm package names in each `package.json` (top-level name is not used).
 
 ### Base UI

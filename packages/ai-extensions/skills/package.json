@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "vp pack",
-    "dev": "vp pack --watch"
+    "dev": "vp pack --watch",
+    "lint": "vp lint ."
   },
   "devDependencies": {
     "typescript": "~5.9.3",

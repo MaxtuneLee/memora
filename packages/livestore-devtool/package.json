@@ -20,7 +20,8 @@
   ],
   "scripts": {
     "build": "vp pack",
-    "dev": "vp pack --watch"
+    "dev": "vp pack --watch",
+    "lint": "vp lint ."
   },
   "dependencies": {
     "@livestore/react": "^0.3.1",
