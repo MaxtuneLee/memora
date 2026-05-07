@@ -4,14 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev:web": "vp --filter @memora/web dev",
+    "dev:web": "pnpm --filter @memora/web dev",
     "build": "turbo run build",
     "build:web": "turbo run build --filter=@memora/web...",
     "lint": "turbo run lint",
     "lint:web": "turbo run lint --filter=@memora/web",
     "test": "turbo run test",
     "test:web": "turbo run test --filter=@memora/web",
-    "preview:web": "vp --filter @memora/web preview"
+    "preview:web": "pnpm --filter @memora/web preview"
   },
   "keywords": [],
   "author": "",
