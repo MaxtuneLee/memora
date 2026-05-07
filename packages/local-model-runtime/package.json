@@ -18,6 +18,7 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
+    "lint": "vp lint .",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {

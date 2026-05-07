@@ -19,7 +19,7 @@
 
 - Dev server: `pnpm --filter @memora/web dev`
   - Vite runs on port `9001` (see `packages/web/vite.config.ts`).
-- Preview build: `pnpm --filter @memora/web preview`
+- Preview build: `vp --filter @memora/web preview`
 
 ### Build
 

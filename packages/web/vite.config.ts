@@ -6,6 +6,7 @@ import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
+import { voidPlugin } from "void";
 import path from "node:path";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -21,6 +22,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
+    voidPlugin(),
     livestoreDevtoolsPlugin({
       setupModulePath: "/src/devtools/livestoreDevtoolsSetup.tsx",
       path: "/_db",
