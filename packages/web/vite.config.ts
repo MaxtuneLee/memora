@@ -6,7 +6,6 @@ import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
-import { voidPlugin } from "void";
 import path from "node:path";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -16,18 +15,22 @@ const APP_VERSION =
       version?: string;
     }
   ).version ?? "0.0.0";
+const isVitest = process.env.VITEST === "true" || process.env.VITEST === "1";
 
-export default defineConfig({
+const config = {
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
-    voidPlugin(),
-    livestoreDevtoolsPlugin({
-      setupModulePath: "/src/devtools/livestoreDevtoolsSetup.tsx",
-      path: "/_db",
-      title: "Memora DB Devtools",
-    }),
+    ...(isVitest
+      ? []
+      : [
+          livestoreDevtoolsPlugin({
+            setupModulePath: "/src/devtools/livestoreDevtoolsSetup.tsx",
+            path: "/_db",
+            title: "Memora DB Devtools",
+          }),
+        ]),
     tailwindcss(),
     routeBuilderPlugin({
       pagePattern: "./src/pages/**/*.{tsx,sync.tsx}",
@@ -158,10 +161,17 @@ export default defineConfig({
       "@memora/livestore-devtool": path.resolve(__dirname, "../livestore-devtool/src/index.ts"),
     },
   },
+  test: {
+    environment: "node",
+    environmentMatchGlobs: [["test/editor/**/*.test.tsx", "jsdom"]],
+    setupFiles: "./test/setup.ts",
+  },
   experimental: {
     // bundledDev: true,
   },
   // devtools: {
   //   enabled: true,
   // },
-});
+};
+
+export default defineConfig(config as any);

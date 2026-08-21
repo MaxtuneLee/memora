@@ -1,5 +1,6 @@
 import { file as opfsFile, ls as opfsLs, rm as opfsRm, write as opfsWrite } from "@memora/fs";
 
+import { assertNoPathMutationConflicts } from "@/lib/editor/pathMutations";
 import { collectionTable } from "@/livestore/collection";
 import { collectionEvents } from "@/livestore/collection";
 import type { file as LiveStoreFile } from "@/livestore/file";
@@ -8,7 +9,7 @@ import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import { folderEvents } from "@/livestore/folder";
 import type { provider as LiveStoreProvider } from "@/livestore/provider";
 import { providerEvents } from "@/livestore/provider";
-import { settingEvents, settingsTable } from "@/livestore/setting";
+import { normalizeSettingsValue, settingEvents, settingsTable } from "@/livestore/setting";
 
 const EXPORT_ROOT_DIR_NAME = "memora-export";
 const EXPORT_OPFS_PREFIX = `${EXPORT_ROOT_DIR_NAME}/opfs/`;
@@ -31,6 +32,12 @@ type SettingsValue = {
   sidebarCollapsed: boolean;
   selectedProviderId: string;
   selectedModel: string;
+  defaultNoteLocationMode: "root" | "folder";
+  defaultNoteFolderId: string;
+  attachmentPlacementMode: "root" | "fixed-folder" | "current-folder" | "current-subfolder";
+  attachmentFolderId: string;
+  attachmentSubfolderName: string;
+  editorFontSizePx: number;
   onboardingName?: string;
   onboardingCompleted?: boolean;
   onboardingSkippedAt?: string;
@@ -392,17 +399,30 @@ const normalizeImportedNullableDate = (value: unknown): Date | null => {
   return normalizeImportedDate(value, new Date(0));
 };
 
-const normalizeImportedSettings = (value: unknown): SettingsValue => {
+export const normalizeImportedSettings = (value: unknown): SettingsValue => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ...settingsTable.default.value };
   }
 
   const record = value as Record<string, unknown>;
-  const theme = record.theme;
-  const defaults: SettingsValue = { ...settingsTable.default.value };
-  return {
-    ...defaults,
-    ...(theme === "light" || theme === "dark" || theme === "system" ? { theme } : {}),
+  const theme =
+    record.theme === "light" || record.theme === "dark" || record.theme === "system"
+      ? record.theme
+      : undefined;
+  const defaultNoteLocationMode =
+    record.defaultNoteLocationMode === "root" || record.defaultNoteLocationMode === "folder"
+      ? record.defaultNoteLocationMode
+      : undefined;
+  const attachmentPlacementMode =
+    record.attachmentPlacementMode === "root" ||
+    record.attachmentPlacementMode === "fixed-folder" ||
+    record.attachmentPlacementMode === "current-folder" ||
+    record.attachmentPlacementMode === "current-subfolder"
+      ? record.attachmentPlacementMode
+      : undefined;
+
+  return normalizeSettingsValue({
+    ...(theme ? { theme } : {}),
     ...(typeof record.language === "string" ? { language: record.language } : {}),
     ...(typeof record.defaultTranscriptionModel === "string"
       ? { defaultTranscriptionModel: record.defaultTranscriptionModel }
@@ -421,6 +441,20 @@ const normalizeImportedSettings = (value: unknown): SettingsValue => {
       ? { selectedProviderId: record.selectedProviderId }
       : {}),
     ...(typeof record.selectedModel === "string" ? { selectedModel: record.selectedModel } : {}),
+    ...(defaultNoteLocationMode ? { defaultNoteLocationMode } : {}),
+    ...(typeof record.defaultNoteFolderId === "string"
+      ? { defaultNoteFolderId: record.defaultNoteFolderId }
+      : {}),
+    ...(attachmentPlacementMode ? { attachmentPlacementMode } : {}),
+    ...(typeof record.attachmentFolderId === "string"
+      ? { attachmentFolderId: record.attachmentFolderId }
+      : {}),
+    ...(typeof record.attachmentSubfolderName === "string"
+      ? { attachmentSubfolderName: record.attachmentSubfolderName }
+      : {}),
+    ...(typeof record.editorFontSizePx === "number" && Number.isFinite(record.editorFontSizePx)
+      ? { editorFontSizePx: record.editorFontSizePx }
+      : {}),
     ...(typeof record.onboardingName === "string" ? { onboardingName: record.onboardingName } : {}),
     ...(typeof record.onboardingCompleted === "boolean"
       ? { onboardingCompleted: record.onboardingCompleted }
@@ -428,7 +462,7 @@ const normalizeImportedSettings = (value: unknown): SettingsValue => {
     ...(typeof record.onboardingSkippedAt === "string"
       ? { onboardingSkippedAt: record.onboardingSkippedAt }
       : {}),
-  };
+  });
 };
 
 const normalizeImportedProviders = (value: unknown): ImportedProvider[] => {
@@ -1076,6 +1110,10 @@ export const importStorageArchive = async (
 ): Promise<StorageImportResult> => {
   const entries = await parseZipArchive(archive, onProgress);
   const snapshot = parseImportSnapshot(entries);
+  assertNoPathMutationConflicts({
+    files: snapshot.files,
+    folders: snapshot.folders,
+  });
   const opfsEntries = listImportedOpfsEntries(entries);
   const importedFiles = await restoreOpfsData(opfsEntries, onProgress);
   applyImportedSnapshot(context.current, snapshot, context.store);

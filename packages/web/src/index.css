@@ -10,6 +10,7 @@
 
 @theme {
   --animate-shimmer: shimmer 2s infinite;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -179,6 +180,82 @@ body {
 
 .memora-gentle-float {
   animation: memora-gentle-shift 3.2s var(--ease-out-quart) infinite;
+}
+
+.outline-item {
+  height: 2px;
+  transition: height var(--duration-instant) var(--ease-out);
+}
+
+.outline-marker {
+  transform: translateY(-50%) scaleX(1);
+  transform-origin: right center;
+  background-color: var(--outline-marker-color, var(--color-memora-text-soft));
+  transition:
+    opacity var(--duration-instant) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out),
+    background-color var(--duration-instant) var(--ease-out);
+}
+
+.outline-frame {
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.08);
+  transform-origin: right center;
+  transition:
+    opacity var(--duration-instant) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+}
+
+.outline-title {
+  opacity: 0;
+  transform: translate(4px, -50%);
+  transition:
+    opacity var(--duration-instant) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .outline-item[data-hovered="true"] {
+    height: 1.75rem;
+  }
+
+  .outline-item[data-hovered="true"] .outline-marker {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(1.25);
+  }
+
+  .outline-item[data-hovered="true"] .outline-frame {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+
+  .outline-item[data-hovered="true"] .outline-title {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outline-item {
+    transition-property: none;
+  }
+
+  .outline-marker,
+  .outline-frame,
+  .outline-title {
+    transition-property: opacity, background-color;
+  }
+
+  .outline-frame,
+  .outline-item[data-hovered="true"] .outline-frame,
+  .outline-title,
+  .outline-item[data-hovered="true"] .outline-title {
+    transform: translate(0, -50%);
+  }
+
+  .outline-item[data-hovered="true"] .outline-marker {
+    transform: translateY(-50%) scaleX(1);
+  }
 }
 
 .memora-scrollbar {

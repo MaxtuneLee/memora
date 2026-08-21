@@ -16,6 +16,7 @@ import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
+import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
 import {
   SETTINGS_ICON_BUTTON_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
@@ -60,15 +61,12 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
 
 const SETTINGS_PLACEHOLDER_COPY: Partial<
   Record<
-    "general" | "hotkeys",
+    "hotkeys",
     {
       summary: string;
     }
   >
 > = {
-  general: {
-    summary: "Workspace identity, appearance, and day-to-day defaults are being consolidated here.",
-  },
   hotkeys: {
     summary:
       "Keyboard workflows and command habits will live in one place instead of being scattered.",
@@ -190,6 +188,10 @@ export default function SettingsDialog({
   };
 
   const renderSectionContent = () => {
+    if (activeSection === "general") {
+      return <SettingsGeneralSection />;
+    }
+
     if (activeSection === "ai-provider") {
       return <SettingsAiProviderSection open={open} />;
     }
@@ -218,7 +220,7 @@ export default function SettingsDialog({
       <SettingsPlaceholderSection
         title={activeSectionData?.label ?? "Settings"}
         summary={
-          (activeSection === "general" || activeSection === "hotkeys"
+          (activeSection === "hotkeys"
             ? SETTINGS_PLACEHOLDER_COPY[activeSection]?.summary
             : undefined) ??
           activeSectionData?.description ??

@@ -15,7 +15,7 @@ import { collectionTable } from "@/livestore/collection";
 import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 import { providerTable, type provider as LiveStoreProvider } from "@/livestore/provider";
-import { settingsTable, type setting } from "@/livestore/setting";
+import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
 
 interface UseStorageSettingsOptions {
   open: boolean;
@@ -56,8 +56,10 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
   const [exportProgress, setExportProgress] = useState<StorageExportProgress | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<StorageImportProgress | null>(null);
-  const settings =
-    (store.useQuery(settingsDocumentQuery$) as setting | undefined) ?? settingsTable.default.value;
+  const settings = normalizeSettingsValue(
+    (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
+      settingsTable.default.value,
+  );
   const files = store.useQuery(storageExportFilesQuery$) as LiveStoreFile[];
   const folders = store.useQuery(storageExportFoldersQuery$) as LiveStoreFolder[];
   const collections = store.useQuery(
