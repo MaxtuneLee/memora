@@ -40,7 +40,6 @@ export default function ToastStack({ render }: ToastStackProps) {
           <Toast.Root
             key={toast.id}
             toast={toast}
-            className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-lg"
             render={(props, state) => {
               const {
                 onDrag: _onDrag,

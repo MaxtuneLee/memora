@@ -13,7 +13,7 @@ import {
   ONBOARDING_GEMMA_MODEL_ID,
   ONBOARDING_WHISPER_MODEL_ID,
 } from "@/lib/onboarding/onboardingGate";
-import { type LocalModelDownloadState } from "@/lib/local-model/downloadState";
+import { useLocalModelDownloadState } from "@/hooks/settings/useLocalModelDownloadSettings";
 import {
   MEMORA_STREAMDOWN_CLASS_NAME,
   MEMORA_STREAMDOWN_CONTROLS,
@@ -23,6 +23,14 @@ import {
 import type { LocalModelOption } from "@/lib/local-model";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ProviderFormState } from "@/types/settingsDialog";
+
+import {
+  buildTailPath,
+  createTailAvoidance,
+  getActiveTailAvoidances,
+  getTailPhase,
+  type TailAvoidance,
+} from "./onboardingTailMotion";
 
 export interface OnboardingProfileInput {
   name: string;
@@ -36,7 +44,7 @@ interface OnboardingExperienceProps {
   streamingSoulDocument: string;
   providers: ProviderRow[];
   localModelOptions: LocalModelOption[];
-  localModelStates: Record<string, LocalModelDownloadState>;
+  requiredModelsReady: boolean;
   onDownloadLocalModel: (modelId: string) => void;
   onCreateProvider: (providerForm: ProviderFormState) => void;
   onUpdateProvider: (providerId: string, providerForm: ProviderFormState) => void;
@@ -81,8 +89,6 @@ const getRequiredModelLabel = (modelId: string): string => {
   return "Local model";
 };
 
-const isModelReady = (state?: LocalModelDownloadState): boolean => state?.status === "cached";
-
 const buildTagList = (selectedTags: string[], customTags: string): string => {
   const custom = customTags
     .split(",")
@@ -119,183 +125,33 @@ const getStepDescription = (step: number): string => {
   return "All set! Memora is now ready to help you capture and organize your knowledge.";
 };
 
-type TailPoint = [number, number];
-interface TailAvoidance {
-  point: TailPoint;
-  startedAt: number;
-}
-
-const TAIL_TARGET_LENGTH = 830;
-const TAIL_BEZIER_SAMPLE_COUNT = 96;
-const TAIL_PATH_POINT_COUNT = 18;
-const TAIL_AVOIDANCE_DURATION = 780;
-
-const easeInOutSine = (value: number): number => (1 - Math.cos(Math.PI * value)) / 2;
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-
-const getTailBezierPoint = (phase: number, t: number): TailPoint => {
-  const tipDirection = Math.sin(phase * 0.62 - 0.9);
-  const arc = easeInOutSine(t);
-  const taper = Math.pow(easeInOutSine(t), 1.45);
-  const rootX = 288;
-  const rootY = 60;
-  const centerDrift = 100 * t * t;
-  const leftCurl = Math.sin(Math.PI * t) * (178 - 54 * t);
-  const softCounterCurl = Math.sin(Math.PI * t * 0.62) * 22 * t;
-  const middleWeight = Math.sin(Math.PI * t);
-  const lowerMiddleWeight = Math.sin(Math.PI * Math.min(1, Math.max(0, (t - 0.18) / 0.82)));
-  const linkedSwing = tipDirection * taper * 142;
-  const tipFadeOut = 1 - easeInOutSine(clamp01((t - 0.7) / 0.3));
-  const lowerTipFadeOut = 1 - easeInOutSine(clamp01((t - 0.78) / 0.22));
-  const middleWave =
-    Math.sin(phase * 0.72 + t * Math.PI * 1.7 - 0.6) * middleWeight * tipFadeOut * 24;
-  const lowerWave =
-    Math.sin(phase * 0.9 - t * Math.PI * 2.15 + 0.4) *
-    Math.pow(lowerMiddleWeight, 1.25) *
-    lowerTipFadeOut *
-    10;
-  const breathingCurve = Math.sin(phase * 0.42 + t * Math.PI * 1.15) * 6 * taper;
-  const verticalWave = Math.sin(phase * 0.66 + t * Math.PI * 1.35) * middleWeight * 7;
-
-  return [
-    rootX -
-      leftCurl +
-      centerDrift +
-      softCounterCurl +
-      linkedSwing +
-      middleWave +
-      lowerWave +
-      breathingCurve,
-    rootY + 778 * arc + verticalWave,
-  ];
-};
-
-const getDistance = ([x0, y0]: TailPoint, [x1, y1]: TailPoint): number =>
-  Math.hypot(x1 - x0, y1 - y0);
-
-const sampleTailBezier = (phase: number): TailPoint[] =>
-  Array.from({ length: TAIL_BEZIER_SAMPLE_COUNT + 1 }, (_, index) =>
-    getTailBezierPoint(phase, index / TAIL_BEZIER_SAMPLE_COUNT),
-  );
-
-const resampleByLength = (points: TailPoint[]): TailPoint[] => {
-  const sampledPoints: TailPoint[] = [points[0]];
-  let segmentIndex = 1;
-  let walkedLength = 0;
-
-  for (let index = 1; index < TAIL_PATH_POINT_COUNT; index += 1) {
-    const targetLength = (TAIL_TARGET_LENGTH * index) / (TAIL_PATH_POINT_COUNT - 1);
-
-    while (segmentIndex < points.length - 1) {
-      const segmentLength = getDistance(points[segmentIndex - 1], points[segmentIndex]);
-      if (walkedLength + segmentLength >= targetLength) break;
-      walkedLength += segmentLength;
-      segmentIndex += 1;
-    }
-
-    const previous = points[segmentIndex - 1];
-    const next = points[segmentIndex];
-    const segmentLength = Math.max(getDistance(previous, next), 0.001);
-    const localT = Math.max(0, Math.min(1, (targetLength - walkedLength) / segmentLength));
-    sampledPoints.push([
-      previous[0] + (next[0] - previous[0]) * localT,
-      previous[1] + (next[1] - previous[1]) * localT,
-    ]);
-  }
-
-  return sampledPoints;
-};
-
-const applyTailAvoidance = (
-  points: TailPoint[],
-  avoidance: TailAvoidance | null,
-  timestamp: number,
-): TailPoint[] => {
-  if (!avoidance) return points;
-
-  const elapsed = timestamp - avoidance.startedAt;
-  const progress = clamp01(elapsed / TAIL_AVOIDANCE_DURATION);
-  if (progress >= 1) return points;
-
-  const enter = easeInOutSine(clamp01(progress / 0.18));
-  const exit = 1 - easeInOutSine(clamp01((progress - 0.16) / 0.84));
-  const response = enter * exit;
-  const [avoidX, avoidY] = avoidance.point;
-  let closestPoint = points[0];
-  let closestDistance = Number.POSITIVE_INFINITY;
-
-  for (const point of points) {
-    const distance = getDistance(point, avoidance.point);
-    if (distance >= closestDistance) continue;
-    closestDistance = distance;
-    closestPoint = point;
-  }
-
-  const directionX = closestPoint[0] - avoidX;
-  const directionY = closestPoint[1] - avoidY;
-  const directionLength = Math.max(Math.hypot(directionX, directionY), 1);
-  const proximity = Math.exp(-(closestDistance * closestDistance) / (2 * 300 * 300));
-  const force = 96 * proximity * response;
-
-  return points.map(([x, y], index) => {
-    if (index === 0) return [x, y];
-
-    const tailProgress = index / Math.max(1, points.length - 1);
-    const tailInfluence = Math.pow(easeInOutSine(tailProgress), 1.35);
-
-    return [
-      x + (directionX / directionLength) * force * tailInfluence,
-      y + (directionY / directionLength) * force * tailInfluence,
-    ];
-  });
-};
-
-const buildTailPath = (
-  phase: number,
-  avoidance: TailAvoidance | null = null,
-  timestamp = 0,
-): string => {
-  const points = resampleByLength(
-    applyTailAvoidance(sampleTailBezier(phase), avoidance, timestamp),
-  );
-
-  const path = [`M ${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)}`];
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const previous = points[Math.max(0, index - 1)];
-    const current = points[index];
-    const next = points[index + 1];
-    const afterNext = points[Math.min(points.length - 1, index + 2)];
-    const control1X = current[0] + (next[0] - previous[0]) / 6;
-    const control1Y = current[1] + (next[1] - previous[1]) / 6;
-    const control2X = next[0] - (afterNext[0] - current[0]) / 6;
-    const control2Y = next[1] - (afterNext[1] - current[1]) / 6;
-
-    path.push(
-      `C ${control1X.toFixed(2)} ${control1Y.toFixed(2)} ${control2X.toFixed(2)} ${control2Y.toFixed(2)} ${next[0].toFixed(2)} ${next[1].toFixed(2)}`,
-    );
-  }
-
-  return path.join(" ");
-};
-
 function AnimatedTail({ prefersReducedMotion }: { prefersReducedMotion: boolean }) {
   const tailSvgRef = useRef<SVGSVGElement | null>(null);
   const tailPathRef = useRef<SVGPathElement | null>(null);
-  const avoidanceRef = useRef<TailAvoidance | null>(null);
+  const phaseRef = useRef(0);
+  const avoidanceRef = useRef<TailAvoidance[]>([]);
 
   useEffect(() => {
     const path = tailPathRef.current;
     if (!path) return;
 
     if (prefersReducedMotion) {
+      phaseRef.current = 0;
+      avoidanceRef.current = [];
       path.setAttribute("d", buildTailPath(0));
       return;
     }
 
     let frameId = 0;
+    let previousTimestamp: number | null = null;
     const animateTail = (timestamp: number): void => {
-      path.setAttribute("d", buildTailPath(timestamp / 720, avoidanceRef.current, timestamp));
+      if (previousTimestamp !== null) {
+        const elapsed = Math.min(timestamp - previousTimestamp, 32);
+        phaseRef.current += getTailPhase(elapsed);
+      }
+      previousTimestamp = timestamp;
+      avoidanceRef.current = getActiveTailAvoidances(avoidanceRef.current, timestamp);
+      path.setAttribute("d", buildTailPath(phaseRef.current, avoidanceRef.current, timestamp));
       frameId = window.requestAnimationFrame(animateTail);
     };
     frameId = window.requestAnimationFrame(animateTail);
@@ -303,10 +159,11 @@ function AnimatedTail({ prefersReducedMotion }: { prefersReducedMotion: boolean 
     return () => window.cancelAnimationFrame(frameId);
   }, [prefersReducedMotion]);
 
-  const handleTailPointerDown = (event: PointerEvent<SVGSVGElement>): void => {
+  const handleTailPointerDown = (event: PointerEvent<SVGPathElement>): void => {
+    if (prefersReducedMotion) return;
+
     const svg = tailSvgRef.current;
-    const path = tailPathRef.current;
-    if (!svg || !path) return;
+    if (!svg) return;
 
     const screenMatrix = svg.getScreenCTM();
     if (!screenMatrix) return;
@@ -316,30 +173,36 @@ function AnimatedTail({ prefersReducedMotion }: { prefersReducedMotion: boolean 
     point.y = event.clientY;
     const localPoint = point.matrixTransform(screenMatrix.inverse());
     const timestamp = performance.now();
-    avoidanceRef.current = {
-      point: [localPoint.x, localPoint.y],
-      startedAt: timestamp,
-    };
-    path.setAttribute("d", buildTailPath(timestamp / 720, avoidanceRef.current, timestamp));
+    const activeAvoidances = getActiveTailAvoidances(avoidanceRef.current, timestamp);
+    avoidanceRef.current = [
+      ...activeAvoidances,
+      createTailAvoidance(
+        phaseRef.current,
+        [localPoint.x, localPoint.y],
+        timestamp,
+        activeAvoidances,
+      ),
+    ];
   };
 
   return (
     <svg
       ref={tailSvgRef}
       aria-hidden="true"
-      className="h-full w-full cursor-pointer overflow-visible"
+      className="h-full w-full overflow-visible"
       viewBox="0 0 486 898"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      onPointerDown={handleTailPointerDown}
     >
       <path
         ref={tailPathRef}
         d={buildTailPath(0)}
+        className={prefersReducedMotion ? undefined : "cursor-pointer"}
         stroke="#030302"
         strokeWidth="120"
         strokeLinecap="round"
         strokeLinejoin="round"
+        onPointerDown={prefersReducedMotion ? undefined : handleTailPointerDown}
       />
     </svg>
   );
@@ -382,13 +245,37 @@ function BrandPanel() {
   );
 }
 
+function OnboardingLocalModelDownloadCard({
+  model,
+  onDownload,
+}: {
+  model: LocalModelOption;
+  onDownload: (modelId: string) => void;
+}) {
+  const state = useLocalModelDownloadState(model.id);
+
+  return (
+    <LocalModelDownloadCard
+      model={model}
+      state={state}
+      title={getRequiredModelLabel(model.id)}
+      description={
+        model.id === ONBOARDING_GEMMA_MODEL_ID
+          ? "Optimized for local reasoning and personalization"
+          : "Optimized for local audio transcription"
+      }
+      onDownload={onDownload}
+    />
+  );
+}
+
 export default function OnboardingExperience({
   isSaving,
   errorMessage,
   streamingSoulDocument,
   providers,
   localModelOptions,
-  localModelStates,
+  requiredModelsReady,
   onDownloadLocalModel,
   onCreateProvider,
   onUpdateProvider,
@@ -415,10 +302,6 @@ export default function OnboardingExperience({
   const primaryUseCase = buildTagList(selectedUseCaseTags, customUseCaseTags);
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
   const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
-  const requiredModelsReady = localModelOptions.every((model) =>
-    isModelReady(localModelStates[model.id]),
-  );
-
   const canContinue = useMemo(() => {
     if (step === 2) return requiredModelsReady;
     if (step === 3) return !isProviderFormOpen;
@@ -562,16 +445,9 @@ export default function OnboardingExperience({
               <div className="space-y-5">
                 <div className="space-y-5">
                   {localModelOptions.map((model) => (
-                    <LocalModelDownloadCard
+                    <OnboardingLocalModelDownloadCard
                       key={model.id}
                       model={model}
-                      state={localModelStates[model.id]}
-                      title={getRequiredModelLabel(model.id)}
-                      description={
-                        model.id === ONBOARDING_GEMMA_MODEL_ID
-                          ? "Optimized for local reasoning and personalization"
-                          : "Optimized for local audio transcription"
-                      }
                       onDownload={onDownloadLocalModel}
                     />
                   ))}

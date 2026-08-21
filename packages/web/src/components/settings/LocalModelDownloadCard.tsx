@@ -88,8 +88,8 @@ export default function LocalModelDownloadCard({
         <>
           <div className="mt-7 h-2 overflow-hidden rounded-full bg-[#e4e3d9]">
             <div
-              className="h-full rounded-full bg-[#7d8c59] transition-[width] duration-300"
-              style={{ width: `${progress}%` }}
+              className="h-full origin-left rounded-full bg-[#7d8c59] transition-transform duration-300"
+              style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
           <div className="mt-3 flex items-center justify-between gap-4 text-sm font-semibold text-[#817b70]">

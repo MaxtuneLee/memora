@@ -4,7 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import OnboardingExperience, {
   type OnboardingProfileInput,
 } from "@/components/onboarding/OnboardingExperience";
-import { useLocalModelDownloadSettings } from "@/hooks/settings/useLocalModelDownloadSettings";
+import {
+  useLocalModelDownloadActions,
+  useLocalModelsReady,
+} from "@/hooks/settings/useLocalModelDownloadSettings";
 import { getLocalChatModelOptions, getRequiredOnboardingModelOptions } from "@/lib/local-model";
 import { generatePersonalityMarkdownWithAI } from "@/lib/chat/personalityGenerator";
 import { ONBOARDING_GEMMA_MODEL_ID } from "@/lib/onboarding/onboardingGate";
@@ -17,6 +20,7 @@ import type { ModelInfo, ProviderFormState } from "@/types/settingsDialog";
 
 const LOCAL_CHAT_MODEL_OPTIONS = getLocalChatModelOptions();
 const REQUIRED_ONBOARDING_MODEL_OPTIONS = getRequiredOnboardingModelOptions();
+const REQUIRED_ONBOARDING_MODEL_IDS = REQUIRED_ONBOARDING_MODEL_OPTIONS.map((model) => model.id);
 const ONBOARDING_MODEL_OPTIONS = [
   ...REQUIRED_ONBOARDING_MODEL_OPTIONS,
   ...LOCAL_CHAT_MODEL_OPTIONS.filter(
@@ -47,10 +51,11 @@ export const Component = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamingSoulDocument, setStreamingSoulDocument] = useState("");
-  const { localModelStates, handleDownloadLocalModel } = useLocalModelDownloadSettings({
+  const { handleDownloadLocalModel } = useLocalModelDownloadActions({
     open: true,
     modelOptions: ONBOARDING_MODEL_OPTIONS,
   });
+  const requiredModelsReady = useLocalModelsReady(REQUIRED_ONBOARDING_MODEL_IDS);
 
   const markOnboardingCompleted = useCallback(
     (input: OnboardingProfileInput, providerSelection: { providerId: string; modelId: string }) => {
@@ -220,7 +225,7 @@ export const Component = () => {
       streamingSoulDocument={streamingSoulDocument}
       providers={providers}
       localModelOptions={REQUIRED_ONBOARDING_MODEL_OPTIONS}
-      localModelStates={localModelStates}
+      requiredModelsReady={requiredModelsReady}
       onDownloadLocalModel={handleDownloadLocalModel}
       onCreateProvider={handleCreateProvider}
       onUpdateProvider={handleUpdateProvider}

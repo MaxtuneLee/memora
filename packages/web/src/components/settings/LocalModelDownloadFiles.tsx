@@ -58,10 +58,10 @@ export default function LocalModelDownloadFiles({
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-memora-border-soft)]">
               <div
                 className={cn(
-                  "h-full rounded-full transition-[width] duration-300",
+                  "h-full origin-left rounded-full transition-transform duration-300",
                   isComplete ? "bg-[var(--color-memora-olive)]" : "bg-[#5f8fcb]",
                 )}
-                style={{ width: `${progress}%` }}
+                style={{ transform: `scaleX(${progress / 100})` }}
               />
             </div>
           </div>

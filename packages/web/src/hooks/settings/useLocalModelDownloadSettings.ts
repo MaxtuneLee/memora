@@ -11,6 +11,7 @@ import {
 } from "@/lib/local-model";
 import {
   applyLocalModelProgressEvent,
+  shouldPublishLocalModelProgress,
   type LocalModelDownloadState,
 } from "@/lib/local-model/downloadState";
 
@@ -23,6 +24,7 @@ const DEFAULT_LOCAL_MODEL_OPTIONS = getAllLocalModelOptions();
 
 let sharedLocalModelStates: Record<string, LocalModelDownloadState> = {};
 const localModelStateListeners = new Set<() => void>();
+const localModelStateListenersById = new Map<string, Set<() => void>>();
 
 const getLocalModelStateSnapshot = (): Record<string, LocalModelDownloadState> => {
   return sharedLocalModelStates;
@@ -35,20 +37,45 @@ const subscribeToLocalModelStates = (listener: () => void): (() => void) => {
   };
 };
 
+const subscribeToLocalModelState = (modelId: string, listener: () => void): (() => void) => {
+  const listeners = localModelStateListenersById.get(modelId) ?? new Set<() => void>();
+  listeners.add(listener);
+  localModelStateListenersById.set(modelId, listeners);
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      localModelStateListenersById.delete(modelId);
+    }
+  };
+};
+
 const publishLocalModelStates = (
   update: (
     current: Record<string, LocalModelDownloadState>,
   ) => Record<string, LocalModelDownloadState>,
 ): void => {
-  sharedLocalModelStates = update(sharedLocalModelStates);
+  const previous = sharedLocalModelStates;
+  const next = update(previous);
+  if (next === previous) return;
+
+  sharedLocalModelStates = next;
   localModelStateListeners.forEach((listener) => listener());
+  for (const modelId of new Set([...Object.keys(previous), ...Object.keys(next)])) {
+    if (previous[modelId] === next[modelId]) continue;
+    localModelStateListenersById.get(modelId)?.forEach((listener) => listener());
+  }
 };
 
 const setLocalModelState = (modelId: string, state: LocalModelDownloadState): void => {
-  publishLocalModelStates((current) => ({
-    ...current,
-    [modelId]: state,
-  }));
+  publishLocalModelStates((current) =>
+    current[modelId] === state
+      ? current
+      : {
+          ...current,
+          [modelId]: state,
+        },
+  );
 };
 
 export const getLocalModelOptions = (): LocalModelOption[] => {
@@ -60,16 +87,37 @@ interface UseLocalModelDownloadSettingsOptions {
   modelOptions?: LocalModelOption[];
 }
 
-export const useLocalModelDownloadSettings = ({
+export const useLocalModelDownloadState = (
+  modelId: string,
+): LocalModelDownloadState | undefined => {
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeToLocalModelState(modelId, listener),
+    [modelId],
+  );
+  const getSnapshot = useCallback(() => sharedLocalModelStates[modelId], [modelId]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
+
+export const useLocalModelsReady = (modelIds: readonly string[]): boolean => {
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const unsubscribe = modelIds.map((modelId) => subscribeToLocalModelState(modelId, listener));
+      return () => unsubscribe.forEach((cleanup) => cleanup());
+    },
+    [modelIds],
+  );
+  const getSnapshot = useCallback(
+    () => modelIds.every((modelId) => sharedLocalModelStates[modelId]?.status === "cached"),
+    [modelIds],
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
+
+export const useLocalModelDownloadActions = ({
   open,
   modelOptions = DEFAULT_LOCAL_MODEL_OPTIONS,
 }: UseLocalModelDownloadSettingsOptions) => {
   const { add } = Toast.useToastManager();
-  const localModelStates = useSyncExternalStore(
-    subscribeToLocalModelStates,
-    getLocalModelStateSnapshot,
-    getLocalModelStateSnapshot,
-  );
 
   const refreshLocalModelState = useCallback(async (modelId: string) => {
     setLocalModelState(modelId, { status: "checking" });
@@ -92,7 +140,13 @@ export const useLocalModelDownloadSettings = ({
     async (modelId: string) => {
       const controller = new AbortController();
       await clearLocalModelCacheMarker(modelId);
-      setLocalModelState(modelId, { status: "downloading", progress: 0, files: [] });
+      let downloadState: LocalModelDownloadState = {
+        status: "downloading",
+        progress: 0,
+        files: [],
+      };
+      let lastPublishedAt = performance.now();
+      setLocalModelState(modelId, downloadState);
 
       try {
         for await (const event of localModelClient.preloadModel(modelId, {
@@ -100,13 +154,12 @@ export const useLocalModelDownloadSettings = ({
           signal: controller.signal,
         })) {
           if (event.type === "model-progress") {
-            publishLocalModelStates((current) => ({
-              ...current,
-              [modelId]: applyLocalModelProgressEvent(
-                current[modelId] ?? { status: "downloading", progress: 0, files: [] },
-                event,
-              ),
-            }));
+            downloadState = applyLocalModelProgressEvent(downloadState, event);
+            const timestamp = performance.now();
+            if (shouldPublishLocalModelProgress(lastPublishedAt, timestamp, event.progress)) {
+              setLocalModelState(modelId, downloadState);
+              lastPublishedAt = timestamp;
+            }
           }
 
           if (event.type === "error") {
@@ -114,6 +167,7 @@ export const useLocalModelDownloadSettings = ({
           }
         }
 
+        setLocalModelState(modelId, downloadState);
         await writeLocalModelCacheMarker(modelId);
         await refreshLocalModelState(modelId);
         add({ title: "Local model ready", type: "success" });
@@ -128,8 +182,21 @@ export const useLocalModelDownloadSettings = ({
 
   return {
     localModelOptions: modelOptions,
-    localModelStates,
     handleDownloadLocalModel,
     refreshLocalModelState,
+  };
+};
+
+export const useLocalModelDownloadSettings = (options: UseLocalModelDownloadSettingsOptions) => {
+  const actions = useLocalModelDownloadActions(options);
+  const localModelStates = useSyncExternalStore(
+    subscribeToLocalModelStates,
+    getLocalModelStateSnapshot,
+    getLocalModelStateSnapshot,
+  );
+
+  return {
+    ...actions,
+    localModelStates,
   };
 };

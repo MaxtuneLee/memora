@@ -22,6 +22,16 @@ interface LocalModelProgressEvent {
   total?: number;
 }
 
+export const LOCAL_MODEL_PROGRESS_PUBLISH_INTERVAL_MS = 100;
+
+export const shouldPublishLocalModelProgress = (
+  lastPublishedAt: number,
+  timestamp: number,
+  progress: number | undefined,
+): boolean =>
+  (typeof progress === "number" && progress >= 100) ||
+  timestamp - lastPublishedAt >= LOCAL_MODEL_PROGRESS_PUBLISH_INTERVAL_MS;
+
 const isFinitePositiveNumber = (value: number | undefined): value is number => {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 };
