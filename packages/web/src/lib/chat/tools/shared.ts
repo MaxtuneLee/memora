@@ -33,7 +33,7 @@ export interface CreateChatToolsOptions {
   showWidgetSkillTracker?: ShowWidgetSkillTracker;
   getMemoryExtractionConfig?: () => {
     apiFormat: "chat-completions" | "responses";
-    endpoint: string;
+    baseUrl: string;
     apiKey: string;
     model: string;
   } | null;

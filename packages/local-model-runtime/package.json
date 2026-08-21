@@ -24,10 +24,5 @@
   "devDependencies": {
     "typescript": "~5.9.3",
     "vite-plus": "catalog:"
-  },
-  "dependencies": {
-    "@memora/ai-core": "workspace:*",
-    "@valibot/to-json-schema": "^1.3.0",
-    "valibot": "^1.2.0"
   }
 }

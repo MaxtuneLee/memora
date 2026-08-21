@@ -25,7 +25,7 @@ export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefiniti
           reason: string;
         };
         const extractionConfig = options.getMemoryExtractionConfig?.() ?? null;
-        if (!extractionConfig?.endpoint || !extractionConfig.apiKey || !extractionConfig.model) {
+        if (!extractionConfig?.baseUrl || !extractionConfig.apiKey || !extractionConfig.model) {
           return {
             updated: false,
             noticeCount: 0,

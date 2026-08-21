@@ -50,7 +50,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   const initializedRef = useRef(false);
   const thinkingStepsRef = useRef<ThinkingStep[]>([]);
   const agentSignatureRef = useRef("");
-  const providerRef = useRef(options.provider);
+  const modelRef = useRef(options.model);
+  const streamRef = useRef(options.stream);
   const initialMessagesRef = useRef<ChatMessage[]>(options.initialMessages ?? []);
   const updateMessageById = useCallback(
     (messageId: string, updater: (message: ChatMessage) => ChatMessage) => {
@@ -96,7 +97,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   }, [options.sessionId, widgetBuffer]);
 
   const getAgent = useCallback(async (): Promise<Agent> => {
-    const signature = [options.sessionId, options.config.id ?? "", options.config.model ?? ""].join(
+    const signature = [options.sessionId, options.config.id ?? "", options.model.provider, options.model.id].join(
       "::",
     );
 
@@ -104,7 +105,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
       agentRef.current &&
       initializedRef.current &&
       agentSignatureRef.current === signature &&
-      providerRef.current === options.provider
+      modelRef.current === options.model &&
+      streamRef.current === options.stream
     ) {
       return agentRef.current;
     }
@@ -114,7 +116,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     const agent = createAgent({
       config: options.config as AgentConfig,
       hooks: options.hooks,
-      provider: options.provider,
+      model: options.model,
+      stream: options.stream,
       persistence: options.persistence ?? createInMemoryAdapter(),
     });
 
@@ -125,7 +128,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     agentRef.current = agent;
     initializedRef.current = true;
     agentSignatureRef.current = signature;
-    providerRef.current = options.provider;
+    modelRef.current = options.model;
+    streamRef.current = options.stream;
     return agent;
   }, [
     options.config,
@@ -134,7 +138,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     options.promptSegments,
     options.sessionId,
     options.tools,
-    options.provider,
+    options.model,
+    options.stream,
   ]);
 
   const addStep = useCallback((step: ThinkingStep) => {

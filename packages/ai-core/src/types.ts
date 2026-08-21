@@ -1,4 +1,13 @@
 import * as v from "valibot";
+import type {
+  Api,
+  AssistantMessage,
+  AssistantMessageEventStream,
+  Context,
+  Message,
+  Model,
+  SimpleStreamOptions,
+} from "@earendil-works/pi-ai";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -53,8 +62,11 @@ export const AgentMessageSchema = v.object({
   content: v.array(AgentMessageContentSchema),
   createdAt: v.number(),
   reasoning: v.optional(v.string()),
+  providerMessage: v.optional(v.unknown()),
 });
-export type AgentMessage = v.InferOutput<typeof AgentMessageSchema>;
+export type AgentMessage = v.InferOutput<typeof AgentMessageSchema> & {
+  providerMessage?: Message;
+};
 
 export interface TokenUsage {
   inputTokens?: number;
@@ -77,7 +89,7 @@ export interface WebSearchResult {
   url?: string;
 }
 
-export type ProviderEvent =
+export type AgentEvent =
   | { type: "status"; status: string }
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-delta"; delta: string }
@@ -96,26 +108,7 @@ export type ProviderEvent =
       queries?: string[];
       results?: WebSearchResult[];
     }
-  | { type: "error"; error: Error };
-
-export interface ProviderRequest {
-  model: string;
-  systemPrompt: string;
-  messages: AgentMessage[];
-  tools: ToolDefinition[];
-  temperature?: number;
-  maxTokens?: number;
-}
-
-export interface ProviderAdapter {
-  stream: (
-    request: ProviderRequest,
-    options?: { signal?: AbortSignal },
-  ) => AsyncGenerator<ProviderEvent>;
-}
-
-export type AgentEvent =
-  | ProviderEvent
+  | { type: "error"; error: Error }
   | {
       type: "tool-result";
       toolCall: { id: string; name: string };
@@ -123,6 +116,12 @@ export type AgentEvent =
       isError: boolean;
     }
   | { type: "done"; message: AgentMessage; usage?: TokenUsage };
+
+export type ModelStream = (
+  model: Model<Api>,
+  context: Context,
+  options?: SimpleStreamOptions,
+) => AssistantMessageEventStream | Promise<AssistantMessageEventStream>;
 
 export type LoopPhase = "input" | "think" | "action" | "observation" | "complete" | "error";
 
@@ -144,6 +143,7 @@ export interface ThinkResult {
   reasoning: string;
   toolCalls: AgentMessageContent[];
   usage?: TokenUsage;
+  providerMessage?: AssistantMessage;
 }
 
 export interface AgentHooks {
@@ -181,7 +181,6 @@ export interface PersistenceAdapter {
 
 export const AgentConfigSchema = v.object({
   id: v.string(),
-  model: v.string(),
   maxToolResultChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(100)), 8000),
   maxContextChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1000)), 100000),
   temperature: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),

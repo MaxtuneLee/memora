@@ -5,11 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "pnpm build:ai-core && pnpm build:local-model-runtime && pnpm build:ai-provider-pi && pnpm build:ai-extension-skills && pnpm build:fs && pnpm build:livestore-devtool && vp build",
     "lint": "vp lint .",
     "test": "vp test test",
     "preview": "vp preview",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg"
+    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg",
+    "build:ai-core": "pnpm --filter @memora/ai-core build",
+    "build:fs": "pnpm --filter @memora/fs build",
+    "build:livestore-devtool": "pnpm --filter @memora/livestore-devtool build",
+    "build:ai-provider-pi": "pnpm --filter @memora/ai-provider-pi build",
+    "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build",
+    "build:local-model-runtime": "pnpm --filter @memora/local-model-runtime build"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -33,12 +39,8 @@
     "@livestore/sync-cf": "^0.3.1",
     "@livestore/wa-sqlite": "1.0.5-dev.2",
     "@memora/ai-core": "workspace:*",
-    "@memora/ai-extension-skills": "workspace:*",
-    "@memora/ai-provider-local": "workspace:*",
-    "@memora/ai-provider-openai": "workspace:*",
     "@memora/fs": "workspace:*",
     "@memora/livestore-devtool": "workspace:*",
-    "@memora/local-model-runtime": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@ricky0123/vad-react": "^0.0.36",
     "@ricky0123/vad-web": "^0.0.30",
@@ -64,7 +66,10 @@
     "streamdown": "^2.4.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "vite-plugin-route-builder": "^0.4.1"
+    "vite-plugin-route-builder": "^0.4.1",
+    "@memora/ai-provider-pi": "workspace:*",
+    "@memora/ai-extension-skills": "workspace:*",
+    "@memora/local-model-runtime": "workspace:*"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",

@@ -263,7 +263,7 @@ export const Component = () => {
 
       <ToastStack
         render={(toast) => (
-          <Toast.Content className="flex items-start gap-3 transition">
+          <Toast.Content className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-lg transition">
             <span
               className={`mt-1 block size-2 shrink-0 rounded-full ${toastIconColor(toast.type as string)}`}
             />

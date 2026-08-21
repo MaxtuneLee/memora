@@ -4,8 +4,8 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
-import { createLocalProvider } from "@memora/ai-provider-local";
-import { createOpenAIProvider } from "@memora/ai-provider-openai";
+import { createLocalPiRuntime, createRemotePiRuntime } from "@memora/ai-provider-pi";
+import { getLocalModelManifest } from "@memora/local-model-runtime";
 import { localModelClient } from "@/lib/local-model";
 import { normalizePersonalityText } from "@/lib/settings/personalityStorage";
 
@@ -150,23 +150,44 @@ export const generatePersonalityMarkdownWithAI = async (
   }
   if (!assistantStyle) throw new Error("Missing assistant style for personality generation.");
 
+  const runtime = useLocalModel
+    ? (() => {
+        const manifest = getLocalModelManifest(model);
+        if (!manifest) {
+          throw new Error(`Unknown local model: ${model}`);
+        }
+        return createLocalPiRuntime({
+          client: localModelClient,
+          manifest,
+          priority: "interactive",
+        });
+      })()
+    : createRemotePiRuntime({
+        id: "memora-onboarding-generator",
+        name: "Memora Personality Generator",
+        baseUrl: endpoint.replace(/\/(?:chat\/completions|responses)\/?$/, ""),
+        apiKey,
+        apiFormat: config.apiFormat,
+        selectedModelId: model,
+        models: [
+          {
+            id: model,
+            name: model,
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 32768,
+            maxTokens: 4096,
+          },
+        ],
+      });
+
   const agent = createAgent({
     config: {
       id: `memora-onboarding-generator:${crypto.randomUUID()}`,
-      model,
       maxIterations: 1,
     },
-    provider: useLocalModel
-      ? createLocalProvider({
-          client: localModelClient,
-          reasoningMode: "non-thinking",
-          priority: "interactive",
-        })
-      : createOpenAIProvider({
-          endpoint,
-          apiKey,
-          apiFormat: config.apiFormat,
-        }),
+    ...runtime,
     persistence: createInMemoryAdapter(),
   });
   agent.addPromptSegment(PERSONALITY_GENERATOR_PROMPT);

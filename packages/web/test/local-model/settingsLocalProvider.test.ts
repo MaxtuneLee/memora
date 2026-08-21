@@ -9,6 +9,8 @@ import {
   getLocalModelDownloadedBytes,
   getLocalModelDownloadProgress,
   getLocalModelDownloadTotalBytes,
+  LOCAL_MODEL_PROGRESS_PUBLISH_INTERVAL_MS,
+  shouldPublishLocalModelProgress,
 } from "../../src/lib/local-model/downloadState";
 import type { LocalModelDownloadState } from "../../src/lib/local-model/downloadState";
 
@@ -32,11 +34,13 @@ describe("local model settings", () => {
         ?.limits,
     ).toEqual({
       contextWindow: 262144,
+      maxOutputTokens: 3072,
     });
     expect(
       builtInLocalModelManifests.find((manifest) => manifest.id === "gemma-4-e2b-it-onnx")?.limits,
     ).toEqual({
       contextWindow: 131072,
+      maxOutputTokens: 512,
     });
     expect(
       parseProviderModel({
@@ -44,7 +48,12 @@ describe("local model settings", () => {
         contextWindow: 3,
       }),
     ).toMatchObject({
+      name: "local",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 3,
+      maxTokens: 4096,
     });
   });
 
@@ -93,6 +102,36 @@ describe("local model settings", () => {
     expect(getLocalModelDownloadTotalBytes(state, manifestTotalBytes)).toBe(1_000);
     expect(getLocalModelDownloadedBytes(state, manifestTotalBytes)).toBe(370);
     expect(getLocalModelDownloadProgress(state, manifestTotalBytes)).toBe(37);
+  });
+
+  test("limits progress publications while always publishing file completion", () => {
+    expect(LOCAL_MODEL_PROGRESS_PUBLISH_INTERVAL_MS).toBe(100);
+    expect(shouldPublishLocalModelProgress(1_000, 1_099, 42)).toBe(false);
+    expect(shouldPublishLocalModelProgress(1_000, 1_100, 42)).toBe(true);
+    expect(shouldPublishLocalModelProgress(1_000, 1_001, 100)).toBe(true);
+  });
+
+  test("uses compositor transforms instead of layout width for download progress", () => {
+    const cardSource = readSource("../../src/components/settings/LocalModelDownloadCard.tsx");
+    const filesSource = readSource("../../src/components/settings/LocalModelDownloadFiles.tsx");
+
+    expect(cardSource).toContain("transition-transform");
+    expect(cardSource).toContain("scaleX(${progress / 100})");
+    expect(filesSource).toContain("transition-transform");
+    expect(filesSource).toContain("scaleX(${progress / 100})");
+    expect(cardSource).not.toContain("style={{ width: `${progress}%` }}");
+    expect(filesSource).not.toContain("style={{ width: `${progress}%` }}");
+  });
+
+  test("isolates onboarding progress subscriptions to each model card", () => {
+    const pageSource = readSource("../../src/pages/onboarding/index.tsx");
+    const experienceSource = readSource("../../src/components/onboarding/OnboardingExperience.tsx");
+
+    expect(pageSource).toContain("useLocalModelDownloadActions");
+    expect(pageSource).toContain("useLocalModelsReady");
+    expect(pageSource).not.toContain("localModelStates={localModelStates}");
+    expect(experienceSource).toContain("useLocalModelDownloadState(model.id)");
+    expect(experienceSource).not.toContain("localModelStates: Record");
   });
 
   test("uses the remote chat prompt path only", () => {
