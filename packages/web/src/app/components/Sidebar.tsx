@@ -19,11 +19,13 @@ import { Link, useLocation } from "react-router";
 
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
+import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useStorageStats } from "@/hooks/settings/useStorageStats";
 import { activeFilesQuery$ } from "@/lib/library/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
+import type { FileMeta } from "@/types/library";
 
 const MAX_RECENT_FILES = 4;
 const PRIMARY_NAV_HIGHLIGHT_TRANSITION = {
@@ -67,9 +69,13 @@ const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
   },
 ] as const;
 
-const getRecentFileHref = (fileId: string, fileType: string): string => {
-  if (fileType === "audio" || fileType === "video") {
-    return `/transcript/file/${fileId}`;
+export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {
+  if (file.type === "audio" || file.type === "video") {
+    return `/transcript/file/${file.id}`;
+  }
+
+  if (isEditableTextDocument(file)) {
+    return getDocumentEditorHref(file.id);
   }
 
   return "/files";
@@ -240,7 +246,7 @@ export function Sidebar() {
           {recentFiles.length > 0 ? (
             <div className="space-y-0.5">
               {recentFiles.map((file) => {
-                const href = getRecentFileHref(file.id, file.type);
+                const href = getFileHref(file);
                 const Icon = getRecentFileIcon(file.type);
                 const isActive =
                   href === "/files" ? currentPath.startsWith("/files") : currentPath === href;

@@ -4,6 +4,8 @@ import { Toast } from "@base-ui/react/toast";
 import { useLocation, useNavigate } from "react-router";
 import { Desktop, UploadDialog } from "@/components/desktop";
 import { useUploadDialog } from "@/hooks/desktop/useUploadDialog";
+import { desktopFilesQuery$ } from "@/lib/desktop/queries";
+import { prepareUploadNameWithPathPolicy } from "@/lib/editor/pathMutations";
 import { fileEvents } from "@/livestore/file";
 import {
   deleteRecording as deleteFile,
@@ -16,6 +18,7 @@ import ToastStack from "@/components/ToastStack";
 
 export const Component = () => {
   const { store } = useStore();
+  const fileRows = store.useQuery(desktopFilesQuery$);
   const location = useLocation();
   const navigate = useNavigate();
   const { add, close } = Toast.useToastManager();
@@ -59,12 +62,19 @@ export const Component = () => {
     async (file: File, name: string, parentId: string | null) => {
       const createdAt = Date.now();
       const type = resolveFileType(file);
+      const normalizedName = prepareUploadNameWithPathPolicy(fileRows, {
+        name,
+        mimeType: file.type,
+        parentId,
+        sourceName: file.name,
+        type,
+      });
       const isMedia = type === "audio" || type === "video";
 
       const [result, detectedDuration] = await Promise.all([
         saveRecording({
           blob: file,
-          name,
+          name: normalizedName,
           type,
           mimeType: file.type,
           parentId,
@@ -95,7 +105,7 @@ export const Component = () => {
 
       return result;
     },
-    [resolveFileType, store],
+    [fileRows, resolveFileType, store],
   );
 
   const handleUploadConfirm = useCallback(async () => {
@@ -132,19 +142,39 @@ export const Component = () => {
     async (files: File[], parentId: string | null) => {
       let successCount = 0;
       let failCount = 0;
+      const plannedFiles = fileRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        parentId: row.parentId ?? null,
+        type: row.type,
+        mimeType: row.mimeType,
+      }));
 
-      await Promise.all(
-        files.map(async (file) => {
-          const baseName = file.name.replace(/\.[^/.]+$/, "") || file.name;
-          try {
-            await uploadSingleFile(file, baseName, parentId);
-            successCount += 1;
-          } catch (err) {
-            console.error("Failed to upload dropped file:", err);
-            failCount += 1;
-          }
-        }),
-      );
+      for (const file of files) {
+        const baseName = file.name.replace(/\.[^/.]+$/, "") || file.name;
+        try {
+          const type = resolveFileType(file);
+          const normalizedName = prepareUploadNameWithPathPolicy(plannedFiles, {
+            name: baseName,
+            mimeType: file.type,
+            parentId,
+            sourceName: file.name,
+            type,
+          });
+          plannedFiles.push({
+            id: `pending-${successCount + failCount}-${file.name}`,
+            name: normalizedName,
+            parentId,
+            type,
+            mimeType: file.type,
+          });
+          await uploadSingleFile(file, normalizedName, parentId);
+          successCount += 1;
+        } catch (err) {
+          console.error("Failed to upload dropped file:", err);
+          failCount += 1;
+        }
+      }
 
       if (successCount > 0) {
         add({
@@ -159,7 +189,7 @@ export const Component = () => {
         });
       }
     },
-    [uploadSingleFile, add],
+    [add, fileRows, resolveFileType, uploadSingleFile],
   );
 
   const handleOpenFilePicker = useCallback(
@@ -186,7 +216,7 @@ export const Component = () => {
     }
 
     setExternalIntent(pendingIntent);
-    navigate(`${location.pathname}${location.search}`, {
+    void navigate(`${location.pathname}${location.search}`, {
       replace: true,
       state: null,
     });

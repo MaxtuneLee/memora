@@ -2,12 +2,17 @@ import { FunnelSimpleIcon } from "@phosphor-icons/react";
 import { Button } from "@base-ui/react/button";
 
 import { FileGrid } from "@/components/library/FileGrid";
+import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { useFiles } from "@/hooks/library/useFiles";
 import type { FileItem } from "@/types/library";
 
-const getFileHref = (file: FileItem): string | null => {
+export const getFileHref = (file: FileItem): string | null => {
   if (file.type === "audio" || file.type === "video") {
     return `/transcript/file/${file.id}`;
+  }
+
+  if (isEditableTextDocument(file)) {
+    return getDocumentEditorHref(file.id);
   }
 
   return null;

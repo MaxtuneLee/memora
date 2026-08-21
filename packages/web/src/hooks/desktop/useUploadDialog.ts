@@ -1,5 +1,30 @@
 import { useCallback, useRef, useState } from "react";
 
+import { normalizePathAddressableUploadName } from "@/lib/editor/pathMutations";
+import type { FileType } from "@/types/library";
+
+const resolveUploadDialogFileType = (file: File): FileType | null => {
+  if (file.type.startsWith("image/")) {
+    return "image";
+  }
+  if (file.type.startsWith("text/") || file.type.startsWith("application/")) {
+    return "document";
+  }
+
+  const lowerName = file.name.toLowerCase();
+  if (
+    lowerName.endsWith(".md") ||
+    lowerName.endsWith(".pdf") ||
+    lowerName.endsWith(".doc") ||
+    lowerName.endsWith(".docx") ||
+    lowerName.endsWith(".txt")
+  ) {
+    return "document";
+  }
+
+  return null;
+};
+
 export function useUploadDialog() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -12,9 +37,15 @@ export function useUploadDialog() {
     const file = event.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    // Pre-fill name: strip extension
-    const baseName = file.name.replace(/\.[^/.]+$/, "");
-    setUploadName(baseName || file.name);
+
+    const resolvedType = resolveUploadDialogFileType(file);
+    if (resolvedType === "document" || resolvedType === "image") {
+      setUploadName(normalizePathAddressableUploadName(file.name, file.type, resolvedType));
+    } else {
+      const baseName = file.name.replace(/\.[^/.]+$/, "");
+      setUploadName(baseName || file.name);
+    }
+
     // Reset input so re-selecting same file triggers change
     event.target.value = "";
   }, []);

@@ -8,6 +8,8 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+
+import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { formatBytes } from "@/lib/format";
 import { resolveRecordingFile } from "@/lib/library/fileService";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
@@ -46,6 +48,20 @@ const TEXT_MIME_TYPES = [
   "application/markdown",
   "application/json",
 ];
+
+export const getFileOpenHref = (
+  fileMeta: Pick<DesktopFileItem["fileMeta"], "id" | "mimeType" | "name" | "type">,
+): string => {
+  if (fileMeta.type === "audio" || fileMeta.type === "video") {
+    return `/transcript/file/${fileMeta.id}`;
+  }
+
+  if (isEditableTextDocument(fileMeta)) {
+    return getDocumentEditorHref(fileMeta.id);
+  }
+
+  return "/files";
+};
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -142,7 +158,7 @@ export function DesktopPreviewWindow({
       }
     };
 
-    loadPreview();
+    void loadPreview();
 
     return () => {
       isMounted = false;
@@ -166,7 +182,7 @@ export function DesktopPreviewWindow({
 
   const handleOpen = () => {
     if (item.type === "file") {
-      navigate(`/transcript/file/${item.fileMeta.id}`);
+      void navigate(getFileOpenHref(item.fileMeta));
     }
   };
 

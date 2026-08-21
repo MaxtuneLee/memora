@@ -5,6 +5,8 @@ import { write as opfsWrite } from "@memora/fs";
 
 import { BackButton } from "@/components/transcript/BackButton";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
+import { desktopFilesQuery$ } from "@/lib/desktop/queries";
+import { renamePathAddressableFile } from "@/lib/editor/pathMutations";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useFileTranscription } from "@/hooks/transcript/useFileTranscription";
 import { formatDateTime, formatDuration } from "@/lib/format";
@@ -50,6 +52,7 @@ export const Component = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { store } = useStore();
+  const fileRows = store.useQuery(desktopFilesQuery$);
   const [mediaReadyToken, setMediaReadyToken] = useState(0);
   const { recording, loading, error, reload } = useRecordingDetail(id);
   const { deleteRecording } = useMediaFiles();
@@ -180,6 +183,18 @@ export const Component = () => {
       return;
     }
 
+    try {
+      renamePathAddressableFile(fileRows, {
+        id: recording.id,
+        name: newName,
+        parentId: recording.parentId ?? null,
+        type: recording.type,
+      });
+    } catch (error) {
+      console.warn("Rejected transcript detail rename:", error);
+      return;
+    }
+
     const updatedMeta = { ...recording, name: newName, updatedAt: Date.now() };
     delete (updatedMeta as Record<string, unknown>).audioUrl;
     delete (updatedMeta as Record<string, unknown>).transcript;
@@ -198,7 +213,7 @@ export const Component = () => {
 
     setIsRenaming(false);
     reload?.();
-  }, [recording, renameValue, store, reload]);
+  }, [fileRows, recording, renameValue, store, reload]);
 
   const handleSaveManualTranscript = useCallback(async () => {
     if (!recording || !manualTranscript.trim()) return;

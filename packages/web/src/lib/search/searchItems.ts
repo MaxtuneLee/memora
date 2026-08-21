@@ -1,4 +1,5 @@
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { formatBytes, formatDateTime, formatDuration } from "@/lib/format";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
@@ -81,6 +82,7 @@ export const buildFileSearchItems = (
     const preview = file.indexSummary?.trim() || formatFileMetadataPreview(file);
     const typeLabel = FILE_TYPE_LABELS[file.type];
     const pathSegments = buildFolderPathSegments(file.parentId ?? null, folderById);
+    const isEditableTextFile = isEditableTextDocument(file);
 
     return {
       id: `file:${file.id}`,
@@ -96,14 +98,19 @@ export const buildFileSearchItems = (
               type: "navigate",
               to: `/transcript/file/${file.id}`,
             }
-          : {
-              type: "desktop-intent",
-              to: "/",
-              desktopIntent: {
-                type: "openPreview",
-                fileId: file.id,
+          : isEditableTextFile
+            ? {
+                type: "navigate",
+                to: getDocumentEditorHref(file.id),
+              }
+            : {
+                type: "desktop-intent",
+                to: "/",
+                desktopIntent: {
+                  type: "openPreview",
+                  fileId: file.id,
+                },
               },
-            },
     } satisfies GlobalSearchItem;
   });
 };

@@ -11,6 +11,11 @@ import { useTrashActions } from "@/hooks/desktop/useTrashActions";
 import { useDesktopState } from "@/hooks/desktop/useDesktopState";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import {
+  createFolderWithPathPolicy,
+  renameFolderWithPathPolicy,
+  renamePathAddressableFile,
+} from "@/lib/editor/pathMutations";
+import {
   desktopAllFilesQuery$,
   desktopAllFoldersQuery$,
   desktopFilesQuery$,
@@ -243,6 +248,16 @@ export function Desktop({
   const handleNewFolder = useCallback(
     (parentId: string | null = null) => {
       closeContextMenu();
+      try {
+        createFolderWithPathPolicy(folderRows, {
+          name: "New Folder",
+          parentId,
+        });
+      } catch (error) {
+        console.warn("Rejected folder creation:", error);
+        return;
+      }
+
       const id = crypto.randomUUID();
       store.commit(
         folderEvents.folderCreated({
@@ -274,16 +289,29 @@ export function Desktop({
 
   const handleRenameCommit = useCallback(
     (id: string, name: string) => {
-      setRenamingIds((previous) => {
-        const next = new Set(previous);
-        next.delete(id);
-        return next;
-      });
       const item = items.get(id);
       if (!item || item.type === "widget") {
         return;
       }
+
       if (item.type === "file") {
+        try {
+          renamePathAddressableFile(fileRows, {
+            id,
+            name,
+            parentId: item.fileMeta.parentId ?? null,
+            type: item.fileMeta.type,
+          });
+        } catch (error) {
+          console.warn("Rejected file rename:", error);
+          return;
+        }
+
+        setRenamingIds((previous) => {
+          const next = new Set(previous);
+          next.delete(id);
+          return next;
+        });
         store.commit(
           fileEvents.fileUpdated({
             id,
@@ -293,6 +321,23 @@ export function Desktop({
         );
         return;
       }
+
+      try {
+        renameFolderWithPathPolicy(folderRows, {
+          id,
+          name,
+          parentId: item.parentId,
+        });
+      } catch (error) {
+        console.warn("Rejected folder rename:", error);
+        return;
+      }
+
+      setRenamingIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
       store.commit(
         folderEvents.folderUpdated({
           id,
@@ -301,7 +346,7 @@ export function Desktop({
         }),
       );
     },
-    [items, store],
+    [fileRows, folderRows, items, store],
   );
 
   const handleRenameCancel = useCallback((id: string) => {

@@ -2,6 +2,10 @@ import { MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useCallback, useState } from "react";
 
+import {
+  moveFolderWithPathPolicy,
+  movePathAddressableFileWithPathPolicy,
+} from "@/lib/editor/pathMutations";
 import { fileEvents } from "@/livestore/file";
 import { folderEvents } from "@/livestore/folder";
 import type { DesktopItem as DesktopItemType } from "@/types/desktop";
@@ -35,8 +39,27 @@ export const useDesktopDnD = ({
         return;
       }
 
+      const fileRows = Array.from(items.values())
+        .filter((item): item is Extract<DesktopItemType, { type: "file" }> => item.type === "file")
+        .map((item) => item.fileMeta);
+      const folderRows = Array.from(items.values()).filter(
+        (item): item is Extract<DesktopItemType, { type: "folder" }> => item.type === "folder",
+      );
+
       if (over.id === DESKTOP_ROOT_ID) {
         if (movedItem.type === "file" && movedItem.fileMeta.parentId !== null) {
+          try {
+            movePathAddressableFileWithPathPolicy(fileRows, {
+              id: movedItem.id,
+              name: movedItem.fileMeta.name,
+              parentId: null,
+              type: movedItem.fileMeta.type,
+            });
+          } catch (error) {
+            console.warn("Rejected file move:", error);
+            return;
+          }
+
           store.commit(
             fileEvents.fileUpdated({
               id: movedItem.id,
@@ -46,6 +69,17 @@ export const useDesktopDnD = ({
           );
         }
         if (movedItem.type === "folder" && movedItem.parentId !== null) {
+          try {
+            moveFolderWithPathPolicy(folderRows, {
+              id: movedItem.id,
+              name: movedItem.name,
+              parentId: null,
+            });
+          } catch (error) {
+            console.warn("Rejected folder move:", error);
+            return;
+          }
+
           store.commit(
             folderEvents.folderUpdated({
               id: movedItem.id,
@@ -61,6 +95,18 @@ export const useDesktopDnD = ({
       if (overId.startsWith(FOLDER_WINDOW_DROP_PREFIX)) {
         const targetFolderId = overId.slice(FOLDER_WINDOW_DROP_PREFIX.length);
         if (movedItem.type === "file") {
+          try {
+            movePathAddressableFileWithPathPolicy(fileRows, {
+              id: movedItem.id,
+              name: movedItem.fileMeta.name,
+              parentId: targetFolderId,
+              type: movedItem.fileMeta.type,
+            });
+          } catch (error) {
+            console.warn("Rejected file move:", error);
+            return;
+          }
+
           store.commit(
             fileEvents.fileUpdated({
               id: movedItem.id,
@@ -70,6 +116,17 @@ export const useDesktopDnD = ({
           );
         }
         if (movedItem.type === "folder" && movedItem.id !== targetFolderId) {
+          try {
+            moveFolderWithPathPolicy(folderRows, {
+              id: movedItem.id,
+              name: movedItem.name,
+              parentId: targetFolderId,
+            });
+          } catch (error) {
+            console.warn("Rejected folder move:", error);
+            return;
+          }
+
           store.commit(
             folderEvents.folderUpdated({
               id: movedItem.id,
@@ -90,6 +147,18 @@ export const useDesktopDnD = ({
       }
 
       if (movedItem.type === "file") {
+        try {
+          movePathAddressableFileWithPathPolicy(fileRows, {
+            id: movedItem.id,
+            name: movedItem.fileMeta.name,
+            parentId: targetItem.id,
+            type: movedItem.fileMeta.type,
+          });
+        } catch (error) {
+          console.warn("Rejected file move:", error);
+          return;
+        }
+
         store.commit(
           fileEvents.fileUpdated({
             id: movedItem.id,
@@ -99,6 +168,17 @@ export const useDesktopDnD = ({
         );
       }
       if (movedItem.type === "folder") {
+        try {
+          moveFolderWithPathPolicy(folderRows, {
+            id: movedItem.id,
+            name: movedItem.name,
+            parentId: targetItem.id,
+          });
+        } catch (error) {
+          console.warn("Rejected folder move:", error);
+          return;
+        }
+
         store.commit(
           folderEvents.folderUpdated({
             id: movedItem.id,
