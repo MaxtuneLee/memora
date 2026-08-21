@@ -1,6 +1,15 @@
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ModelInfo, ProviderModelGroup, ProviderModelOption } from "@/types/settingsDialog";
 
+const DEFAULT_MODEL_CONTEXT_WINDOW = 32768;
+const DEFAULT_MODEL_MAX_TOKENS = 4096;
+const ZERO_MODEL_COST: ModelInfo["cost"] = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
 const normalizePositiveInteger = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return Math.floor(value);
@@ -23,6 +32,88 @@ const pickTopProviderValue = (record: Record<string, unknown>, field: string): u
   }
 
   return (topProvider as Record<string, unknown>)[field];
+};
+
+const normalizeBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+};
+
+const normalizeModelInputs = (value: unknown): Array<"text" | "image"> => {
+  if (!Array.isArray(value)) return ["text"];
+
+  const inputs = value.flatMap((item) => {
+    if (item === "text" || item === "image") return [item];
+    return [];
+  });
+  return inputs.length > 0 ? Array.from(new Set(inputs)) : ["text"];
+};
+
+const getNestedInput = (value: unknown): unknown => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return (value as Record<string, unknown>).input;
+};
+
+const normalizeStringRecord = (value: unknown): Record<string, string> | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>).flatMap(([key, entry]) => {
+    return typeof entry === "string" ? [[key, entry] as const] : [];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+const normalizeUnknownRecord = (value: unknown): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return { ...(value as Record<string, unknown>) };
+};
+
+const normalizeThinkingLevelMap = (value: unknown): ModelInfo["thinkingLevelMap"] => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const supportedLevels = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
+  const entries = Object.entries(value as Record<string, unknown>).flatMap(([level, mapped]) => {
+    if (!supportedLevels.has(level) || (typeof mapped !== "string" && mapped !== null)) {
+      return [];
+    }
+    return [[level, mapped] as const];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+const normalizeModelCost = (value: unknown): ModelInfo["cost"] => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...ZERO_MODEL_COST };
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    input: normalizePositiveNumber(record.input) ?? 0,
+    output: normalizePositiveNumber(record.output) ?? 0,
+    cacheRead: normalizePositiveNumber(record.cacheRead ?? record.cache_read) ?? 0,
+    cacheWrite: normalizePositiveNumber(record.cacheWrite ?? record.cache_write) ?? 0,
+  };
+};
+
+const normalizePositiveNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  }
+  return undefined;
 };
 
 export const parseProviderModel = (value: unknown): ModelInfo | null => {
@@ -54,8 +145,9 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
       pickTopProviderValue(record, "context_window") ??
       pickTopProviderValue(record, "context_length"),
   );
-  const maxOutputTokens = normalizePositiveInteger(
-    record.maxOutputTokens ??
+  const maxTokens = normalizePositiveInteger(
+    record.maxTokens ??
+      record.maxOutputTokens ??
       record.max_output_tokens ??
       record.maxCompletionTokens ??
       record.max_completion_tokens ??
@@ -70,9 +162,20 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
 
   return {
     id,
-    ...(name ? { name } : {}),
-    ...(contextWindow !== undefined ? { contextWindow } : {}),
-    ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+    name: name || id,
+    reasoning:
+      normalizeBoolean(record.reasoning ?? record.supportsReasoning ?? record.supports_reasoning) ?? false,
+    input: normalizeModelInputs(record.input ?? record.inputs ?? getNestedInput(record.modalities)),
+    cost: normalizeModelCost(record.cost ?? record.pricing),
+    contextWindow: contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW,
+    maxTokens: maxTokens ?? DEFAULT_MODEL_MAX_TOKENS,
+    ...(normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map)
+      ? { thinkingLevelMap: normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map) }
+      : {}),
+    ...(normalizeUnknownRecord(record.samplingParams ?? record.sampling_params)
+      ? { samplingParams: normalizeUnknownRecord(record.samplingParams ?? record.sampling_params) }
+      : {}),
+    ...(normalizeStringRecord(record.headers) ? { headers: normalizeStringRecord(record.headers) } : {}),
   };
 };
 

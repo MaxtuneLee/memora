@@ -4,20 +4,32 @@ import * as v from "valibot";
 
 import { createAgent, createInMemoryAdapter } from "../dist/index.js";
 
-const createFakeProvider = (events, requests) => ({
-  async *stream(request) {
-    requests.push(request);
-    for (const event of events) {
-      yield event;
-    }
-  },
-});
+const fakeModel = {
+  id: "fake-model",
+  name: "Fake Model",
+  api: "memora-test",
+  provider: "memora-test",
+  baseUrl: "memora://test",
+  reasoning: false,
+  input: ["text"],
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 1024,
+  maxTokens: 128,
+};
 
-test("delegates model streaming to provider", async () => {
+const createFakeStream = (events, requests) => (model, context) => {
+  requests.push({ model, context });
+  return (async function* stream() {
+    yield* events;
+  })();
+};
+
+test("delegates model streaming to the Pi runtime", async () => {
   const requests = [];
   const agent = createAgent({
-    config: { id: "fake-agent", model: "fake-model", maxIterations: 1 },
-    provider: createFakeProvider([{ type: "text-delta", delta: "hello" }], requests),
+    config: { id: "fake-agent", maxIterations: 1 },
+    model: fakeModel,
+    stream: createFakeStream([{ type: "text_delta", delta: "hello" }], requests),
     persistence: createInMemoryAdapter(),
   });
 
@@ -30,27 +42,33 @@ test("delegates model streaming to provider", async () => {
   }
 
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].model, "fake-model");
-  assert.equal(requests[0].systemPrompt, "System prompt");
-  assert.equal(requests[0].messages.at(-1)?.role, "user");
+  assert.equal(requests[0].model.id, "fake-model");
+  assert.equal(requests[0].context.systemPrompt, "System prompt");
+  assert.equal(requests[0].context.messages.at(-1)?.role, "user");
   assert.deepStrictEqual(events.at(-1)?.type, "done");
 });
 
-test("executes provider tool calls through runtime registry", async () => {
+test("executes Pi tool calls through the runtime registry", async () => {
+  let callCount = 0;
   const agent = createAgent({
-    config: { id: "tool-agent", model: "fake-model", maxIterations: 2 },
-    provider: createFakeProvider(
-      [
-        { type: "tool-call-start", toolCall: { id: "call-1", name: "echo" } },
-        { type: "tool-call-args-delta", toolCallId: "call-1", delta: '{"text":"ok"}' },
-        {
-          type: "tool-call-complete",
-          toolCall: { id: "call-1", name: "echo", arguments: { text: "ok" } },
-        },
-        { type: "text-delta", delta: "done" },
-      ],
-      [],
-    ),
+    config: { id: "tool-agent", maxIterations: 2 },
+    model: fakeModel,
+    stream: () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return (async function* stream() {
+          yield {
+            type: "toolcall_end",
+            contentIndex: 0,
+            toolCall: { type: "toolCall", id: "call-1", name: "echo", arguments: { text: "ok" } },
+            partial: { content: [] },
+          };
+        })();
+      }
+      return (async function* stream() {
+        yield { type: "text_delta", delta: "done" };
+      })();
+    },
     persistence: createInMemoryAdapter(),
   });
 

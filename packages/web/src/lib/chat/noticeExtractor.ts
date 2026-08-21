@@ -4,11 +4,11 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
-import { createOpenAIProvider } from "@memora/ai-provider-openai";
+import { createRemotePiRuntime } from "@memora/ai-provider-pi";
 
 export interface NoticeExtractionConfig {
   apiFormat: "chat-completions" | "responses";
-  endpoint: string;
+  baseUrl: string;
   apiKey: string;
   model: string;
   userMessage: string;
@@ -91,26 +91,39 @@ const buildUserPrompt = (userMessage: string, assistantMessage: string): string 
 export const extractNoticeCandidatesWithAI = async (
   config: NoticeExtractionConfig,
 ): Promise<string[]> => {
-  const endpoint = config.endpoint.trim();
+  const baseUrl = config.baseUrl.trim();
   const apiKey = config.apiKey.trim();
   const model = config.model.trim();
   const userMessage = config.userMessage.trim();
   const assistantMessage = config.assistantMessage.trim();
 
-  if (!endpoint || !apiKey || !model || !userMessage || !assistantMessage) {
+  if (!baseUrl || !apiKey || !model || !userMessage || !assistantMessage) {
     return [];
   }
 
   const agent = createAgent({
     config: {
       id: `memora-notice-extractor:${crypto.randomUUID()}`,
-      model,
       maxIterations: 1,
     },
-    provider: createOpenAIProvider({
-      endpoint,
+    ...createRemotePiRuntime({
+      id: "memora-notice-extractor",
+      name: "Memora Notice Extractor",
+      baseUrl,
       apiKey,
       apiFormat: config.apiFormat,
+      selectedModelId: model,
+      models: [
+        {
+          id: model,
+          name: model,
+          reasoning: false,
+          input: ["text"],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 32768,
+          maxTokens: 1024,
+        },
+      ],
     }),
     persistence: createInMemoryAdapter(),
   });

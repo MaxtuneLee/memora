@@ -40,6 +40,7 @@ export const qwen35OnnxOptManifest: LocalModelManifest = {
   },
   limits: {
     contextWindow: 262144,
+    maxOutputTokens: 3072,
   },
   chat: {
     adapter: "qwen3.5",
@@ -53,6 +54,12 @@ export const qwen35OnnxOptManifest: LocalModelManifest = {
       mode: "template-json",
       streamingArgs: false,
       requiresToolResultTemplate: true,
+    },
+    generationDefaults: {
+      maxTokens: 2048,
+    },
+    reasoningGenerationDefaults: {
+      maxTokens: 3072,
     },
   },
 };
@@ -79,6 +86,7 @@ export const gemma4E2bOnnxManifest: LocalModelManifest = {
   },
   limits: {
     contextWindow: 131072,
+    maxOutputTokens: 512,
   },
   chat: {
     adapter: "gemma4",
@@ -92,6 +100,12 @@ export const gemma4E2bOnnxManifest: LocalModelManifest = {
       mode: "native",
       streamingArgs: true,
       requiresToolResultTemplate: true,
+    },
+    generationDefaults: {
+      temperature: 1,
+      topP: 0.95,
+      topK: 64,
+      maxTokens: 512,
     },
   },
 };

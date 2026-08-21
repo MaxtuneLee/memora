@@ -11,9 +11,22 @@ export interface ProviderFormState {
 
 export interface ModelInfo {
   id: string;
-  name?: string;
-  contextWindow?: number;
-  maxOutputTokens?: number;
+  name: string;
+  reasoning: boolean;
+  input: Array<"text" | "image">;
+  cost: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+  contextWindow: number;
+  maxTokens: number;
+  thinkingLevelMap?: Partial<
+    Record<"off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max", string | null>
+  >;
+  samplingParams?: Record<string, unknown>;
+  headers?: Record<string, string>;
 }
 
 export interface ProviderModelOption {

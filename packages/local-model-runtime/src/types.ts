@@ -1,5 +1,3 @@
-import type { AgentMessageContent } from "@memora/ai-core";
-
 export type LocalModelPoolKey = "asr" | "chat" | "embedding";
 export type LocalModelPriority = "interactive" | "background";
 export type LocalModelTaskStatus =
@@ -57,6 +55,7 @@ export interface LocalChatCapabilities {
     requiresToolResultTemplate: boolean;
   };
   generationDefaults?: LocalGenerationDefaults;
+  reasoningGenerationDefaults?: LocalGenerationDefaults;
 }
 
 export interface LocalAsrCapabilities {
@@ -66,6 +65,7 @@ export interface LocalAsrCapabilities {
 
 export interface LocalModelTokenLimits {
   contextWindow: number;
+  maxOutputTokens: number;
 }
 
 export interface LocalModelManifest {
@@ -95,7 +95,11 @@ export interface LocalToolDefinition {
 }
 
 export type LocalChatContent =
-  | AgentMessageContent
+  | { type: "text"; text: string }
+  | { type: "image"; mimeType: string; data: string }
+  | { type: "file"; mimeType: string; data: string; name: string }
+  | { type: "tool_call"; id: string; name: string; arguments: Record<string, unknown> }
+  | { type: "tool_result"; id: string; name: string; result: unknown; isError?: boolean }
   | { type: "audio"; mimeType: string; data: string };
 
 export interface LocalChatMessage {

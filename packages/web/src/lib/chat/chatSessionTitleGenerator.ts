@@ -1,4 +1,5 @@
-import type { LocalReasoningMode } from "@memora/local-model-runtime";
+import { createLocalPiRuntime } from "@memora/ai-provider-pi";
+import { getLocalModelManifest, type LocalReasoningMode } from "@memora/local-model-runtime";
 
 import type { ChatMessage as AgentChatMessage } from "@/hooks/chat/useAgent";
 import { localModelClient } from "@/lib/local-model";
@@ -51,35 +52,36 @@ export const generateChatSessionTitle = async ({
   const excerpt = buildConversationExcerpt(messages);
   if (!excerpt) return null;
 
-  let output = "";
-  for await (const event of localModelClient.streamChat(
+  const manifest = getLocalModelManifest(modelId);
+  if (!manifest) return null;
+  const runtime = createLocalPiRuntime({
+    client: localModelClient,
+    manifest,
+    priority: "background",
+  });
+  const stream = await runtime.stream(
+    runtime.model,
     {
-      modelId,
       systemPrompt: TITLE_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Create a concise title for this conversation:\n${excerpt}`,
-            },
-          ],
+          content: `Create a concise title for this conversation:\n${excerpt}`,
+          timestamp: Date.now(),
         },
       ],
-      tools: [],
-      reasoningMode,
-      temperature: 0.2,
-      maxTokens: 24,
     },
     {
-      priority: "background",
+      ...(reasoningMode === "thinking" ? { reasoning: "high" as const } : {}),
+      temperature: 0.2,
+      maxTokens: 24,
       signal,
     },
-  )) {
-    if (event.type === "text-delta") {
-      output += event.delta;
-    }
+  );
+
+  let output = "";
+  for await (const event of stream) {
+    if (event.type === "text_delta") output += event.delta;
   }
 
   return normalizeTitle(output);

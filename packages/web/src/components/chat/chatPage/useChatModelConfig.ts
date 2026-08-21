@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import type { AgentConfig } from "@memora/ai-core";
-import { createOpenAIProvider } from "@memora/ai-provider-openai";
+import { createRemotePiRuntime, type PiModelRuntime } from "@memora/ai-provider-pi";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { IS_DEV } from "./helpers";
@@ -35,7 +35,7 @@ export const useChatModelConfig = ({
     | "chat-completions"
     | "responses";
   const selectedApiKey = selectedProvider?.apiKey.trim() ?? "";
-  const selectedEndpoint = useMemo(() => {
+  const selectedBaseUrl = useMemo(() => {
     if (!selectedProvider) {
       return "";
     }
@@ -43,35 +43,47 @@ export const useChatModelConfig = ({
     if (!baseUrl) {
       return "";
     }
-    return selectedApiFormat === "responses"
-      ? `${baseUrl}/responses`
-      : `${baseUrl}/chat/completions`;
-  }, [selectedApiFormat, selectedProvider]);
+    return baseUrl;
+  }, [selectedProvider]);
   const agentConfig = useMemo((): Partial<AgentConfig> => {
     const sessionScopedAgentId = activeSessionId
       ? `memora-chat:${activeSessionId}`
       : "memora-chat:bootstrap";
-    if (!selectedProvider || !selectedModel || !selectedEndpoint) {
+    if (!selectedProvider || !selectedModel || !selectedBaseUrl) {
       return {
         id: sessionScopedAgentId,
-        model: "",
       };
     }
     return {
       id: sessionScopedAgentId,
-      model: selectedModel,
       maxIterations: 20,
     };
-  }, [activeSessionId, selectedEndpoint, selectedModel, selectedProvider]);
+  }, [activeSessionId, selectedBaseUrl, selectedModel, selectedProvider]);
 
-  const provider = useMemo(() => {
-    return createOpenAIProvider({
-      endpoint: selectedEndpoint,
+  const runtime = useMemo((): PiModelRuntime | null => {
+    if (!selectedProvider || !selectedModel || !selectedBaseUrl || !selectedModelInfo) {
+      return null;
+    }
+
+    return createRemotePiRuntime({
+      id: selectedProvider.id,
+      name: selectedProvider.name,
+      baseUrl: selectedBaseUrl,
       apiKey: selectedApiKey || undefined,
       apiFormat: selectedApiFormat,
+      models: selectedProviderModels,
+      selectedModelId: selectedModel,
     });
-  }, [selectedApiFormat, selectedApiKey, selectedEndpoint]);
-  const isConfigured = !!selectedProvider && !!selectedModel && !!selectedEndpoint;
+  }, [
+    selectedApiFormat,
+    selectedApiKey,
+    selectedBaseUrl,
+    selectedModel,
+    selectedModelInfo,
+    selectedProvider,
+    selectedProviderModels,
+  ]);
+  const isConfigured = runtime !== null;
 
   useEffect(() => {
     if (!IS_DEV || !selectedProvider || !selectedModel) {
@@ -88,18 +100,18 @@ export const useChatModelConfig = ({
         id: model.id,
         name: model.name,
         contextWindow: model.contextWindow,
-        maxOutputTokens: model.maxOutputTokens,
+        maxTokens: model.maxTokens,
       })),
     });
   }, [selectedModel, selectedModelInfo, selectedProvider, selectedProviderModels]);
 
   return {
     agentConfig,
-    provider,
+    runtime,
     isConfigured,
     selectedApiFormat,
     selectedApiKey,
-    selectedEndpoint,
+    selectedBaseUrl,
     selectedModel,
     selectedModelInfo,
   };

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "pnpm build:ai-core && pnpm build:local-model-runtime && pnpm build:ai-provider-openai && pnpm build:ai-provider-local && pnpm build:ai-extension-skills && pnpm build:fs && pnpm build:livestore-devtool && vp build",
+    "build": "pnpm build:ai-core && pnpm build:local-model-runtime && pnpm build:ai-provider-pi && pnpm build:ai-extension-skills && pnpm build:fs && pnpm build:livestore-devtool && vp build",
     "lint": "vp lint .",
     "test": "vp test test",
     "preview": "vp preview",
@@ -13,8 +13,7 @@
     "build:ai-core": "pnpm --filter @memora/ai-core build",
     "build:fs": "pnpm --filter @memora/fs build",
     "build:livestore-devtool": "pnpm --filter @memora/livestore-devtool build",
-    "build:ai-provider-openai": "pnpm --filter @memora/ai-provider-openai build",
-    "build:ai-provider-local": "pnpm --filter @memora/ai-provider-local build",
+    "build:ai-provider-pi": "pnpm --filter @memora/ai-provider-pi build",
     "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build",
     "build:local-model-runtime": "pnpm --filter @memora/local-model-runtime build"
   },
@@ -56,10 +55,9 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "vite-plugin-route-builder": "^0.4.1",
-    "@memora/ai-provider-openai": "workspace:*",
+    "@memora/ai-provider-pi": "workspace:*",
     "@memora/ai-extension-skills": "workspace:*",
-    "@memora/local-model-runtime": "workspace:*",
-    "@memora/ai-provider-local": "workspace:*"
+    "@memora/local-model-runtime": "workspace:*"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",

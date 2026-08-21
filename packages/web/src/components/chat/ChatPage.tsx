@@ -125,11 +125,11 @@ export const Component = () => {
 
   const {
     agentConfig,
-    provider,
+    runtime,
     isConfigured,
     selectedApiFormat,
     selectedApiKey,
-    selectedEndpoint,
+    selectedBaseUrl,
     selectedModel,
     selectedModelInfo,
   } = useChatModelConfig({
@@ -149,7 +149,7 @@ export const Component = () => {
 
           return {
             apiFormat: selectedApiFormat,
-            endpoint: selectedEndpoint,
+            baseUrl: selectedBaseUrl,
             apiKey: selectedApiKey,
             model: selectedModel,
           };
@@ -166,7 +166,7 @@ export const Component = () => {
       requestWriteApproval,
       selectedApiFormat,
       selectedApiKey,
-      selectedEndpoint,
+      selectedBaseUrl,
       selectedModel,
       showWidgetSkillTracker,
       store,
@@ -194,7 +194,21 @@ export const Component = () => {
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
-    provider,
+    model: runtime?.model ?? {
+      id: "unconfigured",
+      name: "Unconfigured",
+      api: "memora-unconfigured",
+      provider: "memora-unconfigured",
+      baseUrl: "memora://unconfigured",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 1,
+      maxTokens: 1,
+    },
+    stream: runtime?.stream ?? (() => {
+      throw new Error("Select a configured provider and model before sending a message.");
+    }),
     promptSegments: activePromptSegments,
     tools: activeTools,
     persistence,

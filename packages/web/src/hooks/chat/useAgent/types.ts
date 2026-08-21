@@ -1,12 +1,13 @@
 import type {
   AgentConfig,
   AgentHooks,
+  ModelStream,
   PersistenceAdapter,
   PromptSegment,
-  ProviderAdapter,
   TokenUsage,
   ToolDefinition,
 } from "@memora/ai-core";
+import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
 import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAttachments";
 import type { ChatWidget } from "@/lib/chat/showWidget";
@@ -56,7 +57,8 @@ export interface UseAgentOptions {
   sessionId: string;
   initialMessages?: ChatMessage[];
   config: Partial<AgentConfig>;
-  provider: ProviderAdapter;
+  model: PiModelRuntime["model"];
+  stream: ModelStream;
   hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
   tools?: Partial<ToolDefinition>[];

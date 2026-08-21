@@ -1,19 +1,27 @@
 import type {
+  AgentMessage,
+  AgentMessageContent,
+  ModelStream,
+  TokenUsage,
   AgentConfig,
   AgentEvent,
   AgentHooks,
-  AgentMessage,
-  AgentMessageContent,
   HookContext,
   LoopState,
   PersistenceAdapter,
-  ProviderAdapter,
-  ProviderEvent,
   ThinkResult,
   ToolDefinition,
   PromptSegment,
-  TokenUsage,
 } from "./types";
+import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+
+import {
+  getAssistantReasoning,
+  getAssistantText,
+  toAgentMessageContent,
+  toPiContext,
+  toTokenUsage,
+} from "./pi";
 import { ContextManager, createContextManager } from "./context";
 import { ToolRegistry, createToolRegistry } from "./tools";
 import { PromptComposer, createPromptComposer } from "./prompt";
@@ -101,7 +109,8 @@ const mergeSystemPromptWithMemory = (
 
 export interface AgentOptions {
   config: AgentConfig;
-  provider: ProviderAdapter;
+  model: Model<Api>;
+  stream: ModelStream;
   hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
 }
@@ -113,13 +122,15 @@ export class Agent {
   readonly prompt: PromptComposer;
 
   private hooks: AgentHooks;
-  private provider: ProviderAdapter;
+  private model: Model<Api>;
+  private stream: ModelStream;
   private state: LoopState;
   private abortController: AbortController | null = null;
 
   constructor(options: AgentOptions) {
     this.config = options.config;
-    this.provider = options.provider;
+    this.model = options.model;
+    this.stream = options.stream;
     this.hooks = options.hooks ?? {};
     this.tools = createToolRegistry();
     this.prompt = createPromptComposer();
@@ -210,9 +221,12 @@ export class Agent {
           const assistantMessage: AgentMessage = {
             id: generateId(),
             role: "assistant",
-            content: [{ type: "text", text: thinkResult.text }],
+            content: thinkResult.providerMessage
+              ? toAgentMessageContent(thinkResult.providerMessage)
+              : [{ type: "text", text: thinkResult.text }],
             createdAt: now(),
             ...(thinkResult.reasoning ? { reasoning: thinkResult.reasoning } : {}),
+            ...(thinkResult.providerMessage ? { providerMessage: thinkResult.providerMessage } : {}),
           };
           await this.context.append(assistantMessage);
 
@@ -233,12 +247,15 @@ export class Agent {
         const assistantMessage: AgentMessage = {
           id: generateId(),
           role: "assistant",
-          content: [
-            ...(thinkResult.text ? [{ type: "text" as const, text: thinkResult.text }] : []),
-            ...thinkResult.toolCalls,
-          ],
+          content: thinkResult.providerMessage
+            ? toAgentMessageContent(thinkResult.providerMessage)
+            : [
+                ...(thinkResult.text ? [{ type: "text" as const, text: thinkResult.text }] : []),
+                ...thinkResult.toolCalls,
+              ],
           createdAt: now(),
           ...(thinkResult.reasoning ? { reasoning: thinkResult.reasoning } : {}),
+          ...(thinkResult.providerMessage ? { providerMessage: thinkResult.providerMessage } : {}),
         };
         await this.context.append(assistantMessage);
 
@@ -282,11 +299,30 @@ export class Agent {
 
         this.state.phase = "observation";
 
+        const providerToolResult = toolResultContents.length === 1
+          ? toolResultContents[0]
+          : undefined;
+
         const observationMessage: AgentMessage = {
           id: generateId(),
           role: "tool",
           content: toolResultContents,
           createdAt: now(),
+          providerMessage: providerToolResult && providerToolResult.type === "tool_result"
+            ? {
+                role: "toolResult",
+                toolCallId: providerToolResult.id,
+                toolName: providerToolResult.name,
+                content: [
+                  {
+                    type: "text",
+                    text: stringifyToolResult(providerToolResult.result),
+                  },
+                ],
+                isError: providerToolResult.isError ?? false,
+                timestamp: now(),
+              }
+            : undefined,
         };
 
         if (this.hooks.onBeforeObservation) {
@@ -344,109 +380,105 @@ export class Agent {
     let text = "";
     let reasoning = "";
     let usage: TokenUsage | undefined;
-    const toolCallArguments = new Map<string, string>();
+    let providerMessage: AssistantMessage | undefined;
     const toolCalls: AgentMessageContent[] = [];
 
-    const stream = this.provider.stream(
+    const stream = await this.stream(
+      this.model,
+      toPiContext({ systemPrompt, messages, tools: this.tools.list() }),
       {
-        model: this.config.model,
-        systemPrompt,
-        messages,
-        tools: this.tools.list(),
         ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
         ...(this.config.maxTokens !== undefined ? { maxTokens: this.config.maxTokens } : {}),
+        ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
       },
-      { signal: this.abortController?.signal },
     );
 
     for await (const event of stream) {
       if (this.state.aborted) break;
 
-      yield event;
-
-      this.applyProviderEvent(event, {
-        appendText: (delta) => {
-          text += delta;
-        },
-        appendReasoning: (delta) => {
-          reasoning += delta;
-        },
-        setUsage: (nextUsage) => {
-          usage = nextUsage;
-        },
-        appendToolArgs: (toolCallId, delta) => {
-          toolCallArguments.set(toolCallId, (toolCallArguments.get(toolCallId) ?? "") + delta);
-        },
-        completeToolCall: (toolCall) => {
-          const bufferedArguments = toolCallArguments.get(toolCall.id);
-          const parsedArguments = bufferedArguments
-            ? parseToolArguments(bufferedArguments, toolCall.arguments)
-            : toolCall.arguments;
+      switch (event.type) {
+        case "text_delta":
+          text += event.delta;
+          yield { type: "text-delta", delta: event.delta };
+          break;
+        case "thinking_delta":
+          reasoning += event.delta;
+          yield { type: "reasoning-delta", delta: event.delta };
+          break;
+        case "thinking_end":
+          reasoning = event.content;
+          yield { type: "reasoning-done", text: event.content };
+          break;
+        case "toolcall_start": {
+          const toolCall = event.partial.content[event.contentIndex];
+          if (toolCall?.type === "toolCall") {
+            yield {
+              type: "tool-call-start",
+              toolCall: { id: toolCall.id, name: toolCall.name },
+            };
+          }
+          break;
+        }
+        case "toolcall_delta": {
+          const toolCall = event.partial.content[event.contentIndex];
+          if (toolCall?.type === "toolCall") {
+            yield { type: "tool-call-args-delta", toolCallId: toolCall.id, delta: event.delta };
+          }
+          break;
+        }
+        case "toolcall_end":
           toolCalls.push({
             type: "tool_call",
-            id: toolCall.id,
-            name: toolCall.name,
-            arguments: parsedArguments,
+            id: event.toolCall.id,
+            name: event.toolCall.name,
+            arguments: event.toolCall.arguments,
           });
-        },
-      });
+          yield {
+            type: "tool-call-complete",
+            toolCall: {
+              id: event.toolCall.id,
+              name: event.toolCall.name,
+              arguments: event.toolCall.arguments,
+            },
+          };
+          break;
+        case "done":
+          providerMessage = event.message;
+          usage = toTokenUsage(event.message.usage);
+          break;
+        case "error":
+          if (event.reason === "aborted" || this.abortController?.signal.aborted) {
+            this.state.aborted = true;
+            break;
+          }
+          throw new Error(event.error.errorMessage || "Pi model request failed.");
+        default:
+          break;
+      }
     }
 
-    return { text, reasoning, toolCalls, ...(usage ? { usage } : {}) };
-  }
-
-  private applyProviderEvent(
-    event: ProviderEvent,
-    handlers: {
-      appendText: (delta: string) => void;
-      appendReasoning: (delta: string) => void;
-      setUsage: (usage: TokenUsage) => void;
-      appendToolArgs: (toolCallId: string, delta: string) => void;
-      completeToolCall: (toolCall: {
-        id: string;
-        name: string;
-        arguments: Record<string, unknown>;
-      }) => void;
-    },
-  ): void {
-    switch (event.type) {
-      case "text-delta":
-        handlers.appendText(event.delta);
-        break;
-      case "reasoning-delta":
-        handlers.appendReasoning(event.delta);
-        break;
-      case "reasoning-done":
-        if (!event.text) break;
-        handlers.appendReasoning(event.text);
-        break;
-      case "usage":
-        handlers.setUsage(event.usage);
-        break;
-      case "tool-call-args-delta":
-        handlers.appendToolArgs(event.toolCallId, event.delta);
-        break;
-      case "tool-call-complete":
-        handlers.completeToolCall(event.toolCall);
-        break;
-      default:
-        break;
+    if (providerMessage) {
+      text = getAssistantText(providerMessage);
+      reasoning = getAssistantReasoning(providerMessage);
+      usage = toTokenUsage(providerMessage.usage);
     }
+
+    if (usage) {
+      yield { type: "usage", usage };
+    }
+
+    return {
+      text,
+      reasoning,
+      toolCalls,
+      ...(usage ? { usage } : {}),
+      ...(providerMessage ? { providerMessage } : {}),
+    };
   }
 }
 
-const parseToolArguments = (
-  rawArguments: string,
-  fallback: Record<string, unknown>,
-): Record<string, unknown> => {
-  try {
-    const parsed = JSON.parse(rawArguments);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : fallback;
-  } catch {
-    return fallback;
-  }
+const stringifyToolResult = (result: unknown): string => {
+  return typeof result === "string" ? result : JSON.stringify(result);
 };
 
 export const createAgent = (options: AgentOptions): Agent => {
