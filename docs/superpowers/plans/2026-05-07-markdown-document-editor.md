@@ -87,6 +87,7 @@ All commands below assume `cwd=/Users/maxtune/workspace/personal/memora/packages
 ## Task 1: Finalize Helper Contracts and the WYSIWYG Round-Trip Guard
 
 **Files:**
+
 - Modify: `packages/web/src/lib/editor/editableTextDocument.ts`
 - Modify: `packages/web/src/lib/editor/logicalPaths.ts`
 - Modify: `packages/web/src/lib/editor/referenceLinks.ts`
@@ -176,6 +177,7 @@ git commit -m "feat(editor): finalize helper contracts and round-trip guard"
 ## Task 2: Implement the Editor Data Layer, Save Pipeline, and Attachment Workflow
 
 **Files:**
+
 - Create: `packages/web/src/hooks/editor/useDocumentEditorFile.ts`
 - Create: `packages/web/src/lib/editor/imageAttachments.ts`
 - Test: `packages/web/test/editor/useDocumentEditorFile.test.tsx`
@@ -274,6 +276,7 @@ git commit -m "feat(editor): add editor data and attachment workflows"
 ## Task 3: Build the Route Page and Source-Mode Reference Workflow
 
 **Files:**
+
 - Create: `packages/web/src/pages/editor/file/[id].tsx`
 - Create: `packages/web/src/components/editor/DocumentEditorPage.tsx`
 - Create: `packages/web/src/components/editor/MarkdownDocumentEditor.tsx`
@@ -383,6 +386,7 @@ git commit -m "feat(editor): add route page and source reference workflow"
 ## Task 4: Add Lexical WYSIWYG and Integrate Image Embeds
 
 **Files:**
+
 - Create: `packages/web/src/components/editor/WysiwygDocumentEditor.tsx`
 - Create: `packages/web/src/components/editor/lexical/ImageNode.tsx`
 - Create: `packages/web/src/components/editor/lexical/imageMarkdownTransformer.ts`
@@ -455,6 +459,7 @@ git commit -m "feat(editor): add lexical wysiwyg and image embeds"
 ## Task 5: Final Integration Verification
 
 **Files:**
+
 - No new feature files; verify the integrated editor stack
 
 - [ ] **Step 1: Run the full editor-focused suite**

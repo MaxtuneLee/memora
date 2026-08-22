@@ -1,13 +1,6 @@
 import { useStore } from "@livestore/react";
 import { dir } from "@memora/fs";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 const DEFAULT_STORAGE_PATH = "/livestore-main@4";
@@ -222,10 +215,7 @@ const isReadStatement = (sql: string): boolean => {
   return /^(select|pragma|with|explain)\b/i.test(sql.trim());
 };
 
-const buildTree = async (
-  path: string,
-  depth: number,
-): Promise<OpfsTreeNode | null> => {
+const buildTree = async (path: string, depth: number): Promise<OpfsTreeNode | null> => {
   const directory = dir(path);
   const exists = await directory.exists();
   if (!exists) {
@@ -266,13 +256,8 @@ const buildTree = async (
     }),
   );
 
-  const resolvedChildren = childNodes.filter(
-    (node): node is OpfsTreeNode => node !== null,
-  );
-  const sizeBytes = resolvedChildren.reduce(
-    (total, child) => total + child.sizeBytes,
-    0,
-  );
+  const resolvedChildren = childNodes.filter((node): node is OpfsTreeNode => node !== null);
+  const sizeBytes = resolvedChildren.reduce((total, child) => total + child.sizeBytes, 0);
 
   return {
     kind: "dir",
@@ -368,13 +353,7 @@ const PaneSection = ({
   );
 };
 
-const TreeNodeView = ({
-  node,
-  depth,
-}: {
-  node: OpfsTreeNode;
-  depth: number;
-}) => {
+const TreeNodeView = ({ node, depth }: { node: OpfsTreeNode; depth: number }) => {
   return (
     <div className="space-y-1">
       <div
@@ -393,10 +372,7 @@ const TreeNodeView = ({
             {formatBytes(node.sizeBytes)}
           </span>
         </div>
-        <div
-          className="mt-1 truncate text-[11px]"
-          style={{ color: TEXT_MUTED }}
-        >
+        <div className="mt-1 truncate text-[11px]" style={{ color: TEXT_MUTED }}>
           {node.path}
         </div>
       </div>
@@ -419,22 +395,15 @@ const DataTable = ({
   fallbackColumns?: string[];
   emptyMessage: string;
   editable?: boolean;
-  onCommitEdit?: (
-    rowIndex: number,
-    column: string,
-    value: string,
-  ) => Promise<void> | void;
+  onCommitEdit?: (rowIndex: number, column: string, value: string) => Promise<void> | void;
   fillHeight?: boolean;
 }) => {
-  const columns =
-    rows.length > 0 ? Object.keys(rows[0] ?? {}) : fallbackColumns;
+  const columns = rows.length > 0 ? Object.keys(rows[0] ?? {}) : fallbackColumns;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cellRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const resizeStateRef = useRef<ColumnResizeState | null>(null);
-  const [selectedCell, setSelectedCell] = useState<SelectedCellState | null>(
-    null,
-  );
+  const [selectedCell, setSelectedCell] = useState<SelectedCellState | null>(null);
   const [editingCell, setEditingCell] = useState<EditingCellState | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [overlayStyle, setOverlayStyle] = useState<{
@@ -455,8 +424,7 @@ const DataTable = ({
       return;
     }
 
-    const cell =
-      cellRefs.current[`${selectedCell.rowIndex}:${selectedCell.column}`];
+    const cell = cellRefs.current[`${selectedCell.rowIndex}:${selectedCell.column}`];
     const container = containerRef.current;
     if (!cell || !container) {
       setOverlayStyle(null);
@@ -467,12 +435,8 @@ const DataTable = ({
     const containerRect = container.getBoundingClientRect();
     const cellLeft = cellRect.left - containerRect.left + container.scrollLeft;
     const cellTop = cellRect.top - containerRect.top + container.scrollTop;
-    const overlayHeight =
-      overlayRef.current?.getBoundingClientRect().height ?? cellRect.height;
-    const top = Math.max(
-      container.scrollTop,
-      cellTop + cellRect.height - overlayHeight - 1,
-    );
+    const overlayHeight = overlayRef.current?.getBoundingClientRect().height ?? cellRect.height;
+    const top = Math.max(container.scrollTop, cellTop + cellRect.height - overlayHeight - 1);
     const maxWidth = Math.min(420, Math.max(220, containerRect.width - 24));
 
     setOverlayStyle({
@@ -496,10 +460,7 @@ const DataTable = ({
 
       setColumnWidths((current) => ({
         ...current,
-        [state.column]: Math.max(
-          72,
-          state.startWidth + event.clientX - state.startX,
-        ),
+        [state.column]: Math.max(72, state.startWidth + event.clientX - state.startX),
       }));
     };
 
@@ -555,11 +516,7 @@ const DataTable = ({
       return;
     }
 
-    await onCommitEdit(
-      editingCell.rowIndex,
-      editingCell.column,
-      editingCell.draft,
-    );
+    await onCommitEdit(editingCell.rowIndex, editingCell.column, editingCell.draft);
     setSelectedCell({
       rowIndex: editingCell.rowIndex,
       column: editingCell.column,
@@ -665,17 +622,14 @@ const DataTable = ({
                       maxWidth: `${columnWidths[column] ?? DEFAULT_COLUMN_WIDTH}px`,
                     }}
                   >
-                    {editingCell?.rowIndex === rowIndex &&
-                    editingCell.column === column ? (
+                    {editingCell?.rowIndex === rowIndex && editingCell.column === column ? (
                       <input
                         autoFocus
                         data-devtools-cell-editor="true"
                         value={editingCell.draft}
                         onChange={(event) =>
                           setEditingCell((current) =>
-                            current
-                              ? { ...current, draft: event.target.value }
-                              : current,
+                            current ? { ...current, draft: event.target.value } : current,
                           )
                         }
                         onBlur={() => {
@@ -729,13 +683,11 @@ const DataTable = ({
                         className="block h-full w-full truncate px-3 py-1 text-left"
                         style={{
                           backgroundColor:
-                            selectedCell?.rowIndex === rowIndex &&
-                            selectedCell.column === column
+                            selectedCell?.rowIndex === rowIndex && selectedCell.column === column
                               ? "#d9ebff"
                               : "transparent",
                           boxShadow:
-                            selectedCell?.rowIndex === rowIndex &&
-                            selectedCell.column === column
+                            selectedCell?.rowIndex === rowIndex && selectedCell.column === column
                               ? "inset 0 0 0 1px #4f9cff"
                               : "none",
                           maxWidth: `${columnWidths[column] ?? DEFAULT_COLUMN_WIDTH}px`,
@@ -774,16 +726,12 @@ export function LiveStoreDevtoolsPanel({
   maxRows = DEFAULT_MAX_ROWS,
 }: LiveStoreDevtoolsPanelProps) {
   const { store } = useStore();
-  const [tablesState, setTablesState] = useState<
-    QuerySectionState<TableInfoRow>
-  >({
+  const [tablesState, setTablesState] = useState<QuerySectionState<TableInfoRow>>({
     rows: [],
     updatedAt: null,
     error: null,
   });
-  const [columnsState, setColumnsState] = useState<
-    QuerySectionState<TableColumnRow>
-  >({
+  const [columnsState, setColumnsState] = useState<QuerySectionState<TableColumnRow>>({
     rows: [],
     updatedAt: null,
     error: null,
@@ -847,8 +795,7 @@ export function LiveStoreDevtoolsPanel({
     const nextSelectedTable =
       selectedTable && tables.some((table) => table.name === selectedTable)
         ? selectedTable
-        : (tables.find((table) => !table.name.startsWith("__livestore"))
-            ?.name ??
+        : (tables.find((table) => !table.name.startsWith("__livestore"))?.name ??
           tables[0]?.name ??
           "");
 
@@ -1070,10 +1017,7 @@ export function LiveStoreDevtoolsPanel({
       const normalizedType = targetColumn.type.trim().toUpperCase();
       if (draftValue === "" && targetColumn.notNull === 0) {
         nextValue = null;
-      } else if (
-        draftValue.toLowerCase() === "null" &&
-        targetColumn.notNull === 0
-      ) {
+      } else if (draftValue.toLowerCase() === "null" && targetColumn.notNull === 0) {
         nextValue = null;
       } else if (normalizedType.includes("INT")) {
         const parsed = Number(draftValue);
@@ -1085,18 +1029,12 @@ export function LiveStoreDevtoolsPanel({
 
       const setClause = `${quoteIdentifier(columnName)} = ${sqlLiteral(nextValue)}`;
       const whereClause = primaryKeyColumns
-        .map(
-          (column) =>
-            `${quoteIdentifier(column.name)} = ${sqlLiteral(targetRow[column.name])}`,
-        )
+        .map((column) => `${quoteIdentifier(column.name)} = ${sqlLiteral(targetRow[column.name])}`)
         .join(" AND ");
 
       const internalStore = store as unknown as {
         sqliteDbWrapper?: {
-          execute: (
-            query: string,
-            bindValues?: Record<string, unknown>,
-          ) => { durationMs: number };
+          execute: (query: string, bindValues?: Record<string, unknown>) => { durationMs: number };
         };
       };
       const execution = internalStore.sqliteDbWrapper?.execute(
@@ -1105,9 +1043,7 @@ export function LiveStoreDevtoolsPanel({
       );
 
       if (!execution) {
-        throw new Error(
-          "Editing is unavailable because the sqlite executor is not exposed.",
-        );
+        throw new Error("Editing is unavailable because the sqlite executor is not exposed.");
       }
 
       await runRefresh();
@@ -1116,8 +1052,7 @@ export function LiveStoreDevtoolsPanel({
   );
 
   const activeRows = resultMode === "sql" ? sqlResult.rows : rowsState.rows;
-  const activeFallbackColumns =
-    resultMode === "sql" ? [] : columns.map((column) => column.name);
+  const activeFallbackColumns = resultMode === "sql" ? [] : columns.map((column) => column.name);
   const activeSubtitle =
     resultMode === "sql"
       ? (sqlResult.error ??
@@ -1140,15 +1075,10 @@ export function LiveStoreDevtoolsPanel({
     ["Type", selectedTableInfo?.type ?? "table"],
     ["Columns", columns.length],
     ["Rows loaded", rowsState.rows.length],
-    [
-      "Storage",
-      opfsSnapshot.exists ? formatBytes(opfsSnapshot.totalBytes) : "Missing",
-    ],
+    ["Storage", opfsSnapshot.exists ? formatBytes(opfsSnapshot.totalBytes) : "Missing"],
     [
       "Updated",
-      formatTimestamp(
-        sqlResult.updatedAt ?? rowsState.updatedAt ?? tablesState.updatedAt,
-      ),
+      formatTimestamp(sqlResult.updatedAt ?? rowsState.updatedAt ?? tablesState.updatedAt),
     ],
   ];
 
@@ -1173,8 +1103,7 @@ export function LiveStoreDevtoolsPanel({
               {selectedTableInfo?.name ?? "Local database workbench"}
             </div>
             <div className="truncate text-[11px]" style={{ color: TEXT_MUTED }}>
-              {title} · {tables.length} tables ·{" "}
-              {currentPath ? `source ${currentPath} · ` : ""}
+              {title} · {tables.length} tables · {currentPath ? `source ${currentPath} · ` : ""}
               {storagePath}
             </div>
           </div>
@@ -1217,10 +1146,7 @@ export function LiveStoreDevtoolsPanel({
             }}
           >
             <div className="flex h-full min-h-0 flex-col">
-              <PaneSection
-                title="Objects"
-                extra={<span>{filteredTables.length}</span>}
-              >
+              <PaneSection title="Objects" extra={<span>{filteredTables.length}</span>}>
                 <div className="space-y-2 px-3 py-2">
                   <input
                     value={tableFilter}
@@ -1248,21 +1174,13 @@ export function LiveStoreDevtoolsPanel({
                             className="w-full border px-2.5 py-1.5 text-left transition"
                             style={{
                               borderColor: isSelected ? ACCENT : BORDER,
-                              backgroundColor: isSelected
-                                ? ACCENT_SOFT
-                                : SURFACE,
+                              backgroundColor: isSelected ? ACCENT_SOFT : SURFACE,
                             }}
                           >
-                            <div
-                              className="truncate font-mono text-[12px]"
-                              style={{ color: TEXT }}
-                            >
+                            <div className="truncate font-mono text-[12px]" style={{ color: TEXT }}>
                               {table.name}
                             </div>
-                            <div
-                              className="mt-1 text-[11px]"
-                              style={{ color: TEXT_MUTED }}
-                            >
+                            <div className="mt-1 text-[11px]" style={{ color: TEXT_MUTED }}>
                               {table.type}
                             </div>
                           </button>
@@ -1270,8 +1188,7 @@ export function LiveStoreDevtoolsPanel({
                       })
                     ) : (
                       <div className="text-xs" style={{ color: TEXT_MUTED }}>
-                        {tablesState.error ??
-                          "No tables matched the current filter."}
+                        {tablesState.error ?? "No tables matched the current filter."}
                       </div>
                     )}
                   </div>
@@ -1280,11 +1197,7 @@ export function LiveStoreDevtoolsPanel({
               <PaneSection
                 title="Storage"
                 extra={
-                  <span>
-                    {opfsSnapshot.exists
-                      ? formatBytes(opfsSnapshot.totalBytes)
-                      : "0 B"}
-                  </span>
+                  <span>{opfsSnapshot.exists ? formatBytes(opfsSnapshot.totalBytes) : "0 B"}</span>
                 }
               >
                 <div className="max-h-60 space-y-1 overflow-auto px-3 py-2">
@@ -1322,10 +1235,7 @@ export function LiveStoreDevtoolsPanel({
                           ? "Query Results"
                           : (selectedTableInfo?.name ?? "Table Data")}
                       </div>
-                      <div
-                        className="text-[11px]"
-                        style={{ color: TEXT_MUTED }}
-                      >
+                      <div className="text-[11px]" style={{ color: TEXT_MUTED }}>
                         {activeSubtitle}
                       </div>
                     </div>
@@ -1360,9 +1270,7 @@ export function LiveStoreDevtoolsPanel({
                           {sqlResult.error}
                         </div>
                       ) : null}
-                      {resultMode === "sql" &&
-                      sqlResult.kind === "write" &&
-                      !sqlResult.error ? (
+                      {resultMode === "sql" && sqlResult.kind === "write" && !sqlResult.error ? (
                         <div
                           className="border px-2.5 py-1.5 text-[11px]"
                           style={{
@@ -1371,8 +1279,7 @@ export function LiveStoreDevtoolsPanel({
                             color: SUCCESS,
                           }}
                         >
-                          Statement executed. Table metadata and preview were
-                          refreshed.
+                          Statement executed. Table metadata and preview were refreshed.
                         </div>
                       ) : null}
                       <DataTable
@@ -1383,10 +1290,8 @@ export function LiveStoreDevtoolsPanel({
                         fillHeight
                         emptyMessage={
                           resultMode === "sql"
-                            ? (sqlResult.error ??
-                              "Run a SQL statement to inspect the result set.")
-                            : (rowsState.error ??
-                              "No rows returned from the selected table.")
+                            ? (sqlResult.error ?? "Run a SQL statement to inspect the result set.")
+                            : (rowsState.error ?? "No rows returned from the selected table.")
                         }
                       />
                     </div>
@@ -1406,9 +1311,7 @@ export function LiveStoreDevtoolsPanel({
                       {sqlResult.durationMs !== null ? (
                         <span>· {sqlResult.durationMs.toFixed(2)} ms</span>
                       ) : null}
-                      <span style={{ color: WARNING }}>
-                        · write statements allowed
-                      </span>
+                      <span style={{ color: WARNING }}>· write statements allowed</span>
                     </div>
                     <div className="space-y-2 px-3 py-2">
                       <textarea
@@ -1424,12 +1327,8 @@ export function LiveStoreDevtoolsPanel({
                         }}
                       />
                       <div className="flex items-center justify-between gap-3">
-                        <div
-                          className="text-[11px]"
-                          style={{ color: TEXT_MUTED }}
-                        >
-                          Use SELECT, PRAGMA, INSERT, UPDATE, DELETE, or DDL
-                          statements.
+                        <div className="text-[11px]" style={{ color: TEXT_MUTED }}>
+                          Use SELECT, PRAGMA, INSERT, UPDATE, DELETE, or DDL statements.
                         </div>
                         <div className="flex items-center gap-2">
                           <ShellButton
@@ -1478,10 +1377,7 @@ export function LiveStoreDevtoolsPanel({
                           style={{ borderBottomColor: BORDER }}
                         >
                           <div style={{ color: TEXT_SOFT }}>{label}</div>
-                          <div
-                            className="min-w-0 truncate font-medium"
-                            style={{ color: TEXT }}
-                          >
+                          <div className="min-w-0 truncate font-medium" style={{ color: TEXT }}>
                             {value}
                           </div>
                         </div>
@@ -1489,23 +1385,11 @@ export function LiveStoreDevtoolsPanel({
                     </div>
                   </PaneSection>
 
-                  <PaneSection
-                    title="Schema"
-                    extra={<span>{columns.length}</span>}
-                  >
+                  <PaneSection title="Schema" extra={<span>{columns.length}</span>}>
                     <DataTable
                       rows={schemaRows}
-                      fallbackColumns={[
-                        "cid",
-                        "name",
-                        "type",
-                        "notNull",
-                        "pk",
-                        "defaultValue",
-                      ]}
-                      emptyMessage={
-                        columnsState.error ?? "No schema metadata available."
-                      }
+                      fallbackColumns={["cid", "name", "type", "notNull", "pk", "defaultValue"]}
+                      emptyMessage={columnsState.error ?? "No schema metadata available."}
                     />
                   </PaneSection>
 

@@ -45,26 +45,30 @@ const testState = vi.hoisted(() => {
     };
   });
 
-  const ls = vi.fn(async (path: string, options?: { includeFiles?: boolean; includeDirs?: boolean }) => {
-    const normalized = normalizePath(path);
-    const includeFiles = options?.includeFiles ?? true;
-    if (!includeFiles) return [];
-    return [...fileBytesByPath.keys(), ...fileTextByPath.keys()]
-      .filter((entry) => entry.startsWith(`${normalized}/`))
-      .sort();
-  });
+  const ls = vi.fn(
+    async (path: string, options?: { includeFiles?: boolean; includeDirs?: boolean }) => {
+      const normalized = normalizePath(path);
+      const includeFiles = options?.includeFiles ?? true;
+      if (!includeFiles) return [];
+      return [...fileBytesByPath.keys(), ...fileTextByPath.keys()]
+        .filter((entry) => entry.startsWith(`${normalized}/`))
+        .sort();
+    },
+  );
 
-  const write = vi.fn(async (path: string, data: string | ArrayBuffer, _options?: { overwrite?: boolean }) => {
-    const normalized = normalizePath(path);
-    const parent = normalized.slice(0, normalized.lastIndexOf("/")) || "/";
-    directories.add(parent);
-    if (typeof data === "string") {
-      fileTextByPath.set(normalized, data);
-      fileBytesByPath.set(normalized, new TextEncoder().encode(data).byteLength);
-      return;
-    }
-    fileBytesByPath.set(normalized, data.byteLength);
-  });
+  const write = vi.fn(
+    async (path: string, data: string | ArrayBuffer, _options?: { overwrite?: boolean }) => {
+      const normalized = normalizePath(path);
+      const parent = normalized.slice(0, normalized.lastIndexOf("/")) || "/";
+      directories.add(parent);
+      if (typeof data === "string") {
+        fileTextByPath.set(normalized, data);
+        fileBytesByPath.set(normalized, new TextEncoder().encode(data).byteLength);
+        return;
+      }
+      fileBytesByPath.set(normalized, data.byteLength);
+    },
+  );
 
   return {
     dir,

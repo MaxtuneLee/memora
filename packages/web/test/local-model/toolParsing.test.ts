@@ -22,7 +22,9 @@ describe("parseJsonToolCall", () => {
 describe("parseChatTemplateToolCall", () => {
   test("parses Gemma-style chat template tool calls", () => {
     expect(
-      parseChatTemplateToolCall('<|tool_call>call:vision{prompt:<|"|>Describe this frame<|"|>}<tool_call|>'),
+      parseChatTemplateToolCall(
+        '<|tool_call>call:vision{prompt:<|"|>Describe this frame<|"|>}<tool_call|>',
+      ),
     ).toEqual({
       name: "vision",
       arguments: { prompt: "Describe this frame" },
@@ -32,7 +34,7 @@ describe("parseChatTemplateToolCall", () => {
   test("parses unquoted Gemma-style numeric and boolean arguments", () => {
     expect(
       parseChatTemplateToolCall(
-        '<|tool_call>call:list_chat_sessions{limit:1,include_archived:false}<tool_call|>',
+        "<|tool_call>call:list_chat_sessions{limit:1,include_archived:false}<tool_call|>",
       ),
     ).toEqual({
       name: "list_chat_sessions",

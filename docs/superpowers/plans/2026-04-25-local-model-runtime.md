@@ -90,6 +90,7 @@
 ## Task 1: Add Runtime Package Skeleton
 
 **Files:**
+
 - Create: `packages/local-model-runtime/package.json`
 - Create: `packages/local-model-runtime/tsconfig.json`
 - Create: `packages/local-model-runtime/tsdown.config.ts`
@@ -276,7 +277,9 @@ export interface LocalToolDefinition {
   parameters: Record<string, unknown>;
 }
 
-export type LocalChatContent = AgentMessageContent | { type: "audio"; mimeType: string; data: string };
+export type LocalChatContent =
+  | AgentMessageContent
+  | { type: "audio"; mimeType: string; data: string };
 
 export interface LocalChatMessage {
   role: "user" | "assistant" | "system" | "tool";
@@ -380,6 +383,7 @@ git commit -m "feat(local-model): add runtime package skeleton"
 ## Task 2: Add Manifests and Validation
 
 **Files:**
+
 - Create: `packages/local-model-runtime/src/manifests.ts`
 - Create: `packages/local-model-runtime/src/errors.ts`
 - Create: `packages/local-model-runtime/src/validation.ts`
@@ -488,7 +492,11 @@ export const normalizeLocalModelError = (error: unknown): LocalModelError => {
   }
 
   if (error instanceof Error) {
-    return createLocalModelError("generation-failed", "Local model generation failed.", error.message);
+    return createLocalModelError(
+      "generation-failed",
+      "Local model generation failed.",
+      error.message,
+    );
   }
 
   return createLocalModelError("generation-failed", "Local model generation failed.");
@@ -622,7 +630,10 @@ export const validateLocalChatRequest = (request: LocalChatRequest): LocalModelV
   if (!manifest || manifest.task !== "chat" || !manifest.chat) {
     return {
       ok: false,
-      error: createLocalModelError("model-not-found", `Local chat model not found: ${request.modelId}`),
+      error: createLocalModelError(
+        "model-not-found",
+        `Local chat model not found: ${request.modelId}`,
+      ),
     };
   }
 
@@ -699,6 +710,7 @@ git commit -m "feat(local-model): add manifests and capability validation"
 ## Task 3: Add Priority Queue and Worker Pool Core
 
 **Files:**
+
 - Create: `packages/local-model-runtime/src/queue.ts`
 - Modify: `packages/local-model-runtime/src/index.ts`
 - Test: `packages/local-model-runtime/test/queue.test.mjs`
@@ -850,6 +862,7 @@ git commit -m "feat(local-model): add priority task queue"
 ## Task 4: Add Local Provider Package
 
 **Files:**
+
 - Create: `packages/ai-provider/local/package.json`
 - Create: `packages/ai-provider/local/tsconfig.json`
 - Create: `packages/ai-provider/local/tsdown.config.ts`
@@ -968,7 +981,11 @@ Expected: FAIL because implementation does not exist.
 Create `packages/ai-provider/local/src/types.ts`:
 
 ```ts
-import type { LocalChatEvent, LocalChatRequest, LocalModelPriority } from "@memora/local-model-runtime";
+import type {
+  LocalChatEvent,
+  LocalChatRequest,
+  LocalModelPriority,
+} from "@memora/local-model-runtime";
 
 export interface LocalModelClientLike {
   streamChat: (
@@ -1116,6 +1133,7 @@ git commit -m "feat(ai-provider): add local provider adapter"
 ## Task 5: Add Web Local Model Client and Worker Pool
 
 **Files:**
+
 - Create: `packages/web/src/lib/local-model/createWorker.ts`
 - Create: `packages/web/src/lib/local-model/workerPool.ts`
 - Create: `packages/web/src/lib/local-model/client.ts`
@@ -1151,10 +1169,7 @@ export const createLocalModelWorker = (): Worker => {
 Create `packages/web/src/workers/localModel.worker.ts`:
 
 ```ts
-import type {
-  LocalModelEventEnvelope,
-  LocalModelWorkerMessage,
-} from "@memora/local-model-runtime";
+import type { LocalModelEventEnvelope, LocalModelWorkerMessage } from "@memora/local-model-runtime";
 
 const postEvent = (message: LocalModelEventEnvelope): void => {
   self.postMessage(message);
@@ -1172,7 +1187,10 @@ self.addEventListener("message", (event: MessageEvent<LocalModelWorkerMessage>) 
 
   postEvent({
     requestId: message.requestId,
-    event: { type: "error", error: { code: "generation-failed", message: "Worker runtime is not implemented yet." } },
+    event: {
+      type: "error",
+      error: { code: "generation-failed", message: "Worker runtime is not implemented yet." },
+    },
   });
 });
 ```
@@ -1235,7 +1253,10 @@ export interface LocalModelClient {
 
 export const createLocalModelClient = (): LocalModelClient => {
   const asrPool = createLocalModelWorkerPool({ pool: "asr", createWorker: createLocalModelWorker });
-  const chatPool = createLocalModelWorkerPool({ pool: "chat", createWorker: createLocalModelWorker });
+  const chatPool = createLocalModelWorkerPool({
+    pool: "chat",
+    createWorker: createLocalModelWorker,
+  });
 
   return {
     transcribeAudio(request, options = {}) {
@@ -1295,6 +1316,7 @@ git commit -m "feat(web): add local model worker client"
 ## Task 6: Move OPFS Cache and Whisper Into Unified Worker
 
 **Files:**
+
 - Create: `packages/web/src/workers/local-model/cache.ts`
 - Create: `packages/web/src/workers/local-model/asr/whisper.ts`
 - Create: `packages/web/src/workers/local-model/runtime.ts`
@@ -1308,7 +1330,10 @@ Create `packages/web/src/workers/local-model/cache.ts` by moving the current OPF
 Export:
 
 ```ts
-export const configureTransformersCache = (env: { useCustomCache: boolean; customCache: unknown }): void => {
+export const configureTransformersCache = (env: {
+  useCustomCache: boolean;
+  customCache: unknown;
+}): void => {
   env.useCustomCache = true;
   env.customCache = OPFSCache;
 };
@@ -1350,7 +1375,10 @@ export const runLocalModelTask = async (
       await runWhisperTranscription(task.input, emit);
       return;
     case "chat.generate":
-      emit({ type: "error", error: { code: "generation-failed", message: "Local chat is not implemented yet." } });
+      emit({
+        type: "error",
+        error: { code: "generation-failed", message: "Local chat is not implemented yet." },
+      });
       return;
   }
 };
@@ -1392,6 +1420,7 @@ git commit -m "feat(local-model): run whisper through unified worker"
 ## Task 7: Migrate Transcript Hooks to Local Runtime API
 
 **Files:**
+
 - Modify: `packages/web/src/hooks/transcript/useTranscript.ts`
 - Modify: `packages/web/src/hooks/transcript/useFileTranscription.ts`
 - Modify: `packages/web/src/hooks/transcript/useTranscript/useSpeechQueue.ts`
@@ -1457,6 +1486,7 @@ git commit -m "refactor(transcript): use local model runtime for whisper"
 ## Task 8: Add Chat Adapter Test Harness and Tool Parsing Helpers
 
 **Files:**
+
 - Create: `packages/web/src/workers/local-model/chat/types.ts`
 - Create: `packages/web/src/workers/local-model/chat/toolParsing.ts`
 - Test: `packages/web/test/local-model/toolParsing.test.ts`
@@ -1466,7 +1496,11 @@ git commit -m "refactor(transcript): use local model runtime for whisper"
 Create `packages/web/src/workers/local-model/chat/types.ts`:
 
 ```ts
-import type { LocalChatEvent, LocalChatRequest, LocalModelManifest } from "@memora/local-model-runtime";
+import type {
+  LocalChatEvent,
+  LocalChatRequest,
+  LocalModelManifest,
+} from "@memora/local-model-runtime";
 
 export interface LocalChatAdapter {
   run: (
@@ -1520,7 +1554,11 @@ export const parseJsonToolCall = (text: string): ParsedToolCall | null => {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const record = parsed as Record<string, unknown>;
     if (typeof record.name !== "string") return null;
-    if (!record.arguments || typeof record.arguments !== "object" || Array.isArray(record.arguments)) {
+    if (
+      !record.arguments ||
+      typeof record.arguments !== "object" ||
+      Array.isArray(record.arguments)
+    ) {
       return null;
     }
     return {
@@ -1553,6 +1591,7 @@ git commit -m "feat(local-model): add chat tool parsing helpers"
 ## Task 9: Implement Qwen Chat Adapter
 
 **Files:**
+
 - Create: `packages/web/src/workers/local-model/chat/qwen35.ts`
 - Modify: `packages/web/src/workers/local-model/runtime.ts`
 - Test: `packages/web/test/local-model/qwen35Adapter.test.ts`
@@ -1619,6 +1658,7 @@ git commit -m "feat(local-model): add qwen chat adapter"
 ## Task 10: Implement Gemma Chat Adapter
 
 **Files:**
+
 - Create: `packages/web/src/workers/local-model/chat/gemma4.ts`
 - Modify: `packages/web/src/workers/local-model/runtime.ts`
 - Test: `packages/web/test/local-model/gemma4Adapter.test.ts`
@@ -1684,6 +1724,7 @@ git commit -m "feat(local-model): add gemma chat adapter"
 ## Task 11: Integrate Local Provider Into Chat Settings
 
 **Files:**
+
 - Modify: `packages/web/src/livestore/provider.ts`
 - Modify: `packages/web/src/types/settingsDialog.ts`
 - Modify: `packages/web/src/lib/settings/dialogHelpers.ts`
@@ -1761,6 +1802,7 @@ git commit -m "feat(chat): add local model provider selection"
 ## Task 12: Add Abort and Error Handling Coverage
 
 **Files:**
+
 - Test: `packages/ai-provider/local/test/abort.test.mjs`
 - Test: `packages/web/test/local-model/workerPool.test.ts`
 - Modify: `packages/web/src/lib/local-model/workerPool.ts`
@@ -1810,6 +1852,7 @@ git commit -m "fix(local-model): handle aborts and late worker events"
 ## Task 13: Final Validation and Manual Smoke Checklist
 
 **Files:**
+
 - Modify only if validation exposes bugs.
 
 - [ ] **Step 1: Run package builds**

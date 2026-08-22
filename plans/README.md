@@ -1,7 +1,7 @@
 # Animation plans
 
-| # | Plan | Severity | Status |
-| --- | --- | --- | --- |
-| 001 | [让标题标尺的横线展开并露出标题](001-outline-line-to-title.md) | MEDIUM | DONE |
+| #   | Plan                                                           | Severity | Status |
+| --- | -------------------------------------------------------------- | -------- | ------ |
+| 001 | [让标题标尺的横线展开并露出标题](001-outline-line-to-title.md) | MEDIUM   | DONE   |
 
 按编号执行。001 无其他计划依赖；它只改动标题标尺及其动效 token，不应与编辑器定位逻辑合并。

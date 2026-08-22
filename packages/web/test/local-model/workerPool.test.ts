@@ -1,7 +1,4 @@
-import type {
-  LocalModelEventEnvelope,
-  LocalModelWorkerMessage,
-} from "@memora/local-model-runtime";
+import type { LocalModelEventEnvelope, LocalModelWorkerMessage } from "@memora/local-model-runtime";
 import { describe, expect, test, vi } from "vite-plus/test";
 
 import { createLocalModelWorkerPool } from "../../src/lib/local-model/workerPool";

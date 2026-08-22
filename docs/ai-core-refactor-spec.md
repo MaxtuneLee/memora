@@ -172,10 +172,7 @@ interface ProviderRequest {
 }
 
 interface ProviderAdapter {
-  stream(
-    request: ProviderRequest,
-    options?: { signal?: AbortSignal },
-  ): AsyncGenerator<AgentEvent>;
+  stream(request: ProviderRequest, options?: { signal?: AbortSignal }): AsyncGenerator<AgentEvent>;
 }
 ```
 

@@ -42,7 +42,13 @@ export function livestoreDevtoolsPlugin(options: LiveStoreDevtoolsPluginOptions)
     apply: "serve",
     configureServer(server: {
       middlewares: {
-        use: (handler: (req: { url?: string }, res: { setHeader: (name: string, value: string) => void; end: (body: string) => void }, next: () => void) => void | Promise<void>) => void;
+        use: (
+          handler: (
+            req: { url?: string },
+            res: { setHeader: (name: string, value: string) => void; end: (body: string) => void },
+            next: () => void,
+          ) => void | Promise<void>,
+        ) => void;
       };
       transformIndexHtml: (url: string, html: string) => Promise<string>;
     }) {

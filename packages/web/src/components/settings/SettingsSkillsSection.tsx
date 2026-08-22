@@ -16,7 +16,9 @@ export default function SettingsSkillsSection() {
     <div className="space-y-4">
       {skills.length === 0 ? (
         <section className={SETTINGS_INSET_PANEL_CLASS_NAME}>
-          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No built-in skills are bundled with this build.</p>
+          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+            No built-in skills are bundled with this build.
+          </p>
         </section>
       ) : (
         <section className={cn(SETTINGS_PANEL_CLASS_NAME, "space-y-2")}>

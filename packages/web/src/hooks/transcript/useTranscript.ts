@@ -163,7 +163,8 @@ export const useTranscript = () => {
               : 0);
           const completedAudio = chooseCompletedSpeechAudio({
             vadAudio: audio,
-            bufferedAudio: speechBufferSizeRef.current > 0 ? drainSpeechBuffer() : new Float32Array(),
+            bufferedAudio:
+              speechBufferSizeRef.current > 0 ? drainSpeechBuffer() : new Float32Array(),
           });
           if (completedAudio.length > 0) {
             enqueueSpeech(completedAudio, startSec);

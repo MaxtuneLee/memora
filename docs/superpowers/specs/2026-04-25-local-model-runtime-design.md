@@ -551,7 +551,7 @@ localModelClient.transcribeAudio({
   modelId: "whisper-base-timestamped",
   audio,
   language,
-  priority: "interactive"
+  priority: "interactive",
 });
 ```
 

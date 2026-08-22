@@ -20,10 +20,10 @@ test("interactive widget guidance includes svg layout rules", () => {
     'interactive: ["sections/ui_components.md", "sections/color_palette.md", "sections/svg_setup.md"]',
   );
   expect(skillSource).toContain(
-    '- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`',
+    "- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`",
   );
   expect(readmeSource).toContain(
-    '- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`',
+    "- `interactive`: `sections/ui_components.md`, `sections/color_palette.md`, `sections/svg_setup.md`",
   );
 });
 
@@ -60,7 +60,10 @@ test("widget skill docs teach semantic-first non-overlapping layout", () => {
     "utf8",
   );
   const coreDesignSystemSource = readFileSync(
-    new URL("../../bundled-skills/show-widget-skills/sections/core_design_system.md", import.meta.url),
+    new URL(
+      "../../bundled-skills/show-widget-skills/sections/core_design_system.md",
+      import.meta.url,
+    ),
     "utf8",
   );
   const svgSetupSource = readFileSync(
@@ -68,7 +71,10 @@ test("widget skill docs teach semantic-first non-overlapping layout", () => {
     "utf8",
   );
   const whenNothingFitsSource = readFileSync(
-    new URL("../../bundled-skills/show-widget-skills/sections/when_nothing_fits.md", import.meta.url),
+    new URL(
+      "../../bundled-skills/show-widget-skills/sections/when_nothing_fits.md",
+      import.meta.url,
+    ),
     "utf8",
   );
 
@@ -77,7 +83,9 @@ test("widget skill docs teach semantic-first non-overlapping layout", () => {
   expect(readmeSource).toContain("Default to non-overlap.");
   expect(coreDesignSystemSource).toContain("Default to non-overlap.");
   expect(svgSetupSource).toContain("Default to non-overlap:");
-  expect(whenNothingFitsSource).toContain("If the only way to fit it is overlap, don't overlap it.");
+  expect(whenNothingFitsSource).toContain(
+    "If the only way to fit it is overlap, don't overlap it.",
+  );
 });
 
 test("widget skill docs teach narrow-column width budgeting", () => {

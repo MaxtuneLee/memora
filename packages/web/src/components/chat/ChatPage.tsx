@@ -206,9 +206,11 @@ export const Component = () => {
       contextWindow: 1,
       maxTokens: 1,
     },
-    stream: runtime?.stream ?? (() => {
-      throw new Error("Select a configured provider and model before sending a message.");
-    }),
+    stream:
+      runtime?.stream ??
+      (() => {
+        throw new Error("Select a configured provider and model before sending a message.");
+      }),
     promptSegments: activePromptSegments,
     tools: activeTools,
     persistence,

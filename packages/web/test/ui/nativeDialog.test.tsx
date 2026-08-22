@@ -38,7 +38,7 @@ test("native dialog source keeps an opening phase before promoting the panel to 
 
   expect(source).toContain('type DialogState = "closed" | "opening" | "open" | "closing"');
   expect(source).toContain('setState("opening")');
-  expect(source).toContain('window.requestAnimationFrame(() =>');
+  expect(source).toContain("window.requestAnimationFrame(() =>");
 });
 
 test("native dialog stylesheet animates the real dialog backdrop", () => {

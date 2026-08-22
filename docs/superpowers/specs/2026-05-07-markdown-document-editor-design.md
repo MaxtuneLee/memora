@@ -111,7 +111,8 @@ For this feature, the spec defines:
 - path-based links and image embeds never depend on OPFS storage suffixes
 
 This means “upgrade a `.txt` file to Markdown” is primarily a logical filename
-+ mime-type update, not a promise that OPFS storage must become `*.md`.
+
+- mime-type update, not a promise that OPFS storage must become `*.md`.
 
 ### Route model
 

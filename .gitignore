@@ -174,3 +174,6 @@ packages/.DS_Store
 .DS_Store
 .turbo/
 .codex/
+node_modules
+.void
+.wrangler

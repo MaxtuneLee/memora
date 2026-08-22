@@ -38,13 +38,10 @@ test("exposes a local worker as a Pi model runtime", async () => {
     },
   });
 
-  const stream = await runtime.stream(
-    runtime.model,
-    {
-      systemPrompt: "Be concise.",
-      messages: [{ role: "user", content: "Hi", timestamp: 1 }],
-    },
-  );
+  const stream = await runtime.stream(runtime.model, {
+    systemPrompt: "Be concise.",
+    messages: [{ role: "user", content: "Hi", timestamp: 1 }],
+  });
   const events = [];
   for await (const event of stream) events.push(event);
 

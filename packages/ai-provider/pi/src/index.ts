@@ -244,7 +244,8 @@ const createLocalModel = (manifest: LocalModelManifest): Model<typeof LOCAL_API>
     ),
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: manifest.limits?.contextWindow ?? 32768,
-    maxTokens: manifest.limits?.maxOutputTokens ?? manifest.chat.generationDefaults?.maxTokens ?? 512,
+    maxTokens:
+      manifest.limits?.maxOutputTokens ?? manifest.chat.generationDefaults?.maxTokens ?? 512,
   };
 };
 
@@ -281,22 +282,56 @@ const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
                 output.content.push({ type: "text", text: "" });
                 eventStream.push({ type: "text_start", contentIndex: textIndex, partial: output });
               }
-              (output.content[textIndex] as Extract<AssistantMessage["content"][number], { type: "text" }>).text += event.delta;
-              eventStream.push({ type: "text_delta", contentIndex: textIndex, delta: event.delta, partial: output });
+              (
+                output.content[textIndex] as Extract<
+                  AssistantMessage["content"][number],
+                  { type: "text" }
+                >
+              ).text += event.delta;
+              eventStream.push({
+                type: "text_delta",
+                contentIndex: textIndex,
+                delta: event.delta,
+                partial: output,
+              });
               break;
             case "reasoning-delta":
               if (thinkingIndex < 0) {
                 thinkingIndex = output.content.length;
                 output.content.push({ type: "thinking", thinking: "" });
-                eventStream.push({ type: "thinking_start", contentIndex: thinkingIndex, partial: output });
+                eventStream.push({
+                  type: "thinking_start",
+                  contentIndex: thinkingIndex,
+                  partial: output,
+                });
               }
-              (output.content[thinkingIndex] as Extract<AssistantMessage["content"][number], { type: "thinking" }>).thinking += event.delta;
-              eventStream.push({ type: "thinking_delta", contentIndex: thinkingIndex, delta: event.delta, partial: output });
+              (
+                output.content[thinkingIndex] as Extract<
+                  AssistantMessage["content"][number],
+                  { type: "thinking" }
+                >
+              ).thinking += event.delta;
+              eventStream.push({
+                type: "thinking_delta",
+                contentIndex: thinkingIndex,
+                delta: event.delta,
+                partial: output,
+              });
               break;
             case "reasoning-done":
               if (thinkingIndex >= 0) {
-                (output.content[thinkingIndex] as Extract<AssistantMessage["content"][number], { type: "thinking" }>).thinking = event.text;
-                eventStream.push({ type: "thinking_end", contentIndex: thinkingIndex, content: event.text, partial: output });
+                (
+                  output.content[thinkingIndex] as Extract<
+                    AssistantMessage["content"][number],
+                    { type: "thinking" }
+                  >
+                ).thinking = event.text;
+                eventStream.push({
+                  type: "thinking_end",
+                  contentIndex: thinkingIndex,
+                  content: event.text,
+                  partial: output,
+                });
                 thinkingEnded = true;
               }
               break;
@@ -315,7 +350,12 @@ const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
             case "tool-call-args-delta": {
               const contentIndex = toolIndexes.get(event.toolCallId);
               if (contentIndex !== undefined) {
-                eventStream.push({ type: "toolcall_delta", contentIndex, delta: event.delta, partial: output });
+                eventStream.push({
+                  type: "toolcall_delta",
+                  contentIndex,
+                  delta: event.delta,
+                  partial: output,
+                });
               }
               break;
             }
@@ -333,7 +373,8 @@ const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
             case "usage":
               output.usage.input = event.inputTokens ?? output.usage.input;
               output.usage.output = event.outputTokens ?? output.usage.output;
-              output.usage.totalTokens = event.totalTokens ?? output.usage.input + output.usage.output;
+              output.usage.totalTokens =
+                event.totalTokens ?? output.usage.input + output.usage.output;
               break;
             case "error":
               throw new Error(event.error.message);
@@ -345,13 +386,23 @@ const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
         if (textIndex >= 0) {
           const text = output.content[textIndex];
           if (text?.type === "text") {
-            eventStream.push({ type: "text_end", contentIndex: textIndex, content: text.text, partial: output });
+            eventStream.push({
+              type: "text_end",
+              contentIndex: textIndex,
+              content: text.text,
+              partial: output,
+            });
           }
         }
         if (thinkingIndex >= 0 && !thinkingEnded) {
           const thinking = output.content[thinkingIndex];
           if (thinking?.type === "thinking") {
-            eventStream.push({ type: "thinking_end", contentIndex: thinkingIndex, content: thinking.thinking, partial: output });
+            eventStream.push({
+              type: "thinking_end",
+              contentIndex: thinkingIndex,
+              content: thinking.thinking,
+              partial: output,
+            });
           }
         }
 
@@ -392,10 +443,11 @@ export const createLocalPiRuntime = (input: {
       auth: createKeylessAuth("Memora Local"),
       models: [model],
       api: createLocalStreams({
-        streamChat: (request, options) => input.client.streamChat(request, {
-          ...options,
-          priority: input.priority ?? options?.priority,
-        }),
+        streamChat: (request, options) =>
+          input.client.streamChat(request, {
+            ...options,
+            priority: input.priority ?? options?.priority,
+          }),
       }),
     }),
   );
