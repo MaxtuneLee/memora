@@ -21,9 +21,6 @@ permissions:
 env:
   # Override with a VOID_API_URL repository variable to target staging.
   VOID_API_URL: ${{ vars.VOID_API_URL || 'https://api.void.cloud' }}
-  # Set a VOID_PROJECT repository variable to your project slug
-  # (Settings → Secrets and variables → Actions → Variables).
-  VOID_PROJECT: ${{ vars.VOID_PROJECT }}
 
 jobs:
   deploy:
@@ -31,13 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: voidzero-dev/setup-vp@v1.17.0
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
-          cache: pnpm
-      - run: vp install --frozen-lockfile
+          node-version: "lts"
+          cache: true
+          run-install: true
       - name: Build web app and workspace dependencies
         run: vp run -t @memora/web#build
       - name: Deploy
-        run: vp run @memora/web#deploy -- --project "$VOID_PROJECT"
+        run: vp run @memora/web#deploy
