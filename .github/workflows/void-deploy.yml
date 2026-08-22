@@ -36,8 +36,6 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # cd to the web package to deploy the frontend
-      - name: Change directory to web package
-        run: cd packages/web
       - name: Deploy
+        working-directory: packages/web
         run: pnpm exec void deploy --project "$VOID_PROJECT"
