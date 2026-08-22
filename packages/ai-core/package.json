@@ -2,6 +2,9 @@
   "name": "@memora/ai-core",
   "version": "0.0.0",
   "private": true,
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -12,21 +15,19 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
     "lint": "vp lint .",
     "test": "node --test test/*.test.mjs"
   },
-  "devDependencies": {
-    "typescript": "~5.9.3",
-    "vite-plus": "catalog:"
-  },
   "dependencies": {
     "@earendil-works/pi-ai": "0.84.2",
     "@valibot/to-json-schema": "1.5.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

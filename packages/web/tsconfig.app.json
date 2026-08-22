@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "useDefineForClassFields": true,
@@ -29,5 +30,5 @@
       "@memora/livestore-devtool": ["../livestore-devtool/dist/index.d.ts"]
     }
   },
-  "include": ["src", "test"]
+  "include": ["src", "test"],
 }

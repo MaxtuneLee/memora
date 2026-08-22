@@ -2,6 +2,9 @@
   "name": "@memora/ai-provider-pi",
   "version": "0.0.0",
   "private": true,
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -12,22 +15,20 @@
       "import": "./dist/index.mjs"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
     "lint": "vp lint .",
     "test": "node --test test/*.test.mjs"
   },
-  "devDependencies": {
-    "typescript": "~5.9.3",
-    "vite-plus": "catalog:"
-  },
   "dependencies": {
     "@earendil-works/pi-ai": "0.84.2",
     "@memora/ai-core": "workspace:*",
     "@memora/local-model-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

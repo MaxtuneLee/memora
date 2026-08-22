@@ -2,6 +2,9 @@
   "name": "@memora/ai-extension-skills",
   "version": "0.0.0",
   "private": true,
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -12,20 +15,18 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
     "lint": "vp lint ."
   },
-  "devDependencies": {
-    "typescript": "~5.9.3",
-    "vite-plus": "catalog:"
-  },
   "dependencies": {
     "@memora/ai-core": "workspace:*",
     "valibot": "^1.2.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

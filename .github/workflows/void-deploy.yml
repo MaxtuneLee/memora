@@ -30,12 +30,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.17.0
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: vp install --frozen-lockfile
       - name: Build web app and workspace dependencies
         run: vp run -t @memora/web#build
       - name: Deploy

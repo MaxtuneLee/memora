@@ -2,6 +2,9 @@
   "name": "memora",
   "version": "1.0.0",
   "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "main": "index.js",
   "scripts": {
     "dev": "vp run -t @memora/web#dev",
@@ -12,17 +15,12 @@
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
     "preview": "vp run @memora/web#preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "valibot": "^1.2.0"
   },
   "devDependencies": {
-    "oxfmt": "^0.41.0",
-    "oxlint": "^1.56.0",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
-  }
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "packageManager": "pnpm@10.28.0"
 }
