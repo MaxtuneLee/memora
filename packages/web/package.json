@@ -5,17 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "pnpm build:ai-core && pnpm build:local-model-runtime && pnpm build:ai-provider-pi && pnpm build:ai-extension-skills && pnpm build:fs && pnpm build:livestore-devtool && vp build",
+    "build": "vp build",
+    "deploy": "void deploy",
     "lint": "vp lint .",
     "test": "vp test test",
     "preview": "vp preview",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg",
-    "build:ai-core": "pnpm --filter @memora/ai-core build",
-    "build:fs": "pnpm --filter @memora/fs build",
-    "build:livestore-devtool": "pnpm --filter @memora/livestore-devtool build",
-    "build:ai-provider-pi": "pnpm --filter @memora/ai-provider-pi build",
-    "build:ai-extension-skills": "pnpm --filter @memora/ai-extension-skills build",
-    "build:local-model-runtime": "pnpm --filter @memora/local-model-runtime build"
+    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",

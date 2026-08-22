@@ -36,6 +36,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build web app and workspace dependencies
+        run: vp run -t @memora/web#build
       - name: Deploy
-        working-directory: packages/web
-        run: pnpm exec void deploy --project "$VOID_PROJECT"
+        run: vp run @memora/web#deploy -- --project "$VOID_PROJECT"

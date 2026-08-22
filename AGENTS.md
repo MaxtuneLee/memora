@@ -12,19 +12,21 @@
 ### Workspace basics
 
 - Install deps: `pnpm install`
-- Run commands for a package: `pnpm --filter @memora/web <command>`
-- Root shortcuts: `pnpm dev:web`, `pnpm build:web`, `pnpm lint:web`, `pnpm test:web`
+- Run commands for a package: `vp run @memora/web#<command>`
+- Run the web app with workspace dependencies: `vp run -t @memora/web#dev`
+- Build the web app with workspace dependencies: `vp run -t @memora/web#build`
+- Deploy after building: `vp run -t @memora/web#build && vp run @memora/web#deploy`
 
 ### Development
 
-- Dev server: `pnpm --filter @memora/web dev`
+- Dev server with workspace dependencies: `vp run -t @memora/web#dev`
   - Vite runs on port `9001` (see `packages/web/vite.config.ts`).
 - Preview build: `vp --filter @memora/web preview`
 
 ### Build
 
-- Build web app: `pnpm --filter @memora/web build`
-  - Runs `tsc -b` then `vite build`.
+- Build web app and declared workspace dependencies: `vp run -t @memora/web#build`
+- Vite Task follows `workspace:*` dependencies before running the web build.
 
 ### Lint
 
@@ -124,8 +126,8 @@
 
 ### Dev tips
 
-- Use `pnpm <command> --filter <project_name>` for package-specific runs.
-- Run `pnpm install --filter <project_name>` to ensure tools can see packages.
+- Use `vp run @memora/<project_name>#<command>` for package-specific runs.
+- Run `vp install` to ensure tools can see packages.
 - Confirm package names in each `package.json` (top-level name is not used).
 
 ### Base UI
