@@ -2,5 +2,8 @@
   "$schema": "./node_modules/void/schema.json",
   "worker": {
     "compatibility_date": "2026-08-21"
+  },
+  "inference": {
+    "appType": "spa"
   }
 }
