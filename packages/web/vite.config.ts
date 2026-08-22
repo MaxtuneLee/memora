@@ -6,6 +6,7 @@ import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
+import { voidPlugin } from "void";
 import path from "node:path";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -22,6 +23,7 @@ const config = {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
+    voidPlugin(),
     ...(isVitest
       ? []
       : [
@@ -56,11 +58,11 @@ const config = {
           dest: "./",
         },
         {
-          src: "node_modules/onnxruntime-web/dist/*.wasm",
+          src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
           dest: "./",
         },
         {
-          src: "node_modules/onnxruntime-web/dist/*.mjs",
+          src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
           dest: "./",
         },
       ],
@@ -140,6 +142,9 @@ const config = {
   ],
   server: {
     port: 9001,
+    fs: {
+      allow: ["..", "../../"],
+    },
   },
   build: {
     target: "esnext",

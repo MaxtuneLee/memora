@@ -143,9 +143,7 @@ test("coalesces concurrent creation requests for the todo document", async () =>
   const pendingCreate = new Promise<{ id: string; meta: FileMeta }>((resolve) => {
     resolveCreate = resolve;
   });
-  testState.saveFileToOpfs.mockImplementation(
-    () => pendingCreate,
-  );
+  testState.saveFileToOpfs.mockImplementation(() => pendingCreate);
   const store = {
     commit: vi.fn(),
   };

@@ -99,7 +99,10 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
         {sortedNotices.length > 0 ? (
           <div className="mt-5 space-y-3">
             {sortedNotices.map((notice) => (
-              <div key={notice.id} className={cn(SETTINGS_ROW_CLASS_NAME, "flex items-start gap-3")}>
+              <div
+                key={notice.id}
+                className={cn(SETTINGS_ROW_CLASS_NAME, "flex items-start gap-3")}
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm leading-6 text-[var(--color-memora-text)]">{notice.text}</p>
                   <p className="mt-2 text-[11px] text-[var(--color-memora-text-soft)]">

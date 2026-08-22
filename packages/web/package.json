@@ -39,8 +39,11 @@
     "@livestore/sync-cf": "^0.3.1",
     "@livestore/wa-sqlite": "1.0.5-dev.2",
     "@memora/ai-core": "workspace:*",
+    "@memora/ai-extension-skills": "workspace:*",
+    "@memora/ai-provider-pi": "workspace:*",
     "@memora/fs": "workspace:*",
     "@memora/livestore-devtool": "workspace:*",
+    "@memora/local-model-runtime": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@ricky0123/vad-react": "^0.0.36",
     "@ricky0123/vad-web": "^0.0.30",
@@ -66,10 +69,7 @@
     "streamdown": "^2.4.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "vite-plugin-route-builder": "^0.4.1",
-    "@memora/ai-provider-pi": "workspace:*",
-    "@memora/ai-extension-skills": "workspace:*",
-    "@memora/local-model-runtime": "workspace:*"
+    "vite-plugin-route-builder": "^0.4.1"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",
@@ -92,6 +92,7 @@
     "vite": "catalog:",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-static-copy": "^3.1.4",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "void": "^0.10.12"
   }
 }

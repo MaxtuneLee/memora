@@ -90,7 +90,6 @@
    保留所有既有 token，不改动其他组件的 easing。
 
 2. 重构 `packages/web/src/components/editor/DocumentOutlineIndicator.tsx` 的标尺标记 JSX：
-
    - 删除全高竖线 `<div className="... inset-y-0 ..." />`。
    - 将每个标题标记和其标题文本放入同一个绝对定位的、带 `data-hovered` 属性的容器；容器的 `top` 保持 `heading.position`。
    - 所有横线使用相同的 `right-0` 对齐端点；继续根据 `heading.level` 使用 `getMarkerWidth` 区分横线长度。
@@ -99,14 +98,12 @@
    - 当前章节色仍为 `var(--color-memora-olive)`；hover 标题不应添加阴影、卡片背景或新的边框。
 
 3. 交互边界：
-
    - 保留现有透明命中按钮和“根据指针 Y 坐标取最近标题”的逻辑，确保密集标题仍能选择。
    - 不修改 `onNavigate`、`parseMarkdownHeadings`、CodeMirror 的 `revealLine` 或 Preview 的 `revealHeading`。
    - 在触摸设备上不运行 hover 展开；点击仍应根据当前指针位置定位标题。
    - `prefers-reduced-motion: reduce` 下标题仍立即变为可见，但不执行横线扩展和横向位移。
 
 4. 在 `packages/web/test/editor/DocumentOutlineIndicator.test.ts` 中增加渲染测试，覆盖：
-
    - 标尺渲染时没有竖线轴元素或轨道类名。
    - 每个传入标题在 DOM 中都有对应的可访问导航项。
    - hover 状态通过当前标题容器上的数据属性改变，而不是通过挂载/卸载独立标题浮层实现。
@@ -133,7 +130,6 @@
   定向测试必须通过。若后两个命令仍因工作区既有 `.void`/`livestore-devtool` 配置或无关测试失败，记录其输出，并确认没有来自上述三个改动文件的错误。
 
 - **Feel check**:
-
   1. 使用包含至少 10 个混合层级标题的长 Markdown 文档，在桌面精细指针上从一个标记快速移向另一个标记。
   2. 确认只有当前横线向左延伸、标题在同一位置露出；移开时它们能从中间状态平滑收回，不闪烁。
   3. 确认标尺区域没有贯穿顶部到底部的竖线，所有横线的右端整齐对齐。

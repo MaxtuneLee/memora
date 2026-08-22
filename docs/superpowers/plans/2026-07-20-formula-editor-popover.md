@@ -22,10 +22,12 @@
 ### Task 1: Make MathNode formula content writable
 
 **Files:**
+
 - Modify: `packages/web/src/components/editor/lexical/MathNode.tsx`
 - Test: `packages/web/test/editor/markdownTransformers.test.ts`
 
 **Interfaces:**
+
 - Produces: `MathNode.setFormula(formula: string): this`
 - Preserves: `MathNode.getDisplayMode(): boolean`
 
@@ -88,10 +90,12 @@ Run the same Vite+ command. Expected: all `markdownTransformers` tests pass.
 ### Task 2: Build the controlled Base UI formula popover
 
 **Files:**
+
 - Create: `packages/web/src/components/editor/MathEditorPopover.tsx`
 - Create: `packages/web/test/editor/MathEditorPopover.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `MathNode.setFormula(formula: string): this`
 - Produces: `MathEditorPopover(): JSX.Element | null`
 
@@ -186,7 +190,8 @@ Render the controlled structure:
           Edit formula
         </Popover.Title>
         <Popover.Description className="text-xs text-[var(--color-memora-text-soft)]">
-          {selectedFormula?.displayMode ? "Block formula" : "Inline formula"} · updates automatically
+          {selectedFormula?.displayMode ? "Block formula" : "Inline formula"} · updates
+          automatically
         </Popover.Description>
         {selectedFormula?.displayMode ? (
           <textarea aria-label="LaTeX" value={draft} onChange={handleDraftChange} />
@@ -208,11 +213,13 @@ Run the new test file. Expected: both field variants and the 300 ms commit test 
 ### Task 3: Cover dismissal, switching, and editor integration
 
 **Files:**
+
 - Modify: `packages/web/src/components/editor/WysiwygDocumentEditor.tsx`
 - Modify: `packages/web/test/editor/MathEditorPopover.test.tsx`
 - Modify: `packages/web/test/editor/SourceDocumentEditor.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `MathEditorPopover(): JSX.Element | null`
 - Produces: formula editing in the mounted WYSIWYG editor
 

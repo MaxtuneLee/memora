@@ -17,7 +17,7 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
   expect(dialogSource).toContain("aria-expanded={isMobileNavigationOpen}");
   expect(dialogSource).not.toContain(">Settings<");
   expect(dialogSource).toContain('fontFamily: "var(--font-serif)"');
-  expect(dialogSource).toContain('h-[min(88vh,720px)]');
+  expect(dialogSource).toContain("h-[min(88vh,720px)]");
   expect(dialogSource).toContain("space-y-0.5");
   expect(dialogSource).toContain("group relative flex w-full items-center gap-2.5");
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-desktop"');

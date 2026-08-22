@@ -164,18 +164,25 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
     id,
     name: name || id,
     reasoning:
-      normalizeBoolean(record.reasoning ?? record.supportsReasoning ?? record.supports_reasoning) ?? false,
+      normalizeBoolean(record.reasoning ?? record.supportsReasoning ?? record.supports_reasoning) ??
+      false,
     input: normalizeModelInputs(record.input ?? record.inputs ?? getNestedInput(record.modalities)),
     cost: normalizeModelCost(record.cost ?? record.pricing),
     contextWindow: contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW,
     maxTokens: maxTokens ?? DEFAULT_MODEL_MAX_TOKENS,
     ...(normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map)
-      ? { thinkingLevelMap: normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map) }
+      ? {
+          thinkingLevelMap: normalizeThinkingLevelMap(
+            record.thinkingLevelMap ?? record.thinking_level_map,
+          ),
+        }
       : {}),
     ...(normalizeUnknownRecord(record.samplingParams ?? record.sampling_params)
       ? { samplingParams: normalizeUnknownRecord(record.samplingParams ?? record.sampling_params) }
       : {}),
-    ...(normalizeStringRecord(record.headers) ? { headers: normalizeStringRecord(record.headers) } : {}),
+    ...(normalizeStringRecord(record.headers)
+      ? { headers: normalizeStringRecord(record.headers) }
+      : {}),
   };
 };
 

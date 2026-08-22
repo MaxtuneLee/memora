@@ -62,10 +62,7 @@ export const DashboardWelcomeHeading = memo(function DashboardWelcomeHeading({
   }, [hasTypedWelcomeTitle, isReady, reducedMotion, title]);
 
   const showTypingCursor =
-    isReady &&
-    !reducedMotion &&
-    !hasTypedWelcomeTitle &&
-    typedWelcomeTitle.length < title.length;
+    isReady && !reducedMotion && !hasTypedWelcomeTitle && typedWelcomeTitle.length < title.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -84,9 +81,7 @@ export const DashboardWelcomeHeading = memo(function DashboardWelcomeHeading({
           </span>
         ) : null}
       </h1>
-      <p className=" text-sm leading-6 text-[#716c64] md:text-[15px]">
-        {description}
-      </p>
+      <p className=" text-sm leading-6 text-[#716c64] md:text-[15px]">{description}</p>
     </div>
   );
 });

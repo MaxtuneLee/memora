@@ -60,7 +60,7 @@ export class ContextManager {
     }
   }
 
-  // Memory (long-term facts) 
+  // Memory (long-term facts)
 
   async saveMemory(key: string, data: unknown): Promise<void> {
     const memories =
@@ -80,7 +80,7 @@ export class ContextManager {
     return memories ? Object.keys(memories) : [];
   }
 
-  // Grep / Relevance 
+  // Grep / Relevance
 
   async grep(pattern: string): Promise<Array<{ key: string; matches: string[] }>> {
     return this.persistence.grep(this.agentId, pattern);

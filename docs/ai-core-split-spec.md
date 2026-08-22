@@ -246,7 +246,7 @@ createOpenAIProvider({
   endpoint,
   apiKey,
   apiFormat,
-})
+});
 ```
 
 ### Agent creation

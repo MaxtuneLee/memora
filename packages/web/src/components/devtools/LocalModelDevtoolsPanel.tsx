@@ -209,8 +209,8 @@ const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
                     {formatTime(worker.lastEventAt)}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">last completed</span>
-                    : {formatTime(worker.lastCompletedAt)}
+                    <span className="text-[var(--color-memora-text-subtle)]">last completed</span>:{" "}
+                    {formatTime(worker.lastCompletedAt)}
                   </div>
                   <div>
                     <span className="text-[var(--color-memora-text-subtle)]">families</span>:{" "}

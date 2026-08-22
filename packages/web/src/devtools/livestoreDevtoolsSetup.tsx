@@ -4,7 +4,10 @@ import { LiveStoreProvider } from "@livestore/react";
 import { StrictMode } from "react";
 import { unstable_batchedUpdates as batchUpdates } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { LiveStoreDevtoolsPanel, type LiveStoreDevtoolsPanelProps } from "@memora/livestore-devtool";
+import {
+  LiveStoreDevtoolsPanel,
+  type LiveStoreDevtoolsPanelProps,
+} from "@memora/livestore-devtool";
 import LiveStoreLoadingScreen from "@/app/components/LiveStoreLoadingScreen";
 import { createLiveStoreLoadingStatus } from "@/app/liveStoreLoadingStatus";
 import { schema } from "@/livestore/schema";

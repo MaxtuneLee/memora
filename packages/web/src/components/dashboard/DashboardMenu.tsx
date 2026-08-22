@@ -65,13 +65,9 @@ interface DashboardMenuLayout {
   triggerWidth: number;
 }
 
-const DashboardMenuContext = createContext<DashboardMenuContextValue | null>(
-  null,
-);
+const DashboardMenuContext = createContext<DashboardMenuContextValue | null>(null);
 
-const getMenuItems = (
-  container: HTMLDivElement | null,
-): HTMLButtonElement[] => {
+const getMenuItems = (container: HTMLDivElement | null): HTMLButtonElement[] => {
   if (!container) {
     return [];
   }
@@ -93,9 +89,7 @@ const useDashboardMenuContext = (): DashboardMenuContextValue => {
   const context = useContext(DashboardMenuContext);
 
   if (!context) {
-    throw new Error(
-      "DashboardMenu components must be used within DashboardMenu.",
-    );
+    throw new Error("DashboardMenu components must be used within DashboardMenu.");
   }
 
   return context;
@@ -265,9 +259,7 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
     }
 
     const handleToggle = (event: Event) => {
-      const nextState =
-        (event as Event & { newState?: "open" | "closed" }).newState ??
-        "closed";
+      const nextState = (event as Event & { newState?: "open" | "closed" }).newState ?? "closed";
       const nextOpen = nextState === "open";
       setIsOpen(nextOpen);
 
@@ -323,9 +315,7 @@ export function DashboardMenu({ children }: DashboardMenuProps): ReactElement {
   ]);
 
   return (
-    <DashboardMenuContext.Provider value={contextValue}>
-      {children}
-    </DashboardMenuContext.Provider>
+    <DashboardMenuContext.Provider value={contextValue}>{children}</DashboardMenuContext.Provider>
   );
 }
 
@@ -341,14 +331,8 @@ export function DashboardMenuTrigger({
   style,
   ...props
 }: DashboardMenuTriggerProps): ReactElement {
-  const {
-    anchorName,
-    isOpen,
-    popoverId,
-    registerTrigger,
-    openMenu,
-    toggleMenu,
-  } = useDashboardMenuContext();
+  const { anchorName, isOpen, popoverId, registerTrigger, openMenu, toggleMenu } =
+    useDashboardMenuContext();
 
   const handleClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -412,10 +396,7 @@ export function DashboardMenuTrigger({
   );
 }
 
-interface DashboardMenuContentProps extends Omit<
-  HTMLAttributes<HTMLDivElement>,
-  "children"
-> {
+interface DashboardMenuContentProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   children: ReactNode;
 }
 
@@ -488,11 +469,7 @@ export function DashboardMenuContent({
 
   return (
     <>
-      <div
-        ref={registerMeasure}
-        aria-hidden="true"
-        className="dashboard-menu-measure"
-      >
+      <div ref={registerMeasure} aria-hidden="true" className="dashboard-menu-measure">
         <div
           className={cn(
             "dashboard-menu-panel dashboard-menu-panel--measure relative outline-none",
@@ -512,12 +489,7 @@ export function DashboardMenuContent({
         style={mergedStyle}
         {...props}
       >
-        <div
-          className={cn(
-            "dashboard-menu-panel relative outline-none",
-            className,
-          )}
-        >
+        <div className={cn("dashboard-menu-panel relative outline-none", className)}>
           <div className="dashboard-menu-shell" />
           <div className="dashboard-menu-body">{children}</div>
         </div>

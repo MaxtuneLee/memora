@@ -113,23 +113,19 @@ describe("gemma4 adapter helpers", () => {
     };
 
     expect(
-      __private__.buildGemmaPrompt(
-        processor as never,
-        [{ role: "user", content: "hello" }],
-        {
-          tools: [
-            {
-              name: "search_notes",
-              description: "Search notes",
-              parameters: {
-                type: "object",
-                properties: { query: { type: "string" } },
-                required: ["query"],
-              },
+      __private__.buildGemmaPrompt(processor as never, [{ role: "user", content: "hello" }], {
+        tools: [
+          {
+            name: "search_notes",
+            description: "Search notes",
+            parameters: {
+              type: "object",
+              properties: { query: { type: "string" } },
+              required: ["query"],
             },
-          ],
-        },
-      ),
+          },
+        ],
+      }),
     ).toBe("prompt");
 
     expect(toolCalls[0]).toEqual([
@@ -203,7 +199,12 @@ describe("gemma4 adapter helpers", () => {
         {
           role: "assistant",
           content: [
-            { type: "tool_call", id: "call-1", name: "list_chat_sessions", arguments: { limit: 1 } },
+            {
+              type: "tool_call",
+              id: "call-1",
+              name: "list_chat_sessions",
+              arguments: { limit: 1 },
+            },
           ],
         },
         {

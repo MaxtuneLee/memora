@@ -226,7 +226,9 @@ export class Agent {
               : [{ type: "text", text: thinkResult.text }],
             createdAt: now(),
             ...(thinkResult.reasoning ? { reasoning: thinkResult.reasoning } : {}),
-            ...(thinkResult.providerMessage ? { providerMessage: thinkResult.providerMessage } : {}),
+            ...(thinkResult.providerMessage
+              ? { providerMessage: thinkResult.providerMessage }
+              : {}),
           };
           await this.context.append(assistantMessage);
 
@@ -299,30 +301,30 @@ export class Agent {
 
         this.state.phase = "observation";
 
-        const providerToolResult = toolResultContents.length === 1
-          ? toolResultContents[0]
-          : undefined;
+        const providerToolResult =
+          toolResultContents.length === 1 ? toolResultContents[0] : undefined;
 
         const observationMessage: AgentMessage = {
           id: generateId(),
           role: "tool",
           content: toolResultContents,
           createdAt: now(),
-          providerMessage: providerToolResult && providerToolResult.type === "tool_result"
-            ? {
-                role: "toolResult",
-                toolCallId: providerToolResult.id,
-                toolName: providerToolResult.name,
-                content: [
-                  {
-                    type: "text",
-                    text: stringifyToolResult(providerToolResult.result),
-                  },
-                ],
-                isError: providerToolResult.isError ?? false,
-                timestamp: now(),
-              }
-            : undefined,
+          providerMessage:
+            providerToolResult && providerToolResult.type === "tool_result"
+              ? {
+                  role: "toolResult",
+                  toolCallId: providerToolResult.id,
+                  toolName: providerToolResult.name,
+                  content: [
+                    {
+                      type: "text",
+                      text: stringifyToolResult(providerToolResult.result),
+                    },
+                  ],
+                  isError: providerToolResult.isError ?? false,
+                  timestamp: now(),
+                }
+              : undefined,
         };
 
         if (this.hooks.onBeforeObservation) {

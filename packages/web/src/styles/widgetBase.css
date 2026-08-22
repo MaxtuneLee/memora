@@ -342,9 +342,7 @@ body {
 
 [data-widget-content] input[type="range"]:focus-visible::-webkit-slider-thumb,
 [data-widget-content] input[type="range"]:focus-visible::-moz-range-thumb {
-  box-shadow:
-    var(--widget-thumb-shadow),
-    var(--widget-focus-ring);
+  box-shadow: var(--widget-thumb-shadow), var(--widget-focus-ring);
 }
 
 [data-widget-content] input[type="range"]:disabled {

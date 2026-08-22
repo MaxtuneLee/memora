@@ -97,9 +97,12 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   }, [options.sessionId, widgetBuffer]);
 
   const getAgent = useCallback(async (): Promise<Agent> => {
-    const signature = [options.sessionId, options.config.id ?? "", options.model.provider, options.model.id].join(
-      "::",
-    );
+    const signature = [
+      options.sessionId,
+      options.config.id ?? "",
+      options.model.provider,
+      options.model.id,
+    ].join("::");
 
     if (
       agentRef.current &&

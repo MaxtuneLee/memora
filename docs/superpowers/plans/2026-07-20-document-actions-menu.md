@@ -55,6 +55,7 @@ Do not include unrelated existing changes.
 ### Task 1: Deterministic document action helpers
 
 **Files:**
+
 - Create: packages/web/src/lib/editor/documentActions.ts
 - Create: packages/web/test/editor/documentActions.test.ts
 - Reference: packages/web/src/lib/editor/logicalPaths.ts
@@ -259,6 +260,7 @@ Stage only the two Task 1 files and commit:
 ### Task 2: Persist global reading preferences
 
 **Files:**
+
 - Modify: packages/web/src/livestore/setting.ts
 - Modify: packages/web/src/hooks/settings/useDocumentEditorSettings.ts
 - Modify: packages/web/src/lib/settings/storageExport.ts
@@ -341,6 +343,7 @@ Stage only the four Task 2 files and commit:
 ### Task 3: Build the grouped DocumentActionsMenu
 
 **Files:**
+
 - Create: packages/web/src/components/editor/DocumentActionsMenu.tsx
 - Create: packages/web/test/editor/DocumentActionsMenu.test.tsx
 - Reference: packages/web/src/components/menu/AppMenu.tsx
@@ -458,6 +461,7 @@ Stage only the component and test:
 ### Task 4: Wire actions and reading preferences into the editor page
 
 **Files:**
+
 - Modify: packages/web/src/components/editor/MarkdownDocumentEditor.tsx
 - Modify: packages/web/src/components/editor/DocumentEditorPage.tsx
 - Modify: packages/web/src/hooks/editor/useDocumentEditorFile.ts
@@ -664,6 +668,7 @@ Stage only the three integration files:
 ### Task 5: Memora visual and accessibility refinement
 
 **Files:**
+
 - Modify: packages/web/src/components/editor/DocumentActionsMenu.tsx
 - Modify: packages/web/test/editor/DocumentActionsMenu.test.tsx
 - Modify only if required: packages/web/src/components/dashboard/dashboardMenu.css
@@ -724,6 +729,7 @@ If dashboardMenu.css was required, add that exact file to the command.
 ### Task 6: Full verification
 
 **Files:**
+
 - No planned production changes
 - Update only the tests or implementation responsible for a discovered regression
 

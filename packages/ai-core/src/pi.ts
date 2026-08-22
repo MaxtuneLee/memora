@@ -95,9 +95,10 @@ const toPiMessage = (message: AgentMessage): Message[] => {
   return [
     {
       role: "user" as const,
-      content: textAndImages.length === 1 && textAndImages[0]?.type === "text"
-        ? textAndImages[0].text
-        : textAndImages,
+      content:
+        textAndImages.length === 1 && textAndImages[0]?.type === "text"
+          ? textAndImages[0].text
+          : textAndImages,
       timestamp,
     },
   ];
@@ -161,7 +162,10 @@ export const toAgentMessageContent = (message: AssistantMessage): AgentMessageCo
 
 export const getAssistantText = (message: AssistantMessage): string => {
   return message.content
-    .filter((content): content is Extract<AssistantMessage["content"][number], { type: "text" }> => content.type === "text")
+    .filter(
+      (content): content is Extract<AssistantMessage["content"][number], { type: "text" }> =>
+        content.type === "text",
+    )
     .map((content) => content.text)
     .join("");
 };

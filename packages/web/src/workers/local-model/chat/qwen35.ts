@@ -47,7 +47,7 @@ export const buildQwenMessages = (
 ): QwenChatMessage[] => {
   const messages: QwenChatMessage[] = [];
   const systemSections = [request.systemPrompt.trim()].filter((section) => section.length > 0);
-  
+
   if (systemSections.length > 0) {
     messages.push({
       role: "system",
