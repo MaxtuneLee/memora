@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  type CSSProperties,
+  type PointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   getLocalModelDebugSnapshot,
@@ -31,6 +39,107 @@ interface PerformanceWithMemory extends Performance {
 }
 
 const POLL_INTERVAL_MS = 3_000;
+const EDGE_SNAP_DISTANCE = 42;
+const CORNER_SNAP_DISTANCE = 84;
+const FLOATING_INSET = 16;
+
+type Corner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+type Edge = "top" | "right" | "bottom" | "left";
+type FloatingPosition =
+  | { mode: "corner"; corner: Corner }
+  | { mode: "edge"; corner: Corner; edge: Edge };
+
+interface DragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
+
+const DEFAULT_POSITION: FloatingPosition = { mode: "corner", corner: "bottom-right" };
+
+const getCorner = (clientX: number, clientY: number): Corner => {
+  const horizontal = clientX < window.innerWidth / 2 ? "left" : "right";
+  const vertical = clientY < window.innerHeight / 2 ? "top" : "bottom";
+  return `${vertical}-${horizontal}`;
+};
+
+const getSnapPosition = (clientX: number, clientY: number): FloatingPosition => {
+  const distances = {
+    top: clientY,
+    right: window.innerWidth - clientX,
+    bottom: window.innerHeight - clientY,
+    left: clientX,
+  } satisfies Record<Edge, number>;
+  const edge = (Object.keys(distances) as Edge[]).reduce((nearest, candidate) =>
+    distances[candidate] < distances[nearest] ? candidate : nearest,
+  );
+
+  const horizontalEdge = clientX < window.innerWidth / 2 ? "left" : "right";
+  const verticalEdge = clientY < window.innerHeight / 2 ? "top" : "bottom";
+  if (
+    distances[horizontalEdge] <= CORNER_SNAP_DISTANCE &&
+    distances[verticalEdge] <= CORNER_SNAP_DISTANCE
+  ) {
+    return { mode: "corner", corner: getCorner(clientX, clientY) };
+  }
+
+  if (distances[edge] <= EDGE_SNAP_DISTANCE) {
+    return { mode: "edge", edge, corner: getCorner(clientX, clientY) };
+  }
+
+  return { mode: "corner", corner: getCorner(clientX, clientY) };
+};
+
+const getPositionStyle = (
+  position: FloatingPosition,
+  isDragging: boolean,
+  dragPoint: { x: number; y: number } | null,
+): CSSProperties => {
+  if (isDragging && dragPoint) {
+    return {
+      left: dragPoint.x,
+      top: dragPoint.y,
+      transform: "translate(-50%, -50%)",
+    };
+  }
+
+  if (position.mode === "edge") {
+    if (position.edge === "top" || position.edge === "bottom") {
+      return {
+        left: "50%",
+        [position.edge]: 0,
+        transform: "translateX(-50%)",
+      };
+    }
+
+    return {
+      top: "50%",
+      [position.edge]: 0,
+      transform: "translateY(-50%)",
+    };
+  }
+
+  const [vertical, horizontal] = position.corner.split("-") as ["top" | "bottom", "left" | "right"];
+  return { [vertical]: FLOATING_INSET, [horizontal]: FLOATING_INSET };
+};
+
+const getEdgeButtonClassName = (position: FloatingPosition): string => {
+  if (position.mode !== "edge") {
+    return "rounded-2xl px-2.5 py-2";
+  }
+
+  if (position.edge === "top") {
+    return "rounded-b-xl px-3 py-2";
+  }
+  if (position.edge === "bottom") {
+    return "rounded-t-xl px-3 py-2";
+  }
+  if (position.edge === "left") {
+    return "rounded-r-xl px-2 py-3";
+  }
+  return "rounded-l-xl px-2 py-3";
+};
 
 const formatBytes = (value: number | null): string => {
   if (!Number.isFinite(value ?? NaN) || value === null) {
@@ -151,7 +260,7 @@ const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-memora-text-subtle)]">
+          <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
             {pool.pool} pool
           </p>
           <p className="text-xs text-[var(--color-memora-text-muted)]">
@@ -219,8 +328,8 @@ const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
                 </div>
                 <div className="mt-3 space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-memora-text-subtle)]">
-                      Loaded Runtimes
+                    <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
+                      Loaded runtimes
                     </p>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -280,6 +389,11 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
   );
   const memory = useBrowserMemory();
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<FloatingPosition>(DEFAULT_POSITION);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const draggedRef = useRef(false);
 
   const chatPool = snapshot.pools.chat;
   const asrPool = snapshot.pools.asr;
@@ -294,57 +408,155 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
     ].filter((worker) => worker.currentRequestId);
   }, [asrPool.workers, chatPool.workers, embeddingPool.workers, formulaPool.workers]);
 
+  const workerCount =
+    chatPool.workerCount +
+    asrPool.workerCount +
+    embeddingPool.workerCount +
+    formulaPool.workerCount;
+
+  const handleWidgetPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    setDragPoint({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleWidgetPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const movedDistance = Math.hypot(
+      event.clientX - dragState.startX,
+      event.clientY - dragState.startY,
+    );
+    if (movedDistance > 6) {
+      dragState.moved = true;
+    }
+
+    setDragPoint({ x: event.clientX, y: event.clientY });
+  };
+
+  const finishWidgetDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (dragState.moved) {
+      draggedRef.current = true;
+      setPosition(getSnapPosition(event.clientX, event.clientY));
+    }
+
+    dragStateRef.current = null;
+    setIsDragging(false);
+    setDragPoint(null);
+  };
+
+  const handleWidgetClick = () => {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+
+    if (position.mode === "edge") {
+      setPosition({ mode: "corner", corner: position.corner });
+      return;
+    }
+
+    setOpen(true);
+  };
+
   if (!IS_DEV) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-[90] flex max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] flex-col items-end">
+    <div
+      className={`pointer-events-none fixed z-[90] flex max-h-[calc(100dvh-2rem)] flex-col ${
+        open ? "w-[min(28rem,calc(100vw-2rem))]" : "w-auto"
+      }`}
+      style={getPositionStyle(position, isDragging, dragPoint)}
+    >
       {!open ? (
         <button
           type="button"
-          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_90%,white)] px-3 py-2 text-xs font-medium text-[var(--color-memora-text-strong)] shadow-[0_18px_45px_-30px_rgba(34,33,29,0.35)] backdrop-blur"
-          onClick={() => setOpen(true)}
+          className={`pointer-events-auto inline-flex items-center justify-center gap-2 border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_94%,white)] text-xs font-medium text-[var(--color-memora-text-strong)] shadow-[0_18px_45px_-30px_rgba(34,33,29,0.35)] backdrop-blur transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:border-[var(--color-memora-olive-soft)] hover:bg-[var(--color-memora-surface)] ${
+            isDragging
+              ? "cursor-grabbing shadow-[0_18px_45px_-24px_rgba(34,33,29,0.5)]"
+              : "cursor-grab"
+          } touch-none ${getEdgeButtonClassName(position)}`}
+          aria-label={
+            position.mode === "edge"
+              ? "Restore local model devtools widget"
+              : "Open local model devtools"
+          }
+          title={
+            position.mode === "edge"
+              ? "Restore local model devtools"
+              : "Drag to move or open local model devtools"
+          }
+          onClick={handleWidgetClick}
+          onPointerDown={handleWidgetPointerDown}
+          onPointerMove={handleWidgetPointerMove}
+          onPointerUp={finishWidgetDrag}
+          onPointerCancel={finishWidgetDrag}
         >
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--color-memora-text-subtle)]">
-            Local Model Devtools
+          <span className="grid size-5 place-items-center rounded-md bg-[color-mix(in_srgb,var(--color-memora-olive)_16%,transparent)] text-[var(--color-memora-olive)]">
+            <span className="size-1.5 rounded-full bg-current" />
           </span>
-          <span className="rounded-full bg-[#879a4f]/15 px-2 py-0.5 text-[10px] text-[#516127]">
-            {chatPool.workerCount +
-              asrPool.workerCount +
-              embeddingPool.workerCount +
-              formulaPool.workerCount}{" "}
-            shared workers
+          <span className="tabular-nums text-[11px] text-[var(--color-memora-text-muted)]">
+            {workerCount}
           </span>
         </button>
       ) : (
         <aside className="pointer-events-auto flex max-h-full w-full flex-col overflow-hidden rounded-[1.6rem] border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_94%,white)] shadow-[0_28px_80px_-44px_rgba(34,33,29,0.42)] backdrop-blur">
           <div className="flex items-start justify-between gap-4 border-b border-[var(--color-memora-border)] px-4 py-3">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-memora-text-subtle)]">
-                Local Model Devtools
-              </p>
-              <p className="mt-1 text-sm font-semibold text-[var(--color-memora-text-strong)]">
-                Worker residency and runtime stacking
-              </p>
-              <p className="mt-1 text-xs text-[var(--color-memora-text-muted)]">
-                Route {currentPath} · {activeWorkers.length} active workers
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[color-mix(in_srgb,var(--color-memora-olive)_16%,transparent)] text-[var(--color-memora-olive)]">
+                  <span className="size-2 rounded-full bg-current" />
+                </span>
+                <p className="truncate text-sm font-semibold text-[var(--color-memora-text-strong)]">
+                  Local model devtools
+                </p>
+                <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--color-memora-olive)_14%,transparent)] px-2 py-0.5 text-[10px] tabular-nums text-[var(--color-memora-olive)]">
+                  {workerCount} workers
+                </span>
+              </div>
+              <p className="mt-1 truncate pl-8 text-xs text-[var(--color-memora-text-muted)]">
+                {currentPath} · {activeWorkers.length} active
               </p>
             </div>
             <button
               type="button"
-              className="rounded-full border border-[var(--color-memora-border)] px-2.5 py-1 text-xs text-[var(--color-memora-text-muted)] transition hover:text-[var(--color-memora-text-strong)]"
+              className="shrink-0 rounded-full border border-[var(--color-memora-border)] px-2.5 py-1 text-xs text-[var(--color-memora-text-muted)] transition hover:border-[var(--color-memora-olive-soft)] hover:text-[var(--color-memora-text-strong)]"
+              aria-label="Hide local model devtools"
               onClick={() => setOpen(false)}
             >
-              Hide
+              Close
             </button>
           </div>
           <div className="space-y-4 overflow-auto px-4 py-4">
             <section className="rounded-2xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)]/75 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-memora-text-subtle)]">
-                    Browser Memory
+                  <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
+                    Browser memory
                   </p>
                   <p className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
                     {formatBytes(memory.bytes)}
