@@ -3,3 +3,5 @@
 /// <reference types="@types/audioworklet" />
 
 declare const __APP_VERSION__: string;
+
+declare module "pptx-react-viewer/styles";

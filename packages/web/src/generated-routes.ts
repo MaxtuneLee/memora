@@ -3,97 +3,97 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { RouteObject } from "react-router";
+import type { RouteObject } from "react-router"
 
 // Imports for page components
-const lazy0 = () => import("./pages/chat/index");
-const lazy1 = () => import("./pages/desktop/index");
-const lazy2 = () => import("./pages/editor/file/[id]");
-const lazy3 = () => import("./pages/files/index");
-const lazy4 = () => import("./pages/onboarding/index");
-const lazy5 = () => import("./pages/transcript/file/[id]");
-const lazy6 = () => import("./pages/transcript/live");
-const lazy7 = () => import("./pages/transcript/index");
-const lazy8 = () => import("./pages/index");
+const lazy0 = () => import("./pages/chat/index")
+const lazy1 = () => import("./pages/desktop/index")
+const lazy2 = () => import("./pages/editor/file/[id]")
+const lazy3 = () => import("./pages/files/index")
+const lazy4 = () => import("./pages/onboarding/index")
+const lazy5 = () => import("./pages/transcript/file/[id]")
+const lazy6 = () => import("./pages/transcript/live")
+const lazy7 = () => import("./pages/transcript/index")
+const lazy8 = () => import("./pages/index")
 
 // Generated route configuration
 export const routes: RouteObject[] = [
   {
-    path: "chat",
-    children: [
+    "path": "chat",
+    "children": [
       {
-        path: "",
-        lazy: lazy0,
-      },
-    ],
+        "path": "",
+        "lazy": lazy0
+      }
+    ]
   },
   {
-    path: "desktop",
-    children: [
+    "path": "desktop",
+    "children": [
       {
-        path: "",
-        lazy: lazy1,
-      },
-    ],
+        "path": "",
+        "lazy": lazy1
+      }
+    ]
   },
   {
-    path: "editor",
-    children: [
+    "path": "editor",
+    "children": [
       {
-        path: "file",
-        children: [
+        "path": "file",
+        "children": [
           {
-            path: ":id",
-            lazy: lazy2,
-          },
-        ],
-      },
-    ],
+            "path": ":id",
+            "lazy": lazy2
+          }
+        ]
+      }
+    ]
   },
   {
-    path: "files",
-    children: [
+    "path": "files",
+    "children": [
       {
-        path: "",
-        lazy: lazy3,
-      },
-    ],
+        "path": "",
+        "lazy": lazy3
+      }
+    ]
   },
   {
-    path: "onboarding",
-    children: [
+    "path": "onboarding",
+    "children": [
       {
-        path: "",
-        lazy: lazy4,
-      },
-    ],
+        "path": "",
+        "lazy": lazy4
+      }
+    ]
   },
   {
-    path: "transcript",
-    children: [
+    "path": "transcript",
+    "children": [
       {
-        path: "file",
-        children: [
+        "path": "file",
+        "children": [
           {
-            path: ":id",
-            lazy: lazy5,
-          },
-        ],
+            "path": ":id",
+            "lazy": lazy5
+          }
+        ]
       },
       {
-        path: "live",
-        lazy: lazy6,
+        "path": "live",
+        "lazy": lazy6
       },
       {
-        path: "",
-        lazy: lazy7,
-      },
-    ],
+        "path": "",
+        "lazy": lazy7
+      }
+    ]
   },
   {
-    path: "",
-    lazy: lazy8,
-  },
-];
+    "path": "",
+    "lazy": lazy8
+  }
+]
 
-export default routes;
+export default routes

@@ -52,7 +52,6 @@ interface ChatPageComposerPanelProps {
   canSubmitMessage: boolean;
   messages: AgentChatMessage[];
   selectedModelInfo: Parameters<typeof ChatContextUsage>[0]["model"];
-  selectedModel: string;
   onOpenSettings: (section?: string) => void;
   onDismissMemoryNotice: () => void;
   onOpenLocalImagePicker: () => void;
@@ -108,7 +107,6 @@ export const ChatPageComposerPanel = ({
   canSubmitMessage,
   messages,
   selectedModelInfo,
-  selectedModel,
   onOpenSettings,
   onDismissMemoryNotice,
   onOpenLocalImagePicker,
@@ -357,9 +355,6 @@ export const ChatPageComposerPanel = ({
                     composerText={composerTextValue}
                     messages={messages}
                     model={selectedModelInfo}
-                    referenceCount={activeReferences.length}
-                    resolvedReferenceScope={resolvedReferenceScope}
-                    selectedModelId={selectedModel}
                   />
                   {isStreaming ? (
                     <button

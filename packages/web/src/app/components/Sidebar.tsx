@@ -3,6 +3,7 @@ import {
   DesktopIcon,
   FileAudioIcon,
   FileTextIcon,
+  FlaskIcon,
   ImageIcon,
   GearIcon,
   HouseIcon,
@@ -67,6 +68,16 @@ const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     to: "/desktop",
     matches: (pathname) => pathname.startsWith("/desktop"),
   },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          icon: FlaskIcon,
+          label: "Playground",
+          to: "/playground",
+          matches: (pathname: string) => pathname.startsWith("/playground"),
+        },
+      ]
+    : []),
 ] as const;
 
 export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {

@@ -43,30 +43,34 @@ const config = {
         plugins: [["babel-plugin-react-compiler"]],
       },
     }),
-    viteStaticCopy({
-      targets: [
-        {
-          src: "node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js",
-          dest: "./",
-        },
-        {
-          src: "node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx",
-          dest: "./",
-        },
-        {
-          src: "node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx",
-          dest: "./",
-        },
-        {
-          src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
-          dest: "./",
-        },
-        {
-          src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
-          dest: "./",
-        },
-      ],
-    }),
+    ...(isVitest
+      ? []
+      : [
+          viteStaticCopy({
+            targets: [
+              {
+                src: "node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js",
+                dest: "./",
+              },
+              {
+                src: "node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx",
+                dest: "./",
+              },
+              {
+                src: "node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx",
+                dest: "./",
+              },
+              {
+                src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
+                dest: "./",
+              },
+              {
+                src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+                dest: "./",
+              },
+            ],
+          }),
+        ]),
     VitePWA({
       injectRegister: "auto",
       registerType: "autoUpdate",

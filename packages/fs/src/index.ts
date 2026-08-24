@@ -240,6 +240,38 @@ export const write = async (path: string, data: WriteData, options?: WriteOption
   await writable.close();
 };
 
+export const writeStream = async (
+  path: string,
+  stream: ReadableStream<Uint8Array>,
+  options?: WriteOptions,
+) => {
+  const normalized = normalizePath(path);
+  if (!options?.overwrite) {
+    const exists = await file(normalized).exists();
+    if (exists) {
+      throw new Error(`File already exists: ${normalized}`);
+    }
+  }
+
+  const handle = await getFileHandle(normalized, true);
+  const writable = await handle.createWritable({ keepExistingData: false });
+  const reader = stream.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = new Uint8Array(value.byteLength);
+      chunk.set(value);
+      await writable.write(chunk.buffer);
+    }
+    await writable.close();
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined);
+    await writable.abort().catch(() => undefined);
+    throw error;
+  }
+};
+
 export const cat = async (path: string) => file(path).text();
 
 export const mkdir = async (path: string, options?: { recursive?: boolean }) => {

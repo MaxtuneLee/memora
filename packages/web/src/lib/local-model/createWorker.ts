@@ -3,3 +3,9 @@ export const createLocalModelWorker = (): Worker => {
     type: "module",
   });
 };
+
+export const createTexoFormulaWorker = (): Worker => {
+  return new Worker(new URL("../../workers/local-model/texoFormula.worker.ts", import.meta.url), {
+    type: "module",
+  });
+};

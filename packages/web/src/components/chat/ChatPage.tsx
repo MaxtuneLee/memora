@@ -489,7 +489,6 @@ export const Component = () => {
         canSubmitMessage: turnActions.canSubmitMessage,
         messages,
         selectedModelInfo,
-        selectedModel,
         onOpenSettings: openSettingsPanel,
         onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
         onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,

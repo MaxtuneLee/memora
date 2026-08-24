@@ -7,6 +7,13 @@
 - Frontend stack: React 19, Vite (rolldown-vite), Tailwind CSS v4.
 - Routing uses `react-router` plus `vite-plugin-route-builder`.
 
+## Language and interface copy
+
+- Use direct, natural language. Avoid inflated wording and development slang in user-facing communication.
+- Do not write redundant eyebrow labels. Remove them instead of changing them to sentence case.
+- For necessary interface labels, use sentence case. Do not use all-uppercase section labels, metric labels, status chips, tabs, buttons, or navigation items, and do not use letter-spaced uppercase text to create hierarchy.
+- Preserve canonical capitalization for technical acronyms such as OCR, ASR, LLM, OPFS, and API.
+
 ## Commands (build/lint/test)
 
 ### Workspace basics
