@@ -283,9 +283,16 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
 
   const chatPool = snapshot.pools.chat;
   const asrPool = snapshot.pools.asr;
+  const embeddingPool = snapshot.pools.embedding;
+  const formulaPool = snapshot.pools.formula;
   const activeWorkers = useMemo(() => {
-    return [...chatPool.workers, ...asrPool.workers].filter((worker) => worker.currentRequestId);
-  }, [asrPool.workers, chatPool.workers]);
+    return [
+      ...chatPool.workers,
+      ...asrPool.workers,
+      ...embeddingPool.workers,
+      ...formulaPool.workers,
+    ].filter((worker) => worker.currentRequestId);
+  }, [asrPool.workers, chatPool.workers, embeddingPool.workers, formulaPool.workers]);
 
   if (!IS_DEV) {
     return null;
@@ -303,7 +310,11 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
             Local Model Devtools
           </span>
           <span className="rounded-full bg-[#879a4f]/15 px-2 py-0.5 text-[10px] text-[#516127]">
-            {chatPool.workerCount} chat workers
+            {chatPool.workerCount +
+              asrPool.workerCount +
+              embeddingPool.workerCount +
+              formulaPool.workerCount}{" "}
+            shared workers
           </span>
         </button>
       ) : (
@@ -364,6 +375,8 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
             </section>
             <PoolSection pool={chatPool} />
             <PoolSection pool={asrPool} />
+            <PoolSection pool={embeddingPool} />
+            <PoolSection pool={formulaPool} />
           </div>
         </aside>
       )}

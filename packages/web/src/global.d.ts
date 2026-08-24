@@ -4,4 +4,8 @@
 
 declare const __APP_VERSION__: string;
 
+interface WorkerOptions {
+  extendedLifetime?: boolean;
+}
+
 declare module "pptx-react-viewer/styles";

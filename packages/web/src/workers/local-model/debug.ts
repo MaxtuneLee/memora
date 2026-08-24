@@ -13,6 +13,14 @@ export interface LocalModelWorkerDebugMessage {
   };
 }
 
+let debugReporter: ((message: LocalModelWorkerDebugMessage) => void) | null = null;
+
+export const setWorkerDebugReporter = (
+  reporter: ((message: LocalModelWorkerDebugMessage) => void) | null,
+): void => {
+  debugReporter = reporter;
+};
+
 export const reportWorkerRuntimeLoaded = (input: {
   family: string;
   modelId: string;
@@ -23,7 +31,7 @@ export const reportWorkerRuntimeLoaded = (input: {
     return;
   }
 
-  self.postMessage({
+  debugReporter?.({
     type: "debug",
     payload: {
       kind: "runtime-loaded",

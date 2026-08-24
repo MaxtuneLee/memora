@@ -27,7 +27,7 @@ import {
   type GroundedTranscriptWord,
 } from "@/lib/playground/groundedRetrieval";
 import {
-  BgeEmbeddingClient,
+  bgeEmbeddingClient,
   type BgeEmbeddingModel,
   type BgeExecutionBackend,
 } from "@/lib/playground/bgeEmbeddingClient";
@@ -146,7 +146,6 @@ export default function GroundedRetrieval() {
   const [bgeProgress, setBgeProgress] = useState<string | null>(null);
   const [bgeModel, setBgeModel] = useState<BgeEmbeddingModel>("bge-small-en");
   const [bgeBackend, setBgeBackend] = useState<BgeExecutionBackend | null>(null);
-  const bgeClientRef = useRef<BgeEmbeddingClient | null>(null);
   const bgeEmbeddingCacheRef = useRef<Map<string, Float32Array>>(new Map());
   const hasInitializedTranscriptSelectionRef = useRef(false);
 
@@ -176,12 +175,6 @@ export default function GroundedRetrieval() {
   });
   const answer = messages.at(-1)?.role === "assistant" ? messages.at(-1)?.content : "";
   const contextPack = activeMethod === "bge" ? bgePack : keywordPack;
-
-  useEffect(() => {
-    return () => {
-      bgeClientRef.current?.dispose();
-    };
-  }, []);
 
   useEffect(() => {
     if (hasInitializedTranscriptSelectionRef.current || !transcriptFiles.length) return;
@@ -268,19 +261,21 @@ export default function GroundedRetrieval() {
     setIsRunningBge(true);
     const startedAt = performance.now();
     try {
-      const client = bgeClientRef.current ?? new BgeEmbeddingClient();
-      bgeClientRef.current = client;
       const modelQuestion =
         bgeModel === "bge-small-en"
           ? `${BGE_SMALL_EN_QUERY_PREFIX}${trimmedQuestion}`
           : trimmedQuestion;
-      const [queryEmbedding] = await client.embed(bgeModel, [modelQuestion], (update) => {
-        if (update.type === "backend") {
-          setBgeBackend(update.backend);
-          return;
-        }
-        setBgeProgress(update.label);
-      });
+      const [queryEmbedding] = await bgeEmbeddingClient.embed(
+        bgeModel,
+        [modelQuestion],
+        (update) => {
+          if (update.type === "backend") {
+            setBgeBackend(update.backend);
+            return;
+          }
+          setBgeProgress(update.label);
+        },
+      );
       const missingChunks = preparedChunks.filter((chunk) => {
         return !bgeEmbeddingCacheRef.current.has(getEmbeddingCacheKey(bgeModel, chunk));
       });
@@ -290,7 +285,7 @@ export default function GroundedRetrieval() {
         setBgeProgress(
           `Indexing ${Math.min(start + batch.length, missingChunks.length)} new chunks of ${missingChunks.length}`,
         );
-        const vectors = await client.embed(
+        const vectors = await bgeEmbeddingClient.embed(
           bgeModel,
           batch.map((chunk) => chunk.text),
         );

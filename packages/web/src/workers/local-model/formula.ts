@@ -6,16 +6,11 @@ import {
   env,
   type ProgressInfo,
 } from "@huggingface/transformers";
+import type { LocalModelExecutionBackend, LocalModelTask } from "@memora/local-model-runtime";
 
+import type { SharedModelTaskContext } from "../model-worker/sharedRuntime";
 import { configureTransformersCache } from "./cache";
-
-interface FormulaWorkerRequest {
-  id: number;
-  action: "initialize" | "recognize" | "dispose";
-  blob?: Blob;
-}
-
-type FormulaBackend = "webgpu" | "wasm";
+import { reportWorkerRuntimeLoaded } from "./debug";
 
 const MODEL_ID = "alephpi/FormulaNet";
 const INPUT_SIZE = 384;
@@ -28,53 +23,56 @@ configureTransformersCache(env);
 
 let model: VisionEncoderDecoderModel | null = null;
 let tokenizer: PreTrainedTokenizer | null = null;
-let backend: FormulaBackend | null = null;
+let backend: LocalModelExecutionBackend | null = null;
 let initialization: Promise<void> | null = null;
 
-const postProgress = (info: ProgressInfo): void => {
-  const record = info as unknown as Record<string, unknown>;
-  const progress = typeof record.progress === "number" ? record.progress / 100 : undefined;
-  const status = typeof record.status === "string" ? record.status : "loading";
-  globalThis.postMessage({
-    type: "progress",
-    label: status === "progress" ? "Downloading Texo FormulaNet" : "Loading Texo FormulaNet",
-    progress,
-  });
-};
-
-const loadModel = async (device: FormulaBackend): Promise<VisionEncoderDecoderModel> => {
+const loadModel = async (
+  device: LocalModelExecutionBackend,
+  context: SharedModelTaskContext,
+): Promise<VisionEncoderDecoderModel> => {
   return (await VisionEncoderDecoderModel.from_pretrained(MODEL_ID, {
     device,
     dtype: "fp32",
-    progress_callback: postProgress,
+    progress_callback: (info: ProgressInfo) => {
+      const record = info as unknown as Record<string, unknown>;
+      context.emit({
+        type: "model-progress",
+        file:
+          record.status === "progress" ? "Downloading Texo FormulaNet" : "Loading Texo FormulaNet",
+        progress: typeof record.progress === "number" ? record.progress / 100 : undefined,
+      });
+    },
   })) as VisionEncoderDecoderModel;
 };
 
-const loadPreferredModel = async (): Promise<{
-  model: VisionEncoderDecoderModel;
-  backend: FormulaBackend;
-}> => {
-  try {
-    return { model: await loadModel("webgpu"), backend: "webgpu" };
-  } catch {
-    globalThis.postMessage({
-      type: "progress",
-      label: "WebGPU unavailable, loading Texo FormulaNet with WASM",
-    });
-    return { model: await loadModel("wasm"), backend: "wasm" };
+const ensureInitialized = async (context: SharedModelTaskContext): Promise<void> => {
+  if (model && tokenizer && backend) {
+    context.emit({ type: "backend", backend });
+    return;
   }
-};
-
-const ensureInitialized = async (): Promise<void> => {
-  if (model && tokenizer && backend) return;
   if (!initialization) {
     initialization = (async () => {
       tokenizer = await PreTrainedTokenizer.from_pretrained(MODEL_ID, {
-        progress_callback: postProgress,
+        progress_callback: (info: ProgressInfo) => {
+          const record = info as unknown as Record<string, unknown>;
+          context.emit({
+            type: "model-progress",
+            file: "Loading Texo FormulaNet tokenizer",
+            progress: typeof record.progress === "number" ? record.progress / 100 : undefined,
+          });
+        },
       });
-      const loaded = await loadPreferredModel();
-      model = loaded.model;
-      backend = loaded.backend;
+      try {
+        model = await loadModel("webgpu", context);
+        backend = "webgpu";
+      } catch {
+        context.emit({
+          type: "model-progress",
+          file: "WebGPU unavailable, loading Texo FormulaNet with WASM",
+        });
+        model = await loadModel("wasm", context);
+        backend = "wasm";
+      }
     })().catch((error) => {
       model = null;
       tokenizer = null;
@@ -84,6 +82,15 @@ const ensureInitialized = async (): Promise<void> => {
     });
   }
   await initialization;
+  if (backend) {
+    context.emit({ type: "backend", backend });
+    reportWorkerRuntimeLoaded({
+      family: "formula",
+      modelId: MODEL_ID,
+      adapter: "vision-encoder-decoder",
+      runtime: "transformers-js",
+    });
+  }
 };
 
 const getGrayscale = (data: Uint8ClampedArray): Uint8Array => {
@@ -177,41 +184,21 @@ const preprocess = async (blob: Blob): Promise<Tensor> => {
   return cat([singleChannel, singleChannel, singleChannel], 1);
 };
 
-const recognize = async (blob: Blob): Promise<string> => {
-  await ensureInitialized();
+export const runFormulaTask = async (
+  task: Extract<LocalModelTask, { kind: "formula.preload" | "formula.recognize" }>,
+  context: SharedModelTaskContext,
+): Promise<void> => {
+  context.emit({ type: "status", status: "loading-model" });
+  await ensureInitialized(context);
+  if (context.isCanceled() || task.kind === "formula.preload") return;
   if (!model || !tokenizer) throw new Error("Texo FormulaNet is not initialized.");
-  const inputs = await preprocess(blob);
-  const output = await model.generate({ inputs });
-  return tokenizer.batch_decode(output as Tensor, { skip_special_tokens: true })[0]?.trim() ?? "";
-};
 
-self.onmessage = async (event: MessageEvent<FormulaWorkerRequest>): Promise<void> => {
-  const message = event.data;
-  try {
-    if (message.action === "initialize") {
-      await ensureInitialized();
-      if (!backend) throw new Error("Texo FormulaNet backend is unavailable.");
-      globalThis.postMessage({ type: "ready", id: message.id, backend });
-    } else if (message.action === "recognize") {
-      if (!message.blob) throw new Error("Formula image is missing.");
-      globalThis.postMessage({
-        type: "result",
-        id: message.id,
-        latex: await recognize(message.blob),
-      });
-    } else {
-      await model?.dispose();
-      model = null;
-      tokenizer = null;
-      backend = null;
-      initialization = null;
-      globalThis.close();
-    }
-  } catch (error) {
-    globalThis.postMessage({
-      type: "error",
-      id: message.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+  context.emit({ type: "status", status: "running" });
+  const inputs = await preprocess(task.input.blob);
+  const output = await model.generate({ inputs });
+  if (context.isCanceled()) return;
+  context.emit({
+    type: "formula-complete",
+    latex: tokenizer.batch_decode(output as Tensor, { skip_special_tokens: true })[0]?.trim() ?? "",
+  });
 };

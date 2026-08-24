@@ -1,4 +1,4 @@
-export type LocalModelPoolKey = "asr" | "chat" | "embedding";
+export type LocalModelPoolKey = "asr" | "chat" | "embedding" | "formula";
 export type LocalModelPriority = "interactive" | "background";
 export type LocalModelTaskStatus =
   | "queued"
@@ -125,10 +125,25 @@ export interface LocalAsrRequest {
   returnTimestamps?: "word";
 }
 
+export type LocalEmbeddingModel = "bge-small-en" | "bge-m3";
+export type LocalModelExecutionBackend = "webgpu" | "wasm";
+
+export interface LocalEmbeddingRequest {
+  model: LocalEmbeddingModel;
+  texts: string[];
+}
+
+export interface LocalFormulaRequest {
+  blob: Blob;
+}
+
 export type LocalModelTask =
   | { kind: "asr.transcribe"; input: LocalAsrRequest }
   | { kind: "chat.generate"; input: LocalChatRequest }
-  | { kind: "model.preload"; input: { modelId: string } };
+  | { kind: "model.preload"; input: { modelId: string } }
+  | { kind: "embedding.generate"; input: LocalEmbeddingRequest }
+  | { kind: "formula.preload"; input: Record<string, never> }
+  | { kind: "formula.recognize"; input: LocalFormulaRequest };
 
 export interface LocalModelRequestEnvelope<TTask extends LocalModelTask = LocalModelTask> {
   type: "run";
@@ -173,9 +188,51 @@ export type LocalChatEvent =
     }
   | { type: "chat-complete" };
 
-export type LocalModelEvent = LocalAsrEvent | LocalChatEvent;
+export type LocalEmbeddingEvent =
+  | LocalModelCommonEvent
+  | { type: "backend"; backend: LocalModelExecutionBackend }
+  | { type: "embedding-complete"; dimension: number; values: number[] };
+
+export type LocalFormulaEvent =
+  | LocalModelCommonEvent
+  | { type: "backend"; backend: LocalModelExecutionBackend }
+  | { type: "formula-complete"; latex: string };
+
+export type LocalModelEvent =
+  | LocalAsrEvent
+  | LocalChatEvent
+  | LocalEmbeddingEvent
+  | LocalFormulaEvent;
 
 export interface LocalModelEventEnvelope<TEvent extends LocalModelEvent = LocalModelEvent> {
   requestId: string;
   event: TEvent;
 }
+
+export interface LocalModelSequencedEventEnvelope<
+  TEvent extends LocalModelEvent = LocalModelEvent,
+> extends LocalModelEventEnvelope<TEvent> {
+  type: "event";
+  sequence: number;
+}
+
+export interface LocalModelSubscribeMessage {
+  type: "subscribe";
+  requestId: string;
+  afterSequence: number;
+}
+
+export interface LocalModelAcknowledgeMessage {
+  type: "acknowledge";
+  requestId: string;
+}
+
+export interface LocalModelDisconnectMessage {
+  type: "disconnect";
+}
+
+export type LocalModelSharedWorkerMessage =
+  | LocalModelWorkerMessage
+  | LocalModelSubscribeMessage
+  | LocalModelAcknowledgeMessage
+  | LocalModelDisconnectMessage;

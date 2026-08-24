@@ -64,6 +64,7 @@ let snapshot: LocalModelDebugSnapshot = {
     asr: emptyPool("asr"),
     chat: emptyPool("chat"),
     embedding: emptyPool("embedding"),
+    formula: emptyPool("formula"),
   },
 };
 
@@ -138,6 +139,11 @@ const getTaskModelId = (task: LocalModelTask): string | null => {
       return task.input.modelId;
     case "model.preload":
       return task.input.modelId;
+    case "embedding.generate":
+      return task.input.model;
+    case "formula.preload":
+    case "formula.recognize":
+      return "alephpi/FormulaNet";
     default:
       return null;
   }

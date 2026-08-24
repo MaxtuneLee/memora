@@ -2,7 +2,7 @@ import type { InitializationSummary, OcrResult, OcrResultItem } from "@paddleocr
 import type { AiRuntime } from "@embedpdf/ai/web";
 import type { LayoutDetection } from "@embedpdf/ai";
 
-import { createTexoFormulaWorker } from "@/lib/local-model/createWorker";
+import { texoFormulaClient } from "@/lib/local-model/texoFormulaClient";
 import { createOpfsModelResourceUrl } from "@/workers/local-model/cache";
 
 import {
@@ -89,23 +89,6 @@ interface PaddleOcrEngine {
   initialize(): Promise<InitializationSummary>;
   predict(input: unknown): Promise<OcrResult[]>;
   dispose(): Promise<void>;
-}
-
-interface FormulaWorkerRequest {
-  id: number;
-  action: "initialize" | "recognize" | "dispose";
-  blob?: Blob;
-}
-
-type FormulaWorkerResponse =
-  | { type: "progress"; progress?: number; label: string }
-  | { type: "ready"; id: number; backend: "webgpu" | "wasm" }
-  | { type: "result"; id: number; latex: string }
-  | { type: "error"; id: number; error: string };
-
-interface PendingFormulaWorkerRequest {
-  resolve: (value: string) => void;
-  reject: (reason: Error) => void;
 }
 
 const TEXT_KINDS = new Set<ImageDocumentBlockKind>([
@@ -633,104 +616,16 @@ const cropImageDataToBlob = async (imageData: ImageData, rect: PixelRect): Promi
   return output.convertToBlob({ type: "image/png" });
 };
 
-class TexoFormulaClient {
-  private worker: Worker | null = null;
-  private initialized = false;
-  private backend: "webgpu" | "wasm" | null = null;
-  private nextId = 1;
-  private readonly pending = new Map<number, PendingFormulaWorkerRequest>();
-  private readonly onProgress: (label: string, progress?: number) => void;
-
-  constructor(onProgress: (label: string, progress?: number) => void) {
-    this.onProgress = onProgress;
-  }
-
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    const worker = this.ensureWorker();
-    const id = this.nextId++;
-    await this.request(worker, { id, action: "initialize" });
-    this.initialized = true;
-  }
-
-  async recognize(blob: Blob): Promise<string> {
-    await this.initialize();
-    const worker = this.ensureWorker();
-    const id = this.nextId++;
-    const rawLatex = await this.request(worker, { id, action: "recognize", blob });
-    return postprocessTexoLatex(rawLatex);
-  }
-
-  dispose(): void {
-    if (this.worker) {
-      this.worker.postMessage({
-        id: this.nextId++,
-        action: "dispose",
-      } satisfies FormulaWorkerRequest);
-      this.worker.terminate();
-    }
-    this.worker = null;
-    this.initialized = false;
-    this.backend = null;
-    for (const request of this.pending.values()) {
-      request.reject(new Error("Texo worker was disposed."));
-    }
-    this.pending.clear();
-  }
-
-  private ensureWorker(): Worker {
-    if (this.worker) return this.worker;
-    const worker = createTexoFormulaWorker();
-    worker.onmessage = (event: MessageEvent<FormulaWorkerResponse>) => {
-      const message = event.data;
-      if (message.type === "progress") {
-        this.onProgress(message.label, message.progress);
-        return;
-      }
-      const request = this.pending.get(message.id);
-      if (!request) return;
-      this.pending.delete(message.id);
-      if (message.type === "error") request.reject(new Error(message.error));
-      else {
-        if (message.type === "ready") this.backend = message.backend;
-        request.resolve(message.type === "result" ? message.latex : "");
-      }
-    };
-    worker.onerror = (event) => {
-      const error = new Error(event.message || "Texo worker failed.");
-      for (const request of this.pending.values()) request.reject(error);
-      this.pending.clear();
-    };
-    this.worker = worker;
-    return worker;
-  }
-
-  getBackend(): string {
-    return this.backend ? `${this.backend.toUpperCase()} worker` : "unknown";
-  }
-
-  private request(worker: Worker, message: FormulaWorkerRequest): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      this.pending.set(message.id, { resolve, reject });
-      worker.postMessage(message);
-    });
-  }
-}
-
 export class ImageDocumentPipelineSession {
   private layoutRuntime: AiRuntime | null = null;
   private layoutModelUrl: string | null = null;
   private paddle: PaddleOcrEngine | null = null;
   private paddleAssets: PreparedPaddleOcrModelAssets | null = null;
   private paddleSummary: InitializationSummary | null = null;
-  private readonly formulaClient: TexoFormulaClient;
   private readonly onProgress: (progress: ImageDocumentPipelineProgress) => void;
 
   constructor(onProgress: (progress: ImageDocumentPipelineProgress) => void) {
     this.onProgress = onProgress;
-    this.formulaClient = new TexoFormulaClient((label, progress) => {
-      this.onProgress({ stage: "formula", label, progress });
-    });
   }
 
   async run(
@@ -805,7 +700,10 @@ export class ImageDocumentPipelineSession {
       });
       try {
         const blob = await cropImageDataToBlob(decoded.imageData, bboxToRect(formula.bbox));
-        formulaLatex.set(formula.id, await this.formulaClient.recognize(blob));
+        const rawLatex = await texoFormulaClient.recognize(blob, ({ label, progress }) => {
+          this.onProgress({ stage: "formula", label, progress });
+        });
+        formulaLatex.set(formula.id, postprocessTexoLatex(rawLatex));
       } catch (error) {
         warnings.push(`Formula ${index + 1} was not recognized: ${getErrorMessage(error)}`);
       }
@@ -838,7 +736,7 @@ export class ImageDocumentPipelineSession {
       backend: {
         layout: runtime.getBackend() ?? "unknown",
         ocr: this.paddleSummary?.recProvider ?? ocrResult.runtime.recProvider,
-        formula: formulas.length > 0 ? this.formulaClient.getBackend() : "not used",
+        formula: formulas.length > 0 ? texoFormulaClient.getBackend() : "not used",
       },
       warnings,
       completedAt: Date.now(),
@@ -855,7 +753,6 @@ export class ImageDocumentPipelineSession {
     const paddleAssets = this.paddleAssets;
     this.paddleAssets = null;
     this.paddleSummary = null;
-    this.formulaClient.dispose();
     await Promise.allSettled([layoutRuntime?.destroy(), paddle?.dispose()]);
     if (layoutModelUrl) URL.revokeObjectURL(layoutModelUrl);
     paddleAssets?.dispose();
