@@ -7,6 +7,7 @@ import {
   GearSixIcon,
   HardDrivesIcon,
   InfoIcon,
+  ListMagnifyingGlassIcon,
   KeyboardIcon,
   SparkleIcon,
   XIcon,
@@ -25,6 +26,7 @@ import {
   SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
+import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
@@ -54,6 +56,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "ai-provider": CpuIcon,
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
+  indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
   about: InfoIcon,
@@ -198,6 +201,10 @@ export default function SettingsDialog({
 
     if (activeSection === "memory") {
       return <SettingsMemorySection open={open} />;
+    }
+
+    if (activeSection === "indexing") {
+      return <SettingsIndexingSection />;
     }
 
     if (activeSection === "local-models") {

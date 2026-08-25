@@ -48,6 +48,7 @@ export const textContentParser: ContentParser = {
   version: "text-v1",
   supports: (file) => {
     const name = file.name.toLowerCase();
+    if (name.endsWith(".transcript.json")) return false;
     return (
       file.type.startsWith("text/") || TEXT_EXTENSIONS.some((extension) => name.endsWith(extension))
     );

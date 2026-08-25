@@ -235,6 +235,7 @@ export const DesktopWindowLayer = ({
                   onOpenItem={() => {}}
                   layout="grid"
                   draggable={false}
+                  showFileIndexStatus={false}
                 />
               );
             })()

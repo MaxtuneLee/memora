@@ -127,6 +127,7 @@ export function TrashWindow({
             items={items}
             layout="list"
             enableDnD={false}
+            showFileIndexStatus={false}
             selectedIds={localSelection.size ? localSelection : selectedIds}
             renamingIds={renamingIds}
             onSelect={handleSelect}

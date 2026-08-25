@@ -1,5 +1,7 @@
 import { file as opfsFile, write as opfsWrite } from "@memora/fs";
 
+import type { ContentLocator } from "@/lib/content/types";
+
 export interface VectorDbIndexConfig {
   model: string;
   modelRevision: string;
@@ -27,7 +29,8 @@ export interface VectorDbIndexedChunk {
   endOffset?: number;
   tokenCount?: number;
   headingPath?: string[];
-  embedding: Float32Array;
+  locator?: ContentLocator;
+  embedding?: Float32Array;
 }
 
 export interface VectorDbIndexedDocument {
@@ -90,6 +93,7 @@ export interface VectorDbSearchHit {
   chunkIndex: number;
   content: string;
   headingPath: string[];
+  locator?: ContentLocator;
   startOffset?: number;
   endOffset?: number;
   score: number;
@@ -128,6 +132,7 @@ export interface VectorDbIndexedChunkSummary {
   endOffset?: number;
   tokenCount?: number;
   headingPath: string[];
+  locator?: ContentLocator;
 }
 
 export interface VectorDbIndexInspection {

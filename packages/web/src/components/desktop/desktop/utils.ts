@@ -26,6 +26,11 @@ export const mapFileRowsToDesktopItems = (
         y: meta.positionY ?? 0,
       },
       fileMeta: meta,
+      indexState: {
+        status: file.indexStatus,
+        indexedAt: file.indexedAt instanceof Date ? file.indexedAt.getTime() : null,
+        summary: file.indexSummary ?? null,
+      },
     } satisfies DesktopFileItem;
   });
 };

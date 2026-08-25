@@ -25,6 +25,11 @@ export const SETTINGS_SECTIONS = [
     description: "Review and manage the assistant's saved long-term memory.",
   },
   {
+    id: "indexing",
+    label: "Indexing",
+    description: "Background extraction, OCR, and local search behavior.",
+  },
+  {
     id: "skills",
     label: "Skills",
     description:

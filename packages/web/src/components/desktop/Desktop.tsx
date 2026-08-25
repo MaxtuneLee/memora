@@ -28,6 +28,7 @@ import { DESKTOP_PADDING, GRID_SIZE } from "@/types/desktop";
 import type { RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent } from "@/types/search";
 import { DesktopWindowLayer } from "@/components/desktop/desktop/DesktopWindowLayer";
+import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 import { DesktopDropZone } from "@/components/desktop/desktop/DesktopDropZone";
 import { useDesktopDnD } from "@/components/desktop/desktop/useDesktopDnD";
 import { useDesktopExternalIntent } from "@/components/desktop/desktop/useDesktopExternalIntent";
@@ -59,6 +60,7 @@ export function Desktop({
   onDeleteFile,
 }: DesktopProps) {
   const { store } = useStore();
+  const { reindexFile } = useContentPipeline();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
   const allFileRows = store.useQuery(desktopAllFilesQuery$);
@@ -375,6 +377,13 @@ export function Desktop({
     requestTrash(item);
   }, [closeContextMenu, contextMenu.targetId, items, requestTrash]);
 
+  const handleReindex = useCallback(() => {
+    const targetId = contextMenu.targetId;
+    closeContextMenu();
+    if (!targetId || items.get(targetId)?.type !== "file") return;
+    void reindexFile(targetId);
+  }, [closeContextMenu, contextMenu.targetId, items, reindexFile]);
+
   const handleOpenItem = useCallback(
     (item: DesktopItemType, activeFolderId?: string | null) => {
       if (item.type === "widget" && item.widgetType === "trash") {
@@ -463,6 +472,7 @@ export function Desktop({
             onUploadAudio={handleUpload}
             onRename={handleRename}
             onDelete={handleDelete}
+            onReindex={handleReindex}
             onOpenInNewWindow={
               contextMenu.targetId && items.get(contextMenu.targetId)?.type === "folder"
                 ? () => {

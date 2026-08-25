@@ -7,6 +7,7 @@ import { createLiveStoreLoadingStatus } from "./liveStoreLoadingStatus";
 import LiveStoreWorker from "@/workers/livestore.worker?worker";
 import { schema } from "@/livestore/schema";
 import { unstable_batchedUpdates as batchUpdates } from "react-dom";
+import { ContentPipelineRoot } from "@/lib/content/contentPipelineRoot";
 
 const adapter = makePersistedAdapter({
   storage: { type: "opfs" },
@@ -26,7 +27,9 @@ export default function App() {
       storeId={"main"}
       syncPayload={{ authToken: "insecure-token-change-me" }}
     >
-      <AppLayout />
+      <ContentPipelineRoot>
+        <AppLayout />
+      </ContentPipelineRoot>
     </LiveStoreProvider>
   );
 }

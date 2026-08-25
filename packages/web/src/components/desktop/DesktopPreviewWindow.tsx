@@ -5,6 +5,7 @@ import {
   ImageIcon,
   MicrophoneIcon,
   VideoCameraIcon,
+  ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -15,6 +16,9 @@ import { resolveRecordingFile } from "@/lib/library/fileService";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
 import { ICON_SIZE } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
+import { DesktopIndexStatusLabel } from "./DesktopIndexStatus";
+import { DocumentFilePreview } from "./DocumentFilePreview";
+import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 import { DesktopWindow } from "./DesktopWindow";
 import type { JSX } from "react";
 
@@ -104,8 +108,10 @@ export function DesktopPreviewWindow({
 }: DesktopPreviewWindowProps) {
   const navigate = useNavigate();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [textStatus, setTextStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [isReindexing, setIsReindexing] = useState(false);
   const revokeUrlRef = useRef<string | null>(null);
 
   const isFile = item.type === "file";
@@ -113,6 +119,7 @@ export function DesktopPreviewWindow({
   const fileMetaId = isFile ? item.fileMeta.id : null;
   const fileMetaType = isFile ? item.fileMeta.type : null;
   const fileMeta = isFile ? item.fileMeta : null;
+  const { reindexFile } = useContentPipeline();
 
   const previewLabel = useMemo(() => {
     if (!isFile) return "Folder";
@@ -127,6 +134,11 @@ export function DesktopPreviewWindow({
       try {
         const file = await resolveRecordingFile(fileMeta);
         if (!isMounted || !file) return;
+        const displayFile =
+          file.name === item.name && file.type
+            ? file
+            : new File([file], item.name, { type: file.type || mimeType });
+        setPreviewFile(displayFile);
         if (revokeUrlRef.current) {
           URL.revokeObjectURL(revokeUrlRef.current);
         }
@@ -135,10 +147,10 @@ export function DesktopPreviewWindow({
         setPreviewUrl(url);
 
         if (fileMetaType === "document") {
-          const effectiveMime = file.type || mimeType || "";
+          const effectiveMime = displayFile.type || mimeType || "";
           if (isTextMime(effectiveMime)) {
             setTextStatus("loading");
-            const text = await file.text();
+            const text = await displayFile.text();
             if (!isMounted) return;
             setTextContent(text);
             setTextStatus("ready");
@@ -153,6 +165,7 @@ export function DesktopPreviewWindow({
       } catch {
         if (!isMounted) return;
         setPreviewUrl(null);
+        setPreviewFile(null);
         setTextContent(null);
         setTextStatus("error");
       }
@@ -235,6 +248,19 @@ export function DesktopPreviewWindow({
     }
 
     if (item.fileMeta.type === "document") {
+      if (!isTextMime(mimeType)) {
+        return (
+          <div className="h-full overflow-hidden bg-zinc-50 p-3">
+            {previewFile ? (
+              <DocumentFilePreview file={previewFile} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+                Loading document preview…
+              </div>
+            )}
+          </div>
+        );
+      }
       if (textStatus === "error") {
         return (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">
@@ -314,15 +340,43 @@ export function DesktopPreviewWindow({
 
         {isFile && (
           <div className="border-b border-zinc-100 px-4 py-2 text-xs text-zinc-500">
-            <span>
-              <span className="font-medium text-zinc-600">Created:</span>{" "}
-              {formatDate(item.fileMeta.createdAt)}
-            </span>
-            <span className="mx-2 text-zinc-300">•</span>
-            <span>
-              <span className="font-medium text-zinc-600">Modified:</span>{" "}
-              {formatDate(item.fileMeta.updatedAt)}
-            </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <span>
+                <span className="font-medium text-zinc-600">Created:</span>{" "}
+                {formatDate(item.fileMeta.createdAt)}
+              </span>
+              <span className="text-zinc-300">•</span>
+              <span>
+                <span className="font-medium text-zinc-600">Modified:</span>{" "}
+                {formatDate(item.fileMeta.updatedAt)}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2">
+              <span className="font-medium text-zinc-600">Index status</span>
+              <DesktopIndexStatusLabel status={item.indexState.status} />
+              <Button
+                type="button"
+                disabled={isReindexing}
+                onClick={() => {
+                  setIsReindexing(true);
+                  void reindexFile(item.fileMeta.id).finally(() => setIsReindexing(false));
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+              >
+                <ArrowClockwiseIcon className="size-3" />
+                {isReindexing ? "Queued…" : "Reindex"}
+              </Button>
+              {item.indexState.indexedAt ? (
+                <span className="text-zinc-400">
+                  Updated {formatDate(item.indexState.indexedAt)}
+                </span>
+              ) : null}
+            </div>
+            {item.indexState.summary ? (
+              <p className="mt-2 line-clamp-2 max-w-2xl leading-5 text-zinc-500">
+                {item.indexState.summary}
+              </p>
+            ) : null}
           </div>
         )}
 

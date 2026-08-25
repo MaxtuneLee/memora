@@ -202,6 +202,7 @@ const config = {
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@memora/livestore-devtool": path.resolve(__dirname, "../livestore-devtool/src/index.ts"),
+      ai: path.resolve(__dirname, "./src/lib/pptxAiShim.ts"),
     },
   },
   test: {

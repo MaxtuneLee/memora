@@ -17,6 +17,15 @@ export interface DesktopItemBase {
 export interface DesktopFileItem extends DesktopItemBase {
   type: "file";
   fileMeta: RecordingMeta;
+  indexState: DesktopFileIndexState;
+}
+
+export type DesktopFileIndexStatus = "pending" | "processing" | "indexed" | "failed";
+
+export interface DesktopFileIndexState {
+  status: DesktopFileIndexStatus;
+  indexedAt: number | null;
+  summary: string | null;
 }
 
 export interface DesktopFolderItem extends DesktopItemBase {

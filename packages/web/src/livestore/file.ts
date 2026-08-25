@@ -244,6 +244,9 @@ export const fileMaterializers = {
     fileTable
       .update({
         transcriptPath: event.transcriptPath,
+        indexStatus: "pending",
+        indexedAt: null,
+        indexSummary: null,
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),

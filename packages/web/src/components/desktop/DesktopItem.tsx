@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
 import { DesktopFileTip } from "./DesktopFileTip";
+import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
 import type { JSX } from "react";
 
 interface DesktopItemProps {
@@ -21,6 +22,7 @@ interface DesktopItemProps {
   onOpenItem: (item: DesktopItemData) => void;
   layout?: "desktop" | "grid" | "list";
   draggable?: boolean;
+  showFileIndexStatus?: boolean;
   isRenaming?: boolean;
   onRenameCommit?: (id: string, name: string) => void;
   onRenameCancel?: (id: string) => void;
@@ -41,6 +43,7 @@ export function DesktopItem({
   onOpenItem,
   layout = "desktop",
   draggable = true,
+  showFileIndexStatus = true,
   isRenaming = false,
   onRenameCommit,
   onRenameCancel,
@@ -189,7 +192,7 @@ export function DesktopItem({
     >
       <div
         className={`
-          flex items-center justify-center rounded-xl bg-white/80
+          relative flex items-center justify-center rounded-xl bg-white/80
           shadow-sm ring-1 ring-zinc-900/5 backdrop-blur-sm
           transition-transform group-hover:scale-105
           ${isSelected ? "ring-zinc-400 shadow-md" : ""}
@@ -197,6 +200,13 @@ export function DesktopItem({
         style={{ width: isListLayout ? 40 : ICON_SIZE, height: isListLayout ? 40 : ICON_SIZE }}
       >
         {getIcon()}
+        {item.type === "file" && showFileIndexStatus ? (
+          <DesktopIndexStatusIcon
+            status={item.indexState.status}
+            compact={isListLayout}
+            onOpenDetails={() => onOpenItem(item)}
+          />
+        ) : null}
       </div>
       {isRenaming ? (
         <input
