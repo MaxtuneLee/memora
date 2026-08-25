@@ -48,7 +48,9 @@ export class BgeEmbeddingClient {
           progress: event.progress,
         });
       } else if (event.type === "error") {
-        throw new Error(event.error.message);
+        throw new Error(
+          event.error.detail ? `${event.error.message} ${event.error.detail}` : event.error.message,
+        );
       } else if (event.type === "embedding-complete") {
         result = event;
       }

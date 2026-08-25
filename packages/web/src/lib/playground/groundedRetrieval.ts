@@ -1,3 +1,5 @@
+import { getSearchTerms } from "./searchTerms";
+
 export interface GroundedTranscriptWord {
   text: string;
   timestamp: [number, number];
@@ -16,6 +18,8 @@ export interface GroundedChunk {
   text: string;
   timestamp: [number, number];
   score: number;
+  vectorDistance?: number;
+  cosineSimilarity?: number;
 }
 
 export interface ContextPack {
@@ -47,18 +51,7 @@ const scoreText = (text: string, query: string): number => {
   if (!normalizedText || !normalizedQuery) return 0;
 
   const exactMatches = countOccurrences(normalizedText, normalizedQuery);
-  const querySegments = query.toLocaleLowerCase().match(/[a-z0-9]+|[\p{Script=Han}]+/gu) ?? [];
-  const terms = Array.from(
-    new Set(
-      querySegments.flatMap((segment) => {
-        const chineseCharacters = segment.match(/\p{Script=Han}/gu) ?? [];
-        if (chineseCharacters.length < 2) return [segment];
-        return chineseCharacters.slice(1).map((character, index) => {
-          return `${chineseCharacters[index]}${character}`;
-        });
-      }),
-    ),
-  );
+  const terms = getSearchTerms(query);
   const termScore = terms.reduce((total, term) => {
     return total + countOccurrences(normalizedText, normalize(term));
   }, 0);
