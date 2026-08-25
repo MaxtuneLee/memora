@@ -76,6 +76,7 @@
     "react-icons": "^5.7.0",
     "react-router": "^7.12.0",
     "react-scan": "^0.4.3",
+    "sqlite-vec-wasm": "0.1.0",
     "streamdown": "^2.4.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",

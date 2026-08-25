@@ -17,6 +17,11 @@ const APP_VERSION =
     }
   ).version ?? "0.0.0";
 const isVitest = process.env.VITEST === "true" || process.env.VITEST === "1";
+const nanoBeirProxy = {
+  target: "https://datasets-server.huggingface.co",
+  changeOrigin: true,
+  rewrite: (requestPath: string) => requestPath.replace(/^\/api\/playground\/nanobeir/u, "/rows"),
+};
 
 const config = {
   define: {
@@ -67,6 +72,10 @@ const config = {
               {
                 src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
                 dest: "./",
+              },
+              {
+                src: "node_modules/sqlite-vec-wasm/dist/sqlite3.wasm",
+                dest: "sqlite-vec",
               },
             ],
           }),
@@ -146,8 +155,33 @@ const config = {
   ],
   server: {
     port: 9001,
+    proxy: {
+      "/api/playground/nanobeir": nanoBeirProxy,
+    },
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
     fs: {
       allow: ["..", "../../"],
+    },
+  },
+  optimizeDeps: {
+    ignoreOutdatedRequests: true,
+    include: [
+      "@react-grab/mcp/client",
+      "@huggingface/transformers",
+      "react-grab",
+      "sqlite-vec-wasm/dist/sqlite3-bundler-friendly.mjs",
+    ],
+  },
+  preview: {
+    proxy: {
+      "/api/playground/nanobeir": nanoBeirProxy,
+    },
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
   build: {

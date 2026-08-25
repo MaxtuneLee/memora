@@ -15,6 +15,7 @@ import {
   updateLocalModelWorkerStatus,
 } from "../local-model/devtools";
 import type { LocalModelWorkerDebugMessage } from "../../workers/local-model/debug";
+import { createVectorDbClient, type VectorDbClient } from "../vector-db";
 
 interface RunModelWorkerTaskInput {
   priority: LocalModelPriority;
@@ -102,11 +103,13 @@ const isStreamingEvent = (event: LocalModelEvent): boolean => {
 export interface ModelWorkerFactory {
   mount: () => () => void;
   run: (pool: LocalModelPoolKey, input: RunModelWorkerTaskInput) => AsyncGenerator<LocalModelEvent>;
+  vectorDb: VectorDbClient;
 }
 
 export const createModelWorkerFactory = (): ModelWorkerFactory => {
   const connections = new Map<LocalModelPoolKey, PoolConnection>();
   const pending = new Map<string, PendingRequest>();
+  const vectorDb = createVectorDbClient();
   let mountCount = 0;
 
   const finishRequest = (request: PendingRequest): void => {
@@ -235,6 +238,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
 
   return {
     mount() {
+      const unmountVectorDb = vectorDb.mount();
       mountCount += 1;
       if (mountCount === 1) {
         for (const pool of POOLS) connectPool(pool);
@@ -243,12 +247,14 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       return () => {
         if (disposed) return;
         disposed = true;
+        unmountVectorDb();
         mountCount = Math.max(0, mountCount - 1);
         if (mountCount === 0) {
           for (const pool of POOLS) disconnectPool(pool);
         }
       };
     },
+    vectorDb,
     async *run(pool, input) {
       const connection = connections.get(pool);
       if (!connection) {

@@ -1,6 +1,7 @@
 import { Tabs } from "@base-ui/react/tabs";
 import {
   BrainIcon,
+  DatabaseIcon,
   FileSearchIcon,
   FlaskIcon,
   MicrophoneStageIcon,
@@ -11,6 +12,7 @@ import DocumentParsing from "./DocumentParsing";
 import OcrBenchmark from "./OcrBenchmark";
 import ImageDocumentPipeline from "./ImageDocumentPipeline";
 import GroundedRetrieval from "./GroundedRetrieval";
+import VectorDbInspector from "./VectorDbInspector";
 
 const TAB_CLASS_NAME =
   "relative z-10 inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-medium text-memora-text-muted outline-none transition-colors hover:text-memora-text focus-visible:ring-2 focus-visible:ring-memora-olive-soft data-active:text-memora-text";
@@ -69,6 +71,10 @@ export default function PlaygroundPage() {
               <BrainIcon className="size-4" />
               Grounded AI
             </Tabs.Tab>
+            <Tabs.Tab value="vector-db" className={TAB_CLASS_NAME}>
+              <DatabaseIcon className="size-4" />
+              Vector DB
+            </Tabs.Tab>
             <Tabs.Tab value="local-models" className={TAB_CLASS_NAME}>
               <MicrophoneStageIcon className="size-4" />
               Local models
@@ -99,6 +105,12 @@ export default function PlaygroundPage() {
             className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
           >
             <GroundedRetrieval />
+          </Tabs.Panel>
+          <Tabs.Panel
+            value="vector-db"
+            className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
+          >
+            <VectorDbInspector />
           </Tabs.Panel>
           <Tabs.Panel
             value="local-models"

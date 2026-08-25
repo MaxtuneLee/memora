@@ -9,3 +9,12 @@ interface WorkerOptions {
 }
 
 declare module "pptx-react-viewer/styles";
+
+declare module "sqlite-vec-wasm/dist/sqlite3-bundler-friendly.mjs" {
+  interface SqliteVecInitOptions {
+    locateFile?: (path: string) => string;
+  }
+
+  const sqlite3InitModule: (options?: SqliteVecInitOptions) => Promise<unknown>;
+  export default sqlite3InitModule;
+}
