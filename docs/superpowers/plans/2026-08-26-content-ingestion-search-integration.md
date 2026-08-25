@@ -118,14 +118,14 @@ JSON 用于结构化 locator、警告和重新分块；Markdown 用于预览、�
 
 ### 格式路由
 
-| 文件类型       | 内容来源                                               | locator                           | 降级行为                                                      |
-| -------------- | ------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------- |
-| Markdown / TXT | 直接读取 UTF-8                                         | 字符范围与标题路径                | 解码失败时标记失败，不修改原文件                              |
-| PDF            | 逐页 text layer；扫描页走图片 OCR                      | 页码，OCR 块可附 rect             | 某页 OCR 失败时保留其他页面并记录页级警告                     |
-| DOCX           | docx-preview Markdown 结构为主，Mammoth 纯文本作为兜底 | 段落顺序；第一版可使用文本 offset | 结构解析失败时仍索引 Mammoth 纯文本                           |
-| PPTX           | 幻灯片文字、备注、评论                                 | slide number                      | 图片 OCR 默认只处理没有可用文本的 slide，避免无边界的处理时长 |
-| 图片           | 布局、OCR、公式组合后的 blocks                         | rect                              | 布局模型失败时退化为整图 OCR；公式失败时保留占位和警告        |
-| 音频 / 视频    | transcript JSON                                        | 时间范围                          | transcript 尚未生成时保持 `pending`，不记为失败               |
+| 文件类型       | 内容来源                                                            | locator                           | 降级行为                                                      |
+| -------------- | ------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| Markdown / TXT | 直接读取 UTF-8                                                      | 字符范围与标题路径                | 解码失败时标记失败，不修改原文件                              |
+| PDF            | 逐页 text layer；扫描页走图片 OCR                                   | 页码，OCR 块可附 rect             | 某页 OCR 失败时保留其他页面并记录页级警告                     |
+| DOCX           | docx-preview Markdown 结构为主，Mammoth 纯文本作为兜底              | 段落顺序；第一版可使用文本 offset | 结构解析失败时仍索引 Mammoth 纯文本                           |
+| PPTX           | `PptxMarkdownConverter` 生成的 Markdown（含幻灯片文字、备注、评论） | slide number                      | 图片 OCR 默认只处理没有可用文本的 slide，避免无边界的处理时长 |
+| 图片           | 布局、OCR、公式组合后的 blocks                                      | rect                              | 布局模型失败时退化为整图 OCR；公式失败时保留占位和警告        |
+| 音频 / 视频    | transcript JSON                                                     | 时间范围                          | transcript 尚未生成时保持 `pending`，不记为失败               |
 
 表格和图片区域在没有可靠识别结果时继续使用明确的占位信息，不生成猜测文本。索引时只写入 `searchable: true` 且有有效文字的 segment。
 
@@ -484,3 +484,7 @@ vp test test/playground/retrievalBenchmark.test.ts
 6. 编辑 Markdown 后，旧结果在新 revision finalize 前仍可用，随后原子切换到新内容。
 7. 关闭语义检索或断网时，FTS 仍可搜索；启用并准备 BGE-M3 后，同一入口自动使用混合 RRF。
 8. 删除文件后，全局搜索与聊天都不会再返回该文件，重启后也没有孤儿索引。
+
+## 当前实现记录
+
+阶段一至阶段五的基础模块已经按独立提交拆分：内容产物与解析器、后台队列与 lexical 索引协议、全局正文搜索、可选语义检索设置，以及处理限制与队列诊断。`ContentPipelineRoot` 会根据设置在启动后扫描待处理文件，Desktop 文件详情和右键菜单均提供手动 Reindex，设置页提供自动索引开关和状态说明。聊天工具已接入 `search_files` 与 `read_extracted_content`，并沿用当前 reference scope。Desktop 预览复用了 playground 的 PDF、DOCX、PPTX 识别链路，其中 PPTX 使用同款可视化幻灯片画布；图片、音视频和纯文本继续使用原有预览。音视频只以对应 transcript 作为索引来源，转写完成后会重新进入 pending 队列。
