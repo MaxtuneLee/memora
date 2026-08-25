@@ -1,11 +1,20 @@
 import type { SettingsSectionId } from "@/types/settings";
+import type { ContentLocator } from "@/lib/content/types";
 
-export type SearchItemKind = "file" | "folder" | "chat" | "settings" | "page" | "action";
+export type SearchItemKind =
+  | "file"
+  | "content"
+  | "folder"
+  | "chat"
+  | "settings"
+  | "page"
+  | "action";
 
 export type DesktopIntent =
   | {
       type: "openPreview";
       fileId: string;
+      locator?: ContentLocator;
     }
   | {
       type: "openFolder";

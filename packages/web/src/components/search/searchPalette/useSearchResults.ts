@@ -3,8 +3,11 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
 import { ACTION_SEARCH_ITEMS, STATIC_SEARCH_ITEMS } from "@/lib/search/searchCatalog";
+import { modelWorkerFactory } from "@/lib/model-worker";
+import { searchContent, type ContentSearchResult } from "@/lib/search/contentSearchService";
 import { rankSearchItems } from "@/lib/search/searchRanking";
 import {
+  buildContentSearchItems,
   buildChatSessionSearchItems,
   buildFileSearchItems,
   buildFolderSearchItems,
@@ -27,6 +30,8 @@ export const useSearchResults = ({
   const deferredQuery = useDeferredValue(query);
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [contentResults, setContentResults] = useState<ContentSearchResult[]>([]);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
 
   const fileItems = useMemo(
     () => buildFileSearchItems(fileRows, folderRows),
@@ -37,10 +42,11 @@ export const useSearchResults = ({
     [fileRows, folderRows],
   );
   const chatItems = useMemo(() => buildChatSessionSearchItems(chatSessions), [chatSessions]);
+  const contentItems = useMemo(() => buildContentSearchItems(contentResults), [contentResults]);
 
   const allSearchItems = useMemo(
-    () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems],
-    [chatItems, fileItems, folderItems],
+    () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems, ...contentItems],
+    [chatItems, contentItems, fileItems, folderItems],
   );
   const queryValue = deferredQuery.trim();
   const rankedResults = useMemo(
@@ -55,8 +61,9 @@ export const useSearchResults = ({
           id: "results",
           label: rankedResults.length > 0 ? "Results" : "No matches",
           items: rankedResults,
-          emptyMessage:
-            "Try a file name, a setting label, or an action like upload or transcription.",
+          emptyMessage: isLoadingContent
+            ? "Searching extracted file content..."
+            : "Try a file name, a setting label, or an action like upload or transcription.",
         },
       ];
     }
@@ -82,7 +89,7 @@ export const useSearchResults = ({
         emptyMessage: "Upload or record something to see recent files here.",
       },
     ];
-  }, [chatItems, fileItems, isLoadingChats, queryValue, rankedResults]);
+  }, [chatItems, fileItems, isLoadingChats, isLoadingContent, queryValue, rankedResults]);
 
   const visibleItems = useMemo<GlobalSearchItem[]>(
     () => displaySections.flatMap((section) => section.items),
@@ -131,6 +138,37 @@ export const useSearchResults = ({
       cancelled = true;
     };
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!isSearchOpen || queryValue.length < 2) {
+      setContentResults([]);
+      setIsLoadingContent(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setIsLoadingContent(true);
+      void searchContent({
+        query: queryValue,
+        vectorDb: modelWorkerFactory.vectorDb,
+        files: fileRows,
+      })
+        .then((results) => {
+          if (!cancelled) startTransition(() => setContentResults(results));
+        })
+        .catch((error) => {
+          console.warn("Failed to search extracted content:", error);
+          if (!cancelled) setContentResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingContent(false);
+        });
+    }, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [fileRows, isSearchOpen, queryValue]);
 
   return {
     displaySections,

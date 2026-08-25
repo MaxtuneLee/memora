@@ -4,6 +4,7 @@ import { formatBytes, formatDateTime, formatDuration } from "@/lib/format";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import type { GlobalSearchItem } from "@/types/search";
+import type { ContentSearchResult } from "./contentSearchService";
 
 const FILE_TYPE_LABELS: Record<LiveStoreFile["type"], string> = {
   audio: "Audio",
@@ -177,3 +178,24 @@ export const buildChatSessionSearchItems = (
     },
   }));
 };
+
+export const buildContentSearchItems = (
+  results: readonly ContentSearchResult[],
+): GlobalSearchItem[] =>
+  results.map((result) => ({
+    id: `content:${result.chunkId}`,
+    kind: "content",
+    title: result.fileName,
+    description: `Content match${result.locator?.kind === "page" ? ` · Page ${result.locator.pageNumber}` : ""}`,
+    preview: result.content,
+    keywords: [result.fileName, result.content, "content", "extracted text"],
+    intent: {
+      type: "desktop-intent",
+      to: "/",
+      desktopIntent: {
+        type: "openPreview",
+        fileId: result.fileId,
+        locator: result.locator,
+      },
+    },
+  }));
