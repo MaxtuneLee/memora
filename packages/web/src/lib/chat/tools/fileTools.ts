@@ -3,6 +3,9 @@ import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { fileTable } from "@/livestore/file";
+import { readExtractedContent } from "@/lib/content/artifactStorage";
+import { modelWorkerFactory } from "@/lib/model-worker";
+import { searchContent } from "@/lib/search/contentSearchService";
 
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
@@ -176,6 +179,75 @@ export const createFileTools = (
           operation: "append",
           appendedBytes: payload.content.length,
           totalBytes: nextContent.length,
+        };
+      },
+    },
+    {
+      type: "function",
+      name: "search_files",
+      description:
+        "Search extracted document, OCR, and transcript content. Returns matching passages with the file name and page or image location when available.",
+      parameters: v.object({
+        query: v.string(),
+        top_k: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 8),
+        file_ids: v.optional(v.array(v.string())),
+      }),
+      execute: async (params: unknown) => {
+        const payload = params as { query: string; top_k?: number; file_ids?: string[] };
+        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+        const requestedIds = payload.file_ids ?? referenceScope.fileIds;
+        if (
+          referenceScope.isActive &&
+          requestedIds.some((id) => !referenceScope.fileIds.includes(id))
+        ) {
+          return { error: "Search is limited to the currently referenced files." };
+        }
+        const files = store.query(fileTable.where({ deletedAt: null, purgedAt: null }));
+        const results = await searchContent({
+          query: payload.query,
+          topK: payload.top_k,
+          fileIds:
+            referenceScope.isActive || requestedIds.length > 0 ? requestedIds : undefined,
+          files,
+          vectorDb: modelWorkerFactory.vectorDb,
+        });
+        return results.map((result) => ({
+          fileId: result.fileId,
+          fileName: result.fileName,
+          content: result.content,
+          locator: result.locator,
+          score: result.score,
+        }));
+      },
+    },
+    {
+      type: "function",
+      name: "read_extracted_content",
+      description: "Read extracted text or OCR content for a file by character offset.",
+      parameters: v.object({
+        file_id: v.string(),
+        offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
+        limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 12000),
+      }),
+      execute: async (params: unknown) => {
+        const payload = params as { file_id: string; offset?: number; limit?: number };
+        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+        if (referenceScope.isActive && !referenceScope.fileIds.includes(payload.file_id)) {
+          return { error: "This file is outside the currently referenced files." };
+        }
+        const rows = store.query(
+          fileTable.where({ id: payload.file_id, deletedAt: null, purgedAt: null }),
+        );
+        const row = rows[0] as { id: string; name: string } | undefined;
+        if (!row) return { error: "File not found." };
+        const content = await readExtractedContent(payload.file_id);
+        if (content == null) return { error: "No extracted content is available for this file yet." };
+        const offset = payload.offset ?? 0;
+        return {
+          fileId: row.id,
+          fileName: row.name,
+          offset,
+          content: content.slice(offset, offset + (payload.limit ?? 12000)),
         };
       },
     },

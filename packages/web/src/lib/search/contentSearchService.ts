@@ -1,6 +1,7 @@
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { ContentLocator } from "@/lib/content/types";
 import type { VectorDbClient, VectorDbSearchHit } from "@/lib/vector-db";
+import type { BgeEmbeddingClient, BgeEmbeddingModel } from "@/lib/playground/bgeEmbeddingClient";
 
 import { LEXICAL_INDEX_CONFIG } from "./searchIndexConfig";
 
@@ -37,17 +38,31 @@ export const searchContent = async (input: {
   files: readonly LiveStoreFile[];
   topK?: number;
   fileIds?: readonly string[];
+  semantic?: {
+    model: BgeEmbeddingModel;
+    embeddingClient: Pick<BgeEmbeddingClient, "embed">;
+    signal?: AbortSignal;
+  };
 }): Promise<ContentSearchResult[]> => {
   const query = input.query.trim();
   if (!query) return [];
   await input.vectorDb.initialize(LEXICAL_INDEX_CONFIG);
+  const queryEmbedding = input.semantic
+    ? (
+        await input.semantic.embeddingClient.embed(input.semantic.model, [query], undefined, {
+          priority: "background",
+          signal: input.semantic.signal,
+        })
+      )[0]
+    : undefined;
   const hits = await input.vectorDb.search({
     query,
     scope: input.fileIds ? { kind: "documents", documentIds: [...input.fileIds] } : { kind: "all" },
     topK: Math.max(1, input.topK ?? 8),
     lexicalCandidateK: 40,
     semanticCandidateK: 0,
-    semanticWeight: 0,
+    queryEmbedding,
+    semanticWeight: queryEmbedding ? 1 : 0,
   });
   const filesById = new Map(input.files.map((file) => [file.id, file]));
   const results: ContentSearchResult[] = [];
