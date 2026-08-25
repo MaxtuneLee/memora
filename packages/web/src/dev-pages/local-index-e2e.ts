@@ -1,11 +1,11 @@
 import {
-  getPlaygroundContentHash,
-  PlaygroundLocalIndex,
-  type PlaygroundIndexConfig,
-  type PlaygroundDocumentIndexPlan,
-  type PlaygroundIndexedDocument,
-  type PlaygroundSearchHit,
-} from "../lib/playground/localIndex";
+  getVectorDbContentHash,
+  VectorDbClient,
+  type VectorDbIndexConfig,
+  type VectorDbDocumentIndexPlan,
+  type VectorDbIndexedDocument,
+  type VectorDbSearchHit,
+} from "../lib/vector-db";
 
 interface E2eReport {
   passed: boolean;
@@ -26,9 +26,9 @@ interface E2eReport {
     resumedAfterReopen: number;
     partialDocumentWasHidden: boolean;
   };
-  lexicalResults: PlaygroundSearchHit[];
-  vectorResults: PlaygroundSearchHit[];
-  hybridResults: PlaygroundSearchHit[];
+  lexicalResults: VectorDbSearchHit[];
+  vectorResults: VectorDbSearchHit[];
+  hybridResults: VectorDbSearchHit[];
   reopened: {
     persistent: boolean;
     documentCount: number;
@@ -37,7 +37,7 @@ interface E2eReport {
   };
 }
 
-const config: PlaygroundIndexConfig = {
+const config: VectorDbIndexConfig = {
   model: "bge-small-en",
   modelRevision: "local-index-e2e-deterministic-v1",
   dimensions: 4,
@@ -62,8 +62,8 @@ const createDocument = async (
   documentId: string,
   content: string,
   embedding: number[],
-): Promise<PlaygroundIndexedDocument> => {
-  const contentHash = await getPlaygroundContentHash(content);
+): Promise<VectorDbIndexedDocument> => {
+  const contentHash = await getVectorDbContentHash(content);
   return {
     documentId,
     contentHash,
@@ -94,7 +94,7 @@ const run = async (): Promise<E2eReport> => {
     [1, 0, 0, 0],
   );
   const alphaSecondContent = `alpha follow-up ${runId}: final review notes`;
-  alphaDocument.contentHash = await getPlaygroundContentHash(
+  alphaDocument.contentHash = await getVectorDbContentHash(
     `${alphaDocument.chunks[0]?.content}\n${alphaSecondContent}`,
   );
   alphaDocument.chunks.push({
@@ -102,7 +102,7 @@ const run = async (): Promise<E2eReport> => {
     documentId: alphaDocumentId,
     chunkIndex: 1,
     content: alphaSecondContent,
-    contentHash: await getPlaygroundContentHash(alphaSecondContent),
+    contentHash: await getVectorDbContentHash(alphaSecondContent),
     tokenCount: alphaSecondContent.split(/\s+/u).length,
     headingPath: ["E2E"],
     embedding: new Float32Array([0.8, 0.2, 0, 0]),
@@ -112,11 +112,11 @@ const run = async (): Promise<E2eReport> => {
     `beta recipe ${runId}: roast vegetables with olive oil`,
     [0, 1, 0, 0],
   );
-  const index = new PlaygroundLocalIndex();
+  const index = new VectorDbClient();
 
   const initialized = await index.initialize(config);
   assert(initialized.persistent, "The SQLite database did not open through OPFS.");
-  const alphaPlan: PlaygroundDocumentIndexPlan = {
+  const alphaPlan: VectorDbDocumentIndexPlan = {
     documentId: alphaDocument.documentId,
     contentHash: alphaDocument.contentHash,
     indexedAt: alphaDocument.indexedAt,
@@ -135,7 +135,7 @@ const run = async (): Promise<E2eReport> => {
   assert(firstCheckpoint.persistedChunkCount === 1, "The first checkpoint was not persisted.");
   await index.close();
 
-  const reopenedIndex = new PlaygroundLocalIndex();
+  const reopenedIndex = new VectorDbClient();
   const reopenedAfterCheckpoint = await reopenedIndex.initialize(config);
   assert(
     reopenedAfterCheckpoint.persistent,
@@ -199,8 +199,7 @@ const run = async (): Promise<E2eReport> => {
     "Hybrid RRF returned the wrong top result.",
   );
   assert(
-    hybridResults[0]?.lexicalRank !== undefined &&
-      hybridResults[0]?.semanticRank !== undefined,
+    hybridResults[0]?.lexicalRank !== undefined && hybridResults[0]?.semanticRank !== undefined,
     "The top hybrid result did not include both lexical and semantic ranks.",
   );
   assert(
@@ -210,7 +209,7 @@ const run = async (): Promise<E2eReport> => {
   );
 
   await reopenedIndex.close();
-  const finalIndex = new PlaygroundLocalIndex();
+  const finalIndex = new VectorDbClient();
   const reopenedHealth = await finalIndex.initialize(config);
   const reopenedResults = await finalIndex.search({
     query: `alpha schedule ${runId}`,

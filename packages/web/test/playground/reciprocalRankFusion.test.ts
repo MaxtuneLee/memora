@@ -5,7 +5,7 @@ import {
   getRrfContribution,
   normalizeRrfK,
   RRF_K_OPTIONS,
-} from "../../src/lib/playground/reciprocalRankFusion";
+} from "../../src/lib/vector-db/reciprocalRankFusion";
 
 describe("reciprocal rank fusion", () => {
   test("provides the benchmark rank constants", () => {

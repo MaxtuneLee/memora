@@ -1,24 +1,24 @@
 import sqlite3InitModule from "sqlite-vec-wasm/dist/sqlite3-bundler-friendly.mjs";
 import {
-  getPlaygroundIndexId,
-  type PlaygroundChunkBatch,
-  type PlaygroundChunkFingerprint,
-  type PlaygroundIndexConfig,
-  type PlaygroundIndexHealth,
-  type PlaygroundIndexInspection,
-  type PlaygroundIndexedChunkSummary,
-  type PlaygroundIndexedDocumentSummary,
-  type PlaygroundIndexedDocument,
-  type PlaygroundIndexedChunk,
-  type PlaygroundDocumentCheckpoint,
-  type PlaygroundDocumentFingerprint,
-  type PlaygroundDocumentIndexPlan,
-  type PlaygroundDocumentStatus,
-  type PlaygroundSearchHit,
-  type PlaygroundSearchRequest,
-} from "../lib/playground/localIndex";
-import { getRrfContribution, normalizeRrfK } from "../lib/playground/reciprocalRankFusion";
-import { filterSearchTerms } from "../lib/playground/searchTerms";
+  getVectorDbIndexId,
+  type VectorDbChunkBatch,
+  type VectorDbChunkFingerprint,
+  type VectorDbIndexConfig,
+  type VectorDbIndexHealth,
+  type VectorDbIndexInspection,
+  type VectorDbIndexedChunkSummary,
+  type VectorDbIndexedDocumentSummary,
+  type VectorDbIndexedDocument,
+  type VectorDbIndexedChunk,
+  type VectorDbDocumentCheckpoint,
+  type VectorDbDocumentFingerprint,
+  type VectorDbDocumentIndexPlan,
+  type VectorDbDocumentStatus,
+  type VectorDbSearchHit,
+  type VectorDbSearchRequest,
+} from "../lib/vector-db/client";
+import { getRrfContribution, normalizeRrfK } from "../lib/vector-db/reciprocalRankFusion";
+import { filterSearchTerms } from "../lib/vector-db/searchTerms";
 
 type SqliteBindValue = string | number | ArrayBuffer | null;
 
@@ -31,6 +31,7 @@ interface SqliteStatement {
 }
 
 interface SqliteDatabase {
+  readonly pointer: number;
   readonly filename: string;
   prepare(sql: string): SqliteStatement;
   exec(sql: string): void;
@@ -40,13 +41,29 @@ interface SqliteDatabase {
 interface SqliteModule {
   readonly version: { libVersion: string };
   readonly oo1: {
-    OpfsDb: new (filename: string) => SqliteDatabase;
+    DB: new (filename: string, flags?: string, vfs?: string) => SqliteDatabase;
+  };
+  readonly capi: {
+    sqlite3_deserialize(
+      db: number,
+      schema: string,
+      data: number,
+      size: bigint,
+      allocatedSize: bigint,
+      flags: number,
+    ): number;
+    sqlite3_js_db_export(db: SqliteDatabase): Uint8Array;
+  };
+  readonly wasm: {
+    alloc(size: number): number;
+    allocFromTypedArray(data: Uint8Array): number;
+    dealloc(pointer: number): void;
   };
 }
 
 type SqliteInit = (options?: { locateFile?: (path: string) => string }) => Promise<SqliteModule>;
 
-interface WorkerRequest {
+export interface VectorDbWorkerRequest {
   id: string;
   type:
     | "initialize"
@@ -63,14 +80,101 @@ interface WorkerRequest {
   payload: unknown;
 }
 
+export type VectorDbWorkerResponse =
+  | {
+      id: string;
+      ok: true;
+      type: VectorDbWorkerRequest["type"];
+      payload: unknown;
+    }
+  | { id: string; ok: false; error: string };
+
 let sqlite: SqliteModule | null = null;
 let db: SqliteDatabase | null = null;
-let config: PlaygroundIndexConfig | null = null;
+let config: VectorDbIndexConfig | null = null;
 let indexId: string | null = null;
 let persistent = false;
 
+interface VectorDbStorageReadRequest {
+  type: "storage-read";
+  id: string;
+  indexId: string;
+}
+
+interface VectorDbStorageWriteRequest {
+  type: "storage-write";
+  id: string;
+  indexId: string;
+  database: ArrayBuffer;
+}
+
+interface VectorDbStorageResponse {
+  type: "storage-read-result" | "storage-write-result";
+  id: string;
+  ok: boolean;
+  database?: ArrayBuffer;
+  error?: string;
+}
+
+type VectorDbStorageRequest = VectorDbStorageReadRequest | VectorDbStorageWriteRequest;
+
+const storagePorts = new Set<MessagePort>();
+const pendingStorageRequests = new Map<
+  string,
+  { resolve: (response: VectorDbStorageResponse) => void; reject: (error: Error) => void }
+>();
+
+const requestStorage = (request: VectorDbStorageRequest): Promise<VectorDbStorageResponse> => {
+  const ports = [...storagePorts];
+  if (ports.length === 0) {
+    return Promise.reject(new Error("The vector database has no main-thread storage bridge."));
+  }
+  return new Promise((resolve, reject) => {
+    pendingStorageRequests.set(request.id, { resolve, reject });
+    let sent = false;
+    for (const port of ports) {
+      try {
+        if (request.type === "storage-write") {
+          port.postMessage(request, [request.database.slice(0)]);
+        } else {
+          port.postMessage(request);
+        }
+        sent = true;
+      } catch {
+        storagePorts.delete(port);
+      }
+    }
+    if (!sent) {
+      pendingStorageRequests.delete(request.id);
+      reject(new Error("Unable to reach storage bridge."));
+    }
+  });
+};
+
+const loadSnapshot = async (nextIndexId: string): Promise<Uint8Array | null> => {
+  const response = await requestStorage({
+    type: "storage-read",
+    id: crypto.randomUUID(),
+    indexId: nextIndexId,
+  });
+  if (!response.ok)
+    throw new Error(response.error ?? "Unable to read the vector database snapshot.");
+  return response.database ? new Uint8Array(response.database) : null;
+};
+
+const saveSnapshot = async (nextIndexId: string, databaseBytes: Uint8Array): Promise<boolean> => {
+  const response = await requestStorage({
+    type: "storage-write",
+    id: crypto.randomUUID(),
+    indexId: nextIndexId,
+    database: databaseBytes.slice().buffer,
+  });
+  if (!response.ok) throw new Error(response.error ?? "Unable to persist the vector database.");
+  return true;
+};
+
 const getDb = (): SqliteDatabase => {
-  if (!db) throw new Error("The playground local index has not been initialized.");
+  if (!db) throw new Error("The vector database has not been initialized.");
   return db;
 };
 
@@ -149,7 +253,7 @@ const compileFtsQuery = (query: string): string => {
 };
 
 const getScopeSql = (
-  scope: PlaygroundSearchRequest["scope"],
+  scope: VectorDbSearchRequest["scope"],
   column: string,
 ): { sql: string; values: SqliteBindValue[] } => {
   if (scope.kind === "all") return { sql: "", values: [] };
@@ -160,7 +264,7 @@ const getScopeSql = (
   };
 };
 
-const createSchema = (nextConfig: PlaygroundIndexConfig): void => {
+const createSchema = (nextConfig: VectorDbIndexConfig): void => {
   run("PRAGMA journal_mode = WAL;");
   run("CREATE TABLE IF NOT EXISTS index_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);");
   run(
@@ -182,12 +286,12 @@ const createSchema = (nextConfig: PlaygroundIndexConfig): void => {
   );
 };
 
-const makeHealth = (): PlaygroundIndexHealth => {
+const makeHealth = (): VectorDbIndexHealth => {
   const currentConfig = config;
   const currentIndexId = indexId;
   const currentSqlite = sqlite;
   if (!currentConfig || !currentIndexId || !currentSqlite) {
-    throw new Error("The playground local index is not ready.");
+    throw new Error("The vector database is not ready.");
   }
   const documentCount = numberValue(
     first<{ count: unknown }>("SELECT count(*) AS count FROM indexed_documents")?.count,
@@ -207,8 +311,33 @@ const makeHealth = (): PlaygroundIndexHealth => {
   };
 };
 
-const initialize = async (nextConfig: PlaygroundIndexConfig): Promise<PlaygroundIndexHealth> => {
-  const nextIndexId = await getPlaygroundIndexId(nextConfig);
+const restoreSnapshot = (database: SqliteDatabase, snapshot: Uint8Array): void => {
+  if (!sqlite) throw new Error("The SQLite runtime is not ready.");
+  const data = sqlite.wasm.allocFromTypedArray(snapshot);
+  try {
+    const result = sqlite.capi.sqlite3_deserialize(
+      database.pointer,
+      "main",
+      data,
+      BigInt(snapshot.byteLength),
+      BigInt(snapshot.byteLength),
+      1 | 2,
+    );
+    if (result !== 0) throw new Error(`Unable to restore the persisted index (SQLite ${result}).`);
+  } catch (error) {
+    sqlite.wasm.dealloc(data);
+    throw error;
+  }
+};
+
+const persistCurrentIndex = async (): Promise<void> => {
+  if (!db || !indexId || !sqlite) return;
+  const snapshot = sqlite.capi.sqlite3_js_db_export(db);
+  persistent = await saveSnapshot(indexId, snapshot);
+};
+
+const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbIndexHealth> => {
+  const nextIndexId = await getVectorDbIndexId(nextConfig);
   if (db && indexId !== nextIndexId) {
     db.close();
     db = null;
@@ -220,10 +349,11 @@ const initialize = async (nextConfig: PlaygroundIndexConfig): Promise<Playground
     });
   }
   if (!db) {
-    const filename = `/search-indexes/${nextIndexId}.sqlite3`;
-    const opened = new sqlite.oo1.OpfsDb(filename);
+    const snapshot = await loadSnapshot(nextIndexId);
+    const opened = new sqlite.oo1.DB(":memory:");
     db = opened;
-    persistent = opened.filename === filename || opened.filename.includes("search-indexes");
+    persistent = false;
+    if (snapshot) restoreSnapshot(opened, snapshot);
   }
   config = nextConfig;
   indexId = nextIndexId;
@@ -239,6 +369,7 @@ const initialize = async (nextConfig: PlaygroundIndexConfig): Promise<Playground
   setIndexMeta("sqlite_version", sqlite.version.libVersion);
   setIndexMeta("sqlite_vec_version", getIndexMeta("sqlite_vec_version") ?? "0.1.6");
   setIndexMeta("last_opened_at", String(Date.now()));
+  await persistCurrentIndex();
   return makeHealth();
 };
 
@@ -261,7 +392,7 @@ const deleteDocumentRows = (documentId: string): void => {
   run("DELETE FROM indexing_documents WHERE document_id = ?", [documentId]);
 };
 
-const checkDocuments = (documents: PlaygroundDocumentFingerprint[]): PlaygroundDocumentStatus[] => {
+const checkDocuments = (documents: VectorDbDocumentFingerprint[]): VectorDbDocumentStatus[] => {
   return documents.map((document) => {
     const existing = first<{ content_hash: unknown; chunk_count: unknown }>(
       "SELECT content_hash, chunk_count FROM indexed_documents WHERE document_id = ?",
@@ -290,7 +421,7 @@ const checkDocuments = (documents: PlaygroundDocumentFingerprint[]): PlaygroundD
   });
 };
 
-const validateDocumentPlan = (plan: PlaygroundDocumentIndexPlan): void => {
+const validateDocumentPlan = (plan: VectorDbDocumentIndexPlan): void => {
   const chunkIds = new Set<string>();
   const chunkIndexes = new Set<number>();
   for (const chunk of plan.chunks) {
@@ -322,7 +453,7 @@ const getStoredChunkFingerprints = (documentId: string): StoredChunkFingerprint[
 
 const matchesPlannedChunk = (
   stored: StoredChunkFingerprint,
-  planned: PlaygroundChunkFingerprint | undefined,
+  planned: VectorDbChunkFingerprint | undefined,
 ): boolean => {
   return (
     planned !== undefined &&
@@ -331,7 +462,7 @@ const matchesPlannedChunk = (
   );
 };
 
-const prepareDocument = (plan: PlaygroundDocumentIndexPlan): PlaygroundDocumentCheckpoint => {
+const prepareDocument = (plan: VectorDbDocumentIndexPlan): VectorDbDocumentCheckpoint => {
   validateDocumentPlan(plan);
   const expectedChunkCount = plan.chunks.length;
   const completed = first<{ content_hash: unknown; chunk_count: unknown }>(
@@ -415,7 +546,7 @@ const deleteChunkRow = (row: ExistingChunkRow): void => {
 };
 
 const insertChunk = (
-  chunk: PlaygroundIndexedChunk,
+  chunk: VectorDbIndexedChunk,
   insertChunkStatement: SqliteStatement,
   insertFtsStatement: SqliteStatement,
   insertVectorStatement: SqliteStatement,
@@ -447,7 +578,7 @@ const insertChunk = (
 };
 
 const upsertChunkBatch = (
-  batch: PlaygroundChunkBatch,
+  batch: VectorDbChunkBatch,
 ): { documentId: string; persistedChunkCount: number } => {
   const checkpoint = first<{ content_hash: unknown }>(
     "SELECT content_hash FROM indexing_documents WHERE document_id = ?",
@@ -517,7 +648,7 @@ const upsertChunkBatch = (
 };
 
 const finalizeDocument = (
-  plan: PlaygroundDocumentIndexPlan,
+  plan: VectorDbDocumentIndexPlan,
 ): { documentId: string; chunkCount: number } => {
   validateDocumentPlan(plan);
   const checkpoint = first<{ content_hash: unknown; expected_chunk_count: unknown }>(
@@ -571,9 +702,9 @@ const finalizeDocument = (
 };
 
 const upsertDocument = (
-  document: PlaygroundIndexedDocument,
+  document: VectorDbIndexedDocument,
 ): { documentId: string; chunkCount: number } => {
-  const plan: PlaygroundDocumentIndexPlan = {
+  const plan: VectorDbDocumentIndexPlan = {
     documentId: document.documentId,
     contentHash: document.contentHash,
     indexedAt: document.indexedAt,
@@ -634,10 +765,10 @@ const parseHeadingPath = (value: unknown): string[] => {
   }
 };
 
-const inspectIndex = (documentId?: string): PlaygroundIndexInspection => {
+const inspectIndex = (documentId?: string): VectorDbIndexInspection => {
   const documents = rows<Record<string, unknown>>(
     "SELECT document_id, content_hash, chunk_count, token_count, indexed_at FROM indexed_documents ORDER BY indexed_at DESC, document_id",
-  ).map((row): PlaygroundIndexedDocumentSummary => ({
+  ).map((row): VectorDbIndexedDocumentSummary => ({
     documentId: stringValue(row.document_id),
     contentHash: stringValue(row.content_hash),
     chunkCount: numberValue(row.chunk_count),
@@ -650,7 +781,7 @@ const inspectIndex = (documentId?: string): PlaygroundIndexInspection => {
         [documentId],
       )
     : [];
-  const chunks = chunkRows.map((row): PlaygroundIndexedChunkSummary => ({
+  const chunks = chunkRows.map((row): VectorDbIndexedChunkSummary => ({
     chunkId: stringValue(row.chunk_id),
     documentId: stringValue(row.document_id),
     chunkIndex: numberValue(row.chunk_index),
@@ -664,7 +795,7 @@ const inspectIndex = (documentId?: string): PlaygroundIndexInspection => {
   return { health: makeHealth(), documents, chunks };
 };
 
-const search = (request: PlaygroundSearchRequest): PlaygroundSearchHit[] => {
+const search = (request: VectorDbSearchRequest): VectorDbSearchHit[] => {
   const topK = Math.max(1, Math.floor(request.topK));
   const lexicalCandidateK = Math.max(topK * 5, Math.floor(request.lexicalCandidateK ?? 50));
   const semanticCandidateK = Math.max(topK * 5, Math.floor(request.semanticCandidateK ?? 50));
@@ -702,7 +833,7 @@ const search = (request: PlaygroundSearchRequest): PlaygroundSearchHit[] => {
       )
     : [];
 
-  const byRowid = new Map<number, PlaygroundSearchHit>();
+  const byRowid = new Map<number, VectorDbSearchHit>();
   lexicalRows.forEach((row, index) => {
     const rowid = numberValue(row.chunk_rowid);
     byRowid.set(rowid, {
@@ -765,7 +896,7 @@ const search = (request: PlaygroundSearchRequest): PlaygroundSearchHit[] => {
     .slice(0, topK);
 };
 
-const reset = (): PlaygroundIndexHealth => {
+const reset = (): VectorDbIndexHealth => {
   run("BEGIN IMMEDIATE;");
   try {
     run("DELETE FROM vec_chunks;");
@@ -785,28 +916,28 @@ const reset = (): PlaygroundIndexHealth => {
   return makeHealth();
 };
 
-const handle = async (request: WorkerRequest): Promise<unknown> => {
+export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Promise<unknown> => {
   switch (request.type) {
     case "initialize":
-      return initialize((request.payload as { config: PlaygroundIndexConfig }).config);
+      return initialize((request.payload as { config: VectorDbIndexConfig }).config);
     case "health":
       return makeHealth();
     case "inspect":
       return inspectIndex((request.payload as { documentId?: string }).documentId);
     case "checkDocuments":
       return checkDocuments(
-        (request.payload as { documents: PlaygroundDocumentFingerprint[] }).documents,
+        (request.payload as { documents: VectorDbDocumentFingerprint[] }).documents,
       );
     case "prepareDocument":
-      return prepareDocument((request.payload as { plan: PlaygroundDocumentIndexPlan }).plan);
+      return prepareDocument((request.payload as { plan: VectorDbDocumentIndexPlan }).plan);
     case "upsertChunkBatch":
-      return upsertChunkBatch((request.payload as { batch: PlaygroundChunkBatch }).batch);
+      return upsertChunkBatch((request.payload as { batch: VectorDbChunkBatch }).batch);
     case "finalizeDocument":
-      return finalizeDocument((request.payload as { plan: PlaygroundDocumentIndexPlan }).plan);
+      return finalizeDocument((request.payload as { plan: VectorDbDocumentIndexPlan }).plan);
     case "upsert":
-      return upsertDocument((request.payload as { document: PlaygroundIndexedDocument }).document);
+      return upsertDocument((request.payload as { document: VectorDbIndexedDocument }).document);
     case "search":
-      return search((request.payload as { request: PlaygroundSearchRequest }).request);
+      return search((request.payload as { request: VectorDbSearchRequest }).request);
     case "reset":
       return reset();
     case "close":
@@ -816,16 +947,75 @@ const handle = async (request: WorkerRequest): Promise<unknown> => {
   }
 };
 
-self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
-  void handle(event.data)
+interface SharedWorkerConnectEvent {
+  ports: MessagePort[];
+}
+
+const MUTATING_REQUEST_TYPES = new Set<VectorDbWorkerRequest["type"]>([
+  "initialize",
+  "prepareDocument",
+  "upsertChunkBatch",
+  "finalizeDocument",
+  "upsert",
+  "reset",
+]);
+
+let requestQueue = Promise.resolve();
+
+const processRequest = (request: VectorDbWorkerRequest): Promise<unknown> => {
+  const next = requestQueue.then(async () => {
+    if (request.type === "close") await persistCurrentIndex();
+    const payload = await handleVectorDbRequest(request);
+    if (MUTATING_REQUEST_TYPES.has(request.type)) await persistCurrentIndex();
+    return payload;
+  });
+  requestQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+};
+
+const respondToRequest = (port: MessagePort, request: VectorDbWorkerRequest): void => {
+  void processRequest(request)
     .then((payload) => {
-      self.postMessage({ id: event.data.id, ok: true, type: event.data.type, payload });
+      port.postMessage({
+        id: request.id,
+        ok: true,
+        type: request.type,
+        payload,
+      } satisfies VectorDbWorkerResponse);
     })
     .catch((error: unknown) => {
-      self.postMessage({
-        id: event.data.id,
+      port.postMessage({
+        id: request.id,
         ok: false,
-        error: error instanceof Error ? error.message : "Local index operation failed.",
-      });
+        error: error instanceof Error ? error.message : "Vector database operation failed.",
+      } satisfies VectorDbWorkerResponse);
     });
+};
+
+const sharedWorkerScope = self as unknown as {
+  addEventListener(type: "connect", listener: (event: SharedWorkerConnectEvent) => void): void;
+};
+
+sharedWorkerScope.addEventListener("connect", (event) => {
+  const port = event.ports[0];
+  if (!port) return;
+  port.addEventListener(
+    "message",
+    (message: MessageEvent<VectorDbWorkerRequest | VectorDbStorageResponse>) => {
+      if ("ok" in message.data) {
+        const pending = pendingStorageRequests.get(message.data.id);
+        if (!pending) return;
+        pendingStorageRequests.delete(message.data.id);
+        if (message.data.ok) pending.resolve(message.data);
+        else pending.reject(new Error(message.data.error));
+        return;
+      }
+      storagePorts.add(port);
+      respondToRequest(port, message.data as VectorDbWorkerRequest);
+    },
+  );
+  port.start();
 });

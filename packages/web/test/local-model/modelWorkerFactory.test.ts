@@ -94,6 +94,7 @@ describe("model worker factory", () => {
       "memora-model-chat",
       "memora-model-embedding",
       "memora-model-formula",
+      "memora-vector-db",
     ]);
 
     unmountFirst();
@@ -101,9 +102,9 @@ describe("model worker factory", () => {
     unmountSecond();
     expect(MockSharedWorker.instances.every((worker) => worker.port.closed)).toBe(true);
     expect(
-      MockSharedWorker.instances.every((worker) =>
-        worker.port.posted.some((message) => message.type === "disconnect"),
-      ),
+      MockSharedWorker.instances
+        .filter((worker) => worker.name !== "memora-vector-db")
+        .every((worker) => worker.port.posted.some((message) => message.type === "disconnect")),
     ).toBe(true);
   });
 

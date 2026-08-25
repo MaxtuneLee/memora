@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-import { getSearchTerms } from "../../src/lib/playground/searchTerms";
+import { getSearchTerms } from "../../src/lib/vector-db/searchTerms";
 
 describe("getSearchTerms", () => {
   test("removes common English question words when meaningful terms remain", () => {

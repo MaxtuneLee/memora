@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
+import { modelWorkerFactory } from "@/lib/model-worker";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { setting } from "@/livestore/setting";
@@ -32,12 +33,16 @@ import {
   type BgeExecutionBackend,
 } from "@/lib/playground/bgeEmbeddingClient";
 import {
-  getPlaygroundContentHash,
-  playgroundLocalIndex,
-  type PlaygroundIndexedChunk,
-  type PlaygroundIndexConfig,
-  type PlaygroundIndexHealth,
-} from "@/lib/playground/localIndex";
+  BGE_SMALL_EN_QUERY_PREFIX,
+  buildBgeIndexConfig,
+  DEFAULT_BGE_CHUNK_SIZE,
+  DEFAULT_BGE_MODEL,
+} from "@/lib/playground/vectorDbConfig";
+import {
+  getVectorDbContentHash,
+  type VectorDbIndexedChunk,
+  type VectorDbIndexHealth,
+} from "@/lib/vector-db";
 import {
   getNanoBeirChunkId,
   getNanoBeirContentHash,
@@ -62,7 +67,7 @@ import {
   DEFAULT_RRF_K,
   RRF_K_OPTIONS,
   type RrfKOption,
-} from "@/lib/playground/reciprocalRankFusion";
+} from "@/lib/vector-db/reciprocalRankFusion";
 import {
   MEMORA_STREAMDOWN_CLASS_NAME,
   MEMORA_STREAMDOWN_CONTROLS,
@@ -104,14 +109,14 @@ type BenchmarkRetrievalMethod =
   | "rrf-semantic-3"
   | "rrf-semantic-4";
 type RetrievalProgressReporter = (label: string) => void;
-type IndexInputChunk = Omit<PlaygroundIndexedChunk, "embedding" | "contentHash">;
+type IndexInputChunk = Omit<VectorDbIndexedChunk, "embedding" | "contentHash">;
 interface IndexInputDocument {
   documentId: string;
   contentHash: string;
   chunks: IndexInputChunk[];
 }
 interface IndexSyncSummary {
-  health: PlaygroundIndexHealth;
+  health: VectorDbIndexHealth;
   reusedDocumentCount: number;
   indexedDocumentCount: number;
   embeddedChunkCount: number;
@@ -134,7 +139,6 @@ const BGE_MODELS: Record<BgeEmbeddingModel, { label: string; description: string
       "Multilingual 1024-dimension model; downloads one 569 MB q8 model, prefers WebGPU, and falls back to WASM.",
   },
 };
-const BGE_SMALL_EN_QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
 const BGE_SMALL_EN_MAX_VECTOR_DISTANCE = 0.45;
 const HYBRID_LEXICAL_WEIGHT = 1;
 const HYBRID_SEMANTIC_WEIGHT = 2;
@@ -198,22 +202,6 @@ const BENCHMARK_METHODS: Record<
     usesRrf: true,
   },
 };
-const BGE_INDEX_CONFIG: Record<
-  BgeEmbeddingModel,
-  { dimensions: number; pooling: "mean" | "cls"; revision: string }
-> = {
-  "bge-small-en": {
-    dimensions: 384,
-    pooling: "mean",
-    revision: "Xenova/bge-small-en-v1.5",
-  },
-  "bge-m3": {
-    dimensions: 1024,
-    pooling: "cls",
-    revision: "Xenova/bge-m3",
-  },
-};
-
 const getEmbeddingCacheKey = (model: BgeEmbeddingModel, chunk: IndexInputChunk): string => {
   return `${model}:${chunk.chunkId}:${chunk.content}`;
 };
@@ -256,29 +244,6 @@ const formatElapsed = (value: number | null): string => {
   return value >= 1000 ? `${(value / 1000).toFixed(2)} s` : `${Math.round(value)} ms`;
 };
 
-const buildBgeIndexConfig = (
-  model: BgeEmbeddingModel,
-  chunkSize: number,
-): PlaygroundIndexConfig => {
-  const modelConfig = BGE_INDEX_CONFIG[model];
-  return {
-    model,
-    modelRevision: modelConfig.revision,
-    dimensions: modelConfig.dimensions,
-    metric: "cosine",
-    normalized: true,
-    pooling: modelConfig.pooling,
-    queryPrefix: model === "bge-small-en" ? BGE_SMALL_EN_QUERY_PREFIX : "",
-    documentPrefix: "",
-    chunkerName: "transcript-characters",
-    chunkerVersion: "1",
-    chunkSize,
-    chunkOverlap: 0,
-    segmenterLocale: "und",
-    segmenterPipelineVersion: "1",
-  };
-};
-
 export default function GroundedRetrieval() {
   const { store } = useStore();
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
@@ -287,7 +252,7 @@ export default function GroundedRetrieval() {
   const transcriptFiles = useMemo(() => files.filter(isTranscriptFile), [files]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
-  const [chunkSize, setChunkSize] = useState(420);
+  const [chunkSize, setChunkSize] = useState(DEFAULT_BGE_CHUNK_SIZE);
   const [topK, setTopK] = useState(4);
   const [contextBudget, setContextBudget] = useState(3600);
   const [keywordPack, setKeywordPack] = useState<ContextPack | null>(null);
@@ -301,9 +266,9 @@ export default function GroundedRetrieval() {
   const [bgeError, setBgeError] = useState<string | null>(null);
   const [isRunningBge, setIsRunningBge] = useState(false);
   const [bgeProgress, setBgeProgress] = useState<string | null>(null);
-  const [bgeModel, setBgeModel] = useState<BgeEmbeddingModel>("bge-small-en");
+  const [bgeModel, setBgeModel] = useState<BgeEmbeddingModel>(DEFAULT_BGE_MODEL);
   const [bgeBackend, setBgeBackend] = useState<BgeExecutionBackend | null>(null);
-  const [indexHealth, setIndexHealth] = useState<PlaygroundIndexHealth | null>(null);
+  const [indexHealth, setIndexHealth] = useState<VectorDbIndexHealth | null>(null);
   const [indexError, setIndexError] = useState<string | null>(null);
   const [benchmarkProfileId, setBenchmarkProfileId] = useState<NanoBeirProfileId>("quick");
   const [benchmarkMethod, setBenchmarkMethod] = useState<BenchmarkRetrievalMethod>("dense");
@@ -491,13 +456,13 @@ export default function GroundedRetrieval() {
       reportProgress: RetrievalProgressReporter,
     ): Promise<IndexSyncSummary> => {
       reportProgress("Opening the persistent OPFS index…");
-      const initializedHealth = await playgroundLocalIndex.initialize(
+      const initializedHealth = await modelWorkerFactory.vectorDb.initialize(
         buildBgeIndexConfig(bgeModel, chunkSize),
       );
       setIndexHealth(initializedHealth);
       setIndexError(null);
 
-      const statuses = await playgroundLocalIndex.checkDocuments(
+      const statuses = await modelWorkerFactory.vectorDb.checkDocuments(
         documents.map(({ documentId, contentHash }) => ({ documentId, contentHash })),
       );
       const changedIds = new Set(
@@ -513,7 +478,7 @@ export default function GroundedRetrieval() {
         const document = changedDocuments[documentIndex];
         if (!document) continue;
         const chunkContentHashes = await Promise.all(
-          document.chunks.map((chunk) => getPlaygroundContentHash(chunk.content)),
+          document.chunks.map((chunk) => getVectorDbContentHash(chunk.content)),
         );
         const preparedChunks = document.chunks.map((chunk, chunkIndex) => ({
           ...chunk,
@@ -531,7 +496,7 @@ export default function GroundedRetrieval() {
             contentHash: chunk.contentHash,
           })),
         };
-        const checkpoint = await playgroundLocalIndex.prepareDocument(plan);
+        const checkpoint = await modelWorkerFactory.vectorDb.prepareDocument(plan);
         if (checkpoint.complete) {
           reusedDocumentCount += 1;
           continue;
@@ -564,14 +529,14 @@ export default function GroundedRetrieval() {
             embeddedChunkCount += chunksToEmbed.length;
           }
 
-          const indexedBatch: PlaygroundIndexedChunk[] = batch.map((chunk) => {
+          const indexedBatch: VectorDbIndexedChunk[] = batch.map((chunk) => {
             const embedding = bgeEmbeddingCacheRef.current.get(
               getEmbeddingCacheKey(bgeModel, chunk),
             );
             if (!embedding) throw new Error(`Missing embedding for chunk ${chunk.chunkId}.`);
             return { ...chunk, embedding };
           });
-          const writeResult = await playgroundLocalIndex.upsertChunkBatch({
+          const writeResult = await modelWorkerFactory.vectorDb.upsertChunkBatch({
             documentId: document.documentId,
             contentHash: document.contentHash,
             chunks: indexedBatch,
@@ -583,10 +548,10 @@ export default function GroundedRetrieval() {
             `Saved ${writeResult.persistedChunkCount} of ${preparedChunks.length} passages to OPFS`,
           );
         }
-        await playgroundLocalIndex.finalizeDocument(plan);
+        await modelWorkerFactory.vectorDb.finalizeDocument(plan);
         indexedDocumentCount += 1;
       }
-      const indexedHealth = await playgroundLocalIndex.health();
+      const indexedHealth = await modelWorkerFactory.vectorDb.health();
       setIndexHealth(indexedHealth);
       const summary = {
         health: indexedHealth,
@@ -623,7 +588,7 @@ export default function GroundedRetrieval() {
           );
           return {
             documentId,
-            contentHash: await getPlaygroundContentHash(
+            contentHash: await getVectorDbContentHash(
               orderedChunks.map((chunk) => `${chunk.id}\n${chunk.text}`).join("\n"),
             ),
             chunks: orderedChunks.map((chunk, chunkIndex) => ({
@@ -670,7 +635,7 @@ export default function GroundedRetrieval() {
       );
       await ensureBgeIndex(preparedChunks, setBgeProgress);
       setBgeProgress("Searching the persisted chunks…");
-      const hits = await playgroundLocalIndex.search({
+      const hits = await modelWorkerFactory.vectorDb.search({
         query: trimmedQuestion,
         queryEmbedding,
         scope: { kind: "documents", documentIds: selectedFiles.map((file) => file.id) },
@@ -765,7 +730,7 @@ export default function GroundedRetrieval() {
       });
 
       setBenchmarkProgress("Checking the existing OPFS index…");
-      const initializedHealth = await playgroundLocalIndex.initialize(
+      const initializedHealth = await modelWorkerFactory.vectorDb.initialize(
         buildBgeIndexConfig(bgeModel, chunkSize),
       );
       setIndexHealth(initializedHealth);
@@ -774,7 +739,7 @@ export default function GroundedRetrieval() {
         documentId: getNanoBeirDocumentId(datasetId),
         contentHash: getNanoBeirContentHash(datasetId),
       }));
-      const statuses = await playgroundLocalIndex.checkDocuments(fingerprints);
+      const statuses = await modelWorkerFactory.vectorDb.checkDocuments(fingerprints);
       const changedDatasetIds = new Set(
         statuses.flatMap((status) => {
           if (status.matches) return [];
@@ -842,7 +807,7 @@ export default function GroundedRetrieval() {
         }
         setBenchmarkProgress(`Searching case ${index + 1} of ${evaluableCases.length}…`);
         const queryStartedAt = performance.now();
-        const hits = await playgroundLocalIndex.search({
+        const hits = await modelWorkerFactory.vectorDb.search({
           query: benchmarkMethodConfig.usesLexical ? benchmarkCase.query : "",
           queryEmbedding: benchmarkMethodConfig.usesSemantic ? queryEmbedding : undefined,
           scope: { kind: "documents", documentIds: scopeDocumentIds },

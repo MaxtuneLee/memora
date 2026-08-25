@@ -1,4 +1,4 @@
-import { getSearchTerms } from "./searchTerms";
+import { getSearchTerms } from "../vector-db/searchTerms";
 
 export interface GroundedTranscriptWord {
   text: string;

@@ -7,7 +7,13 @@ import {
   SpinnerGapIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { playgroundLocalIndex, type PlaygroundIndexInspection } from "@/lib/playground/localIndex";
+import type { VectorDbIndexInspection } from "@/lib/vector-db";
+import { modelWorkerFactory } from "@/lib/model-worker";
+import {
+  buildBgeIndexConfig,
+  DEFAULT_BGE_CHUNK_SIZE,
+  DEFAULT_BGE_MODEL,
+} from "@/lib/playground/vectorDbConfig";
 
 const SECONDARY_BUTTON_CLASS_NAME =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-memora-border bg-memora-surface px-4 text-sm font-medium text-memora-text transition-colors hover:bg-memora-surface-soft disabled:cursor-not-allowed disabled:opacity-45";
@@ -94,7 +100,7 @@ function EmptyInspector({
 }
 
 export default function VectorDbInspector() {
-  const [inspection, setInspection] = useState<PlaygroundIndexInspection | null>(null);
+  const [inspection, setInspection] = useState<VectorDbIndexInspection | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +109,7 @@ export default function VectorDbInspector() {
     setIsLoading(true);
     setError(null);
     try {
-      const nextInspection = await playgroundLocalIndex.inspect(documentId);
+      const nextInspection = await modelWorkerFactory.vectorDb.inspect(documentId);
       setInspection(nextInspection);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to read the local index.");
@@ -113,7 +119,13 @@ export default function VectorDbInspector() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void modelWorkerFactory.vectorDb
+      .initialize(buildBgeIndexConfig(DEFAULT_BGE_MODEL, DEFAULT_BGE_CHUNK_SIZE))
+      .then(() => refresh())
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : "Unable to open the local index.");
+        setIsLoading(false);
+      });
   }, [refresh]);
 
   const selectedDocument = useMemo(
