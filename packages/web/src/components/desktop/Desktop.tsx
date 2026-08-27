@@ -37,6 +37,7 @@ import { useDesktopSize } from "@/components/desktop/desktop/useDesktopSize";
 import { useDesktopWindows } from "@/components/desktop/desktop/useDesktopWindows";
 import { TRASH_ITEM_ID } from "@/components/desktop/desktop/types";
 import {
+  areDesktopItemsEqual,
   getColumnsForWidth,
   layoutDesktopItems,
   mapFileRowsToDesktopItems,
@@ -154,13 +155,18 @@ export function Desktop({
       const mergeItem = (item: DesktopItemType) => {
         const existing = next.get(item.id);
         const position = existing?.position ?? { x: 0, y: 0 };
-        next.set(item.id, {
+        const merged = {
           ...item,
           position,
           ...(item.type === "folder" ? { hasStoredPosition: false } : {}),
-        } satisfies DesktopItemType);
+        } satisfies DesktopItemType;
+        if (!existing || !areDesktopItemsEqual(existing, merged)) {
+          next.set(item.id, merged);
+          changed = true;
+        }
       };
 
+      let changed = false;
       fileItems.forEach(mergeItem);
       folderItems.forEach(mergeItem);
       mergeItem(trashItem);
@@ -171,13 +177,15 @@ export function Desktop({
         const existing = previous.get(id);
         if (existing?.type === "file" && !fileIds.has(id)) {
           next.delete(id);
+          changed = true;
         }
         if (existing?.type === "folder" && !folderIds.has(id)) {
           next.delete(id);
+          changed = true;
         }
       });
 
-      return next;
+      return changed ? next : previous;
     });
   }, [fileItems, folderItems, setItems, trashItem]);
 

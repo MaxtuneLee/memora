@@ -2,15 +2,14 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   FileTextIcon,
   FolderIcon,
-  ImageIcon,
-  MicrophoneIcon,
   TrashIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
 import { DesktopFileTip } from "./DesktopFileTip";
+import { areDesktopItemsEqual } from "./desktop/utils";
 import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
 import type { JSX } from "react";
 
@@ -28,14 +27,7 @@ interface DesktopItemProps {
   onRenameCancel?: (id: string) => void;
 }
 
-const FILE_TYPE_ICONS: Record<string, JSX.Element> = {
-  audio: <MicrophoneIcon className="size-8 text-zinc-500" weight="duotone" />,
-  video: <VideoCameraIcon className="size-8 text-zinc-500" weight="duotone" />,
-  image: <ImageIcon className="size-8 text-zinc-500" weight="duotone" />,
-  document: <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />,
-};
-
-export function DesktopItem({
+function DesktopItemComponent({
   item,
   isSelected,
   onSelect,
@@ -147,11 +139,8 @@ export function DesktopItem({
       return <TrashIcon className="size-9 text-red-500" weight="duotone" />;
     }
     if (item.type === "file") {
-      return (
-        FILE_TYPE_ICONS[item.fileMeta.type] ?? (
-          <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />
-        )
-      );
+      const Icon = getFileIcon(item.fileMeta);
+      return <Icon className="size-8 text-zinc-500" weight="duotone" />;
     }
     // Widget icons handled separately
     return <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />;
@@ -257,3 +246,21 @@ export function DesktopItem({
 
   return itemContent;
 }
+
+export const DesktopItem = memo(
+  DesktopItemComponent,
+  (previous, next) =>
+    areDesktopItemsEqual(previous.item, next.item) &&
+    previous.isSelected === next.isSelected &&
+    previous.onSelect === next.onSelect &&
+    previous.onContextMenu === next.onContextMenu &&
+    previous.onOpenItem === next.onOpenItem &&
+    previous.layout === next.layout &&
+    previous.draggable === next.draggable &&
+    previous.showFileIndexStatus === next.showFileIndexStatus &&
+    previous.isRenaming === next.isRenaming &&
+    previous.onRenameCommit === next.onRenameCommit &&
+    previous.onRenameCancel === next.onRenameCancel,
+);
+
+DesktopItem.displayName = "DesktopItem";

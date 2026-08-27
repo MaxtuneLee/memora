@@ -67,8 +67,8 @@ export function DesktopSurface({
           draggable={enableDnD && item.type !== "widget"}
           showFileIndexStatus={showFileIndexStatus}
           isRenaming={renamingIds.has(item.id)}
-          onRenameCommit={onRenameCommit}
-          onRenameCancel={onRenameCancel}
+          onRenameCommit={renamingIds.has(item.id) ? onRenameCommit : undefined}
+          onRenameCancel={renamingIds.has(item.id) ? onRenameCancel : undefined}
         />
       ))}
     </div>

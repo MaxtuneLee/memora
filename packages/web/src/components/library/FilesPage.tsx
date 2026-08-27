@@ -3,6 +3,7 @@ import { Button } from "@base-ui/react/button";
 
 import { FileGrid } from "@/components/library/FileGrid";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { useFiles } from "@/hooks/library/useFiles";
 import type { FileItem } from "@/types/library";
 
@@ -13,6 +14,10 @@ export const getFileHref = (file: FileItem): string | null => {
 
   if (isEditableTextDocument(file)) {
     return getDocumentEditorHref(file.id);
+  }
+
+  if (isFileViewerFile(file)) {
+    return getFileViewerHref(file.id);
   }
 
   return null;

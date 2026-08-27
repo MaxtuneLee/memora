@@ -1,16 +1,14 @@
 import { Button } from "@base-ui/react/button";
 import {
-  FileTextIcon,
   FolderIcon,
-  ImageIcon,
-  MicrophoneIcon,
-  VideoCameraIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileIcon } from "@/lib/library/fileIcon";
+import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { formatBytes } from "@/lib/format";
 import { resolveRecordingFile } from "@/lib/library/fileService";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
@@ -38,13 +36,6 @@ interface DesktopPreviewWindowProps {
   onResize: (id: string, size: DesktopWindowSize) => void;
 }
 
-const FILE_TYPE_ICONS: Record<string, JSX.Element> = {
-  audio: <MicrophoneIcon className="size-10 text-zinc-500" weight="duotone" />,
-  video: <VideoCameraIcon className="size-10 text-zinc-500" weight="duotone" />,
-  image: <ImageIcon className="size-10 text-zinc-500" weight="duotone" />,
-  document: <FileTextIcon className="size-10 text-zinc-500" weight="duotone" />,
-};
-
 const TEXT_MIME_TYPES = [
   "text/plain",
   "text/markdown",
@@ -62,6 +53,10 @@ export const getFileOpenHref = (
 
   if (isEditableTextDocument(fileMeta)) {
     return getDocumentEditorHref(fileMeta.id);
+  }
+
+  if (isFileViewerFile(fileMeta)) {
+    return getFileViewerHref(fileMeta.id);
   }
 
   return "/files";
@@ -113,6 +108,7 @@ export function DesktopPreviewWindow({
   const [textStatus, setTextStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [isReindexing, setIsReindexing] = useState(false);
   const revokeUrlRef = useRef<string | null>(null);
+  const fileMetaRef = useRef<DesktopFileItem["fileMeta"] | null>(null);
 
   const isFile = item.type === "file";
   const mimeType = isFile ? item.fileMeta.mimeType : "";
@@ -120,6 +116,11 @@ export function DesktopPreviewWindow({
   const fileMetaType = isFile ? item.fileMeta.type : null;
   const fileMeta = isFile ? item.fileMeta : null;
   const { reindexFile } = useContentPipeline();
+  const fileStoragePath = isFile ? item.fileMeta.storagePath : null;
+
+  useEffect(() => {
+    fileMetaRef.current = fileMeta;
+  }, [fileMeta]);
 
   const previewLabel = useMemo(() => {
     if (!isFile) return "Folder";
@@ -130,9 +131,10 @@ export function DesktopPreviewWindow({
     let isMounted = true;
 
     const loadPreview = async () => {
-      if (!isFile || !fileMeta) return;
+      const currentFileMeta = fileMetaRef.current;
+      if (!isFile || !currentFileMeta) return;
       try {
-        const file = await resolveRecordingFile(fileMeta);
+        const file = await resolveRecordingFile(currentFileMeta);
         if (!isMounted || !file) return;
         const displayFile =
           file.name === item.name && file.type
@@ -180,17 +182,14 @@ export function DesktopPreviewWindow({
         revokeUrlRef.current = null;
       }
     };
-  }, [isFile, fileMetaId, fileMetaType, fileMeta, mimeType]);
+  }, [isFile, fileMetaId, fileMetaType, fileStoragePath, item.name, mimeType]);
 
   const getIcon = (): JSX.Element => {
     if (item.type === "folder") {
       return <FolderIcon className="size-10 text-blue-500" weight="duotone" />;
     }
-    return (
-      FILE_TYPE_ICONS[item.fileMeta.type] ?? (
-        <FileTextIcon className="size-10 text-zinc-500" weight="duotone" />
-      )
-    );
+    const Icon = getFileIcon(item.fileMeta);
+    return <Icon className="size-10 text-zinc-500" weight="duotone" />;
   };
 
   const handleOpen = () => {

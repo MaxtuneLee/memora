@@ -2,19 +2,15 @@ import { Menu } from "@base-ui/react/menu";
 import {
   ArrowRightIcon,
   DotsThreeVerticalIcon,
-  FileTextIcon,
   FolderSimpleIcon,
-  ImageIcon,
-  MicrophoneIcon,
   PencilSimpleIcon,
   StarIcon,
   TrashIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
 import { Link } from "react-router";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import type { FileType, RecordingMeta } from "@/types/library";
 import { formatDateTime, formatDuration } from "@/lib/format";
-import type { JSX } from "react";
 
 interface FileCardProps {
   file: RecordingMeta;
@@ -50,12 +46,7 @@ export const FileCard = ({
     image: "Image",
     document: "Document",
   };
-  const typeIcon: Record<FileType, JSX.Element> = {
-    audio: <MicrophoneIcon className="size-4" />,
-    video: <VideoCameraIcon className="size-4" />,
-    image: <ImageIcon className="size-4" />,
-    document: <FileTextIcon className="size-4" />,
-  };
+  const TypeIcon = getFileIcon(file);
   const itemClassName =
     "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900";
   const deleteItemClassName =
@@ -67,7 +58,7 @@ export const FileCard = ({
     <div className="group relative flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400">
       <div className="flex items-start justify-between">
         <div className="flex size-8 items-center justify-center rounded-sm bg-zinc-50 text-zinc-400 group-hover:text-zinc-600">
-          {typeIcon[file.type]}
+          <TypeIcon className="size-4" />
         </div>
         <Menu.Root>
           <Menu.Trigger
