@@ -256,7 +256,6 @@ export const fileMaterializers = {
         indexStatus: event.indexStatus,
         indexedAt: event.indexedAt ?? null,
         indexSummary: event.indexSummary ?? null,
-        updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),
   "v1.FileDeleted": (event: FileDeletedEvent) =>

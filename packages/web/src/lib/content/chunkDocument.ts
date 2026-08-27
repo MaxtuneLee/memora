@@ -18,7 +18,7 @@ export interface ContentChunk {
 }
 
 const splitSegment = (segment: ContentSegment, size: number, overlap: number): string[] => {
-  const text = segment.text.trim();
+  const text = (segment.markdown ?? segment.text).trim();
   if (!text) return [];
   const result: string[] = [];
   let start = 0;

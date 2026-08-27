@@ -2,10 +2,30 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import { ContentParserRegistry } from "@/lib/content/parserRegistry";
+import { restoreStoredFileMetadata } from "@/lib/content/contentTaskHandlers";
+import { ContentParserRegistry, splitPptxMarkdownSegments } from "@/lib/content/parserRegistry";
 import { createSourceRevision } from "@/lib/content/sourceRevision";
 
 describe("content artifacts", () => {
+  test("restores the display name and MIME type before resolving a stored PPTX parser", () => {
+    const storedFile = new File(["pptx bytes"], "opfs-entry", {
+      type: "application/octet-stream",
+      lastModified: 42,
+    });
+    const restoredFile = restoreStoredFileMetadata(storedFile, {
+      name: "roadmap.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    });
+    const registry = new ContentParserRegistry();
+
+    expect(restoredFile.name).toBe("roadmap.pptx");
+    expect(restoredFile.type).toBe(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
+    expect(restoredFile.lastModified).toBe(42);
+    expect(registry.resolve(restoredFile)?.name).toBe("document");
+  });
+
   test("creates a stable source revision from bytes and parser configuration", async () => {
     const file = new File(["# Notes\n\nA stable paragraph."], "notes.md", {
       type: "text/markdown",
@@ -24,6 +44,15 @@ describe("content artifacts", () => {
     });
     expect(first).toBe(second);
     expect(first).toHaveLength(64);
+  });
+
+  test("routes image files into the Playground OCR parser", () => {
+    const registry = new ContentParserRegistry();
+    const file = new File(["image bytes"], "Snipaste_2026-08-23_13-32-39.jpg", {
+      type: "image/jpeg",
+    });
+
+    expect(registry.resolve(file)?.name).toBe("image");
   });
 
   test("generates deterministic segment IDs and preserves heading paths", async () => {
@@ -83,5 +112,52 @@ describe("content artifacts", () => {
     expect(desktopPreviewSource).toContain('import("./PptxDocumentPreview")');
     expect(desktopViewerSource).toContain("useViewerBuildingBlocks");
     expect(desktopViewerSource).toContain("<SlideCanvas {...canvasProps} />");
+    expect(desktopViewerSource).toContain("onSlideCountChange: setSlideCount");
+    expect(desktopViewerSource).toContain('aria-label="Previous slide"');
+    expect(desktopViewerSource).toContain('aria-label="Next slide"');
+    expect(desktopViewerSource).toContain('className="flex min-h-0 flex-1 overflow-hidden"');
+  });
+
+  test("splits Playground PPTX Markdown into slide-aware index segments", () => {
+    const markdown = `---
+source: roadmap.pptx
+---
+
+## Slide 1: Product roadmap
+
+- Ship the multi-slide preview
+- Index the generated Markdown
+
+---
+
+## Slide 2: Follow-up *(layout: Title and Content)*
+
+### Speaker Notes
+
+Validate search results.`;
+    const segments = splitPptxMarkdownSegments(markdown, []);
+
+    expect(segments).toHaveLength(5);
+    expect(segments[0]).toMatchObject({
+      kind: "title",
+      text: "Product roadmap",
+      markdown: "## Slide 1: Product roadmap",
+      headingPath: ["Product roadmap"],
+      locator: { kind: "slide", slideNumber: 1 },
+    });
+    expect(segments[1]).toMatchObject({
+      text: "Ship the multi-slide preview Index the generated Markdown",
+      markdown: "- Ship the multi-slide preview\n- Index the generated Markdown",
+      headingPath: ["Product roadmap"],
+    });
+    expect(segments[2]).toMatchObject({
+      text: "Follow-up",
+      headingPath: ["Follow-up"],
+      locator: { kind: "slide", slideNumber: 2 },
+    });
+    expect(segments[4]).toMatchObject({
+      text: "Validate search results.",
+      headingPath: ["Follow-up", "Speaker Notes"],
+    });
   });
 });

@@ -22,6 +22,15 @@ interface ContentTaskStore {
 const getFile = (store: ContentTaskStore, fileId: string): LiveStoreFile | null =>
   (store.query(fileTable.where({ id: fileId })) as readonly LiveStoreFile[])[0] ?? null;
 
+export const restoreStoredFileMetadata = (
+  origin: File,
+  metadata: Pick<LiveStoreFile, "name" | "mimeType">,
+): File =>
+  new File([origin], metadata.name, {
+    type: metadata.mimeType || origin.type,
+    lastModified: origin.lastModified,
+  });
+
 const resolveFile = async (row: LiveStoreFile): Promise<File> => {
   if ((row.type === "audio" || row.type === "video") && row.transcriptPath) {
     const transcript = await opfsFile(row.transcriptPath).getOriginFile();
@@ -37,7 +46,7 @@ const resolveFile = async (row: LiveStoreFile): Promise<File> => {
     );
   }
   const origin = await opfsFile(row.storagePath).getOriginFile();
-  if (origin) return origin;
+  if (origin) return restoreStoredFileMetadata(origin, row);
   return new File([await opfsFile(row.storagePath).arrayBuffer()], row.name, {
     type: row.mimeType,
   });

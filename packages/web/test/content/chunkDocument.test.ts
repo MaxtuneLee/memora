@@ -39,4 +39,20 @@ describe("content chunking", () => {
     });
     expect(new Set(first.map((chunk) => chunk.chunkId)).size).toBe(first.length);
   });
+
+  test("uses a segment's Markdown as the indexable chunk content", async () => {
+    const markdownArtifact: ContentArtifact = {
+      ...artifact,
+      segments: [
+        {
+          ...artifact.segments[0],
+          text: "Quarterly plan",
+          markdown: "## Quarterly plan\n\n- Ship the preview",
+        },
+      ],
+    };
+
+    const chunks = await chunkContentArtifact(markdownArtifact, { size: 200, overlap: 0 });
+    expect(chunks[0]?.content).toBe("## Quarterly plan\n\n- Ship the preview");
+  });
 });

@@ -82,7 +82,15 @@ export interface ImageDocumentPipelineProgress {
 }
 
 export interface ImageDocumentPipelineOptions {
+  /** Layout model confidence required to retain a detected document region. */
   confidenceThreshold?: number;
+  /** PP-OCRv6 recognition confidence required to retain a text line. */
+  ocrConfidenceThreshold?: number;
+  /**
+   * Layout confidence required before sending a detected formula region to Texo.
+   * Texo currently returns LaTex text without an independent confidence score.
+   */
+  formulaConfidenceThreshold?: number;
 }
 
 interface PaddleOcrEngine {
@@ -116,6 +124,10 @@ const IGNORED_LABELS = new Set([
   "seal",
   "vision_footnote",
 ]);
+
+export const DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD = 0.4;
+export const DEFAULT_OCR_CONFIDENCE_THRESHOLD = 0.4;
+export const DEFAULT_FORMULA_CONFIDENCE_THRESHOLD = 0.4;
 
 const now = (): number => performance.now();
 
@@ -249,7 +261,7 @@ const detectionSpecificity = (kind: ImageDocumentBlockKind): number => {
 
 export const deduplicateLayoutDetections = (
   detections: LayoutDetectionRecord[],
-  confidenceThreshold = 0.35,
+  confidenceThreshold = DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD,
 ): LayoutDetectionRecord[] => {
   const kept: LayoutDetectionRecord[] = [];
   const candidates = detections
@@ -466,7 +478,7 @@ export const composeImageDocumentBlocks = ({
   detections,
   ocrItems,
   formulaLatex = new Map(),
-  confidenceThreshold = 0.35,
+  confidenceThreshold = DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD,
 }: ComposeImageDocumentBlocksInput): ImageDocumentBlock[] => {
   const lines = ocrItems.map(ocrItemToLine).filter((line) => line.text);
   const blocks = deduplicateLayoutDetections(detections, confidenceThreshold)
@@ -630,7 +642,11 @@ export class ImageDocumentPipelineSession {
 
   async run(
     file: File,
-    { confidenceThreshold = 0.35 }: ImageDocumentPipelineOptions = {},
+    {
+      confidenceThreshold = DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD,
+      ocrConfidenceThreshold = DEFAULT_OCR_CONFIDENCE_THRESHOLD,
+      formulaConfidenceThreshold = DEFAULT_FORMULA_CONFIDENCE_THRESHOLD,
+    }: ImageDocumentPipelineOptions = {},
   ): Promise<ImageDocumentPipelineResult> {
     const totalStart = now();
     const timings: ImageDocumentPipelineTiming = {
@@ -677,7 +693,10 @@ export class ImageDocumentPipelineSession {
 
     const formulas = detections.filter((detection) => {
       const kind = normalizeLayoutKind(detection.classId, detection.label);
-      return kind === "display_formula" || kind === "inline_formula";
+      return (
+        (kind === "display_formula" || kind === "inline_formula") &&
+        detection.score >= formulaConfidenceThreshold
+      );
     });
 
     this.onProgress({ stage: "ocr", label: "Loading PP-OCRv6" });
@@ -688,6 +707,13 @@ export class ImageDocumentPipelineSession {
     this.onProgress({ stage: "ocr", label: "Recognizing text outside formula regions" });
     const [ocrResult] = await paddle.predict(ocrInput);
     if (!ocrResult) throw new Error("PP-OCRv6 returned no result for this image.");
+    const retainedOcrItems = ocrResult.items.filter((item) => item.score >= ocrConfidenceThreshold);
+    const rejectedOcrCount = ocrResult.items.length - retainedOcrItems.length;
+    if (rejectedOcrCount > 0) {
+      warnings.push(
+        `Ignored ${rejectedOcrCount} OCR line${rejectedOcrCount === 1 ? "" : "s"} below the ${(ocrConfidenceThreshold * 100).toFixed(0)}% confidence threshold.`,
+      );
+    }
     timings.ocrMs = now() - stageStart;
     const formulaLatex = new Map<number, string>();
     stageStart = now();
@@ -703,7 +729,12 @@ export class ImageDocumentPipelineSession {
         const rawLatex = await texoFormulaClient.recognize(blob, ({ label, progress }) => {
           this.onProgress({ stage: "formula", label, progress });
         });
-        formulaLatex.set(formula.id, postprocessTexoLatex(rawLatex));
+        const latex = postprocessTexoLatex(rawLatex);
+        if (latex) {
+          formulaLatex.set(formula.id, latex);
+        } else {
+          warnings.push(`Formula ${index + 1} returned no usable LaTex.`);
+        }
       } catch (error) {
         warnings.push(`Formula ${index + 1} was not recognized: ${getErrorMessage(error)}`);
       }
@@ -714,7 +745,7 @@ export class ImageDocumentPipelineSession {
     stageStart = now();
     const blocks = composeImageDocumentBlocks({
       detections,
-      ocrItems: ocrResult.items,
+      ocrItems: retainedOcrItems,
       formulaLatex,
       confidenceThreshold,
     });

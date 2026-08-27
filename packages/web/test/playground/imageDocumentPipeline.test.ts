@@ -52,6 +52,21 @@ describe("image document layout mapping", () => {
     expect(detections).toHaveLength(1);
     expect(detections[0]?.id).toBe(1);
   });
+
+  test("filters layout detections below the default 40% confidence threshold", () => {
+    expect(
+      deduplicateLayoutDetections([
+        {
+          id: 1,
+          classId: 17,
+          label: "paragraph_title",
+          score: 0.374,
+          bbox: [0, 0, 400, 120],
+          readingOrder: 0,
+        },
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("image document composition", () => {
@@ -152,7 +167,9 @@ describe("image document composition", () => {
       ],
     });
 
-    expect(blocks.filter((block) => block.text === "A line must not be duplicated")).toHaveLength(1);
+    expect(blocks.filter((block) => block.text === "A line must not be duplicated")).toHaveLength(
+      1,
+    );
   });
 });
 

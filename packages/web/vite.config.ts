@@ -113,7 +113,8 @@ const config = {
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // The local image OCR pipeline ships a lazily-loaded worker just over 10 MB.
+        maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
         runtimeCaching: [
           {
@@ -199,6 +200,8 @@ const config = {
     format: "es",
   },
   resolve: {
+    // Keep React and its renderer on the same module instance in the pnpm workspace.
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@memora/livestore-devtool": path.resolve(__dirname, "../livestore-devtool/src/index.ts"),

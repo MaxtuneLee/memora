@@ -9,6 +9,25 @@ import { createStableSegmentId } from "./sourceRevision";
 import { textContentParser } from "./parsers/text";
 import { transcriptContentParser } from "./parsers/transcript";
 
+const IMAGE_EXTENSIONS = [".avif", ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".webp"];
+
+const isImageFile = (file: Pick<File, "name" | "type">): boolean => {
+  const name = file.name.toLowerCase();
+  return (
+    file.type.startsWith("image/") || IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension))
+  );
+};
+
+const imageContentParser: ContentParser = {
+  name: "image",
+  version: "image-v1",
+  supports: isImageFile,
+  parse: async (context) => {
+    const { imageContentParser: parser } = await import("./parsers/image");
+    return parser.parse(context);
+  },
+};
+
 const isDocumentFile = (file: Pick<File, "name" | "type">): boolean => {
   const name = file.name.toLowerCase();
   return (
@@ -23,7 +42,7 @@ const isDocumentFile = (file: Pick<File, "name" | "type">): boolean => {
 
 const DOCUMENT_PARSER: ContentParser = {
   name: "document",
-  version: "document-v2",
+  version: "document-v3",
   supports: isDocumentFile,
   parse: async ({ file, signal, onProgress }) => {
     if (signal?.aborted) throw new DOMException("Parsing was cancelled", "AbortError");
@@ -67,7 +86,7 @@ const DOCUMENT_PARSER: ContentParser = {
     return {
       title: parsed.title ?? file.name.replace(/\.pptx$/i, ""),
       markdown: parsed.markdown,
-      plainText: parsed.markdown,
+      plainText: parsed.text,
       segments: splitPptxMarkdownSegments(parsed.markdown, parsed.slides),
       warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
     } satisfies ContentArtifactDraft;
@@ -106,53 +125,90 @@ const splitMarkdownSegments = (markdown: string): ContentArtifactDraft["segments
   return segments;
 };
 
-const splitPptxMarkdownSegments = (
-  markdown: string,
+const markdownToPlainText = (markdown: string): string =>
+  markdown
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*(?:[-+*]|\d+[.)])\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[|`*_~]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const createPptxFallbackSegments = (
   slides: ReadonlyArray<{ slideNumber: number; text: string; notes: string[]; comments: string[] }>,
-): ContentArtifactDraft["segments"] => {
-  const blocks = markdown
-    .split(/(?=(?:<!--\s*Slide\s+\d+\s*-->|#{1,6}\s+Slide\s+\d+\b))/i)
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-  if (blocks.length) {
-    return blocks.map((block, index) => {
-      const marker = block.match(/(?:<!--\s*Slide\s+(\d+)\s*-->|#{1,6}\s+Slide\s+(\d+)\b)/i);
-      const parsedSlideNumber = marker ? Number(marker[1] ?? marker[2]) : undefined;
-      const markerSlideNumber = parsedSlideNumber;
-      const slideNumber =
-        typeof markerSlideNumber === "number" && Number.isInteger(markerSlideNumber)
-          ? markerSlideNumber
-          : null;
-      return {
-        kind: "text" as const,
-        text: block,
-        markdown: block,
-        headingPath: [],
-        locator: slideNumber
-          ? { kind: "slide" as const, slideNumber }
-          : { kind: "text" as const, startOffset: 0, endOffset: block.length },
-        searchable: Boolean(block.replace(/<!--[^>]*-->/g, "").trim()),
-      };
-    });
-  }
-
-  return slides.map((slide) => {
+): ContentArtifactDraft["segments"] =>
+  slides.map((slide) => {
     const text = [slide.text, ...slide.notes, ...slide.comments].filter(Boolean).join("\n");
     return {
       kind: "text" as const,
       text,
-      markdown: text,
-      headingPath: [],
+      markdown: `## Slide ${slide.slideNumber}\n\n${text}`,
+      headingPath: [`Slide ${slide.slideNumber}`],
       locator: { kind: "slide" as const, slideNumber: slide.slideNumber },
       searchable: Boolean(text.trim()),
     };
   });
+
+export const splitPptxMarkdownSegments = (
+  markdown: string,
+  slides: ReadonlyArray<{ slideNumber: number; text: string; notes: string[]; comments: string[] }>,
+): ContentArtifactDraft["segments"] => {
+  const slideHeadingPattern = /^##[\t ]+Slide[\t ]+(\d+)(?::[\t ]*(.*?))?[\t ]*$/gim;
+  const matches = [...markdown.matchAll(slideHeadingPattern)];
+  if (!matches.length) return createPptxFallbackSegments(slides);
+
+  const segments: ContentArtifactDraft["segments"] = [];
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const slideNumber = Number(match[1]);
+    if (!Number.isInteger(slideNumber)) continue;
+    const slideTitle = (match[2] ?? "").replace(/\s+\*\([^)]*\)\*\s*$/, "").trim();
+    const slideLabel = slideTitle || `Slide ${slideNumber}`;
+    const start = match.index ?? 0;
+    const end = matches[index + 1]?.index ?? markdown.length;
+    const slideSection = markdown.slice(start, end);
+    const separatorIndex = slideSection.search(/\n{2,}---[\t ]*(?:\r?\n|$)/);
+    const slideMarkdown = slideSection
+      .slice(0, separatorIndex >= 0 ? separatorIndex : undefined)
+      .trim();
+    const blocks = slideMarkdown
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter((block) => block && block !== "---");
+    const headingPath = [slideLabel];
+
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+      const block = blocks[blockIndex];
+      const heading = block.match(/^(#{1,6})\s+(.+)$/);
+      const isSlideHeading = blockIndex === 0;
+      if (heading && !isSlideHeading) {
+        const level = Math.max(1, heading[1].length - 2);
+        headingPath.splice(level);
+        headingPath[level] = heading[2].trim();
+      }
+      const text = isSlideHeading ? slideLabel : markdownToPlainText(block);
+      segments.push({
+        kind: heading ? "title" : "text",
+        text,
+        markdown: block,
+        headingPath: [...headingPath],
+        locator: { kind: "slide", slideNumber },
+        searchable: Boolean(text),
+      });
+    }
+  }
+
+  return segments.length ? segments : createPptxFallbackSegments(slides);
 };
 
 const DEFAULT_PARSERS: ContentParser[] = [
   textContentParser,
   transcriptContentParser,
+  imageContentParser,
   DOCUMENT_PARSER,
 ];
 

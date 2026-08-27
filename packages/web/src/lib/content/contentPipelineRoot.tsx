@@ -24,10 +24,23 @@ import { createContentTaskHandlers } from "./contentTaskHandlers";
 
 interface ContentPipelineContextValue {
   reindexFile: (fileId: string) => Promise<void>;
+  indexUnindexed: () => Promise<void>;
+  reindexAll: () => Promise<void>;
   getTasks: () => ReturnType<BackgroundTaskQueue["getTasks"]>;
+  subscribeTasks: (listener: () => void) => () => void;
 }
 
 const ContentPipelineContext = createContext<ContentPipelineContextValue | null>(null);
+
+export const isPendingFileReadyForIndexing = (
+  row: Pick<LiveStoreFile, "indexStatus" | "transcriptPath" | "type">,
+): boolean => {
+  if (row.indexStatus !== "pending") return false;
+  if ((row.type === "audio" || row.type === "video") && !row.transcriptPath) {
+    return false;
+  }
+  return true;
+};
 
 export const useContentPipeline = (): ContentPipelineContextValue => {
   const value = useContext(ContentPipelineContext);
@@ -80,6 +93,52 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     [ensureStarted, queue],
   );
 
+  const reindexAll = useCallback(async () => {
+    await ensureStarted();
+    const indexableRows = rows.filter((row) => !row.deletedAt && !row.purgedAt);
+    await Promise.all(
+      indexableRows.map(async (row) => {
+        await queue.cancel(
+          (task) =>
+            task.kind === "content.extract" &&
+            (task.payload as { fileId?: string }).fileId === row.id,
+        );
+        await queue.enqueue({
+          kind: "content.extract",
+          payload: { fileId: row.id },
+          dedupeKey: `manual-extract:${row.id}:${Date.now()}`,
+          priority: "user",
+          resourceGroup: "document-parser",
+        });
+      }),
+    );
+  }, [ensureStarted, queue, rows]);
+
+  const indexUnindexed = useCallback(async () => {
+    await ensureStarted();
+    const rowsToIndex = rows.filter(
+      (row) =>
+        !row.deletedAt &&
+        !row.purgedAt &&
+        row.indexStatus !== "indexed" &&
+        row.indexStatus !== "processing",
+    );
+    await Promise.all(
+      rowsToIndex.map((row) =>
+        queue.enqueue({
+          kind: "content.extract",
+          payload: { fileId: row.id },
+          dedupeKey:
+            row.indexStatus === "failed"
+              ? `manual-extract:${row.id}:${Date.now()}`
+              : `extract:${row.id}:${row.updatedAt instanceof Date ? row.updatedAt.getTime() : 0}`,
+          priority: "user",
+          resourceGroup: "document-parser",
+        }),
+      ),
+    );
+  }, [ensureStarted, queue, rows]);
+
   useEffect(() => {
     if (!settings.autoIndex) return;
     let disposed = false;
@@ -87,7 +146,7 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       if (disposed) return;
       for (const row of rows) {
         if (row.deletedAt || row.purgedAt) continue;
-        const isPending = row.indexStatus === "pending";
+        const isPending = isPendingFileReadyForIndexing(row);
         const isLegacyUnsupportedSummary =
           row.indexStatus === "indexed" &&
           row.indexSummary === "No extractable content for this file type." &&
@@ -108,8 +167,14 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
   }, [ensureStarted, queue, rows, settings.autoIndex]);
 
   const value = useMemo<ContentPipelineContextValue>(
-    () => ({ reindexFile, getTasks: () => queue.getTasks() }),
-    [queue, reindexFile],
+    () => ({
+      reindexFile,
+      indexUnindexed,
+      reindexAll,
+      getTasks: () => queue.getTasks(),
+      subscribeTasks: (listener) => queue.subscribe(listener),
+    }),
+    [indexUnindexed, queue, reindexAll, reindexFile],
   );
 
   return (
