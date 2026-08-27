@@ -1,9 +1,8 @@
-import { Button } from "@base-ui/react/button";
 import { ArrowsClockwiseIcon, CheckIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import LocalModelDownloadFiles from "@/components/settings/LocalModelDownloadFiles";
-import { SETTINGS_SECONDARY_BUTTON_CLASS_NAME } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { LocalModelOption } from "@/lib/local-model";
 import {
@@ -104,20 +103,20 @@ export default function LocalModelDownloadCard({
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <button
+        <Button
+          variant="primary"
           type="button"
           onClick={() => onDownload(model.id)}
           disabled={isDownloading || isCached}
-          className="inline-flex min-h-10 items-center justify-center rounded-full bg-memora-olive px-4 text-xs font-semibold text-[#fffdf8] transition hover:bg-[#a8af90] disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isCached ? "Ready" : isDownloading ? "Downloading..." : "Download"}
-        </button>
+        </Button>
         {onRefresh ? (
           <Button
             type="button"
+            variant="secondary"
             onClick={() => onRefresh(model.id)}
             disabled={isDownloading}
-            className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
           >
             <ArrowsClockwiseIcon className={cn("size-3.5", isChecking ? "animate-spin" : "")} />
             <span>Refresh</span>

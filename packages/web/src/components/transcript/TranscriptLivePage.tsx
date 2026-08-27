@@ -7,7 +7,7 @@ import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/componen
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { BackButton } from "@/components/transcript/BackButton";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
-import { Progress } from "@/components/Progress";
+import { Progress } from "@/components/ui/Progress";
 import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
 import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
@@ -321,13 +321,8 @@ export const Component = () => {
 
               {progressItems.length > 0 && (
                 <div className="space-y-2 rounded-2xl border border-zinc-200/80 bg-white/60 p-3">
-                  {progressItems.map(({ file, progress, total }, index) => (
-                    <Progress
-                      key={`${file}-${index}`}
-                      text={file}
-                      percentage={progress}
-                      total={total}
-                    />
+                  {progressItems.map(({ file, progress }, index) => (
+                    <Progress key={`${file}-${index}`} label={file} value={progress} />
                   ))}
                 </div>
               )}

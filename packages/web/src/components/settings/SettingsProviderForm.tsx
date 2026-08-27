@@ -1,18 +1,14 @@
-import { Button } from "@base-ui/react/button";
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
-  SETTINGS_ICON_BUTTON_CLASS_NAME,
-  SETTINGS_INPUT_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
-  SETTINGS_PRIMARY_BUTTON_CLASS_NAME,
-  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
-  SETTINGS_SEGMENT_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
 import type { ProviderApiFormat, ProviderFormState } from "@/types/settingsDialog";
 
@@ -58,13 +54,12 @@ export default function SettingsProviderForm({
           >
             Name
           </label>
-          <input
+          <Input
             id="provider-name"
             type="text"
             value={providerForm.name}
             onChange={(event) => onChange({ name: event.target.value })}
             placeholder="e.g. OpenAI, Anthropic, OpenRouter"
-            className={SETTINGS_INPUT_CLASS_NAME}
           />
         </div>
 
@@ -75,13 +70,12 @@ export default function SettingsProviderForm({
           >
             Base URL
           </label>
-          <input
+          <Input
             id="provider-base-url"
             type="text"
             value={providerForm.baseUrl}
             onChange={(event) => onChange({ baseUrl: event.target.value })}
             placeholder="https://api.openai.com/v1"
-            className={SETTINGS_INPUT_CLASS_NAME}
           />
         </div>
 
@@ -93,25 +87,23 @@ export default function SettingsProviderForm({
             API key
           </label>
           <div className="relative">
-            <input
+            <Input
               id="provider-api-key"
               type={showApiKey ? "text" : "password"}
               value={providerForm.apiKey}
               onChange={(event) => onChange({ apiKey: event.target.value })}
               placeholder="sk-..."
-              className={cn(SETTINGS_INPUT_CLASS_NAME, "pr-11")}
+              className="pr-11"
             />
-            <button
+            <Button
+              variant="icon"
               type="button"
               onClick={onToggleApiKey}
-              className={cn(
-                SETTINGS_ICON_BUTTON_CLASS_NAME,
-                "absolute right-1.5 top-1/2 size-8 -translate-y-1/2",
-              )}
+              className={cn("absolute right-1.5 top-1/2 size-8 -translate-y-1/2")}
               aria-label={showApiKey ? "Hide API key" : "Show API key"}
             >
               {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -119,19 +111,15 @@ export default function SettingsProviderForm({
           <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>API format</p>
           <div className="flex flex-wrap gap-2">
             {API_FORMATS.map((format) => (
-              <button
+              <Button
+                variant="segment"
+                active={providerForm.apiFormat === format}
                 key={format}
                 type="button"
                 onClick={() => onChange({ apiFormat: format })}
-                className={cn(
-                  SETTINGS_SEGMENT_BUTTON_CLASS_NAME,
-                  providerForm.apiFormat === format
-                    ? "border-[var(--color-memora-text-strong)] bg-[var(--color-memora-text-strong)] text-[var(--color-memora-surface)]"
-                    : "border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] text-[var(--color-memora-text-muted)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-hover-strong)] hover:text-[var(--color-memora-text)]",
-                )}
               >
                 {format}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -139,10 +127,10 @@ export default function SettingsProviderForm({
 
       {actions ?? (
         <div className="flex flex-wrap justify-end gap-2 pt-1">
-          <Button onClick={onCancel} className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={onSave} className={SETTINGS_PRIMARY_BUTTON_CLASS_NAME}>
+          <Button variant="primary" onClick={onSave}>
             {isAddingProvider ? "Add provider" : "Save changes"}
           </Button>
         </div>
