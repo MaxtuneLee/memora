@@ -93,6 +93,11 @@ export const buildFileSearchItems = (
       preview,
       keywords: [file.name, file.type, typeLabel, file.mimeType, ...pathSegments],
       updatedAt: file.updatedAt instanceof Date ? file.updatedAt.getTime() : undefined,
+      fileIcon: {
+        name: file.name,
+        mimeType: file.mimeType,
+        type: file.type,
+      },
       intent:
         file.type === "audio" || file.type === "video"
           ? {
@@ -106,7 +111,7 @@ export const buildFileSearchItems = (
               }
             : {
                 type: "desktop-intent",
-                to: "/",
+                to: "/desktop",
                 desktopIntent: {
                   type: "openPreview",
                   fileId: file.id,
@@ -151,7 +156,7 @@ export const buildFolderSearchItems = (
       updatedAt: folder.updatedAt instanceof Date ? folder.updatedAt.getTime() : undefined,
       intent: {
         type: "desktop-intent",
-        to: "/",
+        to: "/desktop",
         desktopIntent: {
           type: "openFolder",
           folderId: folder.id,
@@ -189,9 +194,14 @@ export const buildContentSearchItems = (
     description: `Content match${result.locator?.kind === "page" ? ` · Page ${result.locator.pageNumber}` : ""}`,
     preview: result.content,
     keywords: [result.fileName, result.content, "content", "extracted text"],
+    fileIcon: {
+      name: result.fileName,
+      mimeType: result.fileMimeType,
+      type: result.fileType,
+    },
     intent: {
       type: "desktop-intent",
-      to: "/",
+      to: "/desktop",
       desktopIntent: {
         type: "openPreview",
         fileId: result.fileId,

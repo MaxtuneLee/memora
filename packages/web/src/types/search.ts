@@ -1,5 +1,6 @@
 import type { SettingsSectionId } from "@/types/settings";
 import type { ContentLocator } from "@/lib/content/types";
+import type { FileType } from "@/types/library";
 
 export type SearchItemKind =
   | "file"
@@ -68,5 +69,10 @@ export interface GlobalSearchItem {
   preview: string;
   keywords: string[];
   updatedAt?: number;
+  fileIcon?: {
+    name: string;
+    mimeType: string;
+    type: FileType;
+  };
   intent: SearchIntent;
 }

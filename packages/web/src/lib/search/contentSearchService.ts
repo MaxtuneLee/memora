@@ -8,6 +8,8 @@ import { LEXICAL_INDEX_CONFIG } from "./searchIndexConfig";
 export interface ContentSearchResult {
   fileId: string;
   fileName: string;
+  fileMimeType: string;
+  fileType: LiveStoreFile["type"];
   content: string;
   locator?: ContentLocator;
   score: number;
@@ -72,6 +74,8 @@ export const searchContent = async (input: {
     results.push({
       fileId: file.id,
       fileName: file.name,
+      fileMimeType: file.mimeType,
+      fileType: file.type,
       content: hit.content,
       locator: hit.locator,
       score: hit.score,
