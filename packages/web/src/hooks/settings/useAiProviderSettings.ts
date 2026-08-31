@@ -1,11 +1,15 @@
 import { Toast } from "@base-ui/react/toast";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseProviderModel } from "@/lib/settings/dialogHelpers";
+import { fetchProviderModels } from "@/lib/settings/providerModels";
+import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import { settingsDocumentQuery$, settingsProvidersQuery$ } from "@/lib/settings/queries";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
+import { providerCredentialEvents } from "@/livestore/providerCredential";
+import { useProviderCredentials } from "./useProviderCredentials";
+import { useModelRouting } from "./useModelRouting";
 import { settingEvents, type setting } from "@/livestore/setting";
-import type { ModelInfo, ProviderFormState } from "@/types/settingsDialog";
+import type { ProviderFormState } from "@/types/settingsDialog";
 
 const EMPTY_PROVIDER_FORM: ProviderFormState = {
   name: "",
@@ -19,9 +23,11 @@ interface UseAiProviderSettingsOptions {
 }
 
 export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) => {
-  const { store } = useStore();
+  const store = useAppStore();
   const providers = store.useQuery(settingsProvidersQuery$) as ProviderRow[];
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
+  const getProviderApiKey = useProviderCredentials();
+  const { routing, setFeatureModel } = useModelRouting();
   const { add } = Toast.useToastManager();
 
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
@@ -84,17 +90,20 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
     setShowApiKey(false);
   }, []);
 
-  const handleEditProvider = useCallback((provider: ProviderRow) => {
-    setEditingProviderId(provider.id);
-    setIsAddingProvider(false);
-    setProviderForm({
-      name: provider.name,
-      baseUrl: provider.baseUrl,
-      apiKey: provider.apiKey,
-      apiFormat: provider.apiFormat,
-    });
-    setShowApiKey(false);
-  }, []);
+  const handleEditProvider = useCallback(
+    (provider: ProviderRow) => {
+      setEditingProviderId(provider.id);
+      setIsAddingProvider(false);
+      setProviderForm({
+        name: provider.name,
+        baseUrl: provider.baseUrl,
+        apiKey: getProviderApiKey(provider),
+        apiFormat: provider.apiFormat,
+      });
+      setShowApiKey(false);
+    },
+    [getProviderApiKey],
+  );
 
   const handleCancelProviderForm = useCallback(() => {
     setIsAddingProvider(false);
@@ -112,16 +121,31 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       return;
     }
 
+    let baseUrl: string;
+    try {
+      baseUrl = normalizeProviderEndpoint(providerForm.baseUrl);
+    } catch (error) {
+      add({
+        title: "Check the base URL",
+        description: error instanceof Error ? error.message : "Invalid endpoint.",
+        type: "error",
+      });
+      return;
+    }
     if (isAddingProvider) {
       const id = crypto.randomUUID();
       store.commit(
         providerEvents.providerCreated({
           id,
           name: providerForm.name.trim(),
-          baseUrl: providerForm.baseUrl.trim().replace(/\/+$/, ""),
-          apiKey: providerForm.apiKey,
+          baseUrl,
           apiFormat: providerForm.apiFormat,
           createdAt: new Date(),
+        }),
+        providerCredentialEvents.providerCredentialSet({
+          providerId: id,
+          baseUrl,
+          apiKey: providerForm.apiKey.trim(),
         }),
       );
       add({ title: "Provider added", type: "success" });
@@ -130,10 +154,14 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
         providerEvents.providerUpdated({
           id: editingProviderId,
           name: providerForm.name.trim(),
-          baseUrl: providerForm.baseUrl.trim().replace(/\/+$/, ""),
-          apiKey: providerForm.apiKey,
+          baseUrl,
           apiFormat: providerForm.apiFormat,
           updatedAt: new Date(),
+        }),
+        providerCredentialEvents.providerCredentialSet({
+          providerId: editingProviderId,
+          baseUrl,
+          apiKey: providerForm.apiKey.trim(),
         }),
       );
       add({ title: "Provider updated", type: "success" });
@@ -146,8 +174,12 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
 
   const handleDeleteProvider = useCallback(
     (id: string) => {
-      store.commit(providerEvents.providerDeleted({ id, deletedAt: new Date() }));
-      if (settings.selectedProviderId === id) {
+      store.commit(
+        providerEvents.providerDeleted({ id, deletedAt: new Date() }),
+        providerCredentialEvents.providerCredentialDeleted({ providerId: id }),
+      );
+      if (routing.assistant.providerId === id || settings.selectedProviderId === id) {
+        setFeatureModel("assistant", { source: "cloud", providerId: "", modelId: "" });
         store.commit(
           settingEvents.settingsSet({
             selectedProviderId: "",
@@ -160,42 +192,27 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       }
       add({ title: "Provider removed", type: "success" });
     },
-    [add, editingProviderId, settings.selectedProviderId, store],
+    [
+      add,
+      editingProviderId,
+      routing.assistant.providerId,
+      setFeatureModel,
+      settings.selectedProviderId,
+      store,
+    ],
   );
 
   const handleFetchModels = useCallback(
     async (provider: ProviderRow) => {
       setFetchingModels(provider.id);
       try {
-        const baseUrl = provider.baseUrl.replace(/\/+$/, "");
-        const headers: Record<string, string> = {};
-        if (provider.apiKey) {
-          headers.Authorization = `Bearer ${provider.apiKey}`;
-        }
-
-        const response = await fetch(`${baseUrl}/models`, { headers });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`${response.status}: ${text.slice(0, 200)}`);
-        }
-
-        const json = (await response.json()) as {
-          data?: unknown[];
-          models?: unknown[];
-        };
-        const rawModels = json.data ?? json.models ?? [];
-        const models: ModelInfo[] = rawModels.flatMap((model) => {
-          const parsedModel = parseProviderModel(model);
-          return parsedModel ? [parsedModel] : [];
-        });
+        const models = await fetchProviderModels(provider.baseUrl, getProviderApiKey(provider));
 
         if (import.meta.env.DEV) {
           console.info("[provider] models:fetched", {
             providerId: provider.id,
             providerName: provider.name,
             parsedCount: models.length,
-            rawSample: rawModels.slice(0, 12),
-            parsedSample: models.slice(0, 12),
           });
         }
 
@@ -222,11 +239,12 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
         setFetchingModels(null);
       }
     },
-    [add, store],
+    [add, getProviderApiKey, store],
   );
 
   const handleSelectModel = useCallback(
     (providerId: string, modelId: string) => {
+      setFeatureModel("assistant", { source: "cloud", providerId, modelId });
       store.commit(
         settingEvents.settingsSet({
           selectedProviderId: providerId,
@@ -235,13 +253,13 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       );
       setModelDropdownOpen(false);
     },
-    [store],
+    [setFeatureModel, store],
   );
 
   return {
     providers,
-    selectedProviderId: settings.selectedProviderId,
-    selectedModel: settings.selectedModel,
+    selectedProviderId: routing.assistant.providerId,
+    selectedModel: routing.assistant.modelId,
     editingProviderId,
     isAddingProvider,
     providerForm,

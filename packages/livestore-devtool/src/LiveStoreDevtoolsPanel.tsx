@@ -1,4 +1,3 @@
-import { useStore } from "@livestore/react";
 import { dir } from "@memora/fs";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -44,6 +43,8 @@ export interface LiveStoreDevtoolsQuerySection {
 }
 
 export interface LiveStoreDevtoolsPanelProps {
+  querySql(query: string): unknown;
+  executeSql?(query: string): { durationMs: number };
   currentPath?: string;
   title?: string;
   storagePath?: string;
@@ -719,13 +720,14 @@ const DataTable = ({
 };
 
 export function LiveStoreDevtoolsPanel({
+  querySql,
+  executeSql,
   currentPath,
   title = "LiveStore Devtools",
   storagePath = DEFAULT_STORAGE_PATH,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   maxRows = DEFAULT_MAX_ROWS,
 }: LiveStoreDevtoolsPanelProps) {
-  const { store } = useStore();
   const [tablesState, setTablesState] = useState<QuerySectionState<TableInfoRow>>({
     rows: [],
     updatedAt: null,
@@ -766,15 +768,12 @@ export function LiveStoreDevtoolsPanel({
     let nextTablesState: QuerySectionState<TableInfoRow>;
 
     try {
-      const tables = store.query({
-        query: `
+      const tables = querySql(`
           SELECT name, type, sql
           FROM sqlite_master
           WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
           ORDER BY name ASC
-        `,
-        bindValues: {},
-      }) as TableInfoRow[];
+        `) as TableInfoRow[];
 
       nextTablesState = {
         rows: sortTables(tables),
@@ -819,8 +818,7 @@ export function LiveStoreDevtoolsPanel({
     }
 
     try {
-      const columns = store.query({
-        query: `
+      const columns = querySql(`
           SELECT
             cid,
             name,
@@ -830,9 +828,7 @@ export function LiveStoreDevtoolsPanel({
             pk
           FROM pragma_table_info(${escapeSqlString(nextSelectedTable)})
           ORDER BY cid ASC
-        `,
-        bindValues: {},
-      }) as TableColumnRow[];
+        `) as TableColumnRow[];
 
       setColumnsState({
         rows: columns,
@@ -848,10 +844,9 @@ export function LiveStoreDevtoolsPanel({
     }
 
     try {
-      const rows = store.query({
-        query: `SELECT * FROM ${quoteIdentifier(nextSelectedTable)} LIMIT ${maxRows}`,
-        bindValues: {},
-      }) as QueryRow[];
+      const rows = querySql(
+        `SELECT * FROM ${quoteIdentifier(nextSelectedTable)} LIMIT ${maxRows}`,
+      ) as QueryRow[];
 
       setRowsState({
         rows,
@@ -867,7 +862,7 @@ export function LiveStoreDevtoolsPanel({
     }
 
     setOpfsSnapshot(await readOpfsSnapshot(storagePath));
-  }, [maxRows, selectedTable, storagePath, store]);
+  }, [maxRows, querySql, selectedTable, storagePath]);
 
   useEffect(() => {
     void runRefresh();
@@ -899,10 +894,7 @@ export function LiveStoreDevtoolsPanel({
       const startedAt = performance.now();
 
       if (isReadStatement(statement)) {
-        const rows = store.query({
-          query: statement,
-          bindValues: {},
-        }) as QueryRow[];
+        const rows = querySql(statement) as QueryRow[];
         const durationMs = performance.now() - startedAt;
 
         setSqlResult({
@@ -914,16 +906,7 @@ export function LiveStoreDevtoolsPanel({
           kind: "read",
         });
       } else {
-        const internalStore = store as unknown as {
-          sqliteDbWrapper?: {
-            execute: (
-              query: string,
-              bindValues?: Record<string, unknown>,
-            ) => { durationMs: number };
-          };
-        };
-
-        const execution = internalStore.sqliteDbWrapper?.execute(statement, {});
+        const execution = executeSql?.(statement);
         if (!execution) {
           throw new Error(
             "Write queries are unavailable because the sqlite executor is not exposed.",
@@ -954,7 +937,7 @@ export function LiveStoreDevtoolsPanel({
       });
       setResultMode("sql");
     }
-  }, [runRefresh, sqlInput, store]);
+  }, [executeSql, querySql, runRefresh, sqlInput]);
 
   const tables = useMemo(() => {
     return tablesState.rows as unknown as TableInfoRow[];

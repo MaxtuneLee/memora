@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>LiveStore diagnostic</title>
+  </head>
+  <body>
+    <pre id="result">Loading…</pre>
+    <script type="module">
+      const result = document.querySelector("#result");
+      const markerName = "memora-livestore-main-v4-to-v6.complete";
+
+      try {
+        const root = await navigator.storage.getDirectory();
+        const entries = [];
+        for await (const [name, handle] of root.entries()) {
+          entries.push({ name, kind: handle.kind });
+        }
+
+        let marker = null;
+        try {
+          const markerHandle = await root.getFileHandle(markerName);
+          marker = JSON.parse(await (await markerHandle.getFile()).text());
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === "NotFoundError")) throw error;
+        }
+
+        const migratedFiles = [];
+        const migratedDirectory = await root.getDirectoryHandle("livestore-main@6");
+        for await (const [name, handle] of migratedDirectory.entries()) {
+          if (handle.kind !== "file") {
+            migratedFiles.push({ name, kind: handle.kind });
+            continue;
+          }
+
+          try {
+            const file = await handle.getFile();
+            const header = new Uint8Array(await file.slice(0, 512).arrayBuffer());
+            const end = header.indexOf(0);
+            const path = new TextDecoder().decode(header.subarray(0, end === -1 ? 512 : end));
+            migratedFiles.push({ name, kind: handle.kind, size: file.size, path });
+          } catch (error) {
+            migratedFiles.push({
+              name,
+              kind: handle.kind,
+              error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+            });
+          }
+        }
+
+        result.textContent = JSON.stringify({ ok: true, marker, entries, migratedFiles }, null, 2);
+      } catch (error) {
+        result.textContent = JSON.stringify(
+          { ok: false, error: error instanceof Error ? error.stack : String(error) },
+          null,
+          2,
+        );
+      }
+    </script>
+  </body>
+</html>
