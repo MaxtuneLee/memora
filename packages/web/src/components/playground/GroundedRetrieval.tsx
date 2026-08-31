@@ -1,5 +1,5 @@
 import { Button } from "@base-ui/react/button";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import type { PromptSegment } from "@memora/ai-core";
 import {
   BrainIcon,
@@ -245,7 +245,7 @@ const formatElapsed = (value: number | null): string => {
 };
 
 export default function GroundedRetrieval() {
-  const { store } = useStore();
+  const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
   const files = store.useQuery(chatActiveFilesQuery$) as LiveStoreFile[];

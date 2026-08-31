@@ -174,6 +174,7 @@ type IndexWorkerRequest = {
     id: string;
     type: K;
     payload: IndexWorkerRequestMap[K];
+    indexConfig?: VectorDbIndexConfig;
   };
 }[keyof IndexWorkerRequestMap];
 
@@ -231,6 +232,7 @@ export const getVectorDbContentHash = async (value: string): Promise<string> => 
 };
 
 export class VectorDbClient {
+  private indexConfig: VectorDbIndexConfig | undefined;
   private worker: SharedWorker | null = null;
   private port: MessagePort | null = null;
   private mountCount = 0;
@@ -349,17 +351,32 @@ export class VectorDbClient {
   private call<T extends keyof IndexWorkerRequestMap>(
     type: T,
     payload: IndexWorkerRequestMap[T],
+    indexConfig = this.indexConfig,
   ): Promise<IndexWorkerResponseMap[T]> {
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
-      const request = { id, type, payload } as IndexWorkerRequest;
+      const request = { id, type, payload, indexConfig } as IndexWorkerRequest;
       this.getPort().postMessage(request);
     });
   }
 
   initialize(config: VectorDbIndexConfig): Promise<VectorDbIndexHealth> {
+    this.indexConfig = { ...config };
     return this.call("initialize", { config });
+  }
+
+  // Each request carries its index identity. Other tabs and background tasks may
+  // initialize a different model while this caller is awaiting an embedding.
+  forIndex(config: VectorDbIndexConfig): VectorDbIndexClient {
+    const snapshot = { ...config };
+    return {
+      prepareDocument: (plan) => this.call("prepareDocument", { plan }, snapshot),
+      upsertChunkBatch: (batch) => this.call("upsertChunkBatch", { batch }, snapshot),
+      finalizeDocument: (plan) => this.call("finalizeDocument", { plan }, snapshot),
+      search: (request) => this.call("search", { request }, snapshot),
+      checkDocuments: (documents) => this.call("checkDocuments", { documents }, snapshot),
+    };
   }
 
   health(): Promise<VectorDbIndexHealth> {
@@ -410,6 +427,10 @@ export class VectorDbClient {
     this.detach();
   }
 }
+
+export type VectorDbIndexClient = Pick<VectorDbClient,
+  "prepareDocument" | "upsertChunkBatch" | "finalizeDocument" | "search" | "checkDocuments"
+>;
 
 export const createVectorDbClient = (): VectorDbClient => {
   return new VectorDbClient();

@@ -1,7 +1,7 @@
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { ContentLocator } from "@/lib/content/types";
 import type { VectorDbClient, VectorDbSearchHit } from "@/lib/vector-db";
-import type { BgeEmbeddingClient, BgeEmbeddingModel } from "@/lib/playground/bgeEmbeddingClient";
+import { validateEmbeddings, type EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 
 import { LEXICAL_INDEX_CONFIG } from "./searchIndexConfig";
 
@@ -40,33 +40,46 @@ export const searchContent = async (input: {
   files: readonly LiveStoreFile[];
   topK?: number;
   fileIds?: readonly string[];
-  semantic?: {
-    model: BgeEmbeddingModel;
-    embeddingClient: Pick<BgeEmbeddingClient, "embed">;
-    signal?: AbortSignal;
-  };
+  signal?: AbortSignal;
+  semantic?: EmbeddingRuntime | null;
 }): Promise<ContentSearchResult[]> => {
   const query = input.query.trim();
   if (!query) return [];
-  await input.vectorDb.initialize(LEXICAL_INDEX_CONFIG);
-  const queryEmbedding = input.semantic
-    ? (
-        await input.semantic.embeddingClient.embed(input.semantic.model, [query], undefined, {
-          priority: "background",
-          signal: input.semantic.signal,
-        })
-      )[0]
-    : undefined;
-  const hits = await input.vectorDb.search({
+  input.signal?.throwIfAborted();
+  // Always retain the complete lexical index while the semantic index is being built.
+  const activeFiles = input.files.filter((file) => !file.deletedAt && !file.purgedAt && (!input.fileIds || input.fileIds.includes(file.id)));
+  if (!activeFiles.length) return [];
+  const scope = { kind: "documents" as const, documentIds: activeFiles.map((file) => file.id) };
+  const topK = Math.max(1, input.topK ?? 8);
+  const lexical = await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).search({
     query,
-    scope: input.fileIds ? { kind: "documents", documentIds: [...input.fileIds] } : { kind: "all" },
-    topK: Math.max(1, input.topK ?? 8),
+    scope,
+    topK: 40,
     lexicalCandidateK: 40,
     semanticCandidateK: 0,
-    queryEmbedding,
-    semanticWeight: queryEmbedding ? 1 : 0,
+    semanticWeight: 0,
   });
-  const filesById = new Map(input.files.map((file) => [file.id, file]));
+  input.signal?.throwIfAborted();
+  const semantic: VectorDbSearchHit[] = [];
+  if (input.semantic) {
+    const embeddings = await input.semantic.embed([query], "query", { signal: input.signal });
+    input.signal?.throwIfAborted();
+    validateEmbeddings(embeddings, 1, input.semantic.indexConfig.dimensions);
+    semantic.push(...await input.vectorDb.forIndex(input.semantic.indexConfig).search({
+      query, scope, topK: 40, lexicalCandidateK: 0, semanticCandidateK: 40,
+      lexicalWeight: 0, semanticWeight: 1, queryEmbedding: embeddings[0],
+    }));
+  }
+  input.signal?.throwIfAborted();
+  const merged = new Map<string, VectorDbSearchHit>();
+  for (const list of [lexical, semantic]) {
+    list.forEach((hit, rank) => {
+      const previous = merged.get(hit.chunkId);
+      merged.set(hit.chunkId, { ...hit, score: (previous?.score ?? 0) + 1 / (60 + rank + 1) });
+    });
+  }
+  const hits = [...merged.values()].sort((a, b) => b.score - a.score).slice(0, topK);
+  const filesById = new Map(activeFiles.map((file) => [file.id, file]));
   const results: ContentSearchResult[] = [];
   for (const hit of groupAdjacentHits(hits)) {
     const file = filesById.get(hit.documentId);

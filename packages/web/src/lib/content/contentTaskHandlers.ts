@@ -1,7 +1,8 @@
 import { file as opfsFile } from "@memora/fs";
 
 import { fileEvents, fileTable, type file as LiveStoreFile } from "@/livestore/file";
-import type { VectorDbClient } from "@/lib/vector-db";
+import { getVectorDbIndexId, type VectorDbClient } from "@/lib/vector-db";
+import type { EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import type { BackgroundTaskHandler } from "@/lib/background-tasks";
 
@@ -9,6 +10,7 @@ import {
   contentParserRegistry,
   createSourceRevision,
   indexContentArtifactLexically,
+  indexContentArtifactSemantically,
   readContentArtifact,
   removeContentArtifact,
   writeContentArtifact,
@@ -72,6 +74,7 @@ const setIndexStatus = (
 export const createContentTaskHandlers = (input: {
   store: ContentTaskStore;
   vectorDb: VectorDbClient;
+  getEmbeddingRuntime?: () => EmbeddingRuntime | null;
 }): BackgroundTaskHandler[] => {
   const extract: BackgroundTaskHandler<{ fileId: string }> = {
     kind: "content.extract",
@@ -130,20 +133,26 @@ export const createContentTaskHandlers = (input: {
 
   const lexical: BackgroundTaskHandler<{ fileId: string; sourceRevision: string }> = {
     kind: "content.index.lexical",
-    run: async ({ fileId, sourceRevision }) => {
+    run: async ({ fileId, sourceRevision }, context) => {
       const row = getFile(input.store, fileId);
       if (!row || row.deletedAt || row.purgedAt) return;
       const artifact = await readContentArtifact(fileId);
       if (!artifact || artifact.sourceRevision !== sourceRevision) return;
       try {
-        await input.vectorDb.initialize(LEXICAL_INDEX_CONFIG);
-        await indexContentArtifactLexically(input.vectorDb, artifact);
+        context.signal.throwIfAborted();
+        await indexContentArtifactLexically(input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG), artifact);
         setIndexStatus(
           input.store,
           fileId,
           "indexed",
           [artifact.title, artifact.plainText].filter(Boolean).join(" — ").slice(0, 280),
         );
+        const runtime = input.getEmbeddingRuntime?.();
+        if (runtime) {
+          const indexId = await getVectorDbIndexId(runtime.indexConfig);
+          await context.enqueue({ kind: "content.index.semantic", payload: { fileId, sourceRevision, indexId },
+            dedupeKey: `semantic:${fileId}:${sourceRevision}:${indexId}`, resourceGroup: "embedding", dependsOn: [context.task.id] });
+        }
       } catch (error) {
         setIndexStatus(
           input.store,
@@ -153,6 +162,22 @@ export const createContentTaskHandlers = (input: {
         );
         throw error;
       }
+    },
+  };
+
+  const semantic: BackgroundTaskHandler<{ fileId: string; sourceRevision?: string; indexId: string }> = {
+    kind: "content.index.semantic",
+    run: async ({ fileId, sourceRevision, indexId }, context) => {
+      context.signal.throwIfAborted();
+      const row = getFile(input.store, fileId);
+      if (!row || row.deletedAt || row.purgedAt) return;
+      const runtime = input.getEmbeddingRuntime?.();
+      if (!runtime || await getVectorDbIndexId(runtime.indexConfig) !== indexId) return;
+      const artifact = await readContentArtifact(fileId);
+      if (!artifact || (sourceRevision && artifact.sourceRevision !== sourceRevision)) return;
+      await indexContentArtifactSemantically(input.vectorDb.forIndex(runtime.indexConfig), artifact, runtime, {
+        signal: context.signal, onProgress: context.reportProgress,
+      });
     },
   };
 
@@ -186,5 +211,5 @@ export const createContentTaskHandlers = (input: {
     },
   };
 
-  return [extract, lexical, remove, reconcile] as unknown as BackgroundTaskHandler[];
+  return [extract, lexical, semantic, remove, reconcile] as unknown as BackgroundTaskHandler[];
 };

@@ -6,6 +6,7 @@ import { fileTable } from "@/livestore/file";
 import { readExtractedContent } from "@/lib/content/artifactStorage";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { searchContent } from "@/lib/search/contentSearchService";
+import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
 
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
@@ -210,6 +211,7 @@ export const createFileTools = (
             referenceScope.isActive || requestedIds.length > 0 ? requestedIds : undefined,
           files,
           vectorDb: modelWorkerFactory.vectorDb,
+          semantic: readEmbeddingRuntime(store),
         });
         return results.map((result) => ({
           fileId: result.fileId,

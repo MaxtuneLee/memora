@@ -79,6 +79,7 @@ export interface VectorDbWorkerRequest {
     | "reset"
     | "close";
   payload: unknown;
+  indexConfig?: VectorDbIndexConfig;
 }
 
 export type VectorDbWorkerResponse =
@@ -345,7 +346,9 @@ const persistCurrentIndex = async (): Promise<void> => {
 
 const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbIndexHealth> => {
   const nextIndexId = await getVectorDbIndexId(nextConfig);
+  if (db && indexId === nextIndexId) return makeHealth();
   if (db && indexId !== nextIndexId) {
+    await persistCurrentIndex();
     db.close();
     db = null;
   }
@@ -941,6 +944,9 @@ const reset = (): VectorDbIndexHealth => {
 };
 
 export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Promise<unknown> => {
+  if (request.indexConfig && request.type !== "initialize") {
+    await initialize(request.indexConfig);
+  }
   switch (request.type) {
     case "initialize":
       return initialize((request.payload as { config: VectorDbIndexConfig }).config);

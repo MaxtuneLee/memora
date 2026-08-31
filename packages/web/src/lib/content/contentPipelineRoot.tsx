@@ -1,5 +1,5 @@
 import { queryDb } from "@livestore/livestore";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import {
   createContext,
   useCallback,
@@ -11,6 +11,8 @@ import {
 } from "react";
 
 import { modelWorkerFactory } from "@/lib/model-worker";
+import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
+import { getVectorDbIndexId } from "@/lib/vector-db";
 import { BackgroundTaskQueue, createBackgroundTaskQueue } from "@/lib/background-tasks";
 import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
@@ -26,6 +28,7 @@ interface ContentPipelineContextValue {
   reindexFile: (fileId: string) => Promise<void>;
   indexUnindexed: () => Promise<void>;
   reindexAll: () => Promise<void>;
+  reindexSemantic: () => Promise<void>;
   getTasks: () => ReturnType<BackgroundTaskQueue["getTasks"]>;
   subscribeTasks: (listener: () => void) => () => void;
 }
@@ -49,7 +52,7 @@ export const useContentPipeline = (): ContentPipelineContextValue => {
 };
 
 export function ContentPipelineRoot({ children }: { children: ReactNode }) {
-  const { store } = useStore();
+  const store = useAppStore();
   const rows = store.useQuery(contentPipelineFilesQuery$) as LiveStoreFile[];
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
@@ -63,6 +66,7 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       createContentTaskHandlers({
         store: store as unknown as Parameters<typeof createContentTaskHandlers>[0]["store"],
         vectorDb: modelWorkerFactory.vectorDb,
+        getEmbeddingRuntime: () => readEmbeddingRuntime(store),
       }),
     [store],
   );
@@ -92,6 +96,19 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     },
     [ensureStarted, queue],
   );
+
+  const reindexSemantic = useCallback(async () => {
+    const runtime = readEmbeddingRuntime(store);
+    if (!runtime) return;
+    await ensureStarted();
+    const indexId = await getVectorDbIndexId(runtime.indexConfig);
+    await queue.cancel((task) => task.kind === "content.index.semantic");
+    for (const row of rows) {
+      if (row.deletedAt || row.purgedAt || row.indexStatus !== "indexed") continue;
+      await queue.enqueue({ kind: "content.index.semantic", payload: { fileId: row.id, indexId },
+        dedupeKey: `semantic-rebuild:${row.id}:${indexId}:${Date.now()}`, priority: "user", resourceGroup: "embedding" });
+    }
+  }, [ensureStarted, queue, rows, store]);
 
   const reindexAll = useCallback(async () => {
     await ensureStarted();
@@ -171,10 +188,11 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       reindexFile,
       indexUnindexed,
       reindexAll,
+      reindexSemantic,
       getTasks: () => queue.getTasks(),
       subscribeTasks: (listener) => queue.subscribe(listener),
     }),
-    [indexUnindexed, queue, reindexAll, reindexFile],
+    [indexUnindexed, queue, reindexAll, reindexFile, reindexSemantic],
   );
 
   return (

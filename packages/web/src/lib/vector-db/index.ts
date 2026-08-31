@@ -10,6 +10,7 @@ export {
   type VectorDbDocumentIndexPlan,
   type VectorDbDocumentStatus,
   type VectorDbIndexConfig,
+  type VectorDbIndexClient,
   type VectorDbIndexHealth,
   type VectorDbIndexInspection,
   type VectorDbIndexedChunk,
