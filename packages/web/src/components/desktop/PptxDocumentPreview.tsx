@@ -7,7 +7,7 @@ import {
   useViewerBuildingBlocks,
 } from "pptx-react-viewer";
 import { keyToLabel, translationsEn } from "pptx-react-viewer/i18n";
-import "pptx-react-viewer/styles";
+import "@/styles/pptxViewer.css";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 
 const pptxViewerI18n = createInstance();

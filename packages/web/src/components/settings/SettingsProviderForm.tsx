@@ -93,6 +93,9 @@ export default function SettingsProviderForm({
               value={providerForm.apiKey}
               onChange={(event) => onChange({ apiKey: event.target.value })}
               placeholder="sk-..."
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby="provider-api-key-hint"
               className="pr-11"
             />
             <Button
@@ -105,6 +108,12 @@ export default function SettingsProviderForm({
               {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
             </Button>
           </div>
+          <p
+            id="provider-api-key-hint"
+            className="mt-2 text-xs text-[var(--color-memora-text-muted)]"
+          >
+            Saved only on this device. API keys are never synced or included in workspace exports.
+          </p>
         </div>
 
         <div>

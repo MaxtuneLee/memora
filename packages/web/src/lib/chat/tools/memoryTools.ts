@@ -24,18 +24,18 @@ export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefiniti
           assistant_reply: string;
           reason: string;
         };
-        const extractionConfig = options.getMemoryExtractionConfig?.() ?? null;
-        if (!extractionConfig?.baseUrl || !extractionConfig.apiKey || !extractionConfig.model) {
-          return {
-            updated: false,
-            noticeCount: 0,
-            message: "Memory extraction is unavailable because AI settings are incomplete.",
-          };
-        }
-
         try {
+          const runtime = options.getMemoryExtractionRuntime?.() ?? null;
+          if (!runtime) {
+            return {
+              updated: false,
+              noticeCount: 0,
+              message: "Memory extraction is unavailable because AI settings are incomplete.",
+            };
+          }
+
           const notices = await extractNoticeCandidatesWithAI({
-            ...extractionConfig,
+            runtime,
             userMessage: payload.user_request,
             assistantMessage: payload.assistant_reply,
           });
@@ -57,11 +57,12 @@ export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefiniti
             noticeCount: result.memory.notices.length,
             message: payload.reason,
           };
-        } catch (error) {
+        } catch {
           return {
             updated: false,
             noticeCount: 0,
-            message: error instanceof Error ? error.message : String(error),
+            message:
+              "Memory extraction failed. Check the model selected for Memory preferences in settings.",
           };
         }
       },

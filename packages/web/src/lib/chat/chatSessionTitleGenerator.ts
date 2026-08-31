@@ -1,8 +1,7 @@
-import { createLocalPiRuntime } from "@memora/ai-provider-pi";
-import { getLocalModelManifest, type LocalReasoningMode } from "@memora/local-model-runtime";
+import type { PiModelRuntime } from "@memora/ai-provider-pi";
+import type { LocalReasoningMode } from "@memora/local-model-runtime";
 
 import type { ChatMessage as AgentChatMessage } from "@/hooks/chat/useAgent";
-import { localModelClient } from "@/lib/local-model";
 
 const TITLE_SYSTEM_PROMPT = `You write short chat titles for a conversation list.
 Return only the title. No quotes. No punctuation at the end.
@@ -40,25 +39,18 @@ const buildConversationExcerpt = (messages: AgentChatMessage[]): string => {
 
 export const generateChatSessionTitle = async ({
   messages,
-  modelId,
+  runtime,
   reasoningMode = "non-thinking",
   signal,
 }: {
   messages: AgentChatMessage[];
-  modelId: string;
+  runtime: PiModelRuntime;
   reasoningMode?: LocalReasoningMode;
   signal?: AbortSignal;
 }): Promise<string | null> => {
   const excerpt = buildConversationExcerpt(messages);
   if (!excerpt) return null;
 
-  const manifest = getLocalModelManifest(modelId);
-  if (!manifest) return null;
-  const runtime = createLocalPiRuntime({
-    client: localModelClient,
-    manifest,
-    priority: "background",
-  });
   const stream = await runtime.stream(
     runtime.model,
     {
@@ -81,6 +73,8 @@ export const generateChatSessionTitle = async ({
 
   let output = "";
   for await (const event of stream) {
+    if (event.type === "error")
+      throw new Error("Could not generate a conversation title with the selected model.");
     if (event.type === "text_delta") output += event.delta;
   }
 

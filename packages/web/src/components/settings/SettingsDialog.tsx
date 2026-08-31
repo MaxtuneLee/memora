@@ -16,6 +16,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
+import SettingsModelRoutingSection from "@/components/settings/SettingsModelRoutingSection";
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
 import {
@@ -53,6 +54,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   general: GearSixIcon,
   hotkeys: KeyboardIcon,
   "ai-provider": CpuIcon,
+  "model-routing": CpuIcon,
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
   indexing: ListMagnifyingGlassIcon,
@@ -191,6 +193,7 @@ export default function SettingsDialog({
   };
 
   const renderSectionContent = () => {
+    if (activeSection === "model-routing") return <SettingsModelRoutingSection />;
     if (activeSection === "general") {
       return <SettingsGeneralSection />;
     }

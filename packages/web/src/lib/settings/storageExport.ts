@@ -8,7 +8,16 @@ import { fileEvents } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import { folderEvents } from "@/livestore/folder";
 import type { provider as LiveStoreProvider } from "@/livestore/provider";
-import { providerEvents } from "@/livestore/provider";
+import { providerEvents, toProviderMetadata } from "@/livestore/provider";
+import { providerCredentialEvents } from "@/livestore/providerCredential";
+import { parseProviderModels } from "@/lib/settings/dialogHelpers";
+import { redactProviderEndpoint } from "@/lib/settings/providerEndpoint";
+import { normalizeAiModelRouting } from "@/lib/models/modelRouting";
+import {
+  normalizeLocalModelUsageTotals,
+  type LocalModelUsageTotals,
+} from "@/lib/models/localTokenUsage";
+import type { StoredModelRouting } from "@/lib/models/modelRoutingSchema";
 import { normalizeSettingsValue, settingEvents, settingsTable } from "@/livestore/setting";
 
 const EXPORT_ROOT_DIR_NAME = "memora-export";
@@ -23,12 +32,15 @@ const IMPORT_RESET_OPFS_PATHS = [
 ] as const;
 
 type SettingsValue = {
+  localModelTokenUsage?: LocalModelUsageTotals;
+  modelRouting?: StoredModelRouting;
   theme: "light" | "dark" | "system";
   language: string;
   defaultTranscriptionModel: string;
   defaultSummarizationModel: string;
   autoTranscribe: boolean;
   autoIndex: boolean;
+  semanticSearchEnabled?: boolean;
   sidebarCollapsed: boolean;
   selectedProviderId: string;
   selectedModel: string;
@@ -100,7 +112,6 @@ interface ImportedProvider {
   id: string;
   name: string;
   baseUrl: string;
-  apiKey: string;
   apiFormat: LiveStoreProvider["apiFormat"];
   models: string;
   createdAt: Date;
@@ -228,6 +239,7 @@ const buildManifest = (
     notes: [
       "This archive contains Memora user data exported from browser storage.",
       "Downloaded local model cache files are intentionally excluded from this export.",
+      "Provider API keys are device-local and intentionally excluded. Enter them again on a new device.",
     ],
   };
 };
@@ -268,8 +280,14 @@ const createStoredEntries = async (
       getJsonFileName("manifest.json"),
       buildManifest(snapshot, opfsPaths, exportedAt),
     ),
-    createJsonEntry(getJsonFileName("livestore/settings.json"), snapshot.settings),
-    createJsonEntry(getJsonFileName("livestore/providers.json"), snapshot.providers),
+    createJsonEntry(getJsonFileName("livestore/settings.json"), {
+      ...snapshot.settings,
+      modelRouting: normalizeAiModelRouting(snapshot.settings.modelRouting, snapshot.settings),
+    }),
+    createJsonEntry(
+      getJsonFileName("livestore/providers.json"),
+      snapshot.providers.map(toProviderMetadata),
+    ),
     createJsonEntry(getJsonFileName("livestore/files.json"), snapshot.files),
     createJsonEntry(getJsonFileName("livestore/folders.json"), snapshot.folders),
     createJsonEntry(getJsonFileName("livestore/collections.json"), snapshot.collections),
@@ -422,6 +440,22 @@ export const normalizeImportedSettings = (value: unknown): SettingsValue => {
       : undefined;
 
   return normalizeSettingsValue({
+    ...(normalizeLocalModelUsageTotals(record.localModelTokenUsage)
+      ? {
+          localModelTokenUsage:
+            normalizeLocalModelUsageTotals(record.localModelTokenUsage) ?? undefined,
+        }
+      : {}),
+    ...(record.modelRouting !== undefined
+      ? {
+          modelRouting: normalizeAiModelRouting(record.modelRouting, {
+            selectedProviderId:
+              typeof record.selectedProviderId === "string" ? record.selectedProviderId : undefined,
+            selectedModel:
+              typeof record.selectedModel === "string" ? record.selectedModel : undefined,
+          }),
+        }
+      : {}),
     ...(theme ? { theme } : {}),
     ...(typeof record.language === "string" ? { language: record.language } : {}),
     ...(typeof record.defaultTranscriptionModel === "string"
@@ -434,6 +468,9 @@ export const normalizeImportedSettings = (value: unknown): SettingsValue => {
       ? { autoTranscribe: record.autoTranscribe }
       : {}),
     ...(typeof record.autoIndex === "boolean" ? { autoIndex: record.autoIndex } : {}),
+    ...(typeof record.semanticSearchEnabled === "boolean"
+      ? { semanticSearchEnabled: record.semanticSearchEnabled }
+      : {}),
     ...(typeof record.sidebarCollapsed === "boolean"
       ? { sidebarCollapsed: record.sidebarCollapsed }
       : {}),
@@ -477,10 +514,11 @@ const normalizeImportedProviders = (value: unknown): ImportedProvider[] => {
       return {
         id: normalizeImportedString(record.id),
         name: normalizeImportedString(record.name),
-        baseUrl: normalizeImportedString(record.baseUrl),
-        apiKey: normalizeImportedString(record.apiKey),
+        baseUrl: redactProviderEndpoint(normalizeImportedString(record.baseUrl)),
         apiFormat,
-        models: normalizeImportedString(record.models, "[]"),
+        models: JSON.stringify(
+          parseProviderModels({ models: normalizeImportedString(record.models, "[]") }),
+        ),
         createdAt,
         updatedAt: normalizeImportedDate(record.updatedAt, createdAt),
         deletedAt: normalizeImportedNullableDate(record.deletedAt),
@@ -653,10 +691,23 @@ const parseImportSnapshot = (entries: readonly ParsedZipEntry[]): StorageImportS
     throw new Error("This archive uses an unsupported Memora export format.");
   }
 
+  const storedSettings = readRequiredJsonEntry(entries, getJsonFileName("livestore/settings.json"));
+  const settings = normalizeImportedSettings(storedSettings);
+  const routingPath = getJsonFileName("livestore/model-routing.json");
+  // Import archives from before routing was merged into settings.
+  const hasNestedRouting =
+    typeof storedSettings === "object" &&
+    storedSettings !== null &&
+    "modelRouting" in storedSettings;
+  settings.modelRouting = normalizeAiModelRouting(
+    !hasNestedRouting && entries.some((entry) => entry.path === routingPath)
+      ? readRequiredJsonEntry(entries, routingPath)
+      : settings.modelRouting,
+    settings,
+  );
+
   return {
-    settings: normalizeImportedSettings(
-      readRequiredJsonEntry(entries, getJsonFileName("livestore/settings.json")),
-    ),
+    settings,
     providers: normalizeImportedProviders(
       readRequiredJsonEntry(entries, getJsonFileName("livestore/providers.json")),
     ),
@@ -721,7 +772,6 @@ const applyImportedProviders = (
           id: row.id,
           name: row.name,
           baseUrl: row.baseUrl,
-          apiKey: row.apiKey,
           apiFormat: row.apiFormat,
           models: row.models,
           createdAt: row.createdAt,
@@ -733,7 +783,6 @@ const applyImportedProviders = (
           id: row.id,
           name: row.name,
           baseUrl: row.baseUrl,
-          apiKey: row.apiKey,
           apiFormat: row.apiFormat,
           models: row.models,
           updatedAt: row.updatedAt,
@@ -743,12 +792,14 @@ const applyImportedProviders = (
 
     if (row.deletedAt) {
       store.commit(providerEvents.providerDeleted({ id: row.id, deletedAt: row.deletedAt }));
+      store.commit(providerCredentialEvents.providerCredentialDeleted({ providerId: row.id }));
     }
   }
 
   for (const row of current) {
     if (!importedIds.has(row.id) && !row.deletedAt) {
       store.commit(providerEvents.providerDeleted({ id: row.id, deletedAt: new Date() }));
+      store.commit(providerCredentialEvents.providerCredentialDeleted({ providerId: row.id }));
     }
   }
 };

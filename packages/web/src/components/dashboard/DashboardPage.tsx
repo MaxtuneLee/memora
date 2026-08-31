@@ -1,4 +1,4 @@
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import {
   CaretDownIcon,
   CaretLeftIcon,
@@ -449,7 +449,7 @@ function EmptyWidgetsState({ onReset }: { onReset: () => void }): ReactElement {
 }
 
 export const Component = (): ReactElement => {
-  const { store } = useStore();
+  const store = useAppStore();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion() ?? false;
   const fileRows = store.useQuery(desktopFilesQuery$);

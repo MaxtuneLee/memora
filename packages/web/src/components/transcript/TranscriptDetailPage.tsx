@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { write as opfsWrite } from "@memora/fs";
 
 import { BackButton } from "@/components/transcript/BackButton";
@@ -51,7 +51,7 @@ export const Component = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { store } = useStore();
+  const store = useAppStore();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const [mediaReadyToken, setMediaReadyToken] = useState(0);
   const { recording, loading, error, reload } = useRecordingDetail(id);

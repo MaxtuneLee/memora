@@ -4,6 +4,9 @@ import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
 import { ACTION_SEARCH_ITEMS, STATIC_SEARCH_ITEMS } from "@/lib/search/searchCatalog";
 import { modelWorkerFactory } from "@/lib/model-worker";
+import { useAppStore } from "@/livestore/store";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
 import { searchContent, type ContentSearchResult } from "@/lib/search/contentSearchService";
 import { rankSearchItems } from "@/lib/search/searchRanking";
 import {
@@ -27,11 +30,15 @@ export const useSearchResults = ({
   isSearchOpen: boolean;
   query: string;
 }) => {
+  const store = useAppStore();
+  const settings = store.useQuery(settingsDocumentQuery$);
+  const modelRouting = settings?.modelRouting;
   const deferredQuery = useDeferredValue(query);
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [contentResults, setContentResults] = useState<ContentSearchResult[]>([]);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
 
   const fileItems = useMemo(
     () => buildFileSearchItems(fileRows, folderRows),
@@ -45,13 +52,13 @@ export const useSearchResults = ({
   const contentItems = useMemo(() => buildContentSearchItems(contentResults), [contentResults]);
 
   const allSearchItems = useMemo(
-    () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems, ...contentItems],
-    [chatItems, contentItems, fileItems, folderItems],
+    () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems],
+    [chatItems, fileItems, folderItems],
   );
   const queryValue = deferredQuery.trim();
   const rankedResults = useMemo(
-    () => rankSearchItems(allSearchItems, queryValue),
-    [allSearchItems, queryValue],
+    () => [...rankSearchItems(allSearchItems, queryValue), ...contentItems],
+    [allSearchItems, contentItems, queryValue],
   );
 
   const displaySections = useMemo<SearchSection[]>(() => {
@@ -63,7 +70,7 @@ export const useSearchResults = ({
           items: rankedResults,
           emptyMessage: isLoadingContent
             ? "Searching extracted file content..."
-            : "Try a file name, a setting label, or an action like upload or transcription.",
+            : contentError ?? "Try a file name, a setting label, or an action like upload or transcription.",
         },
       ];
     }
@@ -89,7 +96,7 @@ export const useSearchResults = ({
         emptyMessage: "Upload or record something to see recent files here.",
       },
     ];
-  }, [chatItems, fileItems, isLoadingChats, isLoadingContent, queryValue, rankedResults]);
+  }, [chatItems, contentError, fileItems, isLoadingChats, isLoadingContent, queryValue, rankedResults]);
 
   const visibleItems = useMemo<GlobalSearchItem[]>(
     () => displaySections.flatMap((section) => section.items),
@@ -148,27 +155,35 @@ export const useSearchResults = ({
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setIsLoadingContent(true);
-      void searchContent({
+      setContentError(null);
+      void Promise.resolve().then(() => searchContent({
         query: queryValue,
         vectorDb: modelWorkerFactory.vectorDb,
         files: fileRows,
-      })
+        signal: controller.signal,
+        semantic: readEmbeddingRuntime(store),
+      }))
         .then((results) => {
           if (!cancelled) startTransition(() => setContentResults(results));
         })
         .catch((error) => {
           console.warn("Failed to search extracted content:", error);
-          if (!cancelled) setContentResults([]);
+          if (!cancelled) {
+            setContentResults([]);
+            setContentError(error instanceof Error ? error.message : "Content search failed.");
+          }
         })
         .finally(() => {
           if (!cancelled) setIsLoadingContent(false);
         });
     }, 150);
+    const controller = new AbortController();
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearTimeout(timer);
     };
-  }, [fileRows, isSearchOpen, queryValue]);
+  }, [fileRows, isSearchOpen, queryValue, modelRouting, settings?.semanticSearchEnabled, store]);
 
   return {
     displaySections,

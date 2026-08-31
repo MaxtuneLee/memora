@@ -1,5 +1,6 @@
 import { InterruptableStoppingCriteria, TextStreamer } from "@huggingface/transformers";
 import type { LocalChatEvent } from "@memora/local-model-runtime";
+import { createTokenUsageEvent } from "./tokenUsage";
 
 interface ProcessorLike {
   tokenizer?: unknown;
@@ -323,6 +324,8 @@ export const runTextGeneration = async (input: {
   });
 
   flushStreamingText(streamingState, input.emit);
+  const usage = createTokenUsageEvent(modelInputs.input_ids, generatedTokenIds.length);
+  if (usage && !input.canceled()) input.emit(usage);
   return {
     text: generatedText,
     streamedVisibleText: streamingState.emittedText.length > 0,

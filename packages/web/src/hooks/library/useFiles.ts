@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 
 import {
   deleteRecording as deleteFileFromStore,
@@ -21,7 +21,7 @@ const isMediaFile = (file: Pick<FileMeta, "type">): boolean => {
 
 export const useFiles = (options: UseFilesOptions = {}) => {
   const { mediaOnly = false } = options;
-  const { store } = useStore();
+  const store = useAppStore();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const audioUrlCacheRef = useRef<Map<string, string>>(new Map());

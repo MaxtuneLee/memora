@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { write as opfsWrite } from "@memora/fs";
 
 import type { FileType, RecordingMeta, RecordingTranscript } from "@/types/library";
@@ -9,13 +9,13 @@ import {
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
   evaluateTranscriptCandidate,
 } from "@/lib/transcript/transcriptUtils";
+import type { WhisperProgressItem } from "@/lib/transcript/whisper/client";
 import {
-  generateWhisperTranscript,
-  getOrCreateWhisperWorker,
-  loadWhisperModel,
-  subscribeToWhisperWorker,
-  type WhisperProgressItem,
-} from "@/lib/transcript/whisper/client";
+  readTranscriptionRuntime,
+  type TranscriptionRuntime,
+} from "@/lib/models/transcriptionRuntime";
+import { transcribePcm } from "@/lib/transcript/providers/transcribePcm";
+import { toRecordingTranscript } from "@/lib/transcript/providers/toRecordingTranscript";
 import { fileEvents } from "@/livestore/file";
 
 type TranscriptionStatus =
@@ -27,11 +27,12 @@ type TranscriptionStatus =
   | "complete"
   | "error";
 
-export const useFileTranscription = () => {
-  const { store } = useStore();
-  const worker = useRef<Worker | null>(null);
-  const pendingResolve = useRef<((result: RecordingTranscript) => void) | null>(null);
-  const pendingReject = useRef<((error: Error) => void) | null>(null);
+export type FileTranscriptionRuntime = TranscriptionRuntime;
+
+// A caller can supply an explicitly selected provider. There is no cloud fallback.
+export const useFileTranscription = (runtime?: FileTranscriptionRuntime) => {
+  const store = useAppStore();
+  const activeRun = useRef<AbortController | null>(null);
 
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [progress, setProgress] = useState(0);
@@ -190,118 +191,94 @@ export const useFileTranscription = () => {
 
   const transcribeFile = useCallback(
     async (meta: RecordingMeta): Promise<RecordingTranscript> => {
+      if (activeRun.current) throw new Error("A transcription is already running.");
+      const controller = new AbortController();
+      activeRun.current = controller;
       setStatus("decoding");
       setProgress(0);
+      setProgressItems([]);
       setError(null);
 
       try {
-        // Load audio blob
+        // Snapshot the selection for the whole file, even if settings change mid-run.
+        const selected = runtime ?? readTranscriptionRuntime(store);
         const blob = await resolveAudioBlob(meta);
+        controller.signal.throwIfAborted();
         if (!blob) throw new Error("Audio file not found");
         setProgress(10);
-
-        // Decode to Float32Array
         const audioData = await decodeAudioToFloat32(blob, meta.type);
+        controller.signal.throwIfAborted();
         setProgress(20);
-
-        setStatus("loading-model");
-        const whisperWorker = getOrCreateWhisperWorker(worker);
-        const language = getLanguage();
-
-        return new Promise<RecordingTranscript>((resolve, reject) => {
-          pendingResolve.current = resolve;
-          pendingReject.current = reject;
-
-          const unsubscribe = subscribeToWhisperWorker(whisperWorker, (message) => {
-            switch (message.status) {
-              case "loading":
-                setStatus("loading-model");
-                break;
-              case "initiate":
-                setProgressItems((prev) => [...prev, message]);
-                break;
-              case "progress":
-                setProgressItems((prev) =>
-                  prev.map((item) => (item.file === message.file ? { ...item, ...message } : item)),
-                );
-                break;
-              case "done":
-                setProgressItems((prev) => prev.filter((item) => item.file !== message.file));
-                break;
-              case "ready":
-                setStatus("transcribing");
-                setProgress(30);
-                generateWhisperTranscript(whisperWorker, {
-                  audio: audioData,
-                  language,
-                });
-                break;
-              case "start":
-                setProgress(40);
-                break;
-              case "update":
-                // Could show partial transcript here
-                break;
-              case "complete": {
-                unsubscribe();
-
-                const text =
-                  typeof message.output === "string"
-                    ? message.output
-                    : Array.isArray(message.output)
-                      ? message.output[0]
-                      : "";
-                const chunks = Array.isArray(message.chunks) ? message.chunks : [];
-                const evaluation = evaluateTranscriptCandidate({
-                  audio: audioData,
-                  text,
-                  words: chunks,
-                });
-
-                const transcript: RecordingTranscript = {
-                  text: evaluation.text,
-                  words: evaluation.words,
-                  diagnostics: evaluation.diagnostics,
-                };
-
-                setStatus("saving");
-                setProgress(90);
-
-                saveTranscript(meta, transcript)
-                  .then(() => {
-                    setStatus("complete");
-                    setProgress(100);
-                    pendingResolve.current?.(transcript);
-                  })
-                  .catch((err) => {
-                    setError(err.message);
-                    setStatus("error");
-                    pendingReject.current?.(err);
-                  });
-                break;
-              }
-              case "error":
-                unsubscribe();
-                setError(message.data);
-                setStatus("error");
-                pendingReject.current?.(new Error(message.data));
-                break;
+        setStatus("transcribing");
+        const segments = await transcribePcm(
+          selected.provider,
+          audioData,
+          {
+            modelId: selected.modelId,
+            sampleRate: 16000,
+            language: getLanguage(),
+            timestamps: selected.timestamps,
+            signal: controller.signal,
+          },
+          (value) => {
+            if (!controller.signal.aborted) setProgress(20 + value * 65);
+          },
+          (event) => {
+            if (controller.signal.aborted) return;
+            if (event.type === "segment") {
+              setStatus("transcribing");
+              setProgressItems([]);
+            } else if (event.type === "progress") {
+              setStatus("loading-model");
+              setProgressItems((items) => {
+                const remaining = items.filter((item) => item.file !== event.label);
+                return event.progress !== undefined && event.progress >= 100
+                  ? remaining
+                  : [...remaining, { file: event.label, progress: event.progress ?? 0 }];
+              });
             }
+          },
+        );
+        controller.signal.throwIfAborted();
+        const rawTranscript = toRecordingTranscript(segments);
+        // Preserve Whisper's existing hallucination checks; do not apply its
+        // heuristics to providers that do not return word timestamps.
+        let transcript: RecordingTranscript = rawTranscript;
+        if (selected.provider.adapterId === "whisper-local") {
+          const evaluation = evaluateTranscriptCandidate({
+            audio: audioData,
+            text: rawTranscript.text,
+            words: rawTranscript.words,
           });
-
-          loadWhisperModel(whisperWorker);
-        });
+          transcript = {
+            text: evaluation.text,
+            words: evaluation.words,
+            diagnostics: evaluation.diagnostics,
+          };
+        }
+        setStatus("saving");
+        setProgress(90);
+        await saveTranscript(meta, transcript);
+        controller.signal.throwIfAborted();
+        setStatus("complete");
+        setProgress(100);
+        return transcript;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Transcription failed";
-        setError(message);
-        setStatus("error");
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Transcription failed");
+          setStatus("error");
+        }
         throw err;
+      } finally {
+        if (activeRun.current === controller) activeRun.current = null;
       }
     },
-    [decodeAudioToFloat32, getLanguage, saveTranscript],
+    [decodeAudioToFloat32, getLanguage, runtime, saveTranscript, store],
   );
 
   const reset = useCallback(() => {
+    activeRun.current?.abort();
+    activeRun.current = null;
     setStatus("idle");
     setProgress(0);
     setError(null);
@@ -310,8 +287,8 @@ export const useFileTranscription = () => {
 
   useEffect(() => {
     return () => {
-      worker.current?.terminate();
-      worker.current = null;
+      activeRun.current?.abort();
+      activeRun.current = null;
     };
   }, []);
 

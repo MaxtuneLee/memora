@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
 import { Select as BaseSelect } from "@base-ui/react/select";
 
@@ -22,6 +23,7 @@ export interface SelectProps {
 }
 
 export function Select({
+  id,
   value,
   onValueChange,
   options,
@@ -29,6 +31,12 @@ export function Select({
   triggerClassName,
   ...props
 }: SelectProps) {
+  const portalContainerRef = useRef<HTMLDialogElement | null>(null);
+  const setTriggerRef = useCallback((trigger: HTMLButtonElement | null) => {
+    // Native modal dialogs live in the top layer; a body portal cannot cover them.
+    portalContainerRef.current = trigger?.closest("dialog") ?? null;
+  }, []);
+
   return (
     <BaseSelect.Root
       value={value}
@@ -37,22 +45,36 @@ export function Select({
       {...props}
     >
       <BaseSelect.Trigger
+        ref={setTriggerRef}
+        id={id}
         className={cn(
           "flex w-full items-center gap-3 rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3.5 py-2.5 text-left text-sm text-[var(--color-memora-text)] outline-none transition-[border-color,box-shadow,background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[var(--color-memora-hover)] focus-visible:border-[var(--color-memora-olive-soft)] focus-visible:ring-1 focus-visible:ring-[var(--color-memora-olive-soft)] data-[popup-open]:border-[var(--color-memora-olive-soft)]",
           triggerClassName,
         )}
       >
         <BaseSelect.Value className="min-w-0 flex-1 truncate text-left">
-          {(selectedValue) => selectedValue ?? placeholder}
+          {(selectedValue) =>
+            options.find((option) => option.value === selectedValue)?.label ??
+            selectedValue ??
+            placeholder
+          }
         </BaseSelect.Value>
         <BaseSelect.Icon className="shrink-0 text-[var(--color-memora-text-soft)]">
           <CaretDownIcon className="size-4" />
         </BaseSelect.Icon>
       </BaseSelect.Trigger>
-      <BaseSelect.Portal>
-        <BaseSelect.Positioner className="z-[70] outline-none" sideOffset={8}>
-          <BaseSelect.Popup className="max-h-72 min-w-[var(--anchor-width)] overflow-y-auto rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] p-1.5 shadow-[0_20px_48px_-28px_rgba(34,33,29,0.35)] outline-none">
-            <BaseSelect.List className="space-y-0.5">
+      <BaseSelect.Portal container={portalContainerRef}>
+        <BaseSelect.Positioner
+          className="z-[70] outline-none"
+          alignItemWithTrigger={false}
+          positionMethod="fixed"
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          collisionPadding={8}
+        >
+          <BaseSelect.Popup className="min-w-[var(--anchor-width)] overflow-hidden rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] shadow-[0_20px_48px_-28px_rgba(34,33,29,0.35)] outline-none">
+            <BaseSelect.List className="max-h-[min(18rem,calc(var(--available-height)_-_2px))] space-y-0.5 overflow-y-auto overscroll-contain p-1.5">
               {options.map((option) => (
                 <BaseSelect.Item
                   key={option.value}

@@ -68,7 +68,7 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
   return (
     <div className="space-y-4">
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Model</h3>
+        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Chat model</h3>
 
         <div className="relative mt-4">
           <Button

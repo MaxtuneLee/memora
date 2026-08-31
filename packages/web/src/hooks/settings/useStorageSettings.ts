@@ -1,6 +1,6 @@
 import { Toast } from "@base-ui/react/toast";
 import { queryDb } from "@livestore/livestore";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { useCallback, useEffect, useState } from "react";
 
 import { useStorageStats } from "@/hooks/settings/useStorageStats";
@@ -38,7 +38,7 @@ const storageExportProvidersQuery$ = queryDb(() => providerTable.orderBy("update
 });
 
 export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
-  const { store } = useStore();
+  const store = useAppStore();
   const { add } = Toast.useToastManager();
   const {
     storageUsage,

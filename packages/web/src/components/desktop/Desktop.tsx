@@ -1,7 +1,7 @@
 import { DndContext, pointerWithin } from "@dnd-kit/core";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DesktopContextMenu } from "./DesktopContextMenu";
@@ -60,7 +60,7 @@ export function Desktop({
   onNativeFileDrop,
   onDeleteFile,
 }: DesktopProps) {
-  const { store } = useStore();
+  const store = useAppStore();
   const { reindexFile } = useContentPipeline();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);

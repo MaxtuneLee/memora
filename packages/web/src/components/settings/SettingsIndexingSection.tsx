@@ -2,7 +2,7 @@ import { Tooltip } from "@base-ui/react/tooltip";
 import { file as opfsFile } from "@memora/fs";
 import { queryDb } from "@livestore/livestore";
 import { ArrowCounterClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -43,7 +43,7 @@ const getIndexDatabaseSize = async (): Promise<number> => {
 };
 
 export default function SettingsIndexingSection() {
-  const { store } = useStore();
+  const store = useAppStore();
   const { getTasks, indexUnindexed, reindexAll, subscribeTasks } = useContentPipeline();
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??

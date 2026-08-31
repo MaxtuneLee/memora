@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 
 import { cn } from "../../lib/cn";
+import { registerNativeDialogLayer } from "../../lib/nativeDialogLayer";
 
 import "./nativeDialog.css";
 
@@ -78,6 +79,8 @@ export function NativeDialog({
 }: NativeDialogProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const releaseLayerRef = useRef<(() => void) | null>(null);
+  const backdropPointerDownRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const latestOpenRef = useRef(open);
@@ -98,6 +101,8 @@ export function NativeDialog({
 
   useEffect(() => {
     return () => {
+      releaseLayerRef.current?.();
+      releaseLayerRef.current = null;
       if (closeTimerRef.current !== null) {
         window.clearTimeout(closeTimerRef.current);
       }
@@ -120,6 +125,8 @@ export function NativeDialog({
     };
 
     const handleClose = () => {
+      releaseLayerRef.current?.();
+      releaseLayerRef.current = null;
       if (!latestOpenRef.current) {
         return;
       }
@@ -148,6 +155,8 @@ export function NativeDialog({
       }
 
       closeTimerRef.current = window.setTimeout(() => {
+        releaseLayerRef.current?.();
+        releaseLayerRef.current = null;
         if (dialog.open) {
           dialog.close();
         }
@@ -193,6 +202,7 @@ export function NativeDialog({
       }
 
       dialog.showModal();
+      releaseLayerRef.current = registerNativeDialogLayer(dialog);
       resolveInitialFocus(panelRef.current, initialFocusRef);
 
       if (state === "opening") {
@@ -223,12 +233,21 @@ export function NativeDialog({
       data-state={state}
       aria-labelledby={shouldShowAriaLabel ? resolvedLabelledBy : undefined}
       aria-describedby={describedBy}
+      onPointerDownCapture={(event) => {
+        backdropPointerDownRef.current = event.target === event.currentTarget;
+      }}
+      onPointerCancelCapture={() => {
+        backdropPointerDownRef.current = false;
+      }}
       onClick={(event) => {
+        const startedOnBackdrop = backdropPointerDownRef.current;
+        backdropPointerDownRef.current = false;
         if (!closeOnBackdropPress) {
           return;
         }
 
-        if (event.target === event.currentTarget) {
+        // Opening a portalled control can retarget its click to this dialog.
+        if (startedOnBackdrop && event.target === event.currentTarget) {
           onOpenChange(false);
         }
       }}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 
 import { MarkdownDocumentEditor } from "@/components/editor/MarkdownDocumentEditor";
 import { useDocumentEditorFile } from "@/hooks/editor/useDocumentEditorFile";
@@ -613,7 +613,7 @@ export const Component = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { store } = useStore();
+  const store = useAppStore();
   const files = store.useQuery(desktopFilesQuery$) as LiveStoreFile[];
   const folders = store.useQuery(desktopFoldersQuery$) as readonly WorkspaceFolderLike[];
   const { settings } = useDocumentEditorSettings();

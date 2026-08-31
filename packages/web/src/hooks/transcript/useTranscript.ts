@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { MicVAD } from "@ricky0123/vad-web";
 import { dir as opfsDir } from "@memora/fs";
 import { type RecordingWord, type TranscriptDiagnostics } from "@/types/library";
@@ -21,9 +21,10 @@ import {
 } from "@/hooks/transcript/useTranscript/useSpeechBuffer";
 import { useSpeechQueue } from "@/hooks/transcript/useTranscript/useSpeechQueue";
 import { useWordAnimation } from "@/hooks/transcript/useTranscript/useWordAnimation";
+import { readTranscriptionRuntime } from "@/lib/models/transcriptionRuntime";
 
 export const useTranscript = () => {
-  const { store } = useStore();
+  const store = useAppStore();
   const worker = useRef<Worker | null>(null);
   const recordingRef = useRef(false);
   const [language, setLanguage] = useState(() => {
@@ -187,15 +188,35 @@ export const useTranscript = () => {
     resetSpeechCollection,
   ]);
 
+  const validateModelSelection = useCallback(() => {
+    try {
+      // Until the continuous cloud recording path is connected, reject that
+      // selection explicitly instead of starting a different local model.
+      readTranscriptionRuntime(store);
+    } catch (error) {
+      setStatus("error");
+      setLoadingMessage(
+        error instanceof Error ? error.message : "Check the transcription model settings.",
+      );
+      throw error;
+    }
+  }, [store]);
+
   const loadModel = useCallback(() => {
-    const whisperWorker = getOrCreateWhisperWorker(worker);
-    loadWhisperModel(whisperWorker);
-    setStatus("loading");
-  }, []);
+    try {
+      validateModelSelection();
+      setLoadingMessage("");
+      setStatus("loading");
+      loadWhisperModel(getOrCreateWhisperWorker(worker));
+    } catch {
+      // The validation error is already exposed to the recording page.
+    }
+  }, [validateModelSelection]);
 
   const checkModelCache = useCallback(async () => {
     setIsCheckingCache(true);
     try {
+      validateModelSelection();
       const cacheRoot = opfsDir(TRANSFORMERS_CACHE_DIR);
       const exists = await cacheRoot.exists();
       if (!exists) {
@@ -222,7 +243,7 @@ export const useTranscript = () => {
     } finally {
       setIsCheckingCache(false);
     }
-  }, []);
+  }, [validateModelSelection]);
 
   const updateLanguage = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -236,6 +257,7 @@ export const useTranscript = () => {
 
   const handleStartRecording = useCallback(async () => {
     if (status !== "ready") return;
+    validateModelSelection();
     const mediaStream = await getOrCreateStream();
     await ensureVAD();
     setRecording(true);
@@ -275,7 +297,7 @@ export const useTranscript = () => {
     recorder.start(1000);
 
     void vadRef.current?.start();
-  }, [ensureVAD, finalizeIfReady, getOrCreateStream, status]);
+  }, [ensureVAD, finalizeIfReady, getOrCreateStream, status, validateModelSelection]);
 
   const handlePauseRecording = useCallback(() => {
     if (!recordingRef.current || paused) return;

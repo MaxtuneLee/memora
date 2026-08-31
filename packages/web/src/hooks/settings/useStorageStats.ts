@@ -19,11 +19,8 @@ const IMAGE_EXTENSIONS = new Set([
 ]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".qt", ".m4v", ".mkv", ".avi", ".quicktime"]);
 
-const SKIP_DIRS = new Set([
-  "/.opfs-tools-temp-dir",
-  "/livestore-devtools_0.3.1_main@4",
-  "/livestore-main@4",
-]);
+const SKIP_DIRS = new Set(["/.opfs-tools-temp-dir", "/livestore-main@4", "/livestore-main@6"]);
+const SKIP_DIR_PREFIXES = ["/livestore-devtools_"];
 
 export const STORAGE_CONTENT_CATEGORY_CONFIG = [
   { id: "recordings", label: "Recordings", color: "bg-[#b07a63]" },
@@ -166,7 +163,8 @@ const getExtension = (name: string) => {
 };
 
 const shouldSkipDir = (path: string) =>
-  Array.from(SKIP_DIRS).some((dir) => path === dir || path.startsWith(`${dir}/`));
+  Array.from(SKIP_DIRS).some((dir) => path === dir || path.startsWith(`${dir}/`)) ||
+  SKIP_DIR_PREFIXES.some((prefix) => path.startsWith(prefix));
 
 const getDirectorySize = async (path: string) => {
   const directory = opfsDir(path);

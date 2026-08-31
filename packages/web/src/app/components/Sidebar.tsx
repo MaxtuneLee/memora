@@ -11,7 +11,7 @@ import {
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { Button } from "@base-ui/react/button";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { Link, useLocation } from "react-router";
 
 import { cn } from "@/lib/cn";
@@ -154,7 +154,7 @@ function SidebarSection({ title, children, action }: SidebarSectionProps) {
 }
 
 export function Sidebar() {
-  const { store } = useStore();
+  const store = useAppStore();
   const location = useLocation();
   const reducedMotion = useReducedMotion() ?? false;
   const currentPath = location.pathname;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { Toast } from "@base-ui/react/toast";
 import { useLocation, useNavigate } from "react-router";
 import { Desktop, UploadDialog } from "@/components/desktop";
@@ -17,7 +17,7 @@ import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search
 import ToastStack from "@/components/ToastStack";
 
 export const Component = () => {
-  const { store } = useStore();
+  const store = useAppStore();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const location = useLocation();
   const navigate = useNavigate();

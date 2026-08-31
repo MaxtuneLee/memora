@@ -18,6 +18,7 @@ import { clearTransformersModelCache, isTransformersExternalDataCacheError } fro
 import { reportWorkerRuntimeLoaded } from "../debug";
 import { parseChatTemplateToolCall, parseJsonToolCall, type ParsedToolCall } from "./toolParsing";
 import { toChatTemplateTools } from "./generation";
+import { createTokenUsageEvent } from "./tokenUsage";
 
 export interface GemmaChatMessage {
   role: "user" | "assistant" | "system" | "tool";
@@ -236,6 +237,7 @@ const runGemmaTextGeneration = async (input: {
 
   let generatedText = "";
   let rawBuffer = "";
+  let outputTokens = 0;
   const streamingState: GemmaStreamingState = {
     mode: input.toolStreamingMode === "none" ? "content" : "unknown",
     pendingVisibleText: "",
@@ -245,6 +247,9 @@ const runGemmaTextGeneration = async (input: {
   const streamer = new TextStreamer(input.processor.tokenizer as never, {
     skip_prompt: true,
     skip_special_tokens: false,
+    token_callback_function: (tokens: bigint[]) => {
+      outputTokens += tokens.length;
+    },
     callback_function: (chunk: string) => {
       if (!chunk || input.canceled()) {
         if (input.canceled()) stoppingCriteria.interrupt();
@@ -274,6 +279,8 @@ const runGemmaTextGeneration = async (input: {
   });
 
   flushGemmaVisibleText(streamingState, input.emit);
+  const usage = createTokenUsageEvent(modelInputs.input_ids, outputTokens);
+  if (usage && !input.canceled()) input.emit(usage);
   const trailing = rawBuffer.replace(GEMMA_STREAM_CONTROL_TOKENS, "");
   const text = trailing.length >= generatedText.length ? trailing : generatedText;
   return {
@@ -559,4 +566,5 @@ const emitToolCallOrText = (
 
 export const __private__ = {
   buildGemmaPrompt,
+  runGemmaTextGeneration,
 };

@@ -1,5 +1,5 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -15,7 +15,7 @@ import type { file as LiveStoreFile } from "@/livestore/file";
 export function FileViewerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { store } = useStore();
+  const store = useAppStore();
   const files = store.useQuery(activeFilesQuery$) as LiveStoreFile[];
   const file = useMemo(() => files.find((candidate) => candidate.id === id) ?? null, [files, id]);
   const fileMeta = useMemo(() => (file ? mapLiveStoreFileToMeta(file) : null), [file]);
