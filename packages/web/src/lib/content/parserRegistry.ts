@@ -50,46 +50,65 @@ const DOCUMENT_PARSER: ContentParser = {
     if (!getSupportedDocumentKind(file)) {
       throw new Error(`Unsupported document format: ${file.name}`);
     }
-    const parsed = await parseDocumentFile(file, {
-      onProgress: (progress) =>
-        onProgress?.({
-          label: progress.label,
-          current: progress.current,
-          total: progress.total,
-        }),
-    });
-    if (parsed.kind === "pdf") {
+    const ocrSessionRef: {
+      current: import("@/lib/playground/imageDocumentPipeline").ImageDocumentPipelineSession | null;
+    } = { current: null };
+    try {
+      const parsed = await parseDocumentFile(file, {
+        onProgress: (progress) =>
+          onProgress?.({
+            label: progress.label,
+            current: progress.current,
+            total: progress.total,
+          }),
+        runOcrPage: async (pageFile) => {
+          ocrSessionRef.current ??= new (await import("@/lib/playground/imageDocumentPipeline")).ImageDocumentPipelineSession(
+            (progress) => onProgress?.({ label: progress.label }),
+          );
+          const result = await ocrSessionRef.current.run(pageFile);
+          return {
+            markdown: result.markdown,
+            blockCount: result.blocks.length,
+            warnings: result.warnings,
+            elapsedMs: result.timings.totalMs,
+          };
+        },
+      });
+      if (parsed.kind === "pdf") {
+        return {
+          title: file.name.replace(/\.pdf$/i, ""),
+          markdown: parsed.text,
+          plainText: parsed.pages.map((page) => page.text).join("\n\n"),
+          segments: parsed.pages.map((page) => ({
+            kind: "text" as const,
+            text: page.text,
+            markdown: `<!-- Page ${page.pageNumber} · ${page.source} -->\n\n${page.text}`,
+            headingPath: [],
+            locator: { kind: "page" as const, pageNumber: page.pageNumber },
+            searchable: Boolean(page.text.trim()),
+          })),
+          warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
+        } satisfies ContentArtifactDraft;
+      }
+      if (parsed.kind === "docx") {
+        return {
+          title: file.name.replace(/\.docx$/i, ""),
+          markdown: parsed.text,
+          plainText: parsed.text,
+          segments: splitMarkdownSegments(parsed.text),
+          warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
+        } satisfies ContentArtifactDraft;
+      }
       return {
-        title: file.name.replace(/\.pdf$/i, ""),
-        markdown: parsed.text,
-        plainText: parsed.pages.map((page) => page.text).join("\n\n"),
-        segments: parsed.pages.map((page) => ({
-          kind: "text" as const,
-          text: page.text,
-          markdown: `<!-- Page ${page.pageNumber} · ${page.source} -->\n\n${page.text}`,
-          headingPath: [],
-          locator: { kind: "page" as const, pageNumber: page.pageNumber },
-          searchable: Boolean(page.text.trim()),
-        })),
-        warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
-      } satisfies ContentArtifactDraft;
-    }
-    if (parsed.kind === "docx") {
-      return {
-        title: file.name.replace(/\.docx$/i, ""),
-        markdown: parsed.text,
+        title: parsed.title ?? file.name.replace(/\.pptx$/i, ""),
+        markdown: parsed.markdown,
         plainText: parsed.text,
-        segments: splitMarkdownSegments(parsed.text),
+        segments: splitPptxMarkdownSegments(parsed.markdown, parsed.slides),
         warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
       } satisfies ContentArtifactDraft;
+    } finally {
+      await ocrSessionRef.current?.dispose();
     }
-    return {
-      title: parsed.title ?? file.name.replace(/\.pptx$/i, ""),
-      markdown: parsed.markdown,
-      plainText: parsed.text,
-      segments: splitPptxMarkdownSegments(parsed.markdown, parsed.slides),
-      warnings: parsed.warnings.map((message) => ({ code: "document-warning", message })),
-    } satisfies ContentArtifactDraft;
   },
 };
 

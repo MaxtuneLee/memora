@@ -129,7 +129,7 @@ export interface DocumentParserOptions {
   runOcrPage?: (file: File, pageNumber: number) => Promise<OcrFallbackResult>;
 }
 
-const PDF_TEXT_MINIMUM_CHARACTERS = 20;
+const PDF_TEXT_MINIMUM_CHARACTERS = 100;
 const MAX_DOCX_PREVIEW_NODES = 20_000;
 const MAX_DOCX_PREVIEW_CONTENT_NODES = 10_000;
 const MAX_PPTX_FILE_SIZE_BYTES = 100 * 1024 * 1024;

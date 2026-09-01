@@ -8,6 +8,6 @@ import { createEmbeddingRuntime, type EmbeddingRuntime } from "./embeddingRuntim
 // persistent task payloads, and queued work respects the current device setting.
 export const readEmbeddingRuntime = (store: Pick<Store, "query">): EmbeddingRuntime | null => {
   const settings = store.query(settingsDocumentQuery$);
-  if (settings?.semanticSearchEnabled !== true) return null;
+  if (settings?.semanticSearchMode === "bm25" || settings?.semanticSearchEnabled === false) return null;
   return createEmbeddingRuntime(normalizeAiModelRouting(settings.modelRouting, settings).embedding);
 };

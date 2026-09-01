@@ -4,6 +4,7 @@ import type { VectorDbClient, VectorDbSearchHit } from "@/lib/vector-db";
 import { validateEmbeddings, type EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 
 import { LEXICAL_INDEX_CONFIG } from "./searchIndexConfig";
+import type { SemanticSearchMode } from "@/livestore/setting";
 
 export interface ContentSearchResult {
   fileId: string;
@@ -42,6 +43,7 @@ export const searchContent = async (input: {
   fileIds?: readonly string[];
   signal?: AbortSignal;
   semantic?: EmbeddingRuntime | null;
+  semanticMode?: SemanticSearchMode;
 }): Promise<ContentSearchResult[]> => {
   const query = input.query.trim();
   if (!query) return [];
@@ -51,14 +53,11 @@ export const searchContent = async (input: {
   if (!activeFiles.length) return [];
   const scope = { kind: "documents" as const, documentIds: activeFiles.map((file) => file.id) };
   const topK = Math.max(1, input.topK ?? 8);
-  const lexical = await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).search({
-    query,
-    scope,
-    topK: 40,
-    lexicalCandidateK: 40,
-    semanticCandidateK: 0,
-    semanticWeight: 0,
-  });
+  const lexical = input.semanticMode === "bge"
+    ? []
+    : await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).search({
+        query, scope, topK: 40, lexicalCandidateK: 40, semanticCandidateK: 0, semanticWeight: 0,
+      });
   input.signal?.throwIfAborted();
   const semantic: VectorDbSearchHit[] = [];
   if (input.semantic) {

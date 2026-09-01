@@ -162,6 +162,7 @@ export const useSearchResults = ({
         files: fileRows,
         signal: controller.signal,
         semantic: readEmbeddingRuntime(store),
+        semanticMode: settings?.semanticSearchMode,
       }))
         .then((results) => {
           if (!cancelled) startTransition(() => setContentResults(results));

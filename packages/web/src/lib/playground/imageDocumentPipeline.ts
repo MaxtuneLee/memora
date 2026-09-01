@@ -131,6 +131,10 @@ export const DEFAULT_FORMULA_CONFIDENCE_THRESHOLD = 0.4;
 
 const now = (): number => performance.now();
 
+// Paddle and the layout runtime share the browser's WebGPU inference context. Keep
+// separate UI sessions from creating/running inference sessions at the same time.
+let imagePipelineQueue: Promise<void> = Promise.resolve();
+
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === "object" && error !== null && "message" in error) {
@@ -641,6 +645,23 @@ export class ImageDocumentPipelineSession {
   }
 
   async run(
+    file: File,
+    options: ImageDocumentPipelineOptions = {},
+  ): Promise<ImageDocumentPipelineResult> {
+    const previous = imagePipelineQueue;
+    let release!: () => void;
+    imagePipelineQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await this.runExclusive(file, options);
+    } finally {
+      release();
+    }
+  }
+
+  private async runExclusive(
     file: File,
     {
       confidenceThreshold = DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD,

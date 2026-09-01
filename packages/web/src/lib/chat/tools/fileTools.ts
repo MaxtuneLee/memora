@@ -7,6 +7,8 @@ import { readExtractedContent } from "@/lib/content/artifactStorage";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { searchContent } from "@/lib/search/contentSearchService";
 import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
+import { normalizeSettingsValue } from "@/livestore/setting";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
@@ -212,6 +214,7 @@ export const createFileTools = (
           files,
           vectorDb: modelWorkerFactory.vectorDb,
           semantic: readEmbeddingRuntime(store),
+          semanticMode: normalizeSettingsValue(store.query(settingsDocumentQuery$)).semanticSearchMode,
         });
         return results.map((result) => ({
           fileId: result.fileId,

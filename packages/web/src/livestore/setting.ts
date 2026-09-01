@@ -1,4 +1,6 @@
 import { Schema, State } from "@livestore/livestore";
+
+export type SemanticSearchMode = "hybrid" | "bm25" | "bge";
 import { modelRoutingSchema, type StoredModelRouting } from "@/lib/models/modelRoutingSchema";
 import type { LocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 
@@ -11,6 +13,7 @@ export interface setting {
   defaultSummarizationModel: string;
   autoTranscribe: boolean;
   autoIndex: boolean;
+  semanticSearchMode: SemanticSearchMode;
   semanticSearchEnabled?: boolean;
   sidebarCollapsed: boolean;
   selectedProviderId: string;
@@ -41,7 +44,8 @@ export const defaultSettings: setting = {
   defaultSummarizationModel: "",
   autoTranscribe: true,
   autoIndex: true,
-  semanticSearchEnabled: false,
+  semanticSearchMode: "hybrid",
+  semanticSearchEnabled: true,
   sidebarCollapsed: false,
   selectedProviderId: "",
   selectedModel: "",
@@ -73,6 +77,7 @@ export const settingsStoredValueSchema = Schema.Struct({
   defaultSummarizationModel: Schema.optional(Schema.String),
   autoTranscribe: Schema.optional(Schema.Boolean),
   autoIndex: Schema.optional(Schema.Boolean),
+  semanticSearchMode: Schema.optional(Schema.Literal("hybrid", "bm25", "bge")),
   semanticSearchEnabled: Schema.optional(Schema.Boolean),
   sidebarCollapsed: Schema.optional(Schema.Boolean),
   selectedProviderId: Schema.optional(Schema.String),
@@ -91,9 +96,14 @@ export const settingsStoredValueSchema = Schema.Struct({
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {
+  const legacySemanticMode =
+    value?.semanticSearchMode === undefined && value?.semanticSearchEnabled === false
+      ? "bm25"
+      : undefined;
   return {
     ...defaultSettings,
     ...value,
+    ...(legacySemanticMode ? { semanticSearchMode: legacySemanticMode } : {}),
   };
 };
 

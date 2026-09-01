@@ -141,17 +141,19 @@ export const createContentTaskHandlers = (input: {
       try {
         context.signal.throwIfAborted();
         await indexContentArtifactLexically(input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG), artifact);
-        setIndexStatus(
-          input.store,
-          fileId,
-          "indexed",
-          [artifact.title, artifact.plainText].filter(Boolean).join(" — ").slice(0, 280),
-        );
         const runtime = input.getEmbeddingRuntime?.();
         if (runtime) {
+          setIndexStatus(input.store, fileId, "processing", "BM25 index ready; building BGE semantic index.");
           const indexId = await getVectorDbIndexId(runtime.indexConfig);
           await context.enqueue({ kind: "content.index.semantic", payload: { fileId, sourceRevision, indexId },
             dedupeKey: `semantic:${fileId}:${sourceRevision}:${indexId}`, resourceGroup: "embedding", dependsOn: [context.task.id] });
+        } else {
+          setIndexStatus(
+            input.store,
+            fileId,
+            "indexed",
+            [artifact.title, artifact.plainText].filter(Boolean).join(" — ").slice(0, 280),
+          );
         }
       } catch (error) {
         setIndexStatus(
@@ -175,9 +177,16 @@ export const createContentTaskHandlers = (input: {
       if (!runtime || await getVectorDbIndexId(runtime.indexConfig) !== indexId) return;
       const artifact = await readContentArtifact(fileId);
       if (!artifact || (sourceRevision && artifact.sourceRevision !== sourceRevision)) return;
-      await indexContentArtifactSemantically(input.vectorDb.forIndex(runtime.indexConfig), artifact, runtime, {
-        signal: context.signal, onProgress: context.reportProgress,
-      });
+      try {
+        setIndexStatus(input.store, fileId, "processing", "BGE semantic index is being built.");
+        await indexContentArtifactSemantically(input.vectorDb.forIndex(runtime.indexConfig), artifact, runtime, {
+          signal: context.signal, onProgress: context.reportProgress,
+        });
+        setIndexStatus(input.store, fileId, "indexed", [artifact.title, artifact.plainText].filter(Boolean).join(" — ").slice(0, 280));
+      } catch (error) {
+        setIndexStatus(input.store, fileId, "failed", error instanceof Error ? error.message.slice(0, 280) : "Semantic indexing failed.");
+        throw error;
+      }
     },
   };
 

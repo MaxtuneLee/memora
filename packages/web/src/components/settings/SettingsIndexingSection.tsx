@@ -136,6 +136,31 @@ export default function SettingsIndexingSection() {
           />
         </div>
 
+        <label className={`${SETTINGS_ROW_CLASS_NAME} block`}>
+          <span className="block text-sm font-medium text-[var(--color-memora-text)]">
+            Retrieval method
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-[var(--color-memora-text-muted)]">
+            Choose which completed local index powers search.
+          </span>
+          <select
+            className="mt-3 w-full rounded-xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3 py-2.5 text-sm text-[var(--color-memora-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive)]"
+            value={settings.semanticSearchMode}
+            onChange={(event) =>
+              store.commit(
+                settingEvents.settingsSet({
+                  semanticSearchMode: event.target.value as setting["semanticSearchMode"],
+                  semanticSearchEnabled: event.target.value !== "bm25",
+                }),
+              )
+            }
+          >
+            <option value="hybrid">BM25 + BGE hybrid search</option>
+            <option value="bm25">BM25 search</option>
+            <option value="bge">BGE semantic search</option>
+          </select>
+        </label>
+
         <div className={SETTINGS_INSET_PANEL_CLASS_NAME}>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm font-medium text-[var(--color-memora-text)]">
