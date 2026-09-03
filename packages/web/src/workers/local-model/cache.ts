@@ -16,6 +16,7 @@ export interface CachedModelResource {
 }
 
 const pendingModelResources = new Map<string, Promise<CachedModelResource>>();
+const pendingTransformersFetches = new Map<string, Promise<Response>>();
 type TransformersFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
 const originalFetchByEnvironment = new WeakMap<object, TransformersFetch>();
@@ -45,6 +46,14 @@ export const isTransformersExternalDataCacheError = (error: unknown): boolean =>
     message.includes("Deserialize tensor") &&
     message.includes("external data file") &&
     message.includes("Out of bounds")
+  );
+};
+
+export const isTransformersModelCacheCorruptionError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    isTransformersExternalDataCacheError(error) ||
+    message.includes("No graph was found in the protobuf")
   );
 };
 
@@ -92,7 +101,12 @@ export class OPFSCache {
     if (!body) {
       throw new Error("Model response does not expose a readable stream.");
     }
-    await writeStream(opfsPath, body, { overwrite: true });
+    try {
+      await writeStream(opfsPath, body, { overwrite: true });
+    } catch (error) {
+      await file(opfsPath).remove({ force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 
   static async put(request: string, response: Response): Promise<void> {
@@ -139,11 +153,25 @@ const createOpfsCachingFetch = (nativeFetch: TransformersFetch): TransformersFet
     const cached = await OPFSCache.match(request);
     if (cached) return cached;
 
-    const response = await nativeFetch(input, init);
-    if (!response.ok || !response.body) return response;
+    const pending = pendingTransformersFetches.get(request);
+    if (pending) {
+      const response = await pending;
+      return (await OPFSCache.match(request)) ?? response.clone();
+    }
 
-    await OPFSCache.cacheResponse(request, response);
-    return (await OPFSCache.match(request)) ?? response;
+    const download = (async () => {
+      const response = await nativeFetch(input, init);
+      if (!response.ok || !response.body) return response;
+      await OPFSCache.cacheResponse(request, response.clone());
+      return response;
+    })();
+    pendingTransformersFetches.set(request, download);
+    try {
+      const response = await download;
+      return (await OPFSCache.match(request)) ?? response;
+    } finally {
+      pendingTransformersFetches.delete(request);
+    }
   };
 };
 
@@ -177,12 +205,19 @@ const downloadModelResource = async (
 ): Promise<CachedModelResource> => {
   const { file, writeStream } = (await import("@memora/fs")) satisfies OpfsApi;
   const path = getModelResourceCachePath(request);
+  console.warn("[local-model-cache] resource requested", { request, path });
   const cachedFile = file(path);
   if (await cachedFile.exists()) {
     return { file: await cachedFile.getOriginFile(), path, cached: true };
   }
 
   const response = await fetch(request);
+  console.warn("[local-model-cache] resource response", {
+    request,
+    status: response.status,
+    contentLength: response.headers.get("content-length"),
+    hasBody: Boolean(response.body),
+  });
   if (!response.ok) {
     throw new Error(`Failed to download model resource: HTTP ${response.status}`);
   }
@@ -192,7 +227,14 @@ const downloadModelResource = async (
   if (!response.body) {
     throw new Error("Model response does not expose a readable stream.");
   }
-  await writeStream(path, withProgress(response.body, onProgress, total), { overwrite: true });
+  try {
+    await writeStream(path, withProgress(response.body, onProgress, total), { overwrite: true });
+    console.warn("[local-model-cache] resource written", { request, path });
+  } catch (error) {
+    await cachedFile.remove({ force: true }).catch(() => undefined);
+    console.error("[local-model-cache] resource write failed", { request, path, error });
+    throw error;
+  }
   return { file: await file(path).getOriginFile(), path, cached: false };
 };
 

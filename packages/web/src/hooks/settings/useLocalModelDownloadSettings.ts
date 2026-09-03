@@ -138,8 +138,10 @@ export const useLocalModelDownloadActions = ({
 
   const handleDownloadLocalModel = useCallback(
     async (modelId: string) => {
+      console.warn("[local-model-download] start", { modelId });
       const controller = new AbortController();
       await clearLocalModelCacheMarker(modelId);
+      console.warn("[local-model-download] cache marker cleared", { modelId });
       let downloadState: LocalModelDownloadState = {
         status: "downloading",
         progress: 0,
@@ -149,11 +151,18 @@ export const useLocalModelDownloadActions = ({
       setLocalModelState(modelId, downloadState);
 
       try {
+        console.warn("[local-model-download] preload requested", { modelId });
         for await (const event of localModelClient.preloadModel(modelId, {
           priority: "background",
           signal: controller.signal,
         })) {
+          if (event.type === "status") {
+            console.warn("[local-model-download] status", { modelId, status: event.status });
+          }
           if (event.type === "model-progress") {
+            if (event.progress === undefined || event.progress === 0 || event.progress >= 100) {
+              console.warn("[local-model-download] progress", { modelId, ...event });
+            }
             downloadState = applyLocalModelProgressEvent(downloadState, event);
             const timestamp = performance.now();
             if (shouldPublishLocalModelProgress(lastPublishedAt, timestamp, event.progress)) {
@@ -163,6 +172,7 @@ export const useLocalModelDownloadActions = ({
           }
 
           if (event.type === "error") {
+            console.error("[local-model-download] worker error", { modelId, error: event.error });
             throw new Error(event.error.message);
           }
         }
@@ -173,6 +183,7 @@ export const useLocalModelDownloadActions = ({
         add({ title: "Local model ready", type: "success" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Download failed";
+        console.error("[local-model-download] failed", { modelId, error });
         setLocalModelState(modelId, { status: "error", error: message });
         add({ title: "Failed to download local model", description: message, type: "error" });
       }

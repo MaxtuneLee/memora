@@ -1,9 +1,10 @@
-import type {
-  LocalAsrEvent,
-  LocalAsrRequest,
-  LocalChatEvent,
-  LocalChatRequest,
-  LocalModelPriority,
+import {
+  getLocalModelManifest,
+  type LocalAsrEvent,
+  type LocalAsrRequest,
+  type LocalChatEvent,
+  type LocalChatRequest,
+  type LocalModelPriority,
 } from "@memora/local-model-runtime";
 
 import { modelWorkerFactory, type ModelWorkerFactory } from "../model-worker";
@@ -22,6 +23,17 @@ export interface LocalModelClient {
     options?: { priority?: LocalModelPriority; signal?: AbortSignal },
   ) => AsyncGenerator<LocalChatEvent>;
 }
+
+const modelNotFoundEvents = async function* (modelId: string): AsyncGenerator<LocalChatEvent> {
+  yield {
+    type: "error",
+    error: {
+      code: "model-not-found",
+      message: `Local model ${modelId} was not found.`,
+    },
+  };
+  yield { type: "status", status: "failed" };
+};
 
 export const createLocalModelClient = (
   workerFactory: ModelWorkerFactory = modelWorkerFactory,
@@ -42,7 +54,12 @@ export const createLocalModelClient = (
       }) as AsyncGenerator<LocalChatEvent>;
     },
     preloadModel(modelId, options = {}) {
-      return workerFactory.run("chat", {
+      const manifest = getLocalModelManifest(modelId);
+      if (!manifest) return modelNotFoundEvents(modelId);
+
+      const pool = manifest.pool;
+      console.warn("[local-model-client] preload", { modelId, pool });
+      return workerFactory.run(pool, {
         priority: options.priority ?? "background",
         task: { kind: "model.preload", input: { modelId } },
         signal: options.signal,

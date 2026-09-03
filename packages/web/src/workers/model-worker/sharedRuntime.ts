@@ -1,5 +1,6 @@
 import {
   createLocalModelTaskQueue,
+  getLocalModelManifest,
   normalizeLocalModelError,
   type LocalModelEvent,
   type LocalModelPoolKey,
@@ -47,13 +48,14 @@ interface RequestState {
 
 const SNAPSHOT_FLUSH_DELAY_MS = 200;
 
-const getTaskPool = (task: LocalModelTask): LocalModelPoolKey => {
+const getTaskPool = (task: LocalModelTask): LocalModelPoolKey | undefined => {
   switch (task.kind) {
     case "asr.transcribe":
       return "asr";
     case "chat.generate":
-    case "model.preload":
       return "chat";
+    case "model.preload":
+      return getLocalModelManifest(task.input.modelId)?.pool;
     case "embedding.generate":
       return "embedding";
     case "formula.preload":
@@ -173,12 +175,19 @@ export const startSharedModelWorkerRuntime = (
     }
 
     activeRequestId = queued.requestId;
+    console.warn("[local-model-worker] assigned", {
+      pool,
+      requestId: queued.requestId,
+      task: queued.task.kind,
+      modelId: "input" in queued.task.input ? queued.task.input.modelId : undefined,
+    });
     emit(request, { type: "status", status: "assigned" });
     void runTask(queued.task, {
       emit: (event) => emitRuntimeEvent(request, event),
       isCanceled: () => request.canceled,
     })
       .catch((error) => {
+        console.error("[local-model-worker] task failed", { pool, requestId: queued.requestId, error });
         emitRuntimeEvent(request, { type: "error", error: normalizeLocalModelError(error) });
         emit(request, { type: "status", status: "failed" });
       })
@@ -209,12 +218,36 @@ export const startSharedModelWorkerRuntime = (
     port: MessagePort,
     message: LocalModelRequestEnvelope,
   ): Promise<void> => {
+    console.warn("[local-model-worker] received run", {
+      pool,
+      requestId: message.requestId,
+      task: message.task.kind,
+    });
     const existing = requests.get(message.requestId);
     if (existing) {
       subscribe(port, message.requestId, 0);
       return;
     }
-    if (getTaskPool(message.task) !== pool) {
+    const taskPool = getTaskPool(message.task);
+    if (message.task.kind === "model.preload" && !taskPool) {
+      postStoredEvent(port, message.requestId, {
+        sequence: 1,
+        event: {
+          type: "error",
+          error: {
+            code: "model-not-found",
+            message: `Local model ${message.task.input.modelId} was not found.`,
+          },
+        },
+      });
+      postStoredEvent(port, message.requestId, {
+        sequence: 2,
+        event: { type: "status", status: "failed" },
+      });
+      return;
+    }
+    if (!taskPool) return;
+    if (taskPool !== pool) {
       throw new Error(`Task ${message.task.kind} cannot run in the ${pool} model worker.`);
     }
 
@@ -241,7 +274,15 @@ export const startSharedModelWorkerRuntime = (
     };
     requests.set(message.requestId, request);
     try {
+      console.warn("[local-model-worker] snapshot write start", {
+        pool,
+        requestId: message.requestId,
+      });
       await writeModelWorkerSnapshotTask(pool, snapshot);
+      console.warn("[local-model-worker] snapshot write complete", {
+        pool,
+        requestId: message.requestId,
+      });
       emit(request, { type: "status", status: "queued" });
       queue.enqueue(message);
       dispatch();
@@ -299,12 +340,17 @@ export const startSharedModelWorkerRuntime = (
     }
   };
 
+  console.warn("[local-model-worker] snapshot restore start", { pool });
   const restorePromise = readModelWorkerSnapshots(pool)
     .catch((error) => {
       console.error(`Failed to restore ${pool} model worker snapshots.`, error);
       return [];
     })
     .then((snapshots) => {
+      console.warn("[local-model-worker] snapshot restore complete", {
+        pool,
+        count: snapshots.length,
+      });
       for (const snapshot of snapshots) {
         const terminal =
           snapshot.status === "completed" ||
@@ -344,6 +390,7 @@ export const startSharedModelWorkerRuntime = (
   scope.addEventListener("connect", (event: MessageEvent) => {
     const port = event.ports[0];
     if (!port) return;
+    console.warn("[local-model-worker] port connected", { pool });
     ports.add(port);
     port.addEventListener(
       "message",

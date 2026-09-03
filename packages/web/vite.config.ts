@@ -155,7 +155,7 @@ const config = {
     }),
   ],
   server: {
-    port: 9001,
+    port: 9003,
     proxy: {
       "/api/playground/nanobeir": nanoBeirProxy,
     },

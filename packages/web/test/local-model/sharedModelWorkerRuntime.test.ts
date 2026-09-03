@@ -123,6 +123,81 @@ describe("shared model worker runtime", () => {
     vi.unstubAllGlobals();
   });
 
+  test("routes Whisper preload tasks through the ASR pool", async () => {
+    const scope = new MockSharedWorkerScope();
+    vi.stubGlobal("self", scope);
+    const starts: string[] = [];
+    startSharedModelWorkerRuntime("asr", async (task) => {
+      if (task.kind !== "model.preload") throw new Error("Expected a preload task.");
+      starts.push(task.input.modelId);
+    });
+
+    const port = new MockPort();
+    scope.connect(port);
+    port.deliver({
+      type: "run",
+      requestId: "whisper-preload",
+      priority: "background",
+      task: {
+        kind: "model.preload",
+        input: { modelId: "whisper-base-timestamped" },
+      },
+    });
+    await flushPromises();
+
+    expect(starts).toEqual(["whisper-base-timestamped"]);
+    expect(port.posted).toContainEqual(
+      expect.objectContaining({
+        requestId: "whisper-preload",
+        event: { type: "status", status: "assigned" },
+      }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  test("rejects an unknown preload model without running or queueing it", async () => {
+    const scope = new MockSharedWorkerScope();
+    vi.stubGlobal("self", scope);
+    const runTask = vi.fn();
+    startSharedModelWorkerRuntime("chat", runTask);
+
+    const port = new MockPort();
+    scope.connect(port);
+    port.deliver({
+      type: "run",
+      requestId: "unknown-preload",
+      priority: "background",
+      task: {
+        kind: "model.preload",
+        input: { modelId: "unknown-model" },
+      },
+    });
+    await flushPromises();
+
+    expect(runTask).not.toHaveBeenCalled();
+    expect(port.posted).toEqual([
+      {
+        type: "event",
+        requestId: "unknown-preload",
+        sequence: 1,
+        event: {
+          type: "error",
+          error: {
+            code: "model-not-found",
+            message: "Local model unknown-model was not found.",
+          },
+        },
+      },
+      {
+        type: "event",
+        requestId: "unknown-preload",
+        sequence: 2,
+        event: { type: "status", status: "failed" },
+      },
+    ]);
+    vi.unstubAllGlobals();
+  });
+
   test("restarts an interrupted snapshot without emitting an identical saved output twice", async () => {
     restoredSnapshots.push({
       requestId: "restored",

@@ -129,6 +129,14 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const pushEvent = (request: PendingRequest, event: LocalModelEvent): void => {
+    console.warn("[local-model-factory] event received", {
+      pool: request.pool,
+      requestId: request.requestId,
+      type: event.type,
+      status: event.type === "status" ? event.status : undefined,
+      file: event.type === "model-progress" ? event.file : undefined,
+      progress: event.type === "model-progress" ? event.progress : undefined,
+    });
     if (event.type === "status") {
       updateLocalModelWorkerStatus({
         pool: request.pool,
@@ -157,6 +165,12 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const handleResponse = (pool: LocalModelPoolKey, response: SharedWorkerResponse): void => {
+    console.warn("[local-model-factory] response received", {
+      pool,
+      type: response.type,
+      requestId: response.type === "event" ? response.requestId : undefined,
+      sequence: response.type === "event" ? response.sequence : undefined,
+    });
     if (response.type === "debug") {
       if (response.payload.kind === "runtime-loaded") {
         recordLocalModelWorkerRuntimeLoad({
@@ -176,6 +190,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
 
   const connectPool = (pool: LocalModelPoolKey): void => {
     if (connections.has(pool)) return;
+    console.warn("[local-model-factory] connect pool", { pool });
     const worker = createSharedModelWorker(pool);
     const port = worker.port;
     const connection = { worker, port };
@@ -185,7 +200,14 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     port.addEventListener("message", (event: MessageEvent<SharedWorkerResponse>) => {
       handleResponse(pool, event.data);
     });
-    worker.addEventListener("error", () => {
+    worker.addEventListener("error", (event) => {
+      console.error("[local-model-factory] shared worker error", {
+        pool,
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+      });
       for (const request of pending.values()) {
         if (request.pool !== pool || request.closed) continue;
         pushEvent(request, {
@@ -199,6 +221,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       }
     });
     port.start();
+    console.warn("[local-model-factory] pool connected", { pool });
 
     for (const request of pending.values()) {
       if (request.pool !== pool) continue;
@@ -241,6 +264,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       const unmountVectorDb = vectorDb.mount();
       mountCount += 1;
       if (mountCount === 1) {
+        console.warn("[local-model-factory] mount workers");
         for (const pool of POOLS) connectPool(pool);
       }
       let disposed = false;
@@ -258,6 +282,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     async *run(pool, input) {
       const connection = connections.get(pool);
       if (!connection) {
+        console.error("[local-model-factory] run without connection", { pool, task: input.task.kind });
         throw new Error("The shared model worker factory is not mounted at the root route.");
       }
 
@@ -273,6 +298,12 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
         acknowledged: false,
       };
       pending.set(request.requestId, request);
+      console.warn("[local-model-factory] send run", {
+        pool,
+        requestId: request.requestId,
+        task: input.task.kind,
+        modelId: "modelId" in input.task.input ? input.task.input.modelId : undefined,
+      });
       const abortHandler = () => cancel(request);
       input.signal?.addEventListener("abort", abortHandler, { once: true });
       connection.port.postMessage({
@@ -281,6 +312,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
         priority: request.priority,
         task: request.task,
       } satisfies LocalModelSharedWorkerMessage);
+      console.warn("[local-model-factory] run sent", { pool, requestId: request.requestId });
 
       try {
         while (!request.closed || request.events.length > 0) {

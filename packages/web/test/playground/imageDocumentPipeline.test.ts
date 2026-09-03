@@ -12,6 +12,7 @@ import {
 import {
   configureTransformersCache,
   getModelResourceCachePath,
+  isTransformersModelCacheCorruptionError,
   OPFSCache,
 } from "@/workers/local-model/cache";
 
@@ -306,6 +307,14 @@ describe("shared OPFS model cache", () => {
     expect(environment.useCustomCache).toBe(true);
     expect(environment.customCache).toBe(OPFSCache);
     expect(environment.useBrowserCache).toBe(false);
+  });
+
+  test("recognizes invalid ONNX protobuf cache errors", () => {
+    expect(
+      isTransformersModelCacheCorruptionError(
+        new Error("Can't create a session. No graph was found in the protobuf."),
+      ),
+    ).toBe(true);
   });
 });
 
