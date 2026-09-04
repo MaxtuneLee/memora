@@ -1,4 +1,4 @@
-import type { LocalModelManifest } from "@memora/local-model-runtime";
+import type { LocalModelAssetCache, LocalModelManifest } from "@memora/local-model-runtime";
 
 type OpfsApi = typeof import("@memora/fs");
 
@@ -104,7 +104,9 @@ export class OPFSCache {
     try {
       await writeStream(opfsPath, body, { overwrite: true });
     } catch (error) {
-      await file(opfsPath).remove({ force: true }).catch(() => undefined);
+      await file(opfsPath)
+        .remove({ force: true })
+        .catch(() => undefined);
       throw error;
     }
   }
@@ -274,4 +276,10 @@ export const configureTransformersCache = (transformersEnv: TransformersFetchEnv
     originalFetchByEnvironment.set(transformersEnv, originalFetch);
     transformersEnv.fetch = createOpfsCachingFetch(originalFetch);
   }
+};
+
+export const opfsLocalModelAssetCache: LocalModelAssetCache = {
+  match: (request) => OPFSCache.match(request),
+  put: (request, response) => OPFSCache.cacheResponse(request, response),
+  removeModel: clearTransformersModelCache,
 };

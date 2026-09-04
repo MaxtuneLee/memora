@@ -457,7 +457,7 @@ export default function ImageDocumentPipeline() {
           <div className="flex items-start justify-between gap-5">
             <div>
               <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-                One image, five visible stages
+                Pipeline
               </h2>
             </div>
             {result ? (

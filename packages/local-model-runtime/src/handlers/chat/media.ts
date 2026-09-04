@@ -1,5 +1,5 @@
 import { RawAudio, RawImage } from "@huggingface/transformers";
-import type { LocalChatContent } from "@memora/local-model-runtime";
+import type { LocalChatContent } from "../../types";
 
 const LOCAL_MODEL_IMAGE_MAX_EDGE = 960;
 const LOCAL_MODEL_IMAGE_MIME_TYPE = "image/jpeg";

@@ -1,7 +1,7 @@
-export interface ParsedToolCall {
+export type ParsedToolCall = {
   name: string;
   arguments: Record<string, unknown>;
-}
+};
 
 const CHAT_TEMPLATE_TOOL_CALL_PATTERN = /<\|tool_call>call:(\w+)\{([\s\S]*?)\}<tool_call\|>/;
 const CHAT_TEMPLATE_TOOL_ARG_PATTERN = /(\w+):<\|"\|>([\s\S]*?)<\|"\|>/g;

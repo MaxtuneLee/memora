@@ -11,11 +11,11 @@ import type {
   LocalChatRequest,
   LocalModelManifest,
   LocalReasoningMode,
-} from "@memora/local-model-runtime";
+} from "../../types";
 
 import { localImageContentToRawImage } from "./media";
-import { clearTransformersModelCache, isTransformersExternalDataCacheError } from "../cache";
-import { reportWorkerRuntimeLoaded } from "../debug";
+import { clearTransformersModelCache, isTransformersExternalDataCacheError } from "../../cache";
+import { reportWorkerRuntimeLoaded } from "../../debug";
 import { parseChatTemplateToolCall, parseJsonToolCall, type ParsedToolCall } from "./toolParsing";
 import { toChatTemplateTools } from "./generation";
 import { createTokenUsageEvent } from "./tokenUsage";

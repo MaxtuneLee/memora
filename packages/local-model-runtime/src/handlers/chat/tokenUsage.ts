@@ -1,4 +1,4 @@
-import type { LocalChatEvent } from "@memora/local-model-runtime";
+import type { LocalChatEvent } from "../../types";
 
 export const createTokenUsageEvent = (
   inputIds: unknown,

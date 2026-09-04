@@ -1,5 +1,5 @@
 import { InterruptableStoppingCriteria, TextStreamer } from "@huggingface/transformers";
-import type { LocalChatEvent } from "@memora/local-model-runtime";
+import type { LocalChatEvent } from "../../types";
 import { createTokenUsageEvent } from "./tokenUsage";
 
 interface ProcessorLike {

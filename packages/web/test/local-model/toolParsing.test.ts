@@ -4,7 +4,7 @@ import {
   parseChatTemplateToolCall,
   parseJsonToolCall,
   parseXmlToolCall,
-} from "../../src/workers/local-model/chat/toolParsing";
+} from "@memora/local-model-runtime/worker";
 
 describe("parseJsonToolCall", () => {
   test("parses a complete JSON tool call", () => {

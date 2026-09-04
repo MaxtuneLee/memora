@@ -1,9 +1,11 @@
-import { getLocalModelManifest, validateLocalChatRequest } from "@memora/local-model-runtime";
-import type { LocalModelEvent, LocalModelTask } from "@memora/local-model-runtime";
+import { getLocalModelManifest, validateLocalChatRequest } from "../validation";
+import type { LocalModelEvent, LocalModelTask } from "../types";
 
 import { runWhisperTranscription } from "./asr/whisper";
 import { preloadGemma4Chat, runGemma4Chat } from "./chat/gemma4";
 import { preloadQwen35Chat, runQwen35Chat } from "./chat/qwen35";
+import { runEmbeddingTask } from "./embedding";
+import { runFormulaTask } from "./formula";
 
 export const runLocalModelTask = async (
   task: LocalModelTask,
@@ -11,6 +13,13 @@ export const runLocalModelTask = async (
   canceled: () => boolean = () => false,
 ): Promise<void> => {
   switch (task.kind) {
+    case "embedding.generate":
+      await runEmbeddingTask(task, { emit, isCanceled: canceled });
+      return;
+    case "formula.preload":
+    case "formula.recognize":
+      await runFormulaTask(task, { emit, isCanceled: canceled });
+      return;
     case "model.preload": {
       const manifest = getLocalModelManifest(task.input.modelId);
       if (!manifest) {

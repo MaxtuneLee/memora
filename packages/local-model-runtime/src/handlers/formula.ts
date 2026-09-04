@@ -6,11 +6,11 @@ import {
   env,
   type ProgressInfo,
 } from "@huggingface/transformers";
-import type { LocalModelExecutionBackend, LocalModelTask } from "@memora/local-model-runtime";
+import type { LocalModelExecutionBackend, LocalModelTask } from "../types";
 
-import type { SharedModelTaskContext } from "../model-worker/sharedRuntime";
-import { configureTransformersCache } from "./cache";
-import { reportWorkerRuntimeLoaded } from "./debug";
+import type { SharedModelTaskContext } from "../sharedWorker";
+import { configureTransformersCache } from "../cache";
+import { reportWorkerRuntimeLoaded } from "../debug";
 
 const MODEL_ID = "alephpi/FormulaNet";
 const INPUT_SIZE = 384;

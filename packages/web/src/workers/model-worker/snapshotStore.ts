@@ -1,26 +1,18 @@
 import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 import type {
-  LocalModelEvent,
+  LocalModelTaskSnapshot,
+  LocalModelTaskStore,
   LocalModelPoolKey,
   LocalModelPriority,
   LocalModelTask,
   LocalModelTaskStatus,
+  StoredModelWorkerEvent,
 } from "@memora/local-model-runtime";
 
-export interface StoredModelWorkerEvent {
-  sequence: number;
-  event: LocalModelEvent;
-}
-
-export interface ModelWorkerSnapshot {
-  requestId: string;
-  priority: LocalModelPriority;
-  task: LocalModelTask;
-  status: LocalModelTaskStatus;
-  events: StoredModelWorkerEvent[];
-  createdAt: number;
-  updatedAt: number;
-}
+export type {
+  LocalModelTaskSnapshot as ModelWorkerSnapshot,
+  StoredModelWorkerEvent,
+} from "@memora/local-model-runtime";
 
 interface PersistedSnapshotState {
   requestId: string;
@@ -116,7 +108,7 @@ const restoreTask = async (pool: LocalModelPoolKey, requestId: string): Promise<
 
 export const writeModelWorkerSnapshotTask = async (
   pool: LocalModelPoolKey,
-  snapshot: ModelWorkerSnapshot,
+  snapshot: LocalModelTaskSnapshot,
 ): Promise<void> => {
   await persistTask(pool, snapshot.requestId, snapshot.task);
   await writeModelWorkerSnapshotState(pool, snapshot);
@@ -124,7 +116,7 @@ export const writeModelWorkerSnapshotTask = async (
 
 export const writeModelWorkerSnapshotState = async (
   pool: LocalModelPoolKey,
-  snapshot: ModelWorkerSnapshot,
+  snapshot: LocalModelTaskSnapshot,
 ): Promise<void> => {
   const state: PersistedSnapshotState = {
     requestId: snapshot.requestId,
@@ -141,12 +133,12 @@ export const writeModelWorkerSnapshotState = async (
 
 export const readModelWorkerSnapshots = async (
   pool: LocalModelPoolKey,
-): Promise<ModelWorkerSnapshot[]> => {
+): Promise<LocalModelTaskSnapshot[]> => {
   const poolDirectory = opfsDir(`${SNAPSHOT_ROOT}/${pool}`);
   if (!(await poolDirectory.exists())) return [];
 
   const entries = await poolDirectory.children();
-  const snapshots: ModelWorkerSnapshot[] = [];
+  const snapshots: LocalModelTaskSnapshot[] = [];
   for (const entry of entries) {
     if (entry.kind !== "dir") continue;
     try {
@@ -172,4 +164,11 @@ export const removeModelWorkerSnapshot = async (
     recursive: true,
     force: true,
   });
+};
+
+export const opfsLocalModelTaskStore: LocalModelTaskStore = {
+  readSnapshots: readModelWorkerSnapshots,
+  createSnapshot: writeModelWorkerSnapshotTask,
+  updateSnapshot: writeModelWorkerSnapshotState,
+  removeSnapshot: removeModelWorkerSnapshot,
 };

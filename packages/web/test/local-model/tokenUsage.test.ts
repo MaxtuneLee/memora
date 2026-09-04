@@ -1,9 +1,10 @@
+import {
+  __private__,
+  createTokenUsageEvent,
+  runTextGeneration,
+} from "@memora/local-model-runtime/worker";
 import type { LocalChatEvent } from "@memora/local-model-runtime";
 import { expect, test } from "vite-plus/test";
-
-import { createTokenUsageEvent } from "@/workers/local-model/chat/tokenUsage";
-import { runTextGeneration } from "@/workers/local-model/chat/generation";
-import { __private__ } from "@/workers/local-model/chat/gemma4";
 
 test("counts token tensor dimensions, never string length estimates", () => {
   expect(createTokenUsageEvent({ dims: [1, 8] }, 3)).toEqual({

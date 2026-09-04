@@ -1,8 +1,4 @@
-import type {
-  LocalChatEvent,
-  LocalChatRequest,
-  LocalModelManifest,
-} from "@memora/local-model-runtime";
+import type { LocalChatEvent, LocalChatRequest, LocalModelManifest } from "../../types";
 
 export interface LocalChatAdapter {
   run: (

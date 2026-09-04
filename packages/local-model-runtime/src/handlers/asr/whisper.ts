@@ -1,12 +1,12 @@
 import { env, pipeline, type ProgressCallback } from "@huggingface/transformers";
-import type { LocalAsrEvent, LocalAsrRequest } from "@memora/local-model-runtime";
+import type { LocalAsrEvent, LocalAsrRequest } from "../../types";
 
 import {
   clearTransformersModelCache,
   configureTransformersCache,
   isTransformersModelCacheCorruptionError,
-} from "../cache";
-import { reportWorkerRuntimeLoaded } from "../debug";
+} from "../../cache";
+import { reportWorkerRuntimeLoaded } from "../../debug";
 
 const WHISPER_TIMESTAMPED_MODEL = "onnx-community/whisper-base_timestamped";
 const WHISPER_MAX_TOKENS_PER_SECOND = 8;
@@ -52,20 +52,16 @@ class WhisperPipeline {
 
   static async getInstance(progressCallback: ProgressCallback): Promise<Transcriber> {
     if (!this.instance) {
-      console.warn("[whisper] pipeline load start", { model: WHISPER_TIMESTAMPED_MODEL });
-      this.instance = (await pipeline(
-        "automatic-speech-recognition",
-        WHISPER_TIMESTAMPED_MODEL,
-        {
-          progress_callback: progressCallback,
-          dtype: {
-            encoder_model: "fp32",
-            decoder_model_merged: "fp32",
-          },
-          device: "webgpu",
+      console.debug("[whisper] pipeline load start", { model: WHISPER_TIMESTAMPED_MODEL });
+      this.instance = (await pipeline("automatic-speech-recognition", WHISPER_TIMESTAMPED_MODEL, {
+        progress_callback: progressCallback,
+        dtype: {
+          encoder_model: "fp32",
+          decoder_model_merged: "fp32",
         },
-      )) as unknown as Transcriber;
-      console.warn("[whisper] pipeline load complete", { model: WHISPER_TIMESTAMPED_MODEL });
+        device: "webgpu",
+      })) as unknown as Transcriber;
+      console.debug("[whisper] pipeline load complete", { model: WHISPER_TIMESTAMPED_MODEL });
       reportWorkerRuntimeLoaded({
         family: "whisper",
         modelId: WHISPER_TIMESTAMPED_MODEL,

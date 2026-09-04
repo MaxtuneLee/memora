@@ -8,10 +8,12 @@ import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
 const restoredSnapshots = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 
 vi.mock("../../src/workers/model-worker/snapshotStore", () => ({
-  readModelWorkerSnapshots: async () => restoredSnapshots,
-  removeModelWorkerSnapshot: async () => undefined,
-  writeModelWorkerSnapshotState: async () => undefined,
-  writeModelWorkerSnapshotTask: async () => undefined,
+  opfsLocalModelTaskStore: {
+    readSnapshots: async () => restoredSnapshots,
+    removeSnapshot: async () => undefined,
+    updateSnapshot: async () => undefined,
+    createSnapshot: async () => undefined,
+  },
 }));
 
 import { startSharedModelWorkerRuntime } from "../../src/workers/model-worker/sharedRuntime";

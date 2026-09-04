@@ -1,13 +1,9 @@
 import { env, pipeline, type ProgressInfo } from "@huggingface/transformers";
-import type {
-  LocalEmbeddingModel,
-  LocalModelExecutionBackend,
-  LocalModelTask,
-} from "@memora/local-model-runtime";
+import type { LocalEmbeddingModel, LocalModelExecutionBackend, LocalModelTask } from "../types";
 
-import type { SharedModelTaskContext } from "../model-worker/sharedRuntime";
-import { configureTransformersCache } from "./cache";
-import { reportWorkerRuntimeLoaded } from "./debug";
+import type { SharedModelTaskContext } from "../sharedWorker";
+import { configureTransformersCache } from "../cache";
+import { reportWorkerRuntimeLoaded } from "../debug";
 
 const MODELS: Record<LocalEmbeddingModel, { id: string; pooling: "mean" | "cls"; dtype: "q8" }> = {
   "bge-small-en": { id: "Xenova/bge-small-en-v1.5", pooling: "mean", dtype: "q8" },

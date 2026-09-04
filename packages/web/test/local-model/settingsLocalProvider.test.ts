@@ -28,6 +28,17 @@ describe("local model settings", () => {
     ]);
   });
 
+  test("provides an estimated download size for every local model", () => {
+    for (const manifest of builtInLocalModelManifests) {
+      expect(manifest.downloadSizeGB).toBeGreaterThan(0);
+    }
+
+    expect(
+      builtInLocalModelManifests.find((manifest) => manifest.id === "qwen3.5-0.8b-onnx-opt")
+        ?.downloadSizeGB,
+    ).toBe(0.812);
+  });
+
   test("keeps local model context windows in model metadata", () => {
     expect(
       builtInLocalModelManifests.find((manifest) => manifest.id === "qwen3.5-0.8b-onnx-opt")

@@ -9,10 +9,10 @@ import type {
   LocalChatRequest,
   LocalModelManifest,
   LocalReasoningMode,
-} from "@memora/local-model-runtime";
+} from "../../types";
 
-import { clearTransformersModelCache, isTransformersExternalDataCacheError } from "../cache";
-import { reportWorkerRuntimeLoaded } from "../debug";
+import { clearTransformersModelCache, isTransformersExternalDataCacheError } from "../../cache";
+import { reportWorkerRuntimeLoaded } from "../../debug";
 import { runTextGeneration } from "./generation";
 import { localImageContentToRawImage } from "./media";
 import {

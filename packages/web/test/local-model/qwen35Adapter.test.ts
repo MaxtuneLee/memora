@@ -4,7 +4,7 @@ import {
   buildQwenGenerationConfig,
   buildQwenMessages,
   parseQwenToolCall,
-} from "../../src/workers/local-model/chat/qwen35";
+} from "@memora/local-model-runtime/worker";
 
 describe("qwen35 adapter helpers", () => {
   test("preserves text and image content", () => {
