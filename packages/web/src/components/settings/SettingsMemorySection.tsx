@@ -1,16 +1,14 @@
-import { Button } from "@base-ui/react/button";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
 import {
-  SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
   SETTINGS_ROW_CLASS_NAME,
-  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
 import { useMemorySettings } from "@/hooks/settings/useMemorySettings";
 import { cn } from "@/lib/cn";
 import { formatMemoryTimestamp } from "@/lib/settings/dialogHelpers";
@@ -38,9 +36,9 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button
+          variant="secondary"
           onClick={() => void refreshMemoryData()}
           disabled={isMemoryLoading}
-          className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
         >
           {isMemoryLoading ? "Refreshing..." : "Refresh"}
         </Button>
@@ -56,9 +54,9 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Personality</h3>
           <Button
+            variant="destructive"
             onClick={() => void handleDeletePersonality()}
             disabled={!memoryData?.personality}
-            className={SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME}
           >
             Delete profile
           </Button>
@@ -80,16 +78,16 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Notices</h3>
           <div className="flex flex-wrap gap-2">
             <Button
+              variant="secondary"
               onClick={() => void handleClearNotices()}
               disabled={sortedNotices.length === 0}
-              className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
             >
               Clear notices
             </Button>
             <Button
+              variant="destructive"
               onClick={() => void handleClearAllMemory()}
               disabled={!hasStoredMemory}
-              className={SETTINGS_DESTRUCTIVE_BUTTON_CLASS_NAME}
             >
               Clear all memory
             </Button>
@@ -109,14 +107,14 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
                     Updated {formatMemoryTimestamp(notice.updatedAt)}
                   </p>
                 </div>
-                <button
+                <Button
+                  variant="destructiveIcon"
                   type="button"
                   onClick={() => void handleDeleteNotice(notice.id)}
-                  className="memora-interactive flex size-9 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-[background-color,color,transform] duration-300 ease-[var(--ease-out-quart)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-warning-surface)] hover:text-[var(--color-memora-warning-text)]"
                   aria-label="Delete notice"
                 >
                   <TrashIcon className="size-4" />
-                </button>
+                </Button>
               </div>
             ))}
           </div>

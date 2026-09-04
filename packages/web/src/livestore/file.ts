@@ -234,7 +234,9 @@ export const fileMaterializers = {
           : {}),
         ...(event.durationSec !== undefined ? { durationSec: event.durationSec ?? null } : {}),
         ...(event.mimeType !== undefined ? { mimeType: event.mimeType } : {}),
-        ...(event.sizeBytes !== undefined ? { sizeBytes: event.sizeBytes } : {}),
+        ...(event.sizeBytes !== undefined
+          ? { sizeBytes: event.sizeBytes, indexStatus: "pending", indexedAt: null, indexSummary: null }
+          : {}),
         ...(event.storageType !== undefined ? { storageType: event.storageType } : {}),
         ...(event.storagePath !== undefined ? { storagePath: event.storagePath } : {}),
         updatedAt: event.updatedAt,
@@ -244,6 +246,9 @@ export const fileMaterializers = {
     fileTable
       .update({
         transcriptPath: event.transcriptPath,
+        indexStatus: "pending",
+        indexedAt: null,
+        indexSummary: null,
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),
@@ -253,7 +258,6 @@ export const fileMaterializers = {
         indexStatus: event.indexStatus,
         indexedAt: event.indexedAt ?? null,
         indexSummary: event.indexSummary ?? null,
-        updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),
   "v1.FileDeleted": (event: FileDeletedEvent) =>

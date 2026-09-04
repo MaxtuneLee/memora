@@ -10,9 +10,15 @@ export const SETTINGS_SECTIONS = [
     description: "Shortcuts and command palette preferences.",
   },
   {
+    id: "model-routing",
+    label: "Models by feature",
+    description: "Choose where each feature runs on this device. Chat always uses a cloud model.",
+  },
+  {
     id: "ai-provider",
-    label: "AI Service Provider",
-    description: "Manage AI runtime and model endpoints.",
+    label: "Providers",
+    description:
+      "Manage cloud endpoints. API keys stay on this device and are never synced or exported.",
   },
   {
     id: "local-models",
@@ -23,6 +29,11 @@ export const SETTINGS_SECTIONS = [
     id: "memory",
     label: "Memory",
     description: "Review and manage the assistant's saved long-term memory.",
+  },
+  {
+    id: "indexing",
+    label: "Indexing",
+    description: "Background extraction, OCR, and local search behavior.",
   },
   {
     id: "skills",

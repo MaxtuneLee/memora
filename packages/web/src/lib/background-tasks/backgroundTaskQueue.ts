@@ -1,0 +1,253 @@
+import { createOpfsTaskStorage } from "./taskStorage";
+import { BackgroundTaskRegistry } from "./taskRegistry";
+import type {
+  BackgroundTask,
+  BackgroundTaskContext,
+  BackgroundTaskError,
+  BackgroundTaskStorage,
+  EnqueueTaskInput,
+} from "./types";
+
+const RETRY_DELAYS = [5_000, 30_000, 300_000];
+
+const toTaskError = (error: unknown): BackgroundTaskError => ({
+  code: error instanceof DOMException && error.name === "AbortError" ? "cancelled" : "task-failed",
+  message: error instanceof Error ? error.message : String(error),
+  retryable: !(error instanceof DOMException && error.name === "AbortError"),
+});
+
+export class BackgroundTaskQueue {
+  readonly registry = new BackgroundTaskRegistry();
+  private readonly storage: BackgroundTaskStorage;
+  private readonly tasks = new Map<string, BackgroundTask>();
+  private readonly listeners = new Set<() => void>();
+  private readonly controllers = new Map<string, AbortController>();
+  private channel: BroadcastChannel | null = null;
+  private running = false;
+  private pumping = false;
+  private wakeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(storage: BackgroundTaskStorage = createOpfsTaskStorage()) {
+    this.storage = storage;
+  }
+
+  async start(): Promise<void> {
+    if (this.running) return;
+    this.running = true;
+    for (const task of await this.storage.load()) {
+      this.tasks.set(task.id, { ...task, state: task.state === "running" ? "queued" : task.state });
+    }
+    if (typeof BroadcastChannel !== "undefined") {
+      this.channel = new BroadcastChannel("memora-background-tasks");
+      this.channel.onmessage = () => void this.reloadAndPump();
+    }
+    await this.persist();
+    void this.pump();
+  }
+
+  async stop(): Promise<void> {
+    this.running = false;
+    for (const controller of this.controllers.values()) controller.abort();
+    this.controllers.clear();
+    this.channel?.close();
+    this.channel = null;
+    if (this.wakeTimer !== null) clearTimeout(this.wakeTimer);
+    this.wakeTimer = null;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  getTasks(): BackgroundTask[] {
+    return [...this.tasks.values()].sort((left, right) => right.updatedAt - left.updatedAt);
+  }
+
+  getTask(id: string): BackgroundTask | undefined {
+    return this.tasks.get(id);
+  }
+
+  async enqueue<TPayload>(input: EnqueueTaskInput<TPayload>): Promise<BackgroundTask<TPayload>> {
+    const existing = [...this.tasks.values()].find(
+      (task) =>
+        task.dedupeKey === input.dedupeKey &&
+        !["succeeded", "cancelled", "failed"].includes(task.state),
+    );
+    if (existing) return existing as BackgroundTask<TPayload>;
+    const now = Date.now();
+    const task: BackgroundTask<TPayload> = {
+      id: crypto.randomUUID(),
+      kind: input.kind,
+      payload: input.payload,
+      dedupeKey: input.dedupeKey,
+      priority: input.priority ?? "background",
+      resourceGroup: input.resourceGroup ?? "default",
+      state: "queued",
+      attempt: 0,
+      maxAttempts: input.maxAttempts ?? 3,
+      runAfter: input.runAfter ?? now,
+      dependsOn: input.dependsOn ?? [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.tasks.set(task.id, task);
+    await this.persist();
+    void this.pump();
+    return task;
+  }
+
+  async cancel(predicate: (task: BackgroundTask) => boolean): Promise<void> {
+    const now = Date.now();
+    for (const task of this.tasks.values()) {
+      if (!predicate(task) || ["succeeded", "failed", "cancelled"].includes(task.state)) continue;
+      task.state = "cancelled";
+      task.updatedAt = now;
+      this.controllers.get(task.id)?.abort();
+    }
+    await this.persist();
+  }
+
+  private async reloadAndPump(): Promise<void> {
+    for (const task of await this.storage.load()) this.tasks.set(task.id, task);
+    void this.pump();
+  }
+
+  private async persist(): Promise<void> {
+    const write = async () => {
+      // Merge with what's on disk first so a concurrent tab's write (made after our
+      // last reload) isn't silently overwritten by our full-snapshot save below.
+      for (const stored of await this.storage.load()) {
+        const local = this.tasks.get(stored.id);
+        if (!local || stored.updatedAt > local.updatedAt) this.tasks.set(stored.id, stored);
+      }
+      await this.storage.save(this.getTasks());
+    };
+    if (typeof navigator !== "undefined" && navigator.locks) {
+      await navigator.locks.request("memora-task-storage", write);
+    } else {
+      await write();
+    }
+    this.channel?.postMessage({ type: "tasks-updated" });
+    this.listeners.forEach((listener) => listener());
+  }
+
+  private canRun(task: BackgroundTask): boolean {
+    if (task.state !== "queued" || task.runAfter > Date.now()) return false;
+    return task.dependsOn.every((id) => this.tasks.get(id)?.state === "succeeded");
+  }
+
+  private async pump(): Promise<void> {
+    if (!this.running || this.pumping) return;
+    this.pumping = true;
+    // ponytail: tasks another tab already claimed this round are skipped (not retried) so a
+    // lost lock race can't spin the loop; the next pump() (storage reload / broadcast) retries them.
+    const unclaimed = new Set<string>();
+    try {
+      while (this.running) {
+        const task = this.getTasks()
+          .filter((candidate) => this.canRun(candidate) && !unclaimed.has(candidate.id))
+          .sort(
+            (left, right) => Number(right.priority === "user") - Number(left.priority === "user"),
+          )[0];
+        if (!task) break;
+        const claimed = await this.runTask(task);
+        if (!claimed) unclaimed.add(task.id);
+      }
+    } finally {
+      this.pumping = false;
+      this.scheduleNextWake();
+    }
+  }
+
+  /** Schedules a pump() for the earliest future runAfter so a delayed retry isn't stuck
+   * until unrelated activity happens to call pump() again. */
+  private scheduleNextWake(): void {
+    if (this.wakeTimer !== null) {
+      clearTimeout(this.wakeTimer);
+      this.wakeTimer = null;
+    }
+    if (!this.running) return;
+    const now = Date.now();
+    const nextRunAfter = this.getTasks()
+      .filter((task) => task.state === "queued" && task.runAfter > now)
+      .reduce<number | null>(
+        (earliest, task) => (earliest === null ? task.runAfter : Math.min(earliest, task.runAfter)),
+        null,
+      );
+    if (nextRunAfter === null) return;
+    this.wakeTimer = setTimeout(() => {
+      this.wakeTimer = null;
+      void this.pump();
+    }, nextRunAfter - now);
+  }
+
+  /** Claims a cross-tab lock for the task before running it; returns false if another tab holds it. */
+  private async runTask(task: BackgroundTask): Promise<boolean> {
+    if (typeof navigator === "undefined" || !navigator.locks) {
+      await this.executeTask(task);
+      return true;
+    }
+    return navigator.locks.request(
+      `memora-task-${task.id}`,
+      { ifAvailable: true },
+      async (lock) => {
+        if (!lock) {
+          // Another tab is already running this task; resync from storage and let pump() move on.
+          for (const stored of await this.storage.load()) this.tasks.set(stored.id, stored);
+          return false;
+        }
+        await this.executeTask(task);
+        return true;
+      },
+    );
+  }
+
+  private async executeTask(task: BackgroundTask): Promise<void> {
+    const handler = this.registry.get(task.kind);
+    if (!handler) {
+      task.state = "failed";
+      task.error = {
+        code: "missing-handler",
+        message: `No handler registered for ${task.kind}.`,
+        retryable: false,
+      };
+      task.updatedAt = Date.now();
+      await this.persist();
+      return;
+    }
+    const controller = new AbortController();
+    this.controllers.set(task.id, controller);
+    task.state = "running";
+    task.attempt += 1;
+    task.updatedAt = Date.now();
+    await this.persist();
+    const context: BackgroundTaskContext = {
+      signal: controller.signal,
+      task,
+      reportProgress: () => undefined,
+      enqueue: (input) => this.enqueue(input),
+    };
+    try {
+      await handler.run(task.payload, context);
+      task.state = "succeeded";
+      task.error = undefined;
+    } catch (error) {
+      const taskError = toTaskError(error);
+      task.error = taskError;
+      if (taskError.code === "cancelled") task.state = "cancelled";
+      else if (taskError.retryable && task.attempt < task.maxAttempts) {
+        task.state = "queued";
+        task.runAfter =
+          Date.now() + RETRY_DELAYS[Math.min(task.attempt - 1, RETRY_DELAYS.length - 1)];
+      } else task.state = "failed";
+    } finally {
+      task.updatedAt = Date.now();
+      this.controllers.delete(task.id);
+      await this.persist();
+    }
+  }
+}
+
+export const createBackgroundTaskQueue = (storage?: BackgroundTaskStorage): BackgroundTaskQueue =>
+  new BackgroundTaskQueue(storage);

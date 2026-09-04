@@ -5,7 +5,7 @@ import {
   buildGemmaMessages,
   parseGemmaToolCall,
   __private__,
-} from "../../src/workers/local-model/chat/gemma4";
+} from "@memora/local-model-runtime/worker";
 
 describe("gemma4 adapter helpers", () => {
   test("uses string content for text-only messages without local system prompt injection", async () => {

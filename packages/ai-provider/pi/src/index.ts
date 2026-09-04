@@ -51,6 +51,7 @@ export interface RemotePiProviderConfig {
   apiFormat: "chat-completions" | "responses";
   models: ModelCatalogEntry[];
   selectedModelId: string;
+  onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void;
 }
 
 export interface LocalModelClientLike {
@@ -111,10 +112,33 @@ export const createRemotePiRuntime = (config: RemotePiProviderConfig): PiModelRu
   );
 
   const stream: MemoraModelStream = (model, context, options) => {
-    return collection.streamSimple(model, context, {
+    const result = collection.streamSimple(model, context, {
       ...options,
       ...(config.apiKey?.trim() ? { apiKey: config.apiKey.trim() } : {}),
     });
+    if (config.onUsage) {
+      void result.result().then(
+        (message) => {
+          if (message.stopReason === "aborted" || message.stopReason === "error") return;
+          const inputTokens = message.usage.input;
+          const outputTokens = message.usage.output;
+          if (
+            !Number.isSafeInteger(inputTokens) ||
+            inputTokens < 0 ||
+            !Number.isSafeInteger(outputTokens) ||
+            outputTokens < 0
+          )
+            return;
+          try {
+            config.onUsage?.({ inputTokens, outputTokens });
+          } catch {
+            console.warn("Could not save model token usage.");
+          }
+        },
+        () => undefined,
+      );
+    }
+    return result;
   };
 
   return { model: selectedModel, stream };

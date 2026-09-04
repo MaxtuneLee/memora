@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { type file as LiveStoreFile } from "@/livestore/file";
 import { type folder as LiveStoreFolder } from "@/livestore/folder";
@@ -35,10 +35,11 @@ import { useChatSessions } from "@/components/chat/chatPage/useChatSessions";
 import { useChatTurnActions } from "@/components/chat/chatPage/useChatTurnActions";
 import { useChatWriteApproval } from "@/components/chat/chatPage/useChatWriteApproval";
 import { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
-import { ONBOARDING_GEMMA_MODEL_ID } from "@/lib/onboarding/onboardingGate";
+import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 
 export const Component = () => {
-  const { store } = useStore();
+  const store = useAppStore();
+  const { createRuntime } = useFeatureModels();
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const { openSettings } = useSettingsDialog();
   const openSettingsPanel = useCallback(
@@ -123,16 +124,7 @@ export const Component = () => {
     return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
   }, [activeSessionId]);
 
-  const {
-    agentConfig,
-    runtime,
-    isConfigured,
-    selectedApiFormat,
-    selectedApiKey,
-    selectedBaseUrl,
-    selectedModel,
-    selectedModelInfo,
-  } = useChatModelConfig({
+  const { agentConfig, runtime, isConfigured, selectedModelInfo } = useChatModelConfig({
     providers,
     settings,
     activeSessionId,
@@ -142,18 +134,7 @@ export const Component = () => {
     () =>
       createChatTools(store, {
         getReferenceScope: references.getReferenceScope,
-        getMemoryExtractionConfig: () => {
-          if (!isConfigured || !selectedApiKey) {
-            return null;
-          }
-
-          return {
-            apiFormat: selectedApiFormat,
-            baseUrl: selectedBaseUrl,
-            apiKey: selectedApiKey,
-            model: selectedModel,
-          };
-        },
+        getMemoryExtractionRuntime: () => createRuntime("memoryExtraction", "background"),
         onMemoryUpdated: () => {
           setMemoryUpdatedNotice(true);
         },
@@ -161,13 +142,9 @@ export const Component = () => {
         showWidgetSkillTracker,
       }),
     [
-      isConfigured,
+      createRuntime,
       references.getReferenceScope,
       requestWriteApproval,
-      selectedApiFormat,
-      selectedApiKey,
-      selectedBaseUrl,
-      selectedModel,
       showWidgetSkillTracker,
       store,
     ],
@@ -355,7 +332,6 @@ export const Component = () => {
           commitPersistedSession(record, messages);
 
           const shouldGenerateTitle =
-            ONBOARDING_GEMMA_MODEL_ID.trim().length > 0 &&
             record.messages.some((message) => message.role === "user") &&
             record.title !== DEFAULT_CHAT_SESSION_TITLE &&
             record.agentStore[titleMetadataKey]?.generated !== true &&
@@ -366,10 +342,13 @@ export const Component = () => {
           }
 
           titleGenerationSessionIdsRef.current.add(activeSessionId);
-          void generateChatSessionTitle({
-            messages,
-            modelId: ONBOARDING_GEMMA_MODEL_ID,
-          })
+          void Promise.resolve()
+            .then(() =>
+              generateChatSessionTitle({
+                messages,
+                runtime: createRuntime("sessionTitle", "background"),
+              }),
+            )
             .then(async (title) => {
               if (!title) return null;
               return updateChatSession(activeSessionId, (session) => ({
@@ -406,6 +385,7 @@ export const Component = () => {
     activeReferences,
     activeSessionId,
     commitPersistedSession,
+    createRuntime,
     isStreaming,
     messages,
     persistedSignaturesRef,

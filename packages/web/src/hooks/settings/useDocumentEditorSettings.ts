@@ -1,5 +1,5 @@
 import { queryDb } from "@livestore/livestore";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { useCallback, useMemo } from "react";
 
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
@@ -44,7 +44,7 @@ const buildFolderOptionLabel = (
 };
 
 export const useDocumentEditorSettings = () => {
-  const { store } = useStore();
+  const store = useAppStore();
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
       settingsTable.default.value,

@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Component as ChatComponent } from "@/components/chat/ChatPage";
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
+import { useAppStore } from "@/livestore/store";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 
 export const Component = () => {
+  const store = useAppStore();
+  const settings = store.useQuery(settingsDocumentQuery$);
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
 
@@ -11,10 +15,10 @@ export const Component = () => {
     let cancelled = false;
 
     const enforceOnboardingGate = async () => {
-      const status = await getOnboardingGateStatus();
+      const status = await getOnboardingGateStatus(settings.onboardingCompleted);
 
       if (!cancelled && !status.ready) {
-        navigate("/onboarding", { replace: true });
+        void navigate("/onboarding", { replace: true });
         return;
       }
 
@@ -28,7 +32,7 @@ export const Component = () => {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, settings.onboardingCompleted]);
 
   if (!ready) {
     return null;

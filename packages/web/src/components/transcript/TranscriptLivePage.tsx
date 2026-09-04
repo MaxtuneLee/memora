@@ -7,7 +7,7 @@ import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/componen
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { BackButton } from "@/components/transcript/BackButton";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
-import { Progress } from "@/components/Progress";
+import { Progress } from "@/components/ui/Progress";
 import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
 import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
@@ -119,6 +119,9 @@ export const Component = () => {
   }, [checkModelCache]);
 
   const modelBadge = useMemo(() => {
+    if (status === "error") {
+      return { label: "Transcription unavailable", tone: "bg-amber-400" };
+    }
     if (status === "ready") {
       return {
         label: "Model Ready",
@@ -297,37 +300,38 @@ export const Component = () => {
                     <span className={`h-2.5 w-2.5 rounded-full ${modelBadge.tone}`} />
                     {modelBadge.label}
                   </div>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {status === "loading"
-                      ? loadingMessage || "Downloading transcription model..."
-                      : isCheckingCache
-                        ? "Checking local model availability."
-                        : isModelCached
-                          ? "Finishing model preparation before recording."
-                          : "Download the transcription model to start recording."}
+                  <p
+                    className="mt-1 text-sm text-zinc-500"
+                    role={status === "error" ? "alert" : undefined}
+                  >
+                    {status === "error"
+                      ? loadingMessage || "Check the transcription model settings and retry."
+                      : status === "loading"
+                        ? loadingMessage || "Downloading transcription model..."
+                        : isCheckingCache
+                          ? "Checking local model availability."
+                          : isModelCached
+                            ? "Finishing model preparation before recording."
+                            : "Download the transcription model to start recording."}
                   </p>
                 </div>
 
-                {!isCheckingCache && !isModelCached && status === null && (
-                  <button
-                    type="button"
-                    onClick={loadModel}
-                    className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
-                  >
-                    Load Model
-                  </button>
-                )}
+                {!isCheckingCache &&
+                  (status === "error" || (!isModelCached && status === null)) && (
+                    <button
+                      type="button"
+                      onClick={loadModel}
+                      className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+                    >
+                      {status === "error" ? "Retry" : "Load model"}
+                    </button>
+                  )}
               </div>
 
               {progressItems.length > 0 && (
                 <div className="space-y-2 rounded-2xl border border-zinc-200/80 bg-white/60 p-3">
-                  {progressItems.map(({ file, progress, total }, index) => (
-                    <Progress
-                      key={`${file}-${index}`}
-                      text={file}
-                      percentage={progress}
-                      total={total}
-                    />
+                  {progressItems.map(({ file, progress }, index) => (
+                    <Progress key={`${file}-${index}`} label={file} value={progress} />
                   ))}
                 </div>
               )}

@@ -12,8 +12,12 @@ import {
 import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialog";
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 import type { SettingsSectionId } from "@/types/settings";
+import { useAppStore } from "@/livestore/store";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 
 export default function AppLayout() {
+  const store = useAppStore();
+  const settings = store.useQuery(settingsDocumentQuery$);
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
@@ -120,7 +124,7 @@ export default function AppLayout() {
     let cancelled = false;
 
     const checkOnboardingGate = async () => {
-      const status = await getOnboardingGateStatus();
+      const status = await getOnboardingGateStatus(settings.onboardingCompleted);
       if (cancelled) {
         return;
       }
@@ -134,7 +138,7 @@ export default function AppLayout() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname]);
+  }, [location.pathname, settings.onboardingCompleted]);
 
   useEffect(() => {
     if (!onboardingGateReady) {
@@ -142,12 +146,12 @@ export default function AppLayout() {
     }
 
     if (!onboardingComplete && !isOnboardingRoute) {
-      navigate("/onboarding", { replace: true });
+      void navigate("/onboarding", { replace: true });
       return;
     }
 
     if (onboardingComplete && isOnboardingRoute) {
-      navigate("/", { replace: true });
+      void navigate("/", { replace: true });
     }
   }, [isOnboardingRoute, navigate, onboardingComplete, onboardingGateReady]);
 

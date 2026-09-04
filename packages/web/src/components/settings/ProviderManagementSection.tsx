@@ -1,17 +1,15 @@
-import { Button } from "@base-ui/react/button";
 import { ArrowsClockwiseIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 
 import SettingsProviderForm from "@/components/settings/SettingsProviderForm";
 import {
-  SETTINGS_ICON_BUTTON_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
   SETTINGS_ROW_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
-  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import type { provider as ProviderRow } from "@/livestore/provider";
@@ -62,11 +60,7 @@ export default function ProviderManagementSection({
     <section className={cn(SETTINGS_PANEL_CLASS_NAME, className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>{title}</h3>
-        <Button
-          onClick={onAddProvider}
-          disabled={isFormOpen}
-          className={SETTINGS_SECONDARY_BUTTON_CLASS_NAME}
-        >
+        <Button variant="secondary" onClick={onAddProvider} disabled={isFormOpen}>
           <PlusIcon className="size-3.5" weight="bold" />
           <span>Add provider</span>
         </Button>
@@ -101,40 +95,37 @@ export default function ProviderManagementSection({
                 </div>
 
                 <div className="flex shrink-0 items-start gap-1">
-                  <button
+                  <Button
+                    variant="icon"
                     type="button"
                     onClick={() => {
                       void onFetchProviderModels(provider);
                     }}
                     disabled={isFetching || isFormOpen}
                     title="Fetch models"
-                    className={SETTINGS_ICON_BUTTON_CLASS_NAME}
                   >
                     <ArrowsClockwiseIcon
                       className={cn("size-4", isFetching ? "animate-spin" : "")}
                     />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="icon"
                     type="button"
                     onClick={() => onEditProvider(provider)}
                     disabled={isFormOpen}
                     title="Edit"
-                    className={SETTINGS_ICON_BUTTON_CLASS_NAME}
                   >
                     <PencilSimpleIcon className="size-4" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="destructiveIcon"
                     type="button"
                     onClick={() => onDeleteProvider(provider.id)}
                     disabled={isFormOpen}
                     title="Remove"
-                    className={cn(
-                      SETTINGS_ICON_BUTTON_CLASS_NAME,
-                      "hover:bg-[var(--color-memora-warning-surface)] hover:text-[var(--color-memora-warning-text)]",
-                    )}
                   >
                     <TrashIcon className="size-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             );

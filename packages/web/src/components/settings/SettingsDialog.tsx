@@ -7,6 +7,7 @@ import {
   GearSixIcon,
   HardDrivesIcon,
   InfoIcon,
+  ListMagnifyingGlassIcon,
   KeyboardIcon,
   SparkleIcon,
   XIcon,
@@ -15,16 +16,17 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
+import SettingsModelRoutingSection from "@/components/settings/SettingsModelRoutingSection";
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
 import {
-  SETTINGS_ICON_BUTTON_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
-  SETTINGS_SECONDARY_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
+import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
@@ -52,8 +54,10 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   general: GearSixIcon,
   hotkeys: KeyboardIcon,
   "ai-provider": CpuIcon,
+  "model-routing": CpuIcon,
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
+  indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
   about: InfoIcon,
@@ -102,11 +106,12 @@ function SettingsNavItem({
   const isActive = sectionId === activeSection;
 
   return (
-    <button
+    <Button
+      variant="plain"
       type="button"
       onClick={() => onSectionChange(sectionId)}
       className={cn(
-        "group relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
+        "group relative flex w-full items-center justify-start gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
         isActive ? "text-zinc-900" : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
       )}
     >
@@ -126,7 +131,7 @@ function SettingsNavItem({
         )}
       />
       <span className="relative z-10 min-w-0 truncate">{label}</span>
-    </button>
+    </Button>
   );
 }
 
@@ -188,6 +193,7 @@ export default function SettingsDialog({
   };
 
   const renderSectionContent = () => {
+    if (activeSection === "model-routing") return <SettingsModelRoutingSection />;
     if (activeSection === "general") {
       return <SettingsGeneralSection />;
     }
@@ -198,6 +204,10 @@ export default function SettingsDialog({
 
     if (activeSection === "memory") {
       return <SettingsMemorySection open={open} />;
+    }
+
+    if (activeSection === "indexing") {
+      return <SettingsIndexingSection />;
     }
 
     if (activeSection === "local-models") {
@@ -273,9 +283,10 @@ export default function SettingsDialog({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
+                    variant="secondary"
                     type="button"
-                    className={cn(SETTINGS_SECONDARY_BUTTON_CLASS_NAME, "md:hidden")}
+                    className="md:hidden"
                     aria-expanded={isMobileNavigationOpen}
                     aria-controls="settings-section-directory"
                     onClick={() => setIsMobileNavigationOpen((current) => !current)}
@@ -287,15 +298,15 @@ export default function SettingsDialog({
                         isMobileNavigationOpen ? "rotate-180" : "",
                       )}
                     />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="icon"
                     type="button"
                     onClick={() => onOpenChange(false)}
-                    className={SETTINGS_ICON_BUTTON_CLASS_NAME}
                     aria-label="Close settings"
                   >
                     <XIcon className="size-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 

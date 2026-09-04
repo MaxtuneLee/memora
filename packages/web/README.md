@@ -5,7 +5,7 @@ Memora 的主前端应用，基于 React 19、Vite、React Router 和 Tailwind C
 ## Development
 
 - 启动开发服务器：`pnpm --filter @memora/web dev`
-- 默认端口：`9001`
+- 默认端口：`9003`
 - 预览生产构建：`pnpm --filter @memora/web preview`
 
 也可以从 workspace 根目录使用：

@@ -2,6 +2,9 @@ import type { MutableRefObject } from "react";
 
 import type { LocalAsrEvent } from "@memora/local-model-runtime";
 import { localModelClient } from "@/lib/local-model";
+import { createWhisperTranscriptionProvider } from "@/lib/transcript/providers/whisper";
+import { toRecordingTranscript } from "@/lib/transcript/providers/toRecordingTranscript";
+import type { TranscriptSegment, TranscriptionSession } from "@/lib/transcript/providers/types";
 
 export interface WhisperProgressItem {
   file: string;
@@ -123,10 +126,7 @@ export const loadWhisperModel = (worker: Worker): void => {
 
 export const generateWhisperTranscript = (
   worker: Worker,
-  input: {
-    audio: Float32Array;
-    language: string;
-  },
+  input: { audio: Float32Array; language: string },
 ): void => {
   const localWorker = worker as LocalWhisperWorker;
   localWorker.activeController?.abort();
@@ -135,47 +135,54 @@ export const generateWhisperTranscript = (
 
   void (async () => {
     dispatchWhisperMessage(localWorker, { status: "start" });
+    const segments = new Map<string, TranscriptSegment>();
+    let session: TranscriptionSession | undefined;
     try {
-      for await (const event of localModelClient.transcribeAudio(
+      session = await createWhisperTranscriptionProvider().open(
         {
           modelId: "whisper-base-timestamped",
-          audio: input.audio,
+          sampleRate: 16000,
           language: input.language,
-          returnTimestamps: "word",
+          segmentation: "manual",
+          timestamps: "word",
+          signal: controller.signal,
         },
-        { priority: "interactive", signal: controller.signal },
-      )) {
-        const progressMessage = toWhisperProgressMessage(event);
-        if (progressMessage) {
-          dispatchWhisperMessage(localWorker, progressMessage);
-          continue;
-        }
-
-        if (event.type === "transcript-delta") {
-          dispatchWhisperMessage(localWorker, { status: "update", output: event.text });
-          continue;
-        }
-
-        if (event.type === "transcript-complete") {
-          localWorker.loaded = true;
-          dispatchWhisperMessage(localWorker, {
-            status: "complete",
-            output: event.text,
-            chunks: event.chunks,
-            audio_length: event.audioLength,
-          });
-          continue;
-        }
-
-        if (event.type === "error") {
-          dispatchWhisperMessage(localWorker, { status: "error", data: event.error.message });
-        }
-      }
-    } catch (error) {
+        (event) => {
+          if (controller.signal.aborted) return;
+          if (event.type === "progress") {
+            dispatchWhisperMessage(localWorker, {
+              status: event.progress !== undefined && event.progress >= 100 ? "done" : "progress",
+              file: event.label,
+              progress: event.progress ?? 0,
+            });
+          } else if (event.type === "segment") {
+            segments.set(event.segment.id, event.segment);
+            dispatchWhisperMessage(localWorker, {
+              status: "update",
+              output: [...segments.values()].map((segment) => segment.text.trim()).join(" "),
+            });
+          }
+        },
+      );
+      await session.write(input.audio);
+      await session.finish();
+      controller.signal.throwIfAborted();
+      const transcript = toRecordingTranscript([...segments.values()]);
+      localWorker.loaded = true;
       dispatchWhisperMessage(localWorker, {
-        status: "error",
-        data: error instanceof Error ? error.message : "Transcription failed",
+        status: "complete",
+        output: transcript.text,
+        chunks: transcript.words,
+        audio_length: input.audio.length,
       });
+    } catch (error) {
+      if (!controller.signal.aborted)
+        dispatchWhisperMessage(localWorker, {
+          status: "error",
+          data: error instanceof Error ? error.message : "Transcription failed",
+        });
+    } finally {
+      session?.abort();
     }
   })();
 };

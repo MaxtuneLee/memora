@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemo } from "react";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   SETTINGS_INSET_PANEL_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
@@ -66,10 +68,11 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
   return (
     <div className="space-y-4">
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Model</h3>
+        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Chat model</h3>
 
         <div className="relative mt-4">
-          <button
+          <Button
+            variant="plain"
             type="button"
             onClick={handleToggleModelDropdown}
             className="memora-interactive flex w-full items-center justify-between rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-4 py-3 text-left transition-[border-color,background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[var(--color-memora-hover-strong)]"
@@ -85,7 +88,7 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
               {selectedModelLabel}
             </span>
             <CaretDownIcon className="size-4 text-[var(--color-memora-text-soft)]" />
-          </button>
+          </Button>
 
           <AnimatePresence>
             {modelDropdownOpen && allModels.length > 0 && (
@@ -102,26 +105,26 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                   </label>
                   <div className="flex items-center gap-2 rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-3 py-2">
                     <MagnifyingGlassIcon className="size-3.5 text-[var(--color-memora-text-soft)]" />
-                    <input
+                    <Input
                       id="model-search-input"
                       ref={modelSearchInputRef}
                       type="text"
                       value={modelSearchQuery}
                       onChange={(event) => setModelSearchQuery(event.target.value)}
                       placeholder="Search models or providers"
-                      className="w-full bg-transparent text-sm text-[var(--color-memora-text)] outline-none placeholder:text-[var(--color-memora-text-soft)]"
+                      className="min-w-0 flex-1 border-transparent bg-transparent px-0 py-0 focus:border-transparent focus:ring-0"
                     />
                   </div>
                 </div>
-                <div className="memora-scrollbar max-h-72 overflow-y-auto py-2">
+                <div className="memora-scrollbar max-h-72 overflow-y-auto px-2 py-2 [scrollbar-gutter:stable]">
                   {filteredModelGroups.length === 0 ? (
-                    <div className="px-4 py-4 text-sm text-[var(--color-memora-text-soft)]">
+                    <div className="px-2 py-4 text-sm text-[var(--color-memora-text-soft)]">
                       No matching models.
                     </div>
                   ) : (
                     filteredModelGroups.map(({ provider, models }) => (
                       <div key={provider.id}>
-                        <div className="px-4 py-2 text-xs font-medium text-[var(--color-memora-text-soft)]">
+                        <div className="px-2 py-2 text-xs font-medium text-[var(--color-memora-text-soft)]">
                           {provider.name}
                         </div>
                         {models.map((model) => {
@@ -129,12 +132,13 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                             selectedProviderId === provider.id && selectedModel === model.id;
 
                           return (
-                            <button
+                            <Button
+                              variant="plain"
                               key={model.id}
                               type="button"
                               onClick={() => handleSelectModel(provider.id, model.id)}
                               className={cn(
-                                "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition",
+                                "flex w-full items-center justify-start gap-3 px-2 py-2.5 text-left text-sm transition",
                                 isSelected
                                   ? "bg-[var(--color-memora-surface-soft)] font-semibold text-[var(--color-memora-text-strong)]"
                                   : "text-[var(--color-memora-text-muted)] hover:bg-[var(--color-memora-hover-strong)]",
@@ -146,7 +150,7 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                                 ) : null}
                               </span>
                               <span>{model.name ?? model.id}</span>
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>

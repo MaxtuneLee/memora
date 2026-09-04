@@ -12,6 +12,7 @@ import {
 import {
   configureTransformersCache,
   getModelResourceCachePath,
+  isTransformersModelCacheCorruptionError,
   OPFSCache,
 } from "@/workers/local-model/cache";
 
@@ -51,6 +52,21 @@ describe("image document layout mapping", () => {
 
     expect(detections).toHaveLength(1);
     expect(detections[0]?.id).toBe(1);
+  });
+
+  test("filters layout detections below the default 40% confidence threshold", () => {
+    expect(
+      deduplicateLayoutDetections([
+        {
+          id: 1,
+          classId: 17,
+          label: "paragraph_title",
+          score: 0.374,
+          bbox: [0, 0, 400, 120],
+          readingOrder: 0,
+        },
+      ]),
+    ).toEqual([]);
   });
 });
 
@@ -152,7 +168,9 @@ describe("image document composition", () => {
       ],
     });
 
-    expect(blocks.filter((block) => block.text === "A line must not be duplicated")).toHaveLength(1);
+    expect(blocks.filter((block) => block.text === "A line must not be duplicated")).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -289,6 +307,14 @@ describe("shared OPFS model cache", () => {
     expect(environment.useCustomCache).toBe(true);
     expect(environment.customCache).toBe(OPFSCache);
     expect(environment.useBrowserCache).toBe(false);
+  });
+
+  test("recognizes invalid ONNX protobuf cache errors", () => {
+    expect(
+      isTransformersModelCacheCorruptionError(
+        new Error("Can't create a session. No graph was found in the protobuf."),
+      ),
+    ).toBe(true);
   });
 });
 

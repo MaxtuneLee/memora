@@ -1,43 +1,58 @@
-import { makePersistedAdapter } from "@livestore/adapter-web";
-import LiveStoreSharedWorker from "@livestore/adapter-web/shared-worker?sharedworker";
-import { LiveStoreProvider } from "@livestore/react";
-import { StrictMode } from "react";
-import { unstable_batchedUpdates as batchUpdates } from "react-dom";
+import { StoreRegistryProvider } from "@livestore/react";
+import { StrictMode, Suspense, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import {
   LiveStoreDevtoolsPanel,
   type LiveStoreDevtoolsPanelProps,
 } from "@memora/livestore-devtool";
 import LiveStoreLoadingScreen from "@/app/components/LiveStoreLoadingScreen";
-import { createLiveStoreLoadingStatus } from "@/app/liveStoreLoadingStatus";
-import { schema } from "@/livestore/schema";
-import LiveStoreWorker from "@/workers/livestore.worker?worker";
+import { appStoreRegistry, useAppStore, useLiveStoreLoadingStatus } from "@/livestore/store";
 import "@/index.css";
 
-const adapter = makePersistedAdapter({
-  storage: { type: "opfs" },
-  worker: LiveStoreWorker,
-  sharedWorker: LiveStoreSharedWorker,
-});
+type DevtoolsRenderProps = Omit<LiveStoreDevtoolsPanelProps, "querySql" | "executeSql">;
 
-export function renderLiveStoreDevtools(
-  rootElement: HTMLElement,
-  props: LiveStoreDevtoolsPanelProps = {},
-) {
+function LiveStoreFallback() {
+  const status = useLiveStoreLoadingStatus();
+  return <LiveStoreLoadingScreen status={status} />;
+}
+
+function DevtoolsPanel(props: DevtoolsRenderProps) {
+  const store = useAppStore();
+  const querySql = useCallback((query: string) => store.query({ query, bindValues: {} }), [store]);
+  const executeSql = useCallback(
+    (query: string) => {
+      const internalStore = store as unknown as {
+        sqliteDbWrapper?: {
+          execute: (
+            statement: string,
+            bindValues?: Record<string, unknown>,
+          ) => {
+            durationMs: number;
+          };
+        };
+      };
+      const result = internalStore.sqliteDbWrapper?.execute(query, {});
+      if (!result) {
+        throw new Error(
+          "Write queries are unavailable because the sqlite executor is not exposed.",
+        );
+      }
+      return result;
+    },
+    [store],
+  );
+
+  return <LiveStoreDevtoolsPanel {...props} querySql={querySql} executeSql={executeSql} />;
+}
+
+export function renderLiveStoreDevtools(rootElement: HTMLElement, props: DevtoolsRenderProps = {}) {
   createRoot(rootElement).render(
     <StrictMode>
-      <LiveStoreProvider
-        schema={schema}
-        adapter={adapter}
-        renderLoading={(status) => (
-          <LiveStoreLoadingScreen status={createLiveStoreLoadingStatus(status)} />
-        )}
-        batchUpdates={batchUpdates}
-        storeId={"main"}
-        syncPayload={{ authToken: "insecure-token-change-me" }}
-      >
-        <LiveStoreDevtoolsPanel {...props} />
-      </LiveStoreProvider>
+      <StoreRegistryProvider storeRegistry={appStoreRegistry}>
+        <Suspense fallback={<LiveStoreFallback />}>
+          <DevtoolsPanel {...props} />
+        </Suspense>
+      </StoreRegistryProvider>
     </StrictMode>,
   );
 }

@@ -1,5 +1,5 @@
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -14,7 +14,7 @@ import { ShortcutHint } from "./searchPalette/ShortcutHint";
 import { useSearchResults } from "./searchPalette/useSearchResults";
 
 export default function SearchPalette() {
-  const { store } = useStore();
+  const store = useAppStore();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
   const { isSearchOpen, closeSearch } = useSearchPalette();

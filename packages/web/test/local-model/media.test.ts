@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
-import { compressLocalModelImageBlob } from "../../src/workers/local-model/chat/media";
+import { compressLocalModelImageBlob } from "@memora/local-model-runtime/worker";
 
 describe("local model media helpers", () => {
   afterEach(() => {

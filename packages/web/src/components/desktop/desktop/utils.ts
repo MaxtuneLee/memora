@@ -26,6 +26,11 @@ export const mapFileRowsToDesktopItems = (
         y: meta.positionY ?? 0,
       },
       fileMeta: meta,
+      indexState: {
+        status: file.indexStatus,
+        indexedAt: file.indexedAt instanceof Date ? file.indexedAt.getTime() : null,
+        summary: file.indexSummary ?? null,
+      },
     } satisfies DesktopFileItem;
   });
 };
@@ -43,6 +48,40 @@ export const mapFolderRowsToDesktopItems = (
       hasStoredPosition: false,
     } satisfies DesktopFolderItem;
   });
+};
+
+const shallowEqual = <T extends object>(left: T, right: T): boolean => {
+  const leftKeys = Object.keys(left) as Array<keyof T>;
+  const rightKeys = Object.keys(right) as Array<keyof T>;
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key) => Object.is(left[key], right[key]))
+  );
+};
+
+export const areDesktopItemsEqual = (left: DesktopItemType, right: DesktopItemType): boolean => {
+  if (
+    left.id !== right.id ||
+    left.name !== right.name ||
+    left.type !== right.type ||
+    !shallowEqual(left.position, right.position)
+  ) {
+    return false;
+  }
+  if (left.type === "file" && right.type === "file") {
+    return (
+      shallowEqual(left.fileMeta, right.fileMeta) && shallowEqual(left.indexState, right.indexState)
+    );
+  }
+  if (left.type === "folder" && right.type === "folder") {
+    return left.parentId === right.parentId && left.hasStoredPosition === right.hasStoredPosition;
+  }
+  return (
+    left.type === "widget" &&
+    right.type === "widget" &&
+    left.widgetType === right.widgetType &&
+    shallowEqual(left.size, right.size)
+  );
 };
 
 export const getWindowIds = (

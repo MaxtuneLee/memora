@@ -7,12 +7,10 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
+import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
 import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
 import { cn } from "@/lib/cn";
-import {
-  ONBOARDING_GEMMA_MODEL_ID,
-  ONBOARDING_WHISPER_MODEL_ID,
-} from "@/lib/onboarding/onboardingGate";
+import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import { useLocalModelDownloadState } from "@/hooks/settings/useLocalModelDownloadSettings";
 import {
   MEMORA_STREAMDOWN_CLASS_NAME,
@@ -43,6 +41,7 @@ interface OnboardingExperienceProps {
   errorMessage: string | null;
   streamingSoulDocument: string;
   providers: ProviderRow[];
+  getProviderApiKey: (provider: ProviderRow) => string;
   localModelOptions: LocalModelOption[];
   requiredModelsReady: boolean;
   onDownloadLocalModel: (modelId: string) => void;
@@ -83,12 +82,6 @@ const emptyProviderForm = (): ProviderFormState => ({
   apiFormat: "chat-completions",
 });
 
-const getRequiredModelLabel = (modelId: string): string => {
-  if (modelId === ONBOARDING_GEMMA_MODEL_ID) return "Language model";
-  if (modelId === ONBOARDING_WHISPER_MODEL_ID) return "Transcription model";
-  return "Local model";
-};
-
 const buildTagList = (selectedTags: string[], customTags: string): string => {
   const custom = customTags
     .split(",")
@@ -99,8 +92,8 @@ const buildTagList = (selectedTags: string[], customTags: string): string => {
 
 const getStepTitle = (step: number): string => {
   if (step === 1) return "Welcome to Memora";
-  if (step === 2) return "Prepare for local intelligence";
-  if (step === 3) return "LLM Provider";
+  if (step === 2) return "Connect a cloud provider";
+  if (step === 3) return "Choose where models run";
   if (step === 4) return "Personalize Memora";
   if (step === 5) return "Shape Personality";
   return "Setup Complete";
@@ -111,10 +104,10 @@ const getStepDescription = (step: number): string => {
     return "Memora is your personal knowledge base that lives on your device. ";
   }
   if (step === 2) {
-    return "Local intelligence is what makes Memora private and always available. Downloading the required models and you can start using Memora even without an internet connection.";
+    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys stay on this device and are never synced or exported.";
   }
   if (step === 3) {
-    return "Remote provider setup is optional. It allows you to use Memora's full capabilities by connecting to a provider that hosts large language models in the cloud. You can skip this step and set it up later in Settings if you want.";
+    return "Choose the model for chat and for creating your assistant profile. Other features can be configured individually in Settings.";
   }
   if (step === 4) {
     return "These details become the seed context for how Memora speaks and helps you work.";
@@ -254,19 +247,7 @@ function OnboardingLocalModelDownloadCard({
 }) {
   const state = useLocalModelDownloadState(model.id);
 
-  return (
-    <LocalModelDownloadCard
-      model={model}
-      state={state}
-      title={getRequiredModelLabel(model.id)}
-      description={
-        model.id === ONBOARDING_GEMMA_MODEL_ID
-          ? "Optimized for local reasoning and personalization"
-          : "Optimized for local audio transcription"
-      }
-      onDownload={onDownload}
-    />
-  );
+  return <LocalModelDownloadCard model={model} state={state} onDownload={onDownload} />;
 }
 
 export default function OnboardingExperience({
@@ -274,6 +255,7 @@ export default function OnboardingExperience({
   errorMessage,
   streamingSoulDocument,
   providers,
+  getProviderApiKey,
   localModelOptions,
   requiredModelsReady,
   onDownloadLocalModel,
@@ -303,8 +285,8 @@ export default function OnboardingExperience({
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
   const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
   const canContinue = useMemo(() => {
-    if (step === 2) return requiredModelsReady;
-    if (step === 3) return !isProviderFormOpen;
+    if (step === 2) return !isProviderFormOpen;
+    if (step === 3) return requiredModelsReady;
     if (step === 4) {
       return !!name.trim() && !!primaryUseCase.trim() && !!assistantStyle.trim();
     }
@@ -333,7 +315,7 @@ export default function OnboardingExperience({
     setProviderForm({
       name: provider.name,
       baseUrl: provider.baseUrl,
-      apiKey: provider.apiKey,
+      apiKey: getProviderApiKey(provider),
       apiFormat: provider.apiFormat,
     });
     setShowApiKey(false);
@@ -355,6 +337,16 @@ export default function OnboardingExperience({
       return;
     }
 
+    try {
+      normalizeProviderEndpoint(providerForm.baseUrl);
+    } catch (error) {
+      add({
+        title: "Check the base URL",
+        description: error instanceof Error ? error.message : "Invalid endpoint.",
+        type: "error",
+      });
+      return;
+    }
     if (isAddingProvider) {
       onCreateProvider(providerForm);
       add({ title: "Provider added", type: "success" });
@@ -441,8 +433,9 @@ export default function OnboardingExperience({
             }}
             className="space-y-8"
           >
-            {step === 2 ? (
+            {step === 3 ? (
               <div className="space-y-5">
+                <FeatureModelSettings features={["assistant", "personality"]} disabled={isSaving} />
                 <div className="space-y-5">
                   {localModelOptions.map((model) => (
                     <OnboardingLocalModelDownloadCard
@@ -455,7 +448,7 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {step === 3 ? (
+            {step === 2 ? (
               <div className="space-y-4">
                 <ProviderManagementSection
                   title="Configured providers"

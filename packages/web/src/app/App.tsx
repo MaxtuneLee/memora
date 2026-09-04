@@ -1,32 +1,26 @@
 import AppLayout from "./layouts/AppLayout";
-import { makePersistedAdapter } from "@livestore/adapter-web";
-import LiveStoreSharedWorker from "@livestore/adapter-web/shared-worker?sharedworker";
-import { LiveStoreProvider } from "@livestore/react";
+import { StoreRegistryProvider } from "@livestore/react";
+import { Suspense } from "react";
 import LiveStoreLoadingScreen from "./components/LiveStoreLoadingScreen";
-import { createLiveStoreLoadingStatus } from "./liveStoreLoadingStatus";
-import LiveStoreWorker from "@/workers/livestore.worker?worker";
-import { schema } from "@/livestore/schema";
-import { unstable_batchedUpdates as batchUpdates } from "react-dom";
+import { ContentPipelineRoot } from "@/lib/content/contentPipelineRoot";
+import {
+  appStoreRegistry,
+  useLiveStoreLoadingStatus,
+} from "@/livestore/store";
 
-const adapter = makePersistedAdapter({
-  storage: { type: "opfs" },
-  worker: LiveStoreWorker,
-  sharedWorker: LiveStoreSharedWorker,
-});
+function LiveStoreFallback() {
+  const status = useLiveStoreLoadingStatus();
+  return <LiveStoreLoadingScreen status={status} />;
+}
 
 export default function App() {
   return (
-    <LiveStoreProvider
-      schema={schema}
-      adapter={adapter}
-      renderLoading={(status) => (
-        <LiveStoreLoadingScreen status={createLiveStoreLoadingStatus(status)} />
-      )}
-      batchUpdates={batchUpdates}
-      storeId={"main"}
-      syncPayload={{ authToken: "insecure-token-change-me" }}
-    >
-      <AppLayout />
-    </LiveStoreProvider>
+    <StoreRegistryProvider storeRegistry={appStoreRegistry}>
+      <Suspense fallback={<LiveStoreFallback />}>
+        <ContentPipelineRoot>
+          <AppLayout />
+        </ContentPipelineRoot>
+      </Suspense>
+    </StoreRegistryProvider>
   );
 }

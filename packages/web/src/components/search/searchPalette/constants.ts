@@ -1,6 +1,7 @@
 import {
   ChatCircleIcon,
   FileIcon,
+  FileTextIcon,
   FolderNotchOpenIcon,
   GearIcon,
   HouseIcon,
@@ -18,6 +19,7 @@ export interface SearchSection {
 
 export const CATEGORY_LABELS: Record<SearchItemKind, string> = {
   file: "File",
+  content: "Content",
   folder: "Folder",
   chat: "Chat",
   settings: "Settings",
@@ -27,6 +29,7 @@ export const CATEGORY_LABELS: Record<SearchItemKind, string> = {
 
 export const SEARCH_ITEM_ICONS: Record<SearchItemKind, React.ElementType> = {
   file: FileIcon,
+  content: FileTextIcon,
   folder: FolderNotchOpenIcon,
   chat: ChatCircleIcon,
   settings: GearIcon,

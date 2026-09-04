@@ -2,15 +2,15 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   FileTextIcon,
   FolderIcon,
-  ImageIcon,
-  MicrophoneIcon,
   TrashIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
 import { DesktopFileTip } from "./DesktopFileTip";
+import { areDesktopItemsEqual } from "./desktop/utils";
+import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
 import type { JSX } from "react";
 
 interface DesktopItemProps {
@@ -21,19 +21,13 @@ interface DesktopItemProps {
   onOpenItem: (item: DesktopItemData) => void;
   layout?: "desktop" | "grid" | "list";
   draggable?: boolean;
+  showFileIndexStatus?: boolean;
   isRenaming?: boolean;
   onRenameCommit?: (id: string, name: string) => void;
   onRenameCancel?: (id: string) => void;
 }
 
-const FILE_TYPE_ICONS: Record<string, JSX.Element> = {
-  audio: <MicrophoneIcon className="size-8 text-zinc-500" weight="duotone" />,
-  video: <VideoCameraIcon className="size-8 text-zinc-500" weight="duotone" />,
-  image: <ImageIcon className="size-8 text-zinc-500" weight="duotone" />,
-  document: <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />,
-};
-
-export function DesktopItem({
+function DesktopItemComponent({
   item,
   isSelected,
   onSelect,
@@ -41,6 +35,7 @@ export function DesktopItem({
   onOpenItem,
   layout = "desktop",
   draggable = true,
+  showFileIndexStatus = true,
   isRenaming = false,
   onRenameCommit,
   onRenameCancel,
@@ -144,11 +139,8 @@ export function DesktopItem({
       return <TrashIcon className="size-9 text-red-500" weight="duotone" />;
     }
     if (item.type === "file") {
-      return (
-        FILE_TYPE_ICONS[item.fileMeta.type] ?? (
-          <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />
-        )
-      );
+      const Icon = getFileIcon(item.fileMeta);
+      return <Icon className="size-8 text-zinc-500" weight="duotone" />;
     }
     // Widget icons handled separately
     return <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />;
@@ -189,7 +181,7 @@ export function DesktopItem({
     >
       <div
         className={`
-          flex items-center justify-center rounded-xl bg-white/80
+          relative flex items-center justify-center rounded-xl bg-white/80
           shadow-sm ring-1 ring-zinc-900/5 backdrop-blur-sm
           transition-transform group-hover:scale-105
           ${isSelected ? "ring-zinc-400 shadow-md" : ""}
@@ -197,6 +189,13 @@ export function DesktopItem({
         style={{ width: isListLayout ? 40 : ICON_SIZE, height: isListLayout ? 40 : ICON_SIZE }}
       >
         {getIcon()}
+        {item.type === "file" && showFileIndexStatus ? (
+          <DesktopIndexStatusIcon
+            status={item.indexState.status}
+            compact={isListLayout}
+            onOpenDetails={() => onOpenItem(item)}
+          />
+        ) : null}
       </div>
       {isRenaming ? (
         <input
@@ -247,3 +246,21 @@ export function DesktopItem({
 
   return itemContent;
 }
+
+export const DesktopItem = memo(
+  DesktopItemComponent,
+  (previous, next) =>
+    areDesktopItemsEqual(previous.item, next.item) &&
+    previous.isSelected === next.isSelected &&
+    previous.onSelect === next.onSelect &&
+    previous.onContextMenu === next.onContextMenu &&
+    previous.onOpenItem === next.onOpenItem &&
+    previous.layout === next.layout &&
+    previous.draggable === next.draggable &&
+    previous.showFileIndexStatus === next.showFileIndexStatus &&
+    previous.isRenaming === next.isRenaming &&
+    previous.onRenameCommit === next.onRenameCommit &&
+    previous.onRenameCancel === next.onRenameCancel,
+);
+
+DesktopItem.displayName = "DesktopItem";

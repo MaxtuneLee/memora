@@ -1,26 +1,24 @@
 import {
   ChatCircleIcon,
   DesktopIcon,
-  FileAudioIcon,
-  FileTextIcon,
   FlaskIcon,
-  ImageIcon,
   GearIcon,
   HouseIcon,
   MagnifyingGlassIcon,
   MicrophoneStageIcon,
   SidebarIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { Button } from "@base-ui/react/button";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import { Link, useLocation } from "react-router";
 
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useStorageStats } from "@/hooks/settings/useStorageStats";
@@ -89,20 +87,11 @@ export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "t
     return getDocumentEditorHref(file.id);
   }
 
-  return "/files";
-};
-
-const getRecentFileIcon = (fileType: string): React.ElementType => {
-  switch (fileType) {
-    case "audio":
-      return FileAudioIcon;
-    case "video":
-      return VideoCameraIcon;
-    case "image":
-      return ImageIcon;
-    default:
-      return FileTextIcon;
+  if (isFileViewerFile(file)) {
+    return getFileViewerHref(file.id);
   }
+
+  return "/files";
 };
 
 interface NavItemProps {
@@ -165,7 +154,7 @@ function SidebarSection({ title, children, action }: SidebarSectionProps) {
 }
 
 export function Sidebar() {
-  const { store } = useStore();
+  const store = useAppStore();
   const location = useLocation();
   const reducedMotion = useReducedMotion() ?? false;
   const currentPath = location.pathname;
@@ -258,7 +247,7 @@ export function Sidebar() {
             <div className="space-y-0.5">
               {recentFiles.map((file) => {
                 const href = getFileHref(file);
-                const Icon = getRecentFileIcon(file.type);
+                const Icon = getFileIcon(file);
                 const isActive =
                   href === "/files" ? currentPath.startsWith("/files") : currentPath === href;
 

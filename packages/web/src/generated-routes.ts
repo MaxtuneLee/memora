@@ -9,12 +9,13 @@ import type { RouteObject } from "react-router"
 const lazy0 = () => import("./pages/chat/index")
 const lazy1 = () => import("./pages/desktop/index")
 const lazy2 = () => import("./pages/editor/file/[id]")
-const lazy3 = () => import("./pages/files/index")
-const lazy4 = () => import("./pages/onboarding/index")
-const lazy5 = () => import("./pages/transcript/file/[id]")
-const lazy6 = () => import("./pages/transcript/live")
-const lazy7 = () => import("./pages/transcript/index")
-const lazy8 = () => import("./pages/index")
+const lazy3 = () => import("./pages/files/file/[id]")
+const lazy4 = () => import("./pages/files/index")
+const lazy5 = () => import("./pages/onboarding/index")
+const lazy6 = () => import("./pages/transcript/file/[id]")
+const lazy7 = () => import("./pages/transcript/live")
+const lazy8 = () => import("./pages/transcript/index")
+const lazy9 = () => import("./pages/index")
 
 // Generated route configuration
 export const routes: RouteObject[] = [
@@ -54,8 +55,17 @@ export const routes: RouteObject[] = [
     "path": "files",
     "children": [
       {
+        "path": "file",
+        "children": [
+          {
+            "path": ":id",
+            "lazy": lazy3
+          }
+        ]
+      },
+      {
         "path": "",
-        "lazy": lazy3
+        "lazy": lazy4
       }
     ]
   },
@@ -64,7 +74,7 @@ export const routes: RouteObject[] = [
     "children": [
       {
         "path": "",
-        "lazy": lazy4
+        "lazy": lazy5
       }
     ]
   },
@@ -76,23 +86,23 @@ export const routes: RouteObject[] = [
         "children": [
           {
             "path": ":id",
-            "lazy": lazy5
+            "lazy": lazy6
           }
         ]
       },
       {
         "path": "live",
-        "lazy": lazy6
+        "lazy": lazy7
       },
       {
         "path": "",
-        "lazy": lazy7
+        "lazy": lazy8
       }
     ]
   },
   {
     "path": "",
-    "lazy": lazy8
+    "lazy": lazy9
   }
 ]
 

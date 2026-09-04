@@ -19,6 +19,7 @@ import {
 } from "../lib/vector-db/client";
 import { getRrfContribution, normalizeRrfK } from "../lib/vector-db/reciprocalRankFusion";
 import { filterSearchTerms } from "../lib/vector-db/searchTerms";
+import type { ContentLocator } from "../lib/content/types";
 
 type SqliteBindValue = string | number | ArrayBuffer | null;
 
@@ -74,10 +75,12 @@ export interface VectorDbWorkerRequest {
     | "upsertChunkBatch"
     | "finalizeDocument"
     | "upsert"
+    | "deleteDocument"
     | "search"
     | "reset"
     | "close";
   payload: unknown;
+  indexConfig?: VectorDbIndexConfig;
 }
 
 export type VectorDbWorkerResponse =
@@ -276,6 +279,12 @@ const createSchema = (nextConfig: VectorDbIndexConfig): void => {
   run(
     "CREATE TABLE IF NOT EXISTS chunks (chunk_rowid INTEGER PRIMARY KEY, chunk_id TEXT NOT NULL UNIQUE, document_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, content TEXT NOT NULL, chunk_content_hash TEXT NOT NULL, start_offset REAL, end_offset REAL, token_count INTEGER, heading_path TEXT, UNIQUE(document_id, chunk_index));",
   );
+  const chunkColumns = rows<{ name: unknown }>("PRAGMA table_info(chunks)").map((row) =>
+    stringValue(row.name),
+  );
+  if (!chunkColumns.includes("locator_json")) {
+    run("ALTER TABLE chunks ADD COLUMN locator_json TEXT;");
+  }
   run("CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);");
   run("CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(chunk_content_hash);");
   run(
@@ -338,7 +347,9 @@ const persistCurrentIndex = async (): Promise<void> => {
 
 const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbIndexHealth> => {
   const nextIndexId = await getVectorDbIndexId(nextConfig);
+  if (db && indexId === nextIndexId) return makeHealth();
   if (db && indexId !== nextIndexId) {
+    await persistCurrentIndex();
     db.close();
     db = null;
   }
@@ -561,6 +572,7 @@ const insertChunk = (
     .bind(7, chunk.endOffset ?? null)
     .bind(8, chunk.tokenCount ?? tokenize(chunk.content).length)
     .bind(9, JSON.stringify(chunk.headingPath ?? []))
+    .bind(10, chunk.locator ? JSON.stringify(chunk.locator) : null)
     .stepReset();
   const row = first<{ chunk_rowid: unknown }>("SELECT last_insert_rowid() AS chunk_rowid");
   const chunkRowid = numberValue(row?.chunk_rowid);
@@ -570,11 +582,13 @@ const insertChunk = (
     .bind(3, tokenize(chunk.content).join(" "))
     .bind(4, JSON.stringify(chunk.headingPath ?? []))
     .stepReset();
-  insertVectorStatement
-    .bind(1, chunkRowid)
-    .bind(2, chunk.documentId)
-    .bind(3, toVectorBuffer(chunk.embedding))
-    .stepReset();
+  if (chunk.embedding) {
+    insertVectorStatement
+      .bind(1, chunkRowid)
+      .bind(2, chunk.documentId)
+      .bind(3, toVectorBuffer(chunk.embedding))
+      .stepReset();
+  }
 };
 
 const upsertChunkBatch = (
@@ -594,7 +608,7 @@ const upsertChunkBatch = (
   run("BEGIN IMMEDIATE;");
   try {
     const insertChunkStatement = getDb().prepare(
-      "INSERT INTO chunks(chunk_id, document_id, chunk_index, content, chunk_content_hash, start_offset, end_offset, token_count, heading_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO chunks(chunk_id, document_id, chunk_index, content, chunk_content_hash, start_offset, end_offset, token_count, heading_path, locator_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
     const insertFtsStatement = getDb().prepare(
       "INSERT INTO chunks_fts(chunk_id, document_id, search_text, heading_path) VALUES (?, ?, ?, ?)",
@@ -726,6 +740,11 @@ const upsertDocument = (
   return finalizeDocument(plan);
 };
 
+const deleteDocument = (documentId: string): { documentId: string } => {
+  deleteDocumentRows(documentId);
+  return { documentId };
+};
+
 interface LexicalRow extends Record<string, unknown> {
   chunk_rowid: unknown;
   chunk_id: unknown;
@@ -736,6 +755,7 @@ interface LexicalRow extends Record<string, unknown> {
   start_offset: unknown;
   end_offset: unknown;
   rank: unknown;
+  locator_json: unknown;
 }
 
 interface SemanticRow extends Record<string, unknown> {
@@ -752,6 +772,7 @@ interface ChunkRow extends Record<string, unknown> {
   heading_path: unknown;
   start_offset: unknown;
   end_offset: unknown;
+  locator_json: unknown;
 }
 
 const parseHeadingPath = (value: unknown): string[] => {
@@ -762,6 +783,15 @@ const parseHeadingPath = (value: unknown): string[] => {
       : [];
   } catch {
     return [];
+  }
+};
+
+const parseLocator = (value: unknown): ContentLocator | undefined => {
+  try {
+    const parsed = JSON.parse(stringValue(value)) as ContentLocator;
+    return parsed && typeof parsed.kind === "string" ? parsed : undefined;
+  } catch {
+    return undefined;
   }
 };
 
@@ -777,7 +807,7 @@ const inspectIndex = (documentId?: string): VectorDbIndexInspection => {
   }));
   const chunkRows = documentId
     ? rows<Record<string, unknown>>(
-        "SELECT chunk_id, document_id, chunk_index, content, chunk_content_hash, start_offset, end_offset, token_count, heading_path FROM chunks WHERE document_id = ? ORDER BY chunk_index",
+        "SELECT chunk_id, document_id, chunk_index, content, chunk_content_hash, start_offset, end_offset, token_count, heading_path, locator_json FROM chunks WHERE document_id = ? ORDER BY chunk_index",
         [documentId],
       )
     : [];
@@ -791,6 +821,7 @@ const inspectIndex = (documentId?: string): VectorDbIndexInspection => {
     endOffset: optionalNumberValue(row.end_offset),
     tokenCount: optionalNumberValue(row.token_count),
     headingPath: parseHeadingPath(row.heading_path),
+    locator: parseLocator(row.locator_json),
   }));
   return { health: makeHealth(), documents, chunks };
 };
@@ -820,7 +851,7 @@ const search = (request: VectorDbSearchRequest): VectorDbSearchHit[] => {
   const lexicalQuery = compileFtsQuery(request.query);
   const lexicalRows = lexicalQuery
     ? rows<LexicalRow>(
-        `SELECT c.chunk_rowid, c.chunk_id, c.document_id, c.chunk_index, c.content, c.heading_path, c.start_offset, c.end_offset, f.rank AS rank FROM chunks_fts AS f JOIN chunks AS c ON c.chunk_id = f.chunk_id WHERE chunks_fts MATCH ?${scopeForFts.sql} ORDER BY f.rank LIMIT ?`,
+        `SELECT c.chunk_rowid, c.chunk_id, c.document_id, c.chunk_index, c.content, c.heading_path, c.locator_json, c.start_offset, c.end_offset, f.rank AS rank FROM chunks_fts AS f JOIN chunks AS c ON c.chunk_id = f.chunk_id WHERE chunks_fts MATCH ?${scopeForFts.sql} ORDER BY f.rank LIMIT ?`,
         [lexicalQuery, ...scopeForFts.values, lexicalCandidateK],
       )
     : [];
@@ -842,6 +873,7 @@ const search = (request: VectorDbSearchRequest): VectorDbSearchHit[] => {
       chunkIndex: numberValue(row.chunk_index),
       content: stringValue(row.content),
       headingPath: parseHeadingPath(row.heading_path),
+      locator: parseLocator(row.locator_json),
       startOffset: optionalNumberValue(row.start_offset),
       endOffset: optionalNumberValue(row.end_offset),
       score: getRrfContribution(index + 1, lexicalWeight, rrfK),
@@ -853,7 +885,7 @@ const search = (request: VectorDbSearchRequest): VectorDbSearchHit[] => {
   if (semanticRowIds.length) {
     const placeholders = semanticRowIds.map(() => "?").join(",");
     const chunkRows = rows<ChunkRow>(
-      `SELECT chunk_rowid, chunk_id, document_id, chunk_index, content, heading_path, start_offset, end_offset FROM chunks WHERE chunk_rowid IN (${placeholders})`,
+      `SELECT chunk_rowid, chunk_id, document_id, chunk_index, content, heading_path, locator_json, start_offset, end_offset FROM chunks WHERE chunk_rowid IN (${placeholders})`,
       semanticRowIds,
     );
     const chunksByRowid = new Map(chunkRows.map((row) => [numberValue(row.chunk_rowid), row]));
@@ -869,6 +901,7 @@ const search = (request: VectorDbSearchRequest): VectorDbSearchHit[] => {
         chunkIndex: numberValue(chunk.chunk_index),
         content: stringValue(chunk.content),
         headingPath: parseHeadingPath(chunk.heading_path),
+        locator: parseLocator(chunk.locator_json),
         startOffset: optionalNumberValue(chunk.start_offset),
         endOffset: optionalNumberValue(chunk.end_offset),
         score: (current?.score ?? 0) + semanticScore,
@@ -917,6 +950,9 @@ const reset = (): VectorDbIndexHealth => {
 };
 
 export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Promise<unknown> => {
+  if (request.indexConfig && request.type !== "initialize") {
+    await initialize(request.indexConfig);
+  }
   switch (request.type) {
     case "initialize":
       return initialize((request.payload as { config: VectorDbIndexConfig }).config);
@@ -936,6 +972,8 @@ export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Pro
       return finalizeDocument((request.payload as { plan: VectorDbDocumentIndexPlan }).plan);
     case "upsert":
       return upsertDocument((request.payload as { document: VectorDbIndexedDocument }).document);
+    case "deleteDocument":
+      return deleteDocument((request.payload as { documentId: string }).documentId);
     case "search":
       return search((request.payload as { request: VectorDbSearchRequest }).request);
     case "reset":
@@ -957,6 +995,7 @@ const MUTATING_REQUEST_TYPES = new Set<VectorDbWorkerRequest["type"]>([
   "upsertChunkBatch",
   "finalizeDocument",
   "upsert",
+  "deleteDocument",
   "reset",
 ]);
 

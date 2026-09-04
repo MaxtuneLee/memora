@@ -1,11 +1,21 @@
 import type { SettingsSectionId } from "@/types/settings";
+import type { ContentLocator } from "@/lib/content/types";
+import type { FileType } from "@/types/library";
 
-export type SearchItemKind = "file" | "folder" | "chat" | "settings" | "page" | "action";
+export type SearchItemKind =
+  | "file"
+  | "content"
+  | "folder"
+  | "chat"
+  | "settings"
+  | "page"
+  | "action";
 
 export type DesktopIntent =
   | {
       type: "openPreview";
       fileId: string;
+      locator?: ContentLocator;
     }
   | {
       type: "openFolder";
@@ -59,5 +69,10 @@ export interface GlobalSearchItem {
   preview: string;
   keywords: string[];
   updatedAt?: number;
+  fileIcon?: {
+    name: string;
+    mimeType: string;
+    type: FileType;
+  };
   intent: SearchIntent;
 }

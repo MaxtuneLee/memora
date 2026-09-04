@@ -2,6 +2,7 @@ import type {
   LocalEmbeddingEvent,
   LocalEmbeddingModel,
   LocalModelExecutionBackend,
+  LocalModelPriority,
 } from "@memora/local-model-runtime";
 
 import { modelWorkerFactory, type ModelWorkerFactory } from "@/lib/model-worker";
@@ -33,11 +34,13 @@ export class BgeEmbeddingClient {
     model: BgeEmbeddingModel,
     texts: string[],
     onUpdate?: (update: BgeWorkerUpdate) => void,
+    options: { priority?: LocalModelPriority; signal?: AbortSignal } = {},
   ): Promise<Float32Array[]> {
     let result: Extract<LocalEmbeddingEvent, { type: "embedding-complete" }> | null = null;
     for await (const event of this.workerFactory.run("embedding", {
-      priority: "interactive",
+      priority: options.priority ?? "interactive",
       task: { kind: "embedding.generate", input: { model, texts } },
+      signal: options.signal,
     }) as AsyncGenerator<LocalEmbeddingEvent>) {
       if (event.type === "backend") {
         onUpdate?.(event);

@@ -3,8 +3,14 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
 import { ACTION_SEARCH_ITEMS, STATIC_SEARCH_ITEMS } from "@/lib/search/searchCatalog";
+import { modelWorkerFactory } from "@/lib/model-worker";
+import { useAppStore } from "@/livestore/store";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
+import { searchContent, type ContentSearchResult } from "@/lib/search/contentSearchService";
 import { rankSearchItems } from "@/lib/search/searchRanking";
 import {
+  buildContentSearchItems,
   buildChatSessionSearchItems,
   buildFileSearchItems,
   buildFolderSearchItems,
@@ -24,9 +30,15 @@ export const useSearchResults = ({
   isSearchOpen: boolean;
   query: string;
 }) => {
+  const store = useAppStore();
+  const settings = store.useQuery(settingsDocumentQuery$);
+  const modelRouting = settings?.modelRouting;
   const deferredQuery = useDeferredValue(query);
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [contentResults, setContentResults] = useState<ContentSearchResult[]>([]);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
 
   const fileItems = useMemo(
     () => buildFileSearchItems(fileRows, folderRows),
@@ -37,6 +49,7 @@ export const useSearchResults = ({
     [fileRows, folderRows],
   );
   const chatItems = useMemo(() => buildChatSessionSearchItems(chatSessions), [chatSessions]);
+  const contentItems = useMemo(() => buildContentSearchItems(contentResults), [contentResults]);
 
   const allSearchItems = useMemo(
     () => [...STATIC_SEARCH_ITEMS, ...folderItems, ...fileItems, ...chatItems],
@@ -44,8 +57,8 @@ export const useSearchResults = ({
   );
   const queryValue = deferredQuery.trim();
   const rankedResults = useMemo(
-    () => rankSearchItems(allSearchItems, queryValue),
-    [allSearchItems, queryValue],
+    () => [...rankSearchItems(allSearchItems, queryValue), ...contentItems],
+    [allSearchItems, contentItems, queryValue],
   );
 
   const displaySections = useMemo<SearchSection[]>(() => {
@@ -55,8 +68,9 @@ export const useSearchResults = ({
           id: "results",
           label: rankedResults.length > 0 ? "Results" : "No matches",
           items: rankedResults,
-          emptyMessage:
-            "Try a file name, a setting label, or an action like upload or transcription.",
+          emptyMessage: isLoadingContent
+            ? "Searching extracted file content..."
+            : contentError ?? "Try a file name, a setting label, or an action like upload or transcription.",
         },
       ];
     }
@@ -82,7 +96,7 @@ export const useSearchResults = ({
         emptyMessage: "Upload or record something to see recent files here.",
       },
     ];
-  }, [chatItems, fileItems, isLoadingChats, queryValue, rankedResults]);
+  }, [chatItems, contentError, fileItems, isLoadingChats, isLoadingContent, queryValue, rankedResults]);
 
   const visibleItems = useMemo<GlobalSearchItem[]>(
     () => displaySections.flatMap((section) => section.items),
@@ -131,6 +145,46 @@ export const useSearchResults = ({
       cancelled = true;
     };
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!isSearchOpen || queryValue.length < 2) {
+      setContentResults([]);
+      setIsLoadingContent(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setIsLoadingContent(true);
+      setContentError(null);
+      void Promise.resolve().then(() => searchContent({
+        query: queryValue,
+        vectorDb: modelWorkerFactory.vectorDb,
+        files: fileRows,
+        signal: controller.signal,
+        semantic: readEmbeddingRuntime(store),
+        semanticMode: settings?.semanticSearchMode,
+      }))
+        .then((results) => {
+          if (!cancelled) startTransition(() => setContentResults(results));
+        })
+        .catch((error) => {
+          console.warn("Failed to search extracted content:", error);
+          if (!cancelled) {
+            setContentResults([]);
+            setContentError(error instanceof Error ? error.message : "Content search failed.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingContent(false);
+        });
+    }, 150);
+    const controller = new AbortController();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [fileRows, isSearchOpen, queryValue, modelRouting, settings?.semanticSearchEnabled, store]);
 
   return {
     displaySections,

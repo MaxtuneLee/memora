@@ -6,6 +6,7 @@ import {
   PencilSimpleIcon,
   TrashIcon,
   UploadIcon,
+  ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import type { Position } from "@/types/desktop";
 
@@ -21,6 +22,7 @@ interface DesktopContextMenuProps {
   onRename?: () => void;
   onDelete?: () => void;
   onOpenInNewWindow?: () => void;
+  onReindex?: () => void;
 }
 
 const menuItemClassName =
@@ -41,6 +43,7 @@ export function DesktopContextMenu({
   onRename,
   onDelete,
   onOpenInNewWindow,
+  onReindex,
 }: DesktopContextMenuProps) {
   const isDesktopMenu = targetId === null || targetType === "widget";
 
@@ -123,6 +126,12 @@ export function DesktopContextMenu({
                     <span>Open in New Window</span>
                   </Menu.Item>
                 )}
+                {targetType === "file" && onReindex ? (
+                  <Menu.Item className={menuItemClassName} onClick={onReindex}>
+                    <ArrowClockwiseIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                    <span>Reindex file</span>
+                  </Menu.Item>
+                ) : null}
                 <Menu.Separator className="my-1 h-px bg-zinc-100" />
                 <Menu.Item className={deleteItemClassName} onClick={onDelete}>
                   <TrashIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-red-600" />

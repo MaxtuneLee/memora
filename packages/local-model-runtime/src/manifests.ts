@@ -23,6 +23,7 @@ export const whisperBaseTimestampedManifest: LocalModelManifest = {
 export const qwen35OnnxOptManifest: LocalModelManifest = {
   id: "qwen3.5-0.8b-onnx-opt",
   displayName: "Qwen3.5 0.8B ONNX OPT",
+  downloadSizeGB: 0.812,
   family: "qwen",
   task: "chat",
   modelId: "onnx-community/Qwen3.5-0.8B-ONNX-OPT",

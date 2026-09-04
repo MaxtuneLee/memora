@@ -2,10 +2,10 @@ import { ArrowUpRightIcon, GithubLogoIcon } from "@phosphor-icons/react";
 
 import {
   SETTINGS_PANEL_CLASS_NAME,
-  SETTINGS_PRIMARY_BUTTON_CLASS_NAME,
   SETTINGS_ROW_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 
 const APP_DESCRIPTION = "Local-first agent lives in your browser.";
@@ -42,16 +42,14 @@ export default function SettingsAboutSection() {
           <p className="text-xs text-[var(--color-memora-text-soft)]">
             Version {__APP_VERSION__} · Build {buildChannel}
           </p>
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={SETTINGS_PRIMARY_BUTTON_CLASS_NAME}
+          <Button
+            variant="primary"
+            render={<a href={SUPPORT_URL} target="_blank" rel="noreferrer" />}
           >
             <GithubLogoIcon className="size-4" weight="fill" />
             <span>Open GitHub issues</span>
             <ArrowUpRightIcon className="size-3.5" />
-          </a>
+          </Button>
         </div>
       </section>
 

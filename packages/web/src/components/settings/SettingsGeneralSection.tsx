@@ -2,14 +2,15 @@ import { WarningCircleIcon } from "@phosphor-icons/react";
 
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
-  SETTINGS_INPUT_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
   SETTINGS_ROW_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
-  SETTINGS_SEGMENT_BUTTON_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
 import { cn } from "@/lib/cn";
 
@@ -24,12 +25,6 @@ const ATTACHMENT_PLACEMENT_OPTIONS = [
   { id: "current-folder", label: "Current folder" },
   { id: "current-subfolder", label: "Current subfolder" },
 ] as const;
-
-const ACTIVE_SEGMENT_CLASS_NAME =
-  "border-[var(--color-memora-text-strong)] bg-[var(--color-memora-text-strong)] text-[var(--color-memora-surface)]";
-
-const INACTIVE_SEGMENT_CLASS_NAME =
-  "border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] text-[var(--color-memora-text-muted)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-hover-strong)] hover:text-[var(--color-memora-text)]";
 
 export default function SettingsGeneralSection() {
   const {
@@ -92,20 +87,16 @@ export default function SettingsGeneralSection() {
           <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>Default location</p>
           <div className="flex flex-wrap gap-2">
             {DEFAULT_NOTE_LOCATION_OPTIONS.map((option) => (
-              <button
+              <Button
+                variant="segment"
+                active={settings.defaultNoteLocationMode === option.id}
                 key={option.id}
                 type="button"
                 aria-pressed={settings.defaultNoteLocationMode === option.id}
                 onClick={() => handleDefaultNoteLocationModeChange(option.id)}
-                className={cn(
-                  SETTINGS_SEGMENT_BUTTON_CLASS_NAME,
-                  settings.defaultNoteLocationMode === option.id
-                    ? ACTIVE_SEGMENT_CLASS_NAME
-                    : INACTIVE_SEGMENT_CLASS_NAME,
-                )}
               >
                 {option.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -118,19 +109,14 @@ export default function SettingsGeneralSection() {
             >
               Default note folder
             </label>
-            <select
+            <Select
               id="document-editor-default-folder"
               value={settings.defaultNoteFolderId}
-              onChange={(event) => handleDefaultNoteFolderIdChange(event.target.value)}
-              className={cn(SETTINGS_INPUT_CLASS_NAME, "mt-2")}
-            >
-              <option value="">Choose a folder</option>
-              {folderOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onValueChange={(value) => handleDefaultNoteFolderIdChange(value ?? "")}
+              placeholder="Choose a folder"
+              triggerClassName="mt-2"
+              options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
+            />
             <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
               {folderOptions.length > 0
                 ? "If this folder becomes unavailable later, note creation falls back to Desktop root."
@@ -152,20 +138,16 @@ export default function SettingsGeneralSection() {
           <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>Placement strategy</p>
           <div className="flex flex-wrap gap-2">
             {ATTACHMENT_PLACEMENT_OPTIONS.map((option) => (
-              <button
+              <Button
+                variant="segment"
+                active={settings.attachmentPlacementMode === option.id}
                 key={option.id}
                 type="button"
                 aria-pressed={settings.attachmentPlacementMode === option.id}
                 onClick={() => handleAttachmentPlacementModeChange(option.id)}
-                className={cn(
-                  SETTINGS_SEGMENT_BUTTON_CLASS_NAME,
-                  settings.attachmentPlacementMode === option.id
-                    ? ACTIVE_SEGMENT_CLASS_NAME
-                    : INACTIVE_SEGMENT_CLASS_NAME,
-                )}
               >
                 {option.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -178,19 +160,14 @@ export default function SettingsGeneralSection() {
             >
               Attachment folder
             </label>
-            <select
+            <Select
               id="document-editor-attachment-folder"
               value={settings.attachmentFolderId}
-              onChange={(event) => handleAttachmentFolderIdChange(event.target.value)}
-              className={cn(SETTINGS_INPUT_CLASS_NAME, "mt-2")}
-            >
-              <option value="">Choose a folder</option>
-              {folderOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onValueChange={(value) => handleAttachmentFolderIdChange(value ?? "")}
+              placeholder="Choose a folder"
+              triggerClassName="mt-2"
+              options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
+            />
             <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
               {folderOptions.length > 0
                 ? "If this folder becomes unavailable later, attachments fall back to Desktop root."
@@ -207,13 +184,13 @@ export default function SettingsGeneralSection() {
             >
               Subfolder name
             </label>
-            <input
+            <Input
               id="document-editor-attachment-subfolder"
               type="text"
               value={settings.attachmentSubfolderName}
               onChange={(event) => handleAttachmentSubfolderNameChange(event.target.value)}
               placeholder="images"
-              className={cn(SETTINGS_INPUT_CLASS_NAME, "mt-2")}
+              className="mt-2"
             />
             <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
               Memora creates this folder relative to the current document folder when needed.
@@ -236,14 +213,13 @@ export default function SettingsGeneralSection() {
               Font size
             </label>
             <div className="mt-2 flex items-center gap-2">
-              <input
+              <Input
                 id="document-editor-font-size"
                 type="number"
                 min={1}
                 step={1}
                 value={settings.editorFontSizePx}
                 onChange={(event) => handleEditorFontSizePxChange(event.target.value)}
-                className={SETTINGS_INPUT_CLASS_NAME}
               />
               <span className="text-sm text-[var(--color-memora-text-soft)]">px</span>
             </div>

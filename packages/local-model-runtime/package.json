@@ -13,6 +13,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
     }
   },
   "scripts": {
@@ -20,6 +24,9 @@
     "dev": "vp pack --watch",
     "lint": "vp lint .",
     "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

@@ -73,6 +73,7 @@ Word-level timestamps live in the "words" array. Prefer search_transcript to get
 2. query_db to find relevant files first (always SELECT name and other user-friendly columns alongside paths)
 3. use search_transcript with file_id or transcript_path to get direct timestamps and context
 4. use read_file or grep_files only when raw file content or exact offsets are needed
+4a. use search_files for document, OCR, and extracted content search; use read_extracted_content for the matching passage
 5. if the user states a lasting preference for how you should communicate in future turns, call remember_user_preference with a concise summary
 6. do NOT call remember_user_preference for one-off formatting requests, temporary constraints, factual profile details, or sensitive inferences
 7. use modify_text_file only if the user explicitly asks to create or edit a text file

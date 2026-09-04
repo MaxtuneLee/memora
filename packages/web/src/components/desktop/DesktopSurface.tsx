@@ -7,6 +7,7 @@ interface DesktopSurfaceProps {
   items: DesktopItemData[];
   layout: "desktop" | "grid" | "list";
   enableDnD: boolean;
+  showFileIndexStatus?: boolean;
   selectedIds: Set<string>;
   renamingIds: Set<string>;
   onSelect: (id: string, addToSelection: boolean) => void;
@@ -27,6 +28,7 @@ export function DesktopSurface({
   items,
   layout,
   enableDnD,
+  showFileIndexStatus = true,
   selectedIds,
   renamingIds,
   onSelect,
@@ -63,9 +65,10 @@ export function DesktopSurface({
           onOpenItem={onOpenItem}
           layout={layout === "desktop" ? "desktop" : layout}
           draggable={enableDnD && item.type !== "widget"}
+          showFileIndexStatus={showFileIndexStatus}
           isRenaming={renamingIds.has(item.id)}
-          onRenameCommit={onRenameCommit}
-          onRenameCancel={onRenameCancel}
+          onRenameCommit={renamingIds.has(item.id) ? onRenameCommit : undefined}
+          onRenameCancel={renamingIds.has(item.id) ? onRenameCancel : undefined}
         />
       ))}
     </div>

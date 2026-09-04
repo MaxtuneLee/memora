@@ -1,7 +1,7 @@
 import { DndContext, pointerWithin } from "@dnd-kit/core";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DesktopContextMenu } from "./DesktopContextMenu";
@@ -28,6 +28,7 @@ import { DESKTOP_PADDING, GRID_SIZE } from "@/types/desktop";
 import type { RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent } from "@/types/search";
 import { DesktopWindowLayer } from "@/components/desktop/desktop/DesktopWindowLayer";
+import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 import { DesktopDropZone } from "@/components/desktop/desktop/DesktopDropZone";
 import { useDesktopDnD } from "@/components/desktop/desktop/useDesktopDnD";
 import { useDesktopExternalIntent } from "@/components/desktop/desktop/useDesktopExternalIntent";
@@ -36,6 +37,7 @@ import { useDesktopSize } from "@/components/desktop/desktop/useDesktopSize";
 import { useDesktopWindows } from "@/components/desktop/desktop/useDesktopWindows";
 import { TRASH_ITEM_ID } from "@/components/desktop/desktop/types";
 import {
+  areDesktopItemsEqual,
   getColumnsForWidth,
   layoutDesktopItems,
   mapFileRowsToDesktopItems,
@@ -58,7 +60,8 @@ export function Desktop({
   onNativeFileDrop,
   onDeleteFile,
 }: DesktopProps) {
-  const { store } = useStore();
+  const store = useAppStore();
+  const { reindexFile } = useContentPipeline();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
   const allFileRows = store.useQuery(desktopAllFilesQuery$);
@@ -152,13 +155,18 @@ export function Desktop({
       const mergeItem = (item: DesktopItemType) => {
         const existing = next.get(item.id);
         const position = existing?.position ?? { x: 0, y: 0 };
-        next.set(item.id, {
+        const merged = {
           ...item,
           position,
           ...(item.type === "folder" ? { hasStoredPosition: false } : {}),
-        } satisfies DesktopItemType);
+        } satisfies DesktopItemType;
+        if (!existing || !areDesktopItemsEqual(existing, merged)) {
+          next.set(item.id, merged);
+          changed = true;
+        }
       };
 
+      let changed = false;
       fileItems.forEach(mergeItem);
       folderItems.forEach(mergeItem);
       mergeItem(trashItem);
@@ -169,13 +177,15 @@ export function Desktop({
         const existing = previous.get(id);
         if (existing?.type === "file" && !fileIds.has(id)) {
           next.delete(id);
+          changed = true;
         }
         if (existing?.type === "folder" && !folderIds.has(id)) {
           next.delete(id);
+          changed = true;
         }
       });
 
-      return next;
+      return changed ? next : previous;
     });
   }, [fileItems, folderItems, setItems, trashItem]);
 
@@ -375,6 +385,13 @@ export function Desktop({
     requestTrash(item);
   }, [closeContextMenu, contextMenu.targetId, items, requestTrash]);
 
+  const handleReindex = useCallback(() => {
+    const targetId = contextMenu.targetId;
+    closeContextMenu();
+    if (!targetId || items.get(targetId)?.type !== "file") return;
+    void reindexFile(targetId);
+  }, [closeContextMenu, contextMenu.targetId, items, reindexFile]);
+
   const handleOpenItem = useCallback(
     (item: DesktopItemType, activeFolderId?: string | null) => {
       if (item.type === "widget" && item.widgetType === "trash") {
@@ -463,6 +480,7 @@ export function Desktop({
             onUploadAudio={handleUpload}
             onRename={handleRename}
             onDelete={handleDelete}
+            onReindex={handleReindex}
             onOpenInNewWindow={
               contextMenu.targetId && items.get(contextMenu.targetId)?.type === "folder"
                 ? () => {

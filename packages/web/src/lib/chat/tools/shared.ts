@@ -1,4 +1,5 @@
 import type { ShowWidgetSkillTracker } from "@/lib/chat/showWidget";
+import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
 export interface ResolvedReferenceScope {
   isActive: boolean;
@@ -31,12 +32,7 @@ export interface WriteApprovalRequest {
 export interface CreateChatToolsOptions {
   getReferenceScope?: () => ResolvedReferenceScope;
   showWidgetSkillTracker?: ShowWidgetSkillTracker;
-  getMemoryExtractionConfig?: () => {
-    apiFormat: "chat-completions" | "responses";
-    baseUrl: string;
-    apiKey: string;
-    model: string;
-  } | null;
+  getMemoryExtractionRuntime?: () => PiModelRuntime | null;
   onMemoryUpdated?: () => void;
   requestWriteApproval?: (
     request: WriteApprovalRequest,

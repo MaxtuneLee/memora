@@ -3,12 +3,14 @@ import { motion } from "motion/react";
 import { useMemo, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
+import { useNativeDialogLayer } from "../lib/nativeDialogLayer";
 
 type ToastStackProps = {
   render: (toast: ReturnType<typeof Toast.useToastManager>["toasts"][number]) => ReactNode;
 };
 
 export default function ToastStack({ render }: ToastStackProps) {
+  const portalContainer = useNativeDialogLayer();
   const { toasts } = Toast.useToastManager();
   const orderedToasts = useMemo(() => [...toasts].reverse(), [toasts]);
   const activeToasts = useMemo(
@@ -27,7 +29,7 @@ export default function ToastStack({ render }: ToastStackProps) {
   };
 
   return (
-    <Toast.Portal>
+    <Toast.Portal container={portalContainer}>
       <Toast.Viewport
         className={(state) =>
           cn(

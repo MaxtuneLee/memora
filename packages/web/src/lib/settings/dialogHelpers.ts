@@ -59,23 +59,27 @@ const getNestedInput = (value: unknown): unknown => {
   return (value as Record<string, unknown>).input;
 };
 
-const normalizeStringRecord = (value: unknown): Record<string, string> | undefined => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>).flatMap(([key, entry]) => {
-    return typeof entry === "string" ? [[key, entry] as const] : [];
-  });
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-};
-
 const normalizeUnknownRecord = (value: unknown): Record<string, unknown> | undefined => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
 
-  return { ...(value as Record<string, unknown>) };
+  // Only numeric sampling controls belong in synced model metadata. Never copy
+  // arbitrary response fields or request headers, which may contain credentials.
+  const allowed = new Set([
+    "temperature",
+    "top_p",
+    "top_k",
+    "min_p",
+    "presence_penalty",
+    "frequency_penalty",
+    "repetition_penalty",
+    "seed",
+  ]);
+  const entries = Object.entries(value).filter(
+    ([key, entry]) => allowed.has(key) && typeof entry === "number" && Number.isFinite(entry),
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
 const normalizeThinkingLevelMap = (value: unknown): ModelInfo["thinkingLevelMap"] => {
@@ -179,9 +183,6 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
       : {}),
     ...(normalizeUnknownRecord(record.samplingParams ?? record.sampling_params)
       ? { samplingParams: normalizeUnknownRecord(record.samplingParams ?? record.sampling_params) }
-      : {}),
-    ...(normalizeStringRecord(record.headers)
-      ? { headers: normalizeStringRecord(record.headers) }
       : {}),
   };
 };

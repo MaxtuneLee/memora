@@ -1,16 +1,17 @@
-import { Button } from "@base-ui/react/button";
 import type { ChangeEvent } from "react";
 import { useMemo, useRef, useState } from "react";
 
-import { Progress } from "@/components/Progress";
 import {
-  SETTINGS_BADGE_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
   SETTINGS_PANEL_CLASS_NAME,
-  SETTINGS_PRIMARY_BUTTON_CLASS_NAME,
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { Progress } from "@/components/ui/Progress";
+import { Switch } from "@/components/ui/Switch";
 import { useStorageSettings } from "@/hooks/settings/useStorageSettings";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
@@ -136,7 +137,7 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
               workers.
             </p>
           </div>
-          <span className={SETTINGS_BADGE_CLASS_NAME}>{usagePercentageLabel}</span>
+          <Badge>{usagePercentageLabel}</Badge>
         </div>
 
         <div className="mt-5 flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--color-memora-border)]">
@@ -176,7 +177,7 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
               Files saved by Memora. Downloaded models are counted as internal data.
             </p>
           </div>
-          <span className={SETTINGS_BADGE_CLASS_NAME}>{formatBytes(contentUsage)}</span>
+          <Badge>{formatBytes(contentUsage)}</Badge>
         </div>
 
         {visibleContentCategories.length > 0 ? (
@@ -210,32 +211,15 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Bulk export</h3>
             <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
               Export your Memora data as a ZIP archive. Downloaded local model cache files are not
               included.
             </p>
-          </div>
-          <span className={SETTINGS_BADGE_CLASS_NAME}>
-            {isExporting ? "Packing data" : "ZIP archive"}
-          </span>
-        </div>
-
-        <div
-          className={cn(
-            SETTINGS_INSET_PANEL_CLASS_NAME,
-            "mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-sm leading-6 text-[var(--color-memora-text-muted)]">
-              Keep an offline backup of your current browser data before moving devices or clearing
-              storage.
-            </p>
             {exportProgress ? (
-              <div className="mt-4">
-                <Progress text={exportCurrentFileLabel} percentage={exportProgressPercentage} />
+              <div className="pt-2">
+                <Progress label={exportCurrentFileLabel} value={exportProgressPercentage} />
                 <p className="text-xs text-[var(--color-memora-text-soft)]">
                   {exportProgress.phase === "preparing"
                     ? `Collecting ${exportProgress.completedFiles} of ${exportProgress.totalFiles} files`
@@ -247,9 +231,9 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
             ) : null}
           </div>
           <Button
+            variant="primary"
             disabled={isExporting}
             onClick={() => void handleExportArchive()}
-            className={SETTINGS_PRIMARY_BUTTON_CLASS_NAME}
           >
             {isExporting ? "Exporting..." : "Export data"}
           </Button>
@@ -258,32 +242,15 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Bulk import</h3>
             <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
               Restore a Memora export ZIP into this browser. Imported data overwrites matching items
               and restores exported user files and chat data.
             </p>
-          </div>
-          <span className={SETTINGS_BADGE_CLASS_NAME}>
-            {isImporting ? "Restoring data" : "ZIP restore"}
-          </span>
-        </div>
-
-        <div
-          className={cn(
-            SETTINGS_INSET_PANEL_CLASS_NAME,
-            "mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-sm leading-6 text-[var(--color-memora-text-muted)]">
-              Use this on a new browser profile or when you want to restore from a previously
-              exported archive.
-            </p>
             {importProgress ? (
-              <div className="mt-4">
-                <Progress text={importCurrentFileLabel} percentage={importProgressPercentage} />
+              <div className="pt-2">
+                <Progress label={importCurrentFileLabel} value={importProgressPercentage} />
                 <p className="text-xs text-[var(--color-memora-text-soft)]">
                   {importProgress.phase === "reading"
                     ? "Reading archive"
@@ -295,7 +262,7 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
             ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <input
+            <Input
               ref={importInputRef}
               type="file"
               accept=".zip,application/zip"
@@ -303,9 +270,9 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
               onChange={(event) => void handleImportInputChange(event)}
             />
             <Button
+              variant="primary"
               disabled={isImporting || isExporting}
               onClick={() => importInputRef.current?.click()}
-              className={SETTINGS_PRIMARY_BUTTON_CLASS_NAME}
             >
               {isImporting ? "Importing..." : "Import data"}
             </Button>
@@ -325,31 +292,18 @@ export default function SettingsStorageSection({ open }: SettingsStorageSectionP
                 : "Persistent storage is not supported in this browser."}
             </p>
           </div>
-          <span className={SETTINGS_BADGE_CLASS_NAME}>
-            {isStoragePersistent ? "Enabled" : "Not enabled"}
-          </span>
-        </div>
-
-        <div
-          className={cn(
-            SETTINGS_INSET_PANEL_CLASS_NAME,
-            "mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
-          )}
-        >
-          <p className="text-sm leading-6 text-[var(--color-memora-text-muted)]">
-            Persistence helps keep locally stored data in place between browser cleanup cycles.
-          </p>
-          <Button
+          <Switch
+            checked={isStoragePersistent}
             disabled={!isStorageSupported || isStoragePersistent || isPersistRequesting}
-            onClick={() => void handlePersistClick()}
-            className={SETTINGS_PRIMARY_BUTTON_CLASS_NAME}
-          >
-            {isStoragePersistent
-              ? "Persistence enabled"
-              : isPersistRequesting
-                ? "Requesting..."
-                : "Request persistence"}
-          </Button>
+            onCheckedChange={(checked) => {
+              if (checked) {
+                void handlePersistClick();
+              }
+            }}
+            aria-label={
+              isStoragePersistent ? "Persistent storage enabled" : "Enable persistent storage"
+            }
+          />
         </div>
       </section>
     </div>

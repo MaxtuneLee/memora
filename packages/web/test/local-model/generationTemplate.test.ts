@@ -4,7 +4,7 @@ import {
   applyChatTemplate,
   getDecodedTokenDelta,
   runTextGeneration,
-} from "../../src/workers/local-model/chat/generation";
+} from "@memora/local-model-runtime/worker";
 
 describe("applyChatTemplate", () => {
   test("falls back to text content when the model template rejects array trim", () => {

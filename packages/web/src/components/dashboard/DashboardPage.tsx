@@ -1,4 +1,4 @@
-import { useStore } from "@livestore/react";
+import { useAppStore } from "@/livestore/store";
 import {
   CaretDownIcon,
   CaretLeftIcon,
@@ -6,7 +6,6 @@ import {
   ChatCircleDotsIcon,
   CheckIcon,
   FileTextIcon,
-  ImageIcon,
   MicrophoneIcon,
   SlidersHorizontalIcon,
   UploadSimpleIcon,
@@ -32,6 +31,8 @@ import { cn } from "@/lib/cn";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 import { formatBytes, formatDuration } from "@/lib/format";
 import { listChatSessions, type ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
@@ -162,6 +163,10 @@ export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "t
     return getDocumentEditorHref(file.id);
   }
 
+  if (isFileViewerFile(file)) {
+    return getFileViewerHref(file.id);
+  }
+
   return "/files";
 };
 
@@ -206,7 +211,7 @@ const buildFileRecentItem = (file: FileMeta): RecentItem => {
     subtitle: `File • ${formatBytes(file.sizeBytes)} • Updated ${formatRelativeTimestamp(file.updatedAt)}`,
     href: getFileHref(file),
     updatedAt: file.updatedAt,
-    icon: file.type === "image" ? ImageIcon : FileTextIcon,
+    icon: getFileIcon(file),
     iconWeight: "fill",
     shellClassName: "bg-[#f4f1ea]",
     iconClassName: "text-[#6b655d]",
@@ -444,7 +449,7 @@ function EmptyWidgetsState({ onReset }: { onReset: () => void }): ReactElement {
 }
 
 export const Component = (): ReactElement => {
-  const { store } = useStore();
+  const store = useAppStore();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion() ?? false;
   const fileRows = store.useQuery(desktopFilesQuery$);

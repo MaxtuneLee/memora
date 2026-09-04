@@ -1,5 +1,7 @@
 import { file as opfsFile, write as opfsWrite } from "@memora/fs";
 
+import type { ContentLocator } from "@/lib/content/types";
+
 export interface VectorDbIndexConfig {
   model: string;
   modelRevision: string;
@@ -27,7 +29,8 @@ export interface VectorDbIndexedChunk {
   endOffset?: number;
   tokenCount?: number;
   headingPath?: string[];
-  embedding: Float32Array;
+  locator?: ContentLocator;
+  embedding?: Float32Array;
 }
 
 export interface VectorDbIndexedDocument {
@@ -90,6 +93,7 @@ export interface VectorDbSearchHit {
   chunkIndex: number;
   content: string;
   headingPath: string[];
+  locator?: ContentLocator;
   startOffset?: number;
   endOffset?: number;
   score: number;
@@ -128,6 +132,7 @@ export interface VectorDbIndexedChunkSummary {
   endOffset?: number;
   tokenCount?: number;
   headingPath: string[];
+  locator?: ContentLocator;
 }
 
 export interface VectorDbIndexInspection {
@@ -145,6 +150,7 @@ interface IndexWorkerRequestMap {
   upsertChunkBatch: { batch: VectorDbChunkBatch };
   finalizeDocument: { plan: VectorDbDocumentIndexPlan };
   upsert: { document: VectorDbIndexedDocument };
+  deleteDocument: { documentId: string };
   search: { request: VectorDbSearchRequest };
   reset: undefined;
   close: undefined;
@@ -159,6 +165,7 @@ interface IndexWorkerResponseMap {
   upsertChunkBatch: { documentId: string; persistedChunkCount: number };
   finalizeDocument: { documentId: string; chunkCount: number };
   upsert: { documentId: string; chunkCount: number };
+  deleteDocument: { documentId: string };
   search: VectorDbSearchHit[];
   reset: VectorDbIndexHealth;
   close: { closed: true };
@@ -169,6 +176,7 @@ type IndexWorkerRequest = {
     id: string;
     type: K;
     payload: IndexWorkerRequestMap[K];
+    indexConfig?: VectorDbIndexConfig;
   };
 }[keyof IndexWorkerRequestMap];
 
@@ -226,6 +234,7 @@ export const getVectorDbContentHash = async (value: string): Promise<string> => 
 };
 
 export class VectorDbClient {
+  private indexConfig: VectorDbIndexConfig | undefined;
   private worker: SharedWorker | null = null;
   private port: MessagePort | null = null;
   private mountCount = 0;
@@ -344,17 +353,33 @@ export class VectorDbClient {
   private call<T extends keyof IndexWorkerRequestMap>(
     type: T,
     payload: IndexWorkerRequestMap[T],
+    indexConfig = this.indexConfig,
   ): Promise<IndexWorkerResponseMap[T]> {
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
-      const request = { id, type, payload } as IndexWorkerRequest;
+      const request = { id, type, payload, indexConfig } as IndexWorkerRequest;
       this.getPort().postMessage(request);
     });
   }
 
   initialize(config: VectorDbIndexConfig): Promise<VectorDbIndexHealth> {
+    this.indexConfig = { ...config };
     return this.call("initialize", { config });
+  }
+
+  // Each request carries its index identity. Other tabs and background tasks may
+  // initialize a different model while this caller is awaiting an embedding.
+  forIndex(config: VectorDbIndexConfig): VectorDbIndexClient {
+    const snapshot = { ...config };
+    return {
+      prepareDocument: (plan) => this.call("prepareDocument", { plan }, snapshot),
+      upsertChunkBatch: (batch) => this.call("upsertChunkBatch", { batch }, snapshot),
+      finalizeDocument: (plan) => this.call("finalizeDocument", { plan }, snapshot),
+      deleteDocument: (documentId) => this.call("deleteDocument", { documentId }, snapshot),
+      search: (request) => this.call("search", { request }, snapshot),
+      checkDocuments: (documents) => this.call("checkDocuments", { documents }, snapshot),
+    };
   }
 
   health(): Promise<VectorDbIndexHealth> {
@@ -391,6 +416,10 @@ export class VectorDbClient {
     return this.call("upsert", { document });
   }
 
+  deleteDocument(documentId: string): Promise<{ documentId: string }> {
+    return this.call("deleteDocument", { documentId });
+  }
+
   search(request: VectorDbSearchRequest): Promise<VectorDbSearchHit[]> {
     return this.call("search", { request });
   }
@@ -405,6 +434,16 @@ export class VectorDbClient {
     this.detach();
   }
 }
+
+export type VectorDbIndexClient = Pick<
+  VectorDbClient,
+  | "prepareDocument"
+  | "upsertChunkBatch"
+  | "finalizeDocument"
+  | "deleteDocument"
+  | "search"
+  | "checkDocuments"
+>;
 
 export const createVectorDbClient = (): VectorDbClient => {
   return new VectorDbClient();

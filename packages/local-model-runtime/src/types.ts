@@ -24,7 +24,6 @@ export type LocalModelErrorCode =
   | "generation-failed"
   | "tool-call-parse-failed"
   | "worker-crashed"
-  | "request-aborted"
   | "capacity-exceeded";
 
 export interface LocalModelError {

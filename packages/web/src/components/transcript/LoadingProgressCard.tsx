@@ -1,4 +1,4 @@
-import { Progress } from "@/components/Progress";
+import { Progress } from "@/components/ui/Progress";
 
 interface ProgressItem {
   file: string;
@@ -26,8 +26,8 @@ export const LoadingProgressCard = ({
       </div>
       <p className="text-center text-sm text-zinc-600">{loadingMessage}</p>
       <div className="space-y-2">
-        {progressItems.map(({ file, progress, total }, i) => (
-          <Progress key={i} text={file} percentage={progress} total={total} />
+        {progressItems.map(({ file, progress }, i) => (
+          <Progress key={i} label={file} value={progress} />
         ))}
       </div>
     </div>

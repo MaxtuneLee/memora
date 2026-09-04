@@ -88,7 +88,7 @@ test("sidebar recent text files point to /editor/file/:id while video still poin
   expect(getSidebarRecentFileHref(videoFile)).toBe("/transcript/file/video-1");
 });
 
-test("desktop preview open action routes editable text files to the editor", () => {
+test("desktop preview open action routes supported file viewers and editable text files", () => {
   const markdownFile = createFileMeta({
     id: "doc-1",
     name: "notes.md",
@@ -101,9 +101,30 @@ test("desktop preview open action routes editable text files to the editor", () 
     type: "audio",
     mimeType: "audio/webm",
   });
+  const imageFile = createFileMeta({
+    id: "image-1",
+    name: "diagram.png",
+    type: "image",
+    mimeType: "image/png",
+  });
+  const docxFile = createFileMeta({
+    id: "docx-1",
+    name: "research.docx",
+    type: "document",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+  const pptxFile = createFileMeta({
+    id: "pptx-1",
+    name: "lecture.pptx",
+    type: "document",
+    mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  });
 
   expect(getFileOpenHref(markdownFile)).toBe("/editor/file/doc-1");
   expect(getFileOpenHref(audioFile)).toBe("/transcript/file/audio-1");
+  expect(getFileOpenHref(imageFile)).toBe("/files/file/image-1");
+  expect(getFileOpenHref(docxFile)).toBe("/files/file/docx-1");
+  expect(getFileOpenHref(pptxFile)).toBe("/files/file/pptx-1");
 });
 
 test("files page routes editable text documents to the editor", () => {
@@ -121,7 +142,7 @@ test("files page routes editable text documents to the editor", () => {
   });
 
   expect(getLibraryFileHref(markdownFile)).toBe("/editor/file/doc-1");
-  expect(getLibraryFileHref(imageFile)).toBeNull();
+  expect(getLibraryFileHref(imageFile)).toBe("/files/file/image-1");
 });
 
 test("global search routes editable text documents directly to the editor", () => {

@@ -3,6 +3,8 @@ import type { AgentConfig } from "@memora/ai-core";
 import { createRemotePiRuntime, type PiModelRuntime } from "@memora/ai-provider-pi";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
+import { useProviderCredentials } from "@/hooks/settings/useProviderCredentials";
+import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { IS_DEV } from "./helpers";
 
 interface ChatSettingsLike {
@@ -12,29 +14,42 @@ interface ChatSettingsLike {
 
 export const useChatModelConfig = ({
   providers,
-  settings,
   activeSessionId,
 }: {
   providers: ProviderRow[];
   settings: ChatSettingsLike;
   activeSessionId: string;
 }) => {
+  const getProviderApiKey = useProviderCredentials();
+  const { routing } = useModelRouting();
   const selectedProvider = useMemo(() => {
-    return providers.find((provider) => provider.id === settings.selectedProviderId) ?? null;
-  }, [providers, settings.selectedProviderId]);
-  const selectedModel = settings.selectedModel.trim();
+    return (
+      providers.find(
+        (provider) => provider.id === routing.assistant.providerId && !provider.deletedAt,
+      ) ?? null
+    );
+  }, [providers, routing.assistant.providerId]);
+  const selectedModel = routing.assistant.modelId.trim();
   const selectedProviderModels = useMemo(() => {
     return selectedProvider ? parseProviderModels(selectedProvider) : [];
   }, [selectedProvider]);
   const selectedModelInfo = useMemo(() => {
     return selectedModel
-      ? (selectedProviderModels.find((model) => model.id === selectedModel) ?? null)
+      ? (selectedProviderModels.find((model) => model.id === selectedModel) ?? {
+          id: selectedModel,
+          name: selectedModel,
+          reasoning: false,
+          input: ["text"] as Array<"text" | "image">,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 32768,
+          maxTokens: 4096,
+        })
       : null;
   }, [selectedModel, selectedProviderModels]);
   const selectedApiFormat = (selectedProvider?.apiFormat ?? "chat-completions") as
     | "chat-completions"
     | "responses";
-  const selectedApiKey = selectedProvider?.apiKey.trim() ?? "";
+  const selectedApiKey = selectedProvider ? getProviderApiKey(selectedProvider).trim() : "";
   const selectedBaseUrl = useMemo(() => {
     if (!selectedProvider) {
       return "";
@@ -71,7 +86,7 @@ export const useChatModelConfig = ({
       baseUrl: selectedBaseUrl,
       apiKey: selectedApiKey || undefined,
       apiFormat: selectedApiFormat,
-      models: selectedProviderModels,
+      models: [selectedModelInfo],
       selectedModelId: selectedModel,
     });
   }, [

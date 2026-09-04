@@ -4,19 +4,11 @@ import {
   type AgentMessage,
   type PromptSegment,
 } from "@memora/ai-core";
-import { createLocalPiRuntime, createRemotePiRuntime } from "@memora/ai-provider-pi";
-import { getLocalModelManifest } from "@memora/local-model-runtime";
-import { localModelClient } from "@/lib/local-model";
+import type { PiModelRuntime } from "@memora/ai-provider-pi";
 import { normalizePersonalityText } from "@/lib/settings/personalityStorage";
 
-type ApiFormat = "chat-completions" | "responses";
-
 export interface PersonalityGenerationConfig {
-  useLocalModel?: boolean;
-  apiFormat: ApiFormat;
-  endpoint: string;
-  apiKey: string;
-  model: string;
+  runtime: PiModelRuntime;
   userName: string;
   primaryUseCase: string;
   assistantStyle: string;
@@ -129,65 +121,22 @@ const buildUserPrompt = (
 export const generatePersonalityMarkdownWithAI = async (
   config: PersonalityGenerationConfig,
 ): Promise<string> => {
-  const useLocalModel = config.useLocalModel ?? false;
-  const endpoint = config.endpoint.trim();
-  const apiKey = config.apiKey.trim();
-  const model = config.model.trim();
   const userName = config.userName.trim();
   const primaryUseCase = config.primaryUseCase.trim();
   const assistantStyle = config.assistantStyle.trim();
 
-  if (!useLocalModel && !endpoint) {
-    throw new Error("Missing AI endpoint for personality generation.");
-  }
-  if (!useLocalModel && !apiKey) {
-    throw new Error("Missing API key for personality generation.");
-  }
-  if (!model) throw new Error("Missing model for personality generation.");
   if (!userName) throw new Error("Missing user name for personality generation.");
   if (!primaryUseCase) {
     throw new Error("Missing primary use case for personality generation.");
   }
   if (!assistantStyle) throw new Error("Missing assistant style for personality generation.");
 
-  const runtime = useLocalModel
-    ? (() => {
-        const manifest = getLocalModelManifest(model);
-        if (!manifest) {
-          throw new Error(`Unknown local model: ${model}`);
-        }
-        return createLocalPiRuntime({
-          client: localModelClient,
-          manifest,
-          priority: "interactive",
-        });
-      })()
-    : createRemotePiRuntime({
-        id: "memora-onboarding-generator",
-        name: "Memora Personality Generator",
-        baseUrl: endpoint.replace(/\/(?:chat\/completions|responses)\/?$/, ""),
-        apiKey,
-        apiFormat: config.apiFormat,
-        selectedModelId: model,
-        models: [
-          {
-            id: model,
-            name: model,
-            reasoning: false,
-            input: ["text"],
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            contextWindow: 32768,
-            maxTokens: 4096,
-          },
-        ],
-      });
-
   const agent = createAgent({
     config: {
       id: `memora-onboarding-generator:${crypto.randomUUID()}`,
       maxIterations: 1,
     },
-    ...runtime,
+    ...config.runtime,
     persistence: createInMemoryAdapter(),
   });
   agent.addPromptSegment(PERSONALITY_GENERATOR_PROMPT);

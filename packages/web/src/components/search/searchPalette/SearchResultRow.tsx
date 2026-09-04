@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 
 import { cn } from "@/lib/cn";
+import { getFileIcon } from "@/lib/library/fileIcon";
 import type { GlobalSearchItem } from "@/types/search";
 
 import { CATEGORY_LABELS, SEARCH_ITEM_ICONS } from "./constants";
@@ -20,7 +21,7 @@ export function SearchResultRow({
   onHover: () => void;
   onSelect: () => void;
 }) {
-  const Icon = SEARCH_ITEM_ICONS[item.kind];
+  const Icon = item.fileIcon ? getFileIcon(item.fileIcon) : SEARCH_ITEM_ICONS[item.kind];
 
   return (
     <motion.button

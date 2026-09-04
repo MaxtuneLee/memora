@@ -11,6 +11,11 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
     new URL("../../src/components/settings/settingsClassNames.ts", import.meta.url),
     "utf8",
   );
+  const indexCss = readFileSync(new URL("../../src/index.css", import.meta.url), "utf8");
+  const pptxViewerCss = readFileSync(
+    new URL("../../src/styles/pptxViewer.css", import.meta.url),
+    "utf8",
+  );
 
   expect(dialogSource).toContain("isMobileNavigationOpen");
   expect(dialogSource).toContain(">Sections<");
@@ -19,7 +24,9 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
   expect(dialogSource).toContain('fontFamily: "var(--font-serif)"');
   expect(dialogSource).toContain("h-[min(88vh,720px)]");
   expect(dialogSource).toContain("space-y-0.5");
-  expect(dialogSource).toContain("group relative flex w-full items-center gap-2.5");
+  expect(dialogSource).toContain(
+    "group relative flex w-full items-center justify-start gap-2.5",
+  );
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-desktop"');
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-mobile"');
   expect(dialogSource).toContain('layoutId="settings-active-item"');
@@ -27,4 +34,6 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
   expect(dialogSource).toContain("text-zinc-900");
   expect(dialogSource).toContain("useReducedMotion");
   expect(classNamesSource).toContain("[font-family:var(--font-serif)]");
+  expect(indexCss).toContain("@layer pptx-viewer, theme, base, components, utilities;");
+  expect(pptxViewerCss).toContain('@import "pptx-react-viewer/styles" layer(pptx-viewer);');
 });
