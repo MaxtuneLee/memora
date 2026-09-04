@@ -25,7 +25,21 @@ export const transcriptContentParser: ContentParser = {
               searchable: Boolean(text),
             },
           ]
-        : [];
+        : text.length > 0
+          ? [
+              {
+                kind: "text" as const,
+                text,
+                headingPath: [],
+                locator: {
+                  kind: "text" as const,
+                  startOffset: 0,
+                  endOffset: text.length,
+                },
+                searchable: true,
+              },
+            ]
+          : [];
     return { title: "Transcript", markdown: text, plainText: text, segments };
   },
 };

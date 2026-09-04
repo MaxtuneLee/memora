@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import type { ContentLocator } from "@/lib/content/types";
 import type { PendingDesktopIntent } from "@/types/search";
 
 export const useDesktopExternalIntent = ({
@@ -14,7 +15,7 @@ export const useDesktopExternalIntent = ({
   externalIntent: PendingDesktopIntent | null;
   onExternalIntentHandled?: (requestId: string) => void;
   onUploadFile: (parentId: string | null) => void;
-  onOpenPreview: (fileId: string) => void;
+  onOpenPreview: (fileId: string, locator?: ContentLocator) => void;
   onOpenFolder: (folderId: string | null) => void;
   onNewFolder: (parentId: string | null) => void;
   onOpenTrash: () => void;
@@ -32,7 +33,7 @@ export const useDesktopExternalIntent = ({
 
     switch (externalIntent.intent.type) {
       case "openPreview":
-        onOpenPreview(externalIntent.intent.fileId);
+        onOpenPreview(externalIntent.intent.fileId, externalIntent.intent.locator);
         break;
       case "openFolder":
         onOpenFolder(externalIntent.intent.folderId);

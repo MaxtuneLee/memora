@@ -118,6 +118,7 @@ export const DesktopWindowLayer = ({
             size={window.size}
             zIndex={zIndex}
             isFocused={window.id === focusedWindowId}
+            locator={window.locator}
             boundsRef={containerRef}
             onClose={onClosePreview}
             onFocus={onFocusPreview}

@@ -11,6 +11,7 @@ import { getFileIcon } from "@/lib/library/fileIcon";
 import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { formatBytes } from "@/lib/format";
 import { resolveRecordingFile } from "@/lib/library/fileService";
+import type { ContentLocator } from "@/lib/content/types";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
 import { ICON_SIZE } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
@@ -29,6 +30,10 @@ interface DesktopPreviewWindowProps {
   size: DesktopWindowSize;
   zIndex: number;
   isFocused: boolean;
+  // ponytail: accepted at the component boundary for future "jump to location" support;
+  // not yet threaded into the underlying viewers (DocumentFilePreview / audio / video),
+  // which don't have a jump-to-X prop today — wire that up as a follow-up.
+  locator?: ContentLocator;
   boundsRef: React.RefObject<HTMLDivElement | null>;
   onClose: (id: string) => void;
   onFocus: (id: string) => void;

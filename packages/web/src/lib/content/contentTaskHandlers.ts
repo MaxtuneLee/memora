@@ -7,7 +7,9 @@ import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import type { BackgroundTaskHandler } from "@/lib/background-tasks";
 
 import {
+  assertContentFileSize,
   contentParserRegistry,
+  createProcessingBudget,
   createSourceRevision,
   indexContentArtifactLexically,
   indexContentArtifactSemantically,
@@ -88,6 +90,7 @@ export const createContentTaskHandlers = (input: {
           return;
         }
         const file = await resolveFile(row);
+        assertContentFileSize(file);
         const parser = contentParserRegistry.resolve(file);
         if (!parser) {
           setIndexStatus(
@@ -104,12 +107,16 @@ export const createContentTaskHandlers = (input: {
           content,
           parserVersion: parser.version,
         });
+        const budget = createProcessingBudget();
         const artifact = await contentParserRegistry.parse({
           fileId,
           sourceRevision,
           file,
           signal: context.signal,
-          onProgress: context.reportProgress,
+          onProgress: (progress) => {
+            budget.check();
+            context.reportProgress(progress);
+          },
         });
         await writeContentArtifact(artifact);
         await context.enqueue({

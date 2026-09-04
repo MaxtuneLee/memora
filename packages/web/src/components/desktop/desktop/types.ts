@@ -1,8 +1,11 @@
+import type { ContentLocator } from "@/lib/content/types";
+
 export interface PreviewWindowState {
   id: string;
   fileId: string;
   position: { x: number; y: number };
   size: { width: number; height: number };
+  locator?: ContentLocator;
 }
 
 export interface FolderWindowState {

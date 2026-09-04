@@ -27,7 +27,7 @@
 ### Development
 
 - Dev server with workspace dependencies: `vp run -t @memora/web#dev`
-  - Vite runs on port `9001` (see `packages/web/vite.config.ts`).
+  - Vite runs on port `9003` (see `packages/web/vite.config.ts`).
 - Preview build: `vp --filter @memora/web preview`
 
 ### Build

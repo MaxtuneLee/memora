@@ -123,22 +123,43 @@ export class BackgroundTaskQueue {
   private async pump(): Promise<void> {
     if (!this.running || this.pumping) return;
     this.pumping = true;
+    // ponytail: tasks another tab already claimed this round are skipped (not retried) so a
+    // lost lock race can't spin the loop; the next pump() (storage reload / broadcast) retries them.
+    const unclaimed = new Set<string>();
     try {
       while (this.running) {
         const task = this.getTasks()
-          .filter((candidate) => this.canRun(candidate))
+          .filter((candidate) => this.canRun(candidate) && !unclaimed.has(candidate.id))
           .sort(
             (left, right) => Number(right.priority === "user") - Number(left.priority === "user"),
           )[0];
         if (!task) break;
-        await this.runTask(task);
+        const claimed = await this.runTask(task);
+        if (!claimed) unclaimed.add(task.id);
       }
     } finally {
       this.pumping = false;
     }
   }
 
-  private async runTask(task: BackgroundTask): Promise<void> {
+  /** Claims a cross-tab lock for the task before running it; returns false if another tab holds it. */
+  private async runTask(task: BackgroundTask): Promise<boolean> {
+    if (typeof navigator === "undefined" || !navigator.locks) {
+      await this.executeTask(task);
+      return true;
+    }
+    return navigator.locks.request(`memora-task-${task.id}`, { ifAvailable: true }, async (lock) => {
+      if (!lock) {
+        // Another tab is already running this task; resync from storage and let pump() move on.
+        for (const stored of await this.storage.load()) this.tasks.set(stored.id, stored);
+        return false;
+      }
+      await this.executeTask(task);
+      return true;
+    });
+  }
+
+  private async executeTask(task: BackgroundTask): Promise<void> {
     const handler = this.registry.get(task.kind);
     if (!handler) {
       task.state = "failed";

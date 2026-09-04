@@ -16,7 +16,7 @@ vp install
 pnpm dev:web
 ```
 
-The main web app runs on `http://localhost:9001`.
+The main web app runs on `http://localhost:9003`.
 
 ## Common Commands
 

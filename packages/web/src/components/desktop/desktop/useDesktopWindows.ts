@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
+import type { ContentLocator } from "@/lib/content/types";
+
 import { buildWindowOrder, buildZIndexMap, getWindowIds } from "./utils";
 import {
   DEFAULT_WINDOW_SIZE,
@@ -16,14 +18,16 @@ export const useDesktopWindows = () => {
   const [windowOrder, setWindowOrder] = useState<string[]>([]);
 
   const openPreviewWindow = useCallback(
-    (fileId: string) => {
+    (fileId: string, locator?: ContentLocator) => {
       setPreviewWindows((previous) => {
         const existing = previous.find((window) => window.fileId === fileId);
         if (existing) {
           setWindowOrder((order) => {
             return buildWindowOrder(order, getWindowIds(previous, folderWindows), existing.id);
           });
-          return previous;
+          return previous.map((window) =>
+            window.id === existing.id ? { ...window, locator } : window,
+          );
         }
 
         const offsetCount = (previous.length + folderWindows.length) % 6;
@@ -38,6 +42,7 @@ export const useDesktopWindows = () => {
               y: 80 + offsetCount * WINDOW_OFFSET,
             },
             size: DEFAULT_WINDOW_SIZE,
+            locator,
           },
         ];
         setWindowOrder((order) => {

@@ -6,6 +6,7 @@ import { fileEvents } from "@/livestore/file";
 import { folderEvents } from "@/livestore/folder";
 import type { DesktopItem } from "@/types/desktop";
 import { collectFolderDescendants } from "@/lib/tree/folderTree";
+import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 
 type ConfirmAction =
   | { kind: "trash"; item: DesktopItem }
@@ -34,6 +35,7 @@ export function useTrashActions({
   removeItem,
 }: UseTrashActionsOptions) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const { purgeFile } = useContentPipeline();
 
   const collectFolderDescendantsForTrash = useCallback(
     (folderId: string) => {
@@ -123,6 +125,7 @@ export function useTrashActions({
     async (item: DesktopItem) => {
       if (item.type === "file") {
         await onDeleteFile(item.fileMeta);
+        await purgeFile(item.id);
         store.commit(
           fileEvents.filePurged({
             id: item.id,
@@ -136,6 +139,7 @@ export function useTrashActions({
         const { folders, files } = collectFolderDescendantsForTrash(item.id);
         for (const file of files) {
           await onDeleteFile(mapToMeta(file));
+          await purgeFile(file.id);
           store.commit(
             fileEvents.filePurged({
               id: file.id,
@@ -154,7 +158,7 @@ export function useTrashActions({
         removeItem(item.id);
       }
     },
-    [collectFolderDescendantsForTrash, mapToMeta, onDeleteFile, removeItem, store],
+    [collectFolderDescendantsForTrash, mapToMeta, onDeleteFile, purgeFile, removeItem, store],
   );
 
   const emptyTrash = useCallback(async () => {
@@ -182,6 +186,7 @@ export function useTrashActions({
     for (const meta of filesToPurge) {
       try {
         await onDeleteFile(meta);
+        await purgeFile(meta.id);
       } catch {
         // OPFS cleanup is best-effort; always commit the purge event
       }
@@ -196,6 +201,7 @@ export function useTrashActions({
     collectFolderDescendantsForTrash,
     mapToMeta,
     onDeleteFile,
+    purgeFile,
     store,
     trashedFileItems,
     trashedFolderItems,

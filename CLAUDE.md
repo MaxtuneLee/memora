@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies
 pnpm install
 
-# Dev server (port 9000)
+# Dev server (port 9003)
 pnpm --filter @memora/web dev
 
 # Build web app (runs tsc -b then vite build)

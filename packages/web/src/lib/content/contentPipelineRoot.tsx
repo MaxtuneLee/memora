@@ -23,12 +23,14 @@ const contentPipelineFilesQuery$ = queryDb(
   { label: "content-pipeline:files" },
 );
 import { createContentTaskHandlers } from "./contentTaskHandlers";
+import { readContentArtifact } from ".";
 
 interface ContentPipelineContextValue {
   reindexFile: (fileId: string) => Promise<void>;
   indexUnindexed: () => Promise<void>;
   reindexAll: () => Promise<void>;
   reindexSemantic: () => Promise<void>;
+  purgeFile: (fileId: string) => Promise<void>;
   getTasks: () => ReturnType<BackgroundTaskQueue["getTasks"]>;
   subscribeTasks: (listener: () => void) => () => void;
 }
@@ -61,6 +63,7 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
   const queue = useMemo(() => createBackgroundTaskQueue(), []);
   const started = useRef(false);
   const legacyRefreshQueued = useRef(new Set<string>());
+  const semanticFingerprintChecked = useRef(new Set<string>());
   const handlers = useMemo(
     () =>
       createContentTaskHandlers({
@@ -92,6 +95,20 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
         dedupeKey: `manual-extract:${fileId}:${Date.now()}`,
         priority: "user",
         resourceGroup: "document-parser",
+      });
+    },
+    [ensureStarted, queue],
+  );
+
+  const purgeFile = useCallback(
+    async (fileId: string) => {
+      await ensureStarted();
+      await queue.enqueue({
+        kind: "content.delete",
+        payload: { fileId },
+        dedupeKey: `delete:${fileId}`,
+        priority: "user",
+        resourceGroup: "io",
       });
     },
     [ensureStarted, queue],
@@ -161,6 +178,9 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     let disposed = false;
     void ensureStarted().then(async () => {
       if (disposed) return;
+      const runtime = readEmbeddingRuntime(store);
+      const indexId = runtime ? await getVectorDbIndexId(runtime.indexConfig) : null;
+      const fingerprintsByFileId = new Map<string, string>();
       for (const row of rows) {
         if (row.deletedAt || row.purgedAt) continue;
         const isPending = isPendingFileReadyForIndexing(row);
@@ -168,20 +188,57 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
           row.indexStatus === "indexed" &&
           row.indexSummary === "No extractable content for this file type." &&
           !legacyRefreshQueued.current.has(row.id);
-        if (!isPending && !isLegacyUnsupportedSummary) continue;
-        if (isLegacyUnsupportedSummary) legacyRefreshQueued.current.add(row.id);
+        if (isPending || isLegacyUnsupportedSummary) {
+          if (isLegacyUnsupportedSummary) legacyRefreshQueued.current.add(row.id);
+          await queue.enqueue({
+            kind: "content.extract",
+            payload: { fileId: row.id },
+            dedupeKey: `extract:${row.id}:${row.updatedAt instanceof Date ? row.updatedAt.getTime() : 0}`,
+            resourceGroup: "document-parser",
+          });
+          continue;
+        }
+        // A synced indexStatus of "indexed" can arrive from another device (or a
+        // storage import) without this device's local vector-db actually holding the
+        // document. Check each such row's fingerprint against the local index once
+        // per pipeline start and repair drift instead of trusting the synced status.
+        if (
+          runtime &&
+          indexId &&
+          row.indexStatus === "indexed" &&
+          !semanticFingerprintChecked.current.has(row.id)
+        ) {
+          semanticFingerprintChecked.current.add(row.id);
+          const artifact = await readContentArtifact(row.id);
+          if (artifact) fingerprintsByFileId.set(row.id, artifact.sourceRevision);
+        }
+      }
+      if (disposed || !runtime || !indexId || fingerprintsByFileId.size === 0) return;
+      const statuses = await modelWorkerFactory.vectorDb
+        .forIndex(runtime.indexConfig)
+        .checkDocuments(
+          Array.from(fingerprintsByFileId, ([fileId, contentHash]) => ({
+            documentId: fileId,
+            contentHash,
+          })),
+        );
+      const reconciled = new Set(
+        statuses.filter((status) => status.matches).map((status) => status.documentId),
+      );
+      for (const fileId of fingerprintsByFileId.keys()) {
+        if (disposed || reconciled.has(fileId)) continue;
         await queue.enqueue({
-          kind: "content.extract",
-          payload: { fileId: row.id },
-          dedupeKey: `extract:${row.id}:${row.updatedAt instanceof Date ? row.updatedAt.getTime() : 0}`,
-          resourceGroup: "document-parser",
+          kind: "content.index.semantic",
+          payload: { fileId, indexId },
+          dedupeKey: `semantic-reconcile:${fileId}:${indexId}`,
+          resourceGroup: "embedding",
         });
       }
     });
     return () => {
       disposed = true;
     };
-  }, [ensureStarted, queue, rows, settings.autoIndex]);
+  }, [ensureStarted, queue, rows, settings.autoIndex, store]);
 
   const value = useMemo<ContentPipelineContextValue>(
     () => ({
@@ -189,10 +246,11 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       indexUnindexed,
       reindexAll,
       reindexSemantic,
+      purgeFile,
       getTasks: () => queue.getTasks(),
       subscribeTasks: (listener) => queue.subscribe(listener),
     }),
-    [indexUnindexed, queue, reindexAll, reindexFile, reindexSemantic],
+    [indexUnindexed, purgeFile, queue, reindexAll, reindexFile, reindexSemantic],
   );
 
   return (

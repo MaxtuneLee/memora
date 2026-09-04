@@ -7,7 +7,6 @@ import {
 } from "@memora/livestore-devtool";
 import LiveStoreLoadingScreen from "@/app/components/LiveStoreLoadingScreen";
 import { appStoreRegistry, useAppStore, useLiveStoreLoadingStatus } from "@/livestore/store";
-import { migrateLiveStoreStorageFormat } from "@/lib/livestore/storageFormatMigration";
 import "@/index.css";
 
 type DevtoolsRenderProps = Omit<LiveStoreDevtoolsPanelProps, "querySql" | "executeSql">;
@@ -47,21 +46,13 @@ function DevtoolsPanel(props: DevtoolsRenderProps) {
 }
 
 export function renderLiveStoreDevtools(rootElement: HTMLElement, props: DevtoolsRenderProps = {}) {
-  void migrateLiveStoreStorageFormat()
-    .then(() => {
-      createRoot(rootElement).render(
-        <StrictMode>
-          <StoreRegistryProvider storeRegistry={appStoreRegistry}>
-            <Suspense fallback={<LiveStoreFallback />}>
-              <DevtoolsPanel {...props} />
-            </Suspense>
-          </StoreRegistryProvider>
-        </StrictMode>,
-      );
-    })
-    .catch((error: unknown) => {
-      console.error("LiveStore storage migration failed", error);
-      rootElement.textContent =
-        "Local data migration failed. Close other Memora tabs, then reload this page.";
-    });
+  createRoot(rootElement).render(
+    <StrictMode>
+      <StoreRegistryProvider storeRegistry={appStoreRegistry}>
+        <Suspense fallback={<LiveStoreFallback />}>
+          <DevtoolsPanel {...props} />
+        </Suspense>
+      </StoreRegistryProvider>
+    </StrictMode>,
+  );
 }
