@@ -150,6 +150,20 @@
 - Avoid introducing new dependencies without discussion.
 - Update this file if new lint/test/build commands are added.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues for `MaxtuneLee/memora`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+GitHub issues use the canonical `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses a single-context domain documentation layout. See `docs/agents/domain.md`.
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web
