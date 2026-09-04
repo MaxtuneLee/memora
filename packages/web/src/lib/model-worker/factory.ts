@@ -129,14 +129,16 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const pushEvent = (request: PendingRequest, event: LocalModelEvent): void => {
-    console.warn("[local-model-factory] event received", {
-      pool: request.pool,
-      requestId: request.requestId,
-      type: event.type,
-      status: event.type === "status" ? event.status : undefined,
-      file: event.type === "model-progress" ? event.file : undefined,
-      progress: event.type === "model-progress" ? event.progress : undefined,
-    });
+    if (import.meta.env.DEV) {
+      console.warn("[local-model-factory] event received", {
+        pool: request.pool,
+        requestId: request.requestId,
+        type: event.type,
+        status: event.type === "status" ? event.status : undefined,
+        file: event.type === "model-progress" ? event.file : undefined,
+        progress: event.type === "model-progress" ? event.progress : undefined,
+      });
+    }
     if (event.type === "status") {
       updateLocalModelWorkerStatus({
         pool: request.pool,
@@ -165,12 +167,14 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const handleResponse = (pool: LocalModelPoolKey, response: SharedWorkerResponse): void => {
-    console.warn("[local-model-factory] response received", {
-      pool,
-      type: response.type,
-      requestId: response.type === "event" ? response.requestId : undefined,
-      sequence: response.type === "event" ? response.sequence : undefined,
-    });
+    if (import.meta.env.DEV) {
+      console.warn("[local-model-factory] response received", {
+        pool,
+        type: response.type,
+        requestId: response.type === "event" ? response.requestId : undefined,
+        sequence: response.type === "event" ? response.sequence : undefined,
+      });
+    }
     if (response.type === "debug") {
       if (response.payload.kind === "runtime-loaded") {
         recordLocalModelWorkerRuntimeLoad({

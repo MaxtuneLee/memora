@@ -27,7 +27,7 @@ export const useLocalModelSelectionNotice = () => {
           add({
             title: `${modelName} needs to be downloaded`,
             description:
-              "Download this model before using the feature. Downloads are available in Settings → Local Models, or on the setup screen.",
+              "Download this model before using the feature. Downloads are available in Settings → Local models, or on the setup screen.",
             type: "info",
           });
         })
@@ -36,7 +36,7 @@ export const useLocalModelSelectionNotice = () => {
           pending.current.delete(feature);
           add({
             title: "Could not check the model download",
-            description: "Check this model in Settings → Local Models before using the feature.",
+            description: "Check this model in Settings → Local models before using the feature.",
             type: "error",
           });
         });

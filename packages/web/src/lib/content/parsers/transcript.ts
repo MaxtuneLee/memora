@@ -1,6 +1,18 @@
-import type { RecordingTranscript } from "@/types/library";
+import type { RecordingTranscript, TranscriptWord } from "@/types/library";
 
 import type { ContentParser } from "../types";
+
+// Groups words into segments so search hits carry the timestamp of the
+// matching passage instead of the whole recording's start/end.
+const WORDS_PER_SEGMENT = 50;
+
+const groupWords = (words: TranscriptWord[]): TranscriptWord[][] => {
+  const groups: TranscriptWord[][] = [];
+  for (let i = 0; i < words.length; i += WORDS_PER_SEGMENT) {
+    groups.push(words.slice(i, i + WORDS_PER_SEGMENT));
+  }
+  return groups;
+};
 
 export const transcriptContentParser: ContentParser = {
   name: "transcript",
@@ -12,19 +24,23 @@ export const transcriptContentParser: ContentParser = {
     const text = transcript.text.trim();
     const segments =
       words.length > 0
-        ? [
-            {
+        ? groupWords(words).map((group) => {
+            const groupText = group
+              .map((word) => word.text)
+              .join(" ")
+              .trim();
+            return {
               kind: "transcript" as const,
-              text,
+              text: groupText,
               headingPath: [],
               locator: {
                 kind: "transcript" as const,
-                startSeconds: words[0]?.timestamp[0] ?? 0,
-                endSeconds: words[words.length - 1]?.timestamp[1] ?? 0,
+                startSeconds: group[0]?.timestamp[0] ?? 0,
+                endSeconds: group[group.length - 1]?.timestamp[1] ?? 0,
               },
-              searchable: Boolean(text),
-            },
-          ]
+              searchable: Boolean(groupText),
+            };
+          })
         : text.length > 0
           ? [
               {

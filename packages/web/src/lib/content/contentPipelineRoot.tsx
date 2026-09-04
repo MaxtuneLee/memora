@@ -12,6 +12,7 @@ import {
 
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
+import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import { getVectorDbIndexId } from "@/lib/vector-db";
 import { BackgroundTaskQueue, createBackgroundTaskQueue } from "@/lib/background-tasks";
 import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
@@ -202,31 +203,45 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
         // storage import) without this device's local vector-db actually holding the
         // document. Check each such row's fingerprint against the local index once
         // per pipeline start and repair drift instead of trusting the synced status.
-        if (
-          runtime &&
-          indexId &&
-          row.indexStatus === "indexed" &&
-          !semanticFingerprintChecked.current.has(row.id)
-        ) {
+        if (row.indexStatus === "indexed" && !semanticFingerprintChecked.current.has(row.id)) {
           semanticFingerprintChecked.current.add(row.id);
           const artifact = await readContentArtifact(row.id);
           if (artifact) fingerprintsByFileId.set(row.id, artifact.sourceRevision);
         }
       }
-      if (disposed || !runtime || !indexId || fingerprintsByFileId.size === 0) return;
-      const statuses = await modelWorkerFactory.vectorDb
+      if (disposed || fingerprintsByFileId.size === 0) return;
+      const fingerprints = Array.from(fingerprintsByFileId, ([fileId, contentHash]) => ({
+        documentId: fileId,
+        contentHash,
+      }));
+
+      // Lexical (BM25) reconciliation runs regardless of embedding runtime, since
+      // exports/imports and synced rows can arrive without the local BM25 index either.
+      const lexicalStatuses = await modelWorkerFactory.vectorDb
+        .forIndex(LEXICAL_INDEX_CONFIG)
+        .checkDocuments(fingerprints);
+      const lexicalReconciled = new Set(
+        lexicalStatuses.filter((status) => status.matches).map((status) => status.documentId),
+      );
+      for (const [fileId, sourceRevision] of fingerprintsByFileId) {
+        if (disposed || lexicalReconciled.has(fileId)) continue;
+        await queue.enqueue({
+          kind: "content.index.lexical",
+          payload: { fileId, sourceRevision },
+          dedupeKey: `lexical-reconcile:${fileId}:${sourceRevision}`,
+          resourceGroup: "io",
+        });
+      }
+
+      if (disposed || !runtime || !indexId) return;
+      const semanticStatuses = await modelWorkerFactory.vectorDb
         .forIndex(runtime.indexConfig)
-        .checkDocuments(
-          Array.from(fingerprintsByFileId, ([fileId, contentHash]) => ({
-            documentId: fileId,
-            contentHash,
-          })),
-        );
-      const reconciled = new Set(
-        statuses.filter((status) => status.matches).map((status) => status.documentId),
+        .checkDocuments(fingerprints);
+      const semanticReconciled = new Set(
+        semanticStatuses.filter((status) => status.matches).map((status) => status.documentId),
       );
       for (const fileId of fingerprintsByFileId.keys()) {
-        if (disposed || reconciled.has(fileId)) continue;
+        if (disposed || semanticReconciled.has(fileId)) continue;
         await queue.enqueue({
           kind: "content.index.semantic",
           payload: { fileId, indexId },

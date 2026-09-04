@@ -31,4 +31,11 @@ async function bootstrap(): Promise<void> {
   );
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  console.error("Failed to start application", error);
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    rootElement.textContent =
+      "Something went wrong while loading the app. Please refresh the page.";
+  }
+});
