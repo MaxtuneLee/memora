@@ -75,6 +75,7 @@ export interface VectorDbWorkerRequest {
     | "upsertChunkBatch"
     | "finalizeDocument"
     | "upsert"
+    | "deleteDocument"
     | "search"
     | "reset"
     | "close";
@@ -739,6 +740,11 @@ const upsertDocument = (
   return finalizeDocument(plan);
 };
 
+const deleteDocument = (documentId: string): { documentId: string } => {
+  deleteDocumentRows(documentId);
+  return { documentId };
+};
+
 interface LexicalRow extends Record<string, unknown> {
   chunk_rowid: unknown;
   chunk_id: unknown;
@@ -966,6 +972,8 @@ export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Pro
       return finalizeDocument((request.payload as { plan: VectorDbDocumentIndexPlan }).plan);
     case "upsert":
       return upsertDocument((request.payload as { document: VectorDbIndexedDocument }).document);
+    case "deleteDocument":
+      return deleteDocument((request.payload as { documentId: string }).documentId);
     case "search":
       return search((request.payload as { request: VectorDbSearchRequest }).request);
     case "reset":
@@ -987,6 +995,7 @@ const MUTATING_REQUEST_TYPES = new Set<VectorDbWorkerRequest["type"]>([
   "upsertChunkBatch",
   "finalizeDocument",
   "upsert",
+  "deleteDocument",
   "reset",
 ]);
 

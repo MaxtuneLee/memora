@@ -6,6 +6,7 @@ import type {
   ContentSegment,
 } from "./types";
 import { createStableSegmentId } from "./sourceRevision";
+import { DEFAULT_CONTENT_PROCESSING_LIMITS } from "./processingLimits";
 import { textContentParser } from "./parsers/text";
 import { transcriptContentParser } from "./parsers/transcript";
 
@@ -55,6 +56,8 @@ const DOCUMENT_PARSER: ContentParser = {
     } = { current: null };
     try {
       const parsed = await parseDocumentFile(file, {
+        maxPages: DEFAULT_CONTENT_PROCESSING_LIMITS.maxPdfPages,
+        maxUncompressedBytes: DEFAULT_CONTENT_PROCESSING_LIMITS.maxPptxUncompressedBytes,
         onProgress: (progress) =>
           onProgress?.({
             label: progress.label,
@@ -62,9 +65,9 @@ const DOCUMENT_PARSER: ContentParser = {
             total: progress.total,
           }),
         runOcrPage: async (pageFile) => {
-          ocrSessionRef.current ??= new (await import("@/lib/playground/imageDocumentPipeline")).ImageDocumentPipelineSession(
-            (progress) => onProgress?.({ label: progress.label }),
-          );
+          ocrSessionRef.current ??= new (
+            await import("@/lib/playground/imageDocumentPipeline")
+          ).ImageDocumentPipelineSession((progress) => onProgress?.({ label: progress.label }));
           const result = await ocrSessionRef.current.run(pageFile);
           return {
             markdown: result.markdown,

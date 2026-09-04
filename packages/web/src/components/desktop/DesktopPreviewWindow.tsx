@@ -1,8 +1,5 @@
 import { Button } from "@base-ui/react/button";
-import {
-  FolderIcon,
-  ArrowClockwiseIcon,
-} from "@phosphor-icons/react";
+import { FolderIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -30,9 +27,8 @@ interface DesktopPreviewWindowProps {
   size: DesktopWindowSize;
   zIndex: number;
   isFocused: boolean;
-  // ponytail: accepted at the component boundary for future "jump to location" support;
-  // not yet threaded into the underlying viewers (DocumentFilePreview / audio / video),
-  // which don't have a jump-to-X prop today — wire that up as a follow-up.
+  // ponytail: only the transcript (audio/video timestamp) case is wired below; page/slide/text
+  // locators need jump-to-X support in DocumentFilePreview, which doesn't exist yet.
   locator?: ContentLocator;
   boundsRef: React.RefObject<HTMLDivElement | null>;
   onClose: (id: string) => void;
@@ -100,6 +96,7 @@ export function DesktopPreviewWindow({
   size,
   zIndex,
   isFocused,
+  locator,
   boundsRef,
   onClose,
   onFocus,
@@ -114,6 +111,13 @@ export function DesktopPreviewWindow({
   const [isReindexing, setIsReindexing] = useState(false);
   const revokeUrlRef = useRef<string | null>(null);
   const fileMetaRef = useRef<DesktopFileItem["fileMeta"] | null>(null);
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
+
+  const seekToLocator = () => {
+    if (locator?.kind === "transcript" && mediaRef.current) {
+      mediaRef.current.currentTime = locator.startSeconds;
+    }
+  };
 
   const isFile = item.type === "file";
   const mimeType = isFile ? item.fileMeta.mimeType : "";
@@ -215,7 +219,15 @@ export function DesktopPreviewWindow({
     if (item.fileMeta.type === "audio") {
       return (
         <div className="flex h-full flex-col justify-center gap-4 p-4">
-          <audio controls src={previewUrl ?? undefined} className="w-full" />
+          <audio
+            ref={(element) => {
+              mediaRef.current = element;
+            }}
+            controls
+            src={previewUrl ?? undefined}
+            onLoadedMetadata={seekToLocator}
+            className="w-full"
+          />
         </div>
       );
     }
@@ -224,8 +236,12 @@ export function DesktopPreviewWindow({
       return (
         <div className="h-full p-3">
           <video
+            ref={(element) => {
+              mediaRef.current = element;
+            }}
             controls
             src={previewUrl ?? undefined}
+            onLoadedMetadata={seekToLocator}
             className="h-full w-full rounded-lg bg-black/80"
           />
         </div>

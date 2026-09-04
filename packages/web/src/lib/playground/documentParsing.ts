@@ -127,6 +127,8 @@ export type ParsedDocument = ParsedPdfDocument | ParsedDocxDocument | ParsedPptx
 export interface DocumentParserOptions {
   onProgress?: (progress: DocumentParseProgress) => void;
   runOcrPage?: (file: File, pageNumber: number) => Promise<OcrFallbackResult>;
+  maxPages?: number;
+  maxUncompressedBytes?: number;
 }
 
 const PDF_TEXT_MINIMUM_CHARACTERS = 100;
@@ -804,7 +806,10 @@ const parsePdf = async (file: File, options: DocumentParserOptions): Promise<Par
     document = await loadingTask.promise;
     const pages: ParsedPdfPage[] = [];
     const warnings: string[] = [];
-    for (let index = 1; index <= document.numPages; index += 1) {
+    const pageLimit = options.maxPages
+      ? Math.min(document.numPages, options.maxPages)
+      : document.numPages;
+    for (let index = 1; index <= pageLimit; index += 1) {
       options.onProgress?.({
         stage: "extracting",
         label: `Extracting text from page ${index}/${document.numPages}`,
@@ -875,6 +880,11 @@ const parsePdf = async (file: File, options: DocumentParserOptions): Promise<Par
     if (ocrCount > 0) {
       warnings.unshift(
         `${ocrCount} ${ocrCount === 1 ? "page was" : "pages were"} routed through the local OCR pipeline.`,
+      );
+    }
+    if (pageLimit < document.numPages) {
+      warnings.unshift(
+        `This PDF has ${document.numPages} pages; only the first ${pageLimit} were processed (limit reached).`,
       );
     }
     return {
@@ -990,7 +1000,7 @@ const parsePptx = async (
   try {
     const data = await handler.load(fileBuffer, {
       eagerDecodeImages: true,
-      maxUncompressedBytes: MAX_PPTX_UNCOMPRESSED_BYTES,
+      maxUncompressedBytes: options.maxUncompressedBytes ?? MAX_PPTX_UNCOMPRESSED_BYTES,
       allowExternalImages: false,
     });
     options.onProgress?.({ stage: "extracting", label: "Extracting slides, notes, and images" });

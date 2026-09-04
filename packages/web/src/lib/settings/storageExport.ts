@@ -18,7 +18,12 @@ import {
   type LocalModelUsageTotals,
 } from "@/lib/models/localTokenUsage";
 import type { StoredModelRouting } from "@/lib/models/modelRoutingSchema";
-import { normalizeSettingsValue, settingEvents, settingsTable } from "@/livestore/setting";
+import {
+  normalizeSettingsValue,
+  settingEvents,
+  settingsTable,
+  type SemanticSearchMode,
+} from "@/livestore/setting";
 
 const EXPORT_ROOT_DIR_NAME = "memora-export";
 const EXPORT_OPFS_PREFIX = `${EXPORT_ROOT_DIR_NAME}/opfs/`;
@@ -40,6 +45,7 @@ type SettingsValue = {
   defaultSummarizationModel: string;
   autoTranscribe: boolean;
   autoIndex: boolean;
+  semanticSearchMode: SemanticSearchMode;
   semanticSearchEnabled?: boolean;
   sidebarCollapsed: boolean;
   selectedProviderId: string;
@@ -438,6 +444,12 @@ export const normalizeImportedSettings = (value: unknown): SettingsValue => {
     record.attachmentPlacementMode === "current-subfolder"
       ? record.attachmentPlacementMode
       : undefined;
+  const semanticSearchMode =
+    record.semanticSearchMode === "hybrid" ||
+    record.semanticSearchMode === "bm25" ||
+    record.semanticSearchMode === "bge"
+      ? record.semanticSearchMode
+      : undefined;
 
   return normalizeSettingsValue({
     ...(normalizeLocalModelUsageTotals(record.localModelTokenUsage)
@@ -468,6 +480,7 @@ export const normalizeImportedSettings = (value: unknown): SettingsValue => {
       ? { autoTranscribe: record.autoTranscribe }
       : {}),
     ...(typeof record.autoIndex === "boolean" ? { autoIndex: record.autoIndex } : {}),
+    ...(semanticSearchMode ? { semanticSearchMode } : {}),
     ...(typeof record.semanticSearchEnabled === "boolean"
       ? { semanticSearchEnabled: record.semanticSearchEnabled }
       : {}),

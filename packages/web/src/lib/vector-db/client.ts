@@ -150,6 +150,7 @@ interface IndexWorkerRequestMap {
   upsertChunkBatch: { batch: VectorDbChunkBatch };
   finalizeDocument: { plan: VectorDbDocumentIndexPlan };
   upsert: { document: VectorDbIndexedDocument };
+  deleteDocument: { documentId: string };
   search: { request: VectorDbSearchRequest };
   reset: undefined;
   close: undefined;
@@ -164,6 +165,7 @@ interface IndexWorkerResponseMap {
   upsertChunkBatch: { documentId: string; persistedChunkCount: number };
   finalizeDocument: { documentId: string; chunkCount: number };
   upsert: { documentId: string; chunkCount: number };
+  deleteDocument: { documentId: string };
   search: VectorDbSearchHit[];
   reset: VectorDbIndexHealth;
   close: { closed: true };
@@ -374,6 +376,7 @@ export class VectorDbClient {
       prepareDocument: (plan) => this.call("prepareDocument", { plan }, snapshot),
       upsertChunkBatch: (batch) => this.call("upsertChunkBatch", { batch }, snapshot),
       finalizeDocument: (plan) => this.call("finalizeDocument", { plan }, snapshot),
+      deleteDocument: (documentId) => this.call("deleteDocument", { documentId }, snapshot),
       search: (request) => this.call("search", { request }, snapshot),
       checkDocuments: (documents) => this.call("checkDocuments", { documents }, snapshot),
     };
@@ -413,6 +416,10 @@ export class VectorDbClient {
     return this.call("upsert", { document });
   }
 
+  deleteDocument(documentId: string): Promise<{ documentId: string }> {
+    return this.call("deleteDocument", { documentId });
+  }
+
   search(request: VectorDbSearchRequest): Promise<VectorDbSearchHit[]> {
     return this.call("search", { request });
   }
@@ -428,8 +435,14 @@ export class VectorDbClient {
   }
 }
 
-export type VectorDbIndexClient = Pick<VectorDbClient,
-  "prepareDocument" | "upsertChunkBatch" | "finalizeDocument" | "search" | "checkDocuments"
+export type VectorDbIndexClient = Pick<
+  VectorDbClient,
+  | "prepareDocument"
+  | "upsertChunkBatch"
+  | "finalizeDocument"
+  | "deleteDocument"
+  | "search"
+  | "checkDocuments"
 >;
 
 export const createVectorDbClient = (): VectorDbClient => {

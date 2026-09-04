@@ -44,7 +44,8 @@ const getIndexDatabaseSize = async (): Promise<number> => {
 
 export default function SettingsIndexingSection() {
   const store = useAppStore();
-  const { getTasks, indexUnindexed, reindexAll, subscribeTasks } = useContentPipeline();
+  const { getTasks, indexUnindexed, reindexAll, reindexSemantic, subscribeTasks } =
+    useContentPipeline();
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
       settingsTable.default.value,
@@ -146,14 +147,16 @@ export default function SettingsIndexingSection() {
           <select
             className="mt-3 w-full rounded-xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3 py-2.5 text-sm text-[var(--color-memora-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive)]"
             value={settings.semanticSearchMode}
-            onChange={(event) =>
+            onChange={(event) => {
+              const mode = event.target.value as setting["semanticSearchMode"];
               store.commit(
                 settingEvents.settingsSet({
-                  semanticSearchMode: event.target.value as setting["semanticSearchMode"],
-                  semanticSearchEnabled: event.target.value !== "bm25",
+                  semanticSearchMode: mode,
+                  semanticSearchEnabled: mode !== "bm25",
                 }),
-              )
-            }
+              );
+              if (mode !== "bm25") void reindexSemantic();
+            }}
           >
             <option value="hybrid">BM25 + BGE hybrid search</option>
             <option value="bm25">BM25 search</option>

@@ -25,6 +25,7 @@ export class BackgroundTaskQueue {
   private channel: BroadcastChannel | null = null;
   private running = false;
   private pumping = false;
+  private wakeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(storage: BackgroundTaskStorage = createOpfsTaskStorage()) {
     this.storage = storage;
@@ -50,6 +51,8 @@ export class BackgroundTaskQueue {
     this.controllers.clear();
     this.channel?.close();
     this.channel = null;
+    if (this.wakeTimer !== null) clearTimeout(this.wakeTimer);
+    this.wakeTimer = null;
   }
 
   subscribe(listener: () => void): () => void {
@@ -68,7 +71,8 @@ export class BackgroundTaskQueue {
   async enqueue<TPayload>(input: EnqueueTaskInput<TPayload>): Promise<BackgroundTask<TPayload>> {
     const existing = [...this.tasks.values()].find(
       (task) =>
-        task.dedupeKey === input.dedupeKey && !["succeeded", "cancelled"].includes(task.state),
+        task.dedupeKey === input.dedupeKey &&
+        !["succeeded", "cancelled", "failed"].includes(task.state),
     );
     if (existing) return existing as BackgroundTask<TPayload>;
     const now = Date.now();
@@ -110,7 +114,20 @@ export class BackgroundTaskQueue {
   }
 
   private async persist(): Promise<void> {
-    await this.storage.save(this.getTasks());
+    const write = async () => {
+      // Merge with what's on disk first so a concurrent tab's write (made after our
+      // last reload) isn't silently overwritten by our full-snapshot save below.
+      for (const stored of await this.storage.load()) {
+        const local = this.tasks.get(stored.id);
+        if (!local || stored.updatedAt > local.updatedAt) this.tasks.set(stored.id, stored);
+      }
+      await this.storage.save(this.getTasks());
+    };
+    if (typeof navigator !== "undefined" && navigator.locks) {
+      await navigator.locks.request("memora-task-storage", write);
+    } else {
+      await write();
+    }
     this.channel?.postMessage({ type: "tasks-updated" });
     this.listeners.forEach((listener) => listener());
   }
@@ -139,7 +156,30 @@ export class BackgroundTaskQueue {
       }
     } finally {
       this.pumping = false;
+      this.scheduleNextWake();
     }
+  }
+
+  /** Schedules a pump() for the earliest future runAfter so a delayed retry isn't stuck
+   * until unrelated activity happens to call pump() again. */
+  private scheduleNextWake(): void {
+    if (this.wakeTimer !== null) {
+      clearTimeout(this.wakeTimer);
+      this.wakeTimer = null;
+    }
+    if (!this.running) return;
+    const now = Date.now();
+    const nextRunAfter = this.getTasks()
+      .filter((task) => task.state === "queued" && task.runAfter > now)
+      .reduce<number | null>(
+        (earliest, task) => (earliest === null ? task.runAfter : Math.min(earliest, task.runAfter)),
+        null,
+      );
+    if (nextRunAfter === null) return;
+    this.wakeTimer = setTimeout(() => {
+      this.wakeTimer = null;
+      void this.pump();
+    }, nextRunAfter - now);
   }
 
   /** Claims a cross-tab lock for the task before running it; returns false if another tab holds it. */
@@ -148,15 +188,19 @@ export class BackgroundTaskQueue {
       await this.executeTask(task);
       return true;
     }
-    return navigator.locks.request(`memora-task-${task.id}`, { ifAvailable: true }, async (lock) => {
-      if (!lock) {
-        // Another tab is already running this task; resync from storage and let pump() move on.
-        for (const stored of await this.storage.load()) this.tasks.set(stored.id, stored);
-        return false;
-      }
-      await this.executeTask(task);
-      return true;
-    });
+    return navigator.locks.request(
+      `memora-task-${task.id}`,
+      { ifAvailable: true },
+      async (lock) => {
+        if (!lock) {
+          // Another tab is already running this task; resync from storage and let pump() move on.
+          for (const stored of await this.storage.load()) this.tasks.set(stored.id, stored);
+          return false;
+        }
+        await this.executeTask(task);
+        return true;
+      },
+    );
   }
 
   private async executeTask(task: BackgroundTask): Promise<void> {

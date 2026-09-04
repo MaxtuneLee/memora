@@ -1,4 +1,5 @@
 import type { ContentParser } from "../types";
+import { DEFAULT_CONTENT_PROCESSING_LIMITS } from "../processingLimits";
 import type { ImageDocumentBlock } from "@/lib/playground/imageDocumentPipeline";
 
 const IMAGE_EXTENSIONS = [".avif", ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".webp"];
@@ -25,6 +26,14 @@ export const imageContentParser: ContentParser = {
   supports: isImageFile,
   parse: async ({ file, signal, onProgress }) => {
     if (signal?.aborted) throw new DOMException("Parsing was cancelled", "AbortError");
+    const bitmap = await createImageBitmap(file);
+    const pixels = bitmap.width * bitmap.height;
+    bitmap.close();
+    if (pixels > DEFAULT_CONTENT_PROCESSING_LIMITS.maxImagePixels) {
+      throw new Error(
+        `${file.name} is ${pixels.toLocaleString()} pixels, exceeding the ${DEFAULT_CONTENT_PROCESSING_LIMITS.maxImagePixels.toLocaleString()} pixel processing limit.`,
+      );
+    }
     const { ImageDocumentPipelineSession } = await import("@/lib/playground/imageDocumentPipeline");
     const session = new ImageDocumentPipelineSession((progress) => {
       onProgress?.({ label: progress.label });
