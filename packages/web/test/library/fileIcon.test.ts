@@ -1,5 +1,5 @@
 import { FileDocIcon, FileMdIcon, FilePdfIcon, FilePptIcon } from "@phosphor-icons/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { getFileIcon } from "@/lib/library/fileIcon";
 
 describe("getFileIcon", () => {
