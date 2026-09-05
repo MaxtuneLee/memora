@@ -39,6 +39,7 @@
     "@memora/ai-extension-skills": "workspace:*",
     "@memora/ai-provider-pi": "workspace:*",
     "@memora/fs": "workspace:*",
+    "@memora/datasets": "workspace:*",
     "@memora/livestore-devtool": "workspace:*",
     "@memora/local-model-runtime": "workspace:*",
     "@paddleocr/paddleocr-js": "^0.4.2",
