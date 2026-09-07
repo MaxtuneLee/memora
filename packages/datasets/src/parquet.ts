@@ -83,7 +83,11 @@ async function getCompressors() {
 export const parquetReader: ParquetReader = {
   async metadata(file) {
     const metadata = await parquetMetadataAsync(file);
-    return { examples: Number(metadata.num_rows), features: featuresFromMetadata(metadata) };
+    return {
+      examples: Number(metadata.num_rows),
+      features: featuresFromMetadata(metadata),
+      rowGroups: metadata.row_groups.map((rowGroup) => Number(rowGroup.num_rows)),
+    };
   },
   async examples(file, options) {
     return (await parquetReadObjects({

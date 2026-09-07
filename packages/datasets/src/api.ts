@@ -28,7 +28,7 @@ const manifestPath = (selection: DatasetSelection) =>
 const shardPath = (selection: DatasetSelection, index: number) =>
   `${installationRoot(selection)}/shards/${String(index).padStart(5, "0")}.parquet`;
 
-function dependencies(options: DatasetOptions = {}) {
+function resolveDatasetDependencies(options: DatasetOptions = {}) {
   return {
     storage: options.storage ?? opfsDatasetStorage,
     source: options.source ?? createHuggingFaceSource(),
@@ -42,7 +42,7 @@ export async function inspectDataset(
 ): Promise<DatasetInspection> {
   if (!datasetId.trim() || !datasetId.includes("/"))
     throw new DatasetError("unsupported", "Enter a public Hub dataset ID such as google/fleurs.");
-  return dependencies(options).source.inspect(
+  return resolveDatasetDependencies(options).source.inspect(
     datasetId.trim(),
     options.revision ?? "main",
     options.signal,
@@ -125,7 +125,7 @@ export async function installDataset(
     onProgress?: (progress: InstallProgress) => void;
   },
 ): Promise<InstalledDataset[]> {
-  const { storage, source, reader } = dependencies(options);
+  const { storage, source, reader } = resolveDatasetDependencies(options);
   const results: InstalledDataset[] = [];
   for (const splitName of options.splits) {
     const split = findSplit(inspection, options.configuration, splitName);
@@ -151,19 +151,26 @@ export async function installDataset(
         results.push(existing);
         continue;
       }
+      const reusableFiles = await Promise.all(
+        split.files.map((file, index) => verifyShard(storage, reader, selection, index, file.size)),
+      );
+      const requiredBytes = split.files.reduce(
+        (total, file, index) => total + (reusableFiles[index] ? 0 : file.size),
+        0,
+      );
       const estimate = await storage.estimate?.();
       const available =
         estimate?.quota === undefined ? undefined : estimate.quota - (estimate.usage ?? 0);
-      if (available !== undefined && available < split.size)
+      if (available !== undefined && available < requiredBytes)
         throw new DatasetError(
           "quota",
-          `This split needs ${split.size} bytes, but only ${Math.max(0, available)} bytes are available.`,
+          `This installation needs ${requiredBytes} bytes, but only ${Math.max(0, available)} bytes are available.`,
         );
       await storage.remove(manifestPath(selection)).catch(() => undefined);
       let completedBytes = 0;
       for (const [index, datasetFile] of split.files.entries()) {
         options.signal?.throwIfAborted();
-        if (await verifyShard(storage, reader, selection, index, datasetFile.size)) {
+        if (reusableFiles[index]) {
           completedBytes += datasetFile.size;
           options.onProgress?.({
             file: datasetFile.path,
@@ -255,7 +262,7 @@ export async function openDataset<T extends DatasetExample = DatasetExample>(
   selection: DatasetSelection,
   options: DatasetOptions = {},
 ): Promise<Dataset<T>> {
-  const { storage, reader } = dependencies(options);
+  const { storage, reader } = resolveDatasetDependencies(options);
   const manifest = await readManifest(storage, selection);
   if (
     !(
@@ -276,11 +283,16 @@ export async function openDataset<T extends DatasetExample = DatasetExample>(
     if (closed) throw new DatasetError("in-use", "This dataset handle is closed.");
     for (const [shard, datasetFile] of manifest.files.entries()) {
       const file = fileToAsyncBuffer(await storage.readFile(shardPath(selection, shard)));
-      const length = datasetFile.examples ?? (await reader.metadata(file)).examples;
-      for (let start = 0; start < length; start += READ_WINDOW) {
+      const metadata = await reader.metadata(file);
+      const length = datasetFile.examples ?? metadata.examples;
+      const windows = metadata.rowGroups?.length ? metadata.rowGroups : undefined;
+      let start = 0;
+      for (const windowSize of windows ??
+        Array.from({ length: Math.ceil(length / READ_WINDOW) }, () => READ_WINDOW)) {
+        const end = Math.min(start + windowSize, length);
         const rows = await reader.examples(file, {
           start,
-          end: Math.min(start + READ_WINDOW, length),
+          end,
           columns,
         });
         for (const [offset, row] of rows.entries()) {
@@ -299,6 +311,7 @@ export async function openDataset<T extends DatasetExample = DatasetExample>(
             } satisfies MediaReference;
           yield example as T;
         }
+        start = end;
       }
     }
   }
@@ -371,7 +384,7 @@ export async function loadDataset<T extends DatasetExample = DatasetExample>(
 export async function listInstalledDatasets(
   options: DatasetOptions = {},
 ): Promise<InstalledDataset[]> {
-  const { storage } = dependencies(options);
+  const { storage } = resolveDatasetDependencies(options);
   const installed: InstalledDataset[] = [];
   for (const path of (await storage.list(STORAGE_ROOT)).filter((candidate) =>
     candidate.endsWith("/manifest.json"),
@@ -392,5 +405,5 @@ export async function deleteInstalledDataset(
   const root = installationRoot(selection);
   if ((activeDatasets.get(root) ?? 0) > 0)
     throw new DatasetError("in-use", "Close the dataset before deleting its installed files.");
-  await dependencies(options).storage.remove(root, { recursive: true });
+  await resolveDatasetDependencies(options).storage.remove(root, { recursive: true });
 }

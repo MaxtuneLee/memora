@@ -206,4 +206,44 @@ describe("installed datasets", () => {
       installDataset(inspection, { ...full, configuration: "hi_in", splits: ["test"] }),
     ).rejects.toMatchObject({ code: "quota" });
   });
+
+  it("checks quota only for shards that are not reusable", async () => {
+    const deps = fixture();
+    const split = inspection.configurations[0].splits[0];
+    const multiShardInspection: DatasetInspection = {
+      ...inspection,
+      configurations: [
+        {
+          ...inspection.configurations[0],
+          size: 8,
+          splits: [
+            {
+              ...split,
+              size: 8,
+              examples: 6,
+              files: [
+                split.files[0],
+                { ...split.files[0], path: "parquet-data/hi_in/test/0001.parquet" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const options = { ...deps, configuration: "hi_in", splits: ["test"] };
+    await installDataset(multiShardInspection, options);
+    const manifest = [...deps.storage.files.keys()].find((path) => path.endsWith("manifest.json"));
+    const secondShard = [...deps.storage.files.keys()].find((path) =>
+      path.endsWith("00001.parquet"),
+    );
+    expect(manifest).toBeDefined();
+    expect(secondShard).toBeDefined();
+    if (!manifest || !secondShard) throw new Error("Expected installed fixture files.");
+    await deps.storage.remove(manifest);
+    await deps.storage.remove(secondShard);
+    deps.storage.quota = 8;
+
+    await installDataset(multiShardInspection, options);
+    expect(deps.download).toHaveBeenCalledTimes(3);
+  });
 });

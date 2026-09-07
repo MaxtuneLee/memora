@@ -110,7 +110,9 @@ export interface DatasetSource {
 }
 
 export interface ParquetReader {
-  metadata(file: AsyncBuffer): Promise<{ examples: number; features: FeatureSchema }>;
+  metadata(
+    file: AsyncBuffer,
+  ): Promise<{ examples: number; features: FeatureSchema; rowGroups?: number[] }>;
   examples(
     file: AsyncBuffer,
     options: { start: number; end: number; columns?: string[] },

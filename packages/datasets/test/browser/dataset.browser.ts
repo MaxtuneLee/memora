@@ -207,11 +207,56 @@ describe("Chromium dataset flow", () => {
       count: 2,
     })) as DatasetExample[];
     expect(examples.map((example) => example.id)).toEqual([2, 1]);
+    const media = (await requestWorker(worker.port, {
+      id: "media",
+      type: "media",
+      handleId: opened.handleId,
+      reference: examples[0]?.audio as MediaReference,
+    })) as { bytes: Uint8Array };
+    expect(media.bytes[0]).toBe(2);
     await requestWorker(worker.port, {
       id: "close",
       type: "close",
       handleId: opened.handleId,
     });
+    worker.port.close();
+  });
+
+  it("cancels an active SharedWorker download and retries without exposing a partial", async () => {
+    const inspection = await inspectFixture();
+    const worker = new SharedWorker(
+      new URL("../../../web/src/workers/dataset.shared-worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    worker.port.start();
+    const installing = requestWorker(worker.port, {
+      id: "slow-install",
+      type: "install",
+      inspection,
+      configuration: "hi_in",
+      splits: ["test"],
+      hubUrl: `${location.origin}/hub-slow`,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    await requestWorker(worker.port, {
+      id: "cancel",
+      type: "cancel",
+      targetId: "slow-install",
+    });
+    await expect(installing).rejects.toThrow();
+    expect(await requestWorker(worker.port, { id: "list-after-cancel", type: "list" })).toEqual([]);
+
+    await requestWorker(worker.port, {
+      id: "retry",
+      type: "install",
+      inspection,
+      configuration: "hi_in",
+      splits: ["test"],
+      hubUrl: HUB_URL,
+    });
+    expect(await requestWorker(worker.port, { id: "list-after-retry", type: "list" })).toHaveLength(
+      1,
+    );
     worker.port.close();
   });
 });

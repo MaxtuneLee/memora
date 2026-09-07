@@ -69,6 +69,7 @@ function sendParquet(
   request: import("node:http").IncomingMessage,
   response: import("node:http").ServerResponse,
   pathname: string,
+  slow = false,
 ): void {
   const range = request.headers.range;
   let start = 0;
@@ -89,7 +90,13 @@ function sendParquet(
   response.setHeader("content-type", "application/octet-stream");
   response.setHeader("etag", '"fixture-etag"');
   response.setHeader("x-linked-etag", '"fixture-etag"');
-  response.end(body);
+  if (!slow) {
+    response.end(body);
+    return;
+  }
+  const midpoint = Math.max(1, Math.floor(body.byteLength / 2));
+  response.write(body.slice(0, midpoint));
+  setTimeout(() => response.end(body.slice(midpoint)), 150);
 }
 
 function hubFixturePlugin() {
@@ -144,6 +151,16 @@ function hubFixturePlugin() {
             request,
             response,
             decodeURIComponent(url.pathname.slice(resolvePrefix.length)),
+          );
+          return;
+        }
+        const slowResolvePrefix = `/hub-slow/datasets/${DATASET_ID}/resolve/${REVISION}/`;
+        if (url.pathname.startsWith(slowResolvePrefix)) {
+          sendParquet(
+            request,
+            response,
+            decodeURIComponent(url.pathname.slice(slowResolvePrefix.length)),
+            true,
           );
           return;
         }
