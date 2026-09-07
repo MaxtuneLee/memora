@@ -80,6 +80,13 @@ function request<T extends DatasetWorkerResult>(
 export const datasetClient = {
   inspect: (datasetId: string, revision?: string, signal?: AbortSignal) =>
     request<DatasetInspection>({ type: "inspect", datasetId, revision }, { signal }),
+  resolveSplit: (
+    inspection: DatasetInspection,
+    configuration: string,
+    split: string,
+    signal?: AbortSignal,
+  ) =>
+    request<DatasetInspection>({ type: "resolve", inspection, configuration, split }, { signal }),
   install: (
     inspection: DatasetInspection,
     configuration: string,

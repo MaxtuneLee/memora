@@ -19,6 +19,14 @@ export type DatasetWorkerRequest =
       splits: string[];
       hubUrl?: string;
     }
+  | {
+      id: string;
+      type: "resolve";
+      inspection: DatasetInspection;
+      configuration: string;
+      split: string;
+      hubUrl?: string;
+    }
   | { id: string; type: "list" }
   | { id: string; type: "open"; selection: DatasetSelection }
   | { id: string; type: "next"; handleId: string; count: number }

@@ -5,6 +5,7 @@ export {
   listInstalledDatasets,
   loadDataset,
   openDataset,
+  resolveDatasetSplit,
 } from "./api";
 export { DatasetError, type DatasetErrorCode } from "./errors";
 export { createHuggingFaceSource } from "./hub";

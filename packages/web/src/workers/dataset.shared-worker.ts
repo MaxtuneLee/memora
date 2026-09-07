@@ -5,6 +5,7 @@ import {
   installDataset,
   listInstalledDatasets,
   openDataset,
+  resolveDatasetSplit,
   type Dataset,
   type DatasetExample,
 } from "@memora/datasets";
@@ -54,6 +55,18 @@ async function execute(
         signal: controller.signal,
         source: createHuggingFaceSource({ hubUrl: request.hubUrl }),
         onProgress: (progress) => post(port, { id: request.id, type: "progress", progress }),
+      });
+    } finally {
+      operations.delete(request.id);
+    }
+  }
+  if (request.type === "resolve") {
+    const controller = new AbortController();
+    operations.set(request.id, controller);
+    try {
+      return await resolveDatasetSplit(request.inspection, request.configuration, request.split, {
+        signal: controller.signal,
+        source: createHuggingFaceSource({ hubUrl: request.hubUrl }),
       });
     } finally {
       operations.delete(request.id);

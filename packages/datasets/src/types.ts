@@ -102,6 +102,17 @@ export interface DatasetStorage {
 
 export interface DatasetSource {
   inspect(datasetId: string, revision: string, signal?: AbortSignal): Promise<DatasetInspection>;
+  /**
+   * Reads the Parquet footer of every file in a single split to resolve its real example
+   * count and feature schema. Scoped to one split so callers only pay this cost for the
+   * configuration/split a user has actually selected, not every split inspect() found.
+   */
+  resolveSplit(
+    datasetId: string,
+    revision: string,
+    split: DatasetSplitInspection,
+    signal?: AbortSignal,
+  ): Promise<DatasetSplitInspection>;
   download(
     file: DatasetFile,
     selection: DatasetSelection,

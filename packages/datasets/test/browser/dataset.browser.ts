@@ -137,6 +137,8 @@ describe("Chromium dataset flow", () => {
     let failOnce = true;
     const source: DatasetSource = {
       inspect: (datasetId, revision, signal) => httpSource.inspect(datasetId, revision, signal),
+      resolveSplit: (datasetId, revision, split, signal) =>
+        httpSource.resolveSplit(datasetId, revision, split, signal),
       async download(file, selection, signal) {
         const stream = await httpSource.download(file, selection, signal);
         if (!failOnce) return stream;
