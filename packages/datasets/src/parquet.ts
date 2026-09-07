@@ -12,6 +12,7 @@ function parseHuggingFaceFeature(input: unknown): Feature {
   }
   if (!input || typeof input !== "object") return { type: "unknown" };
   const value = input as Record<string, unknown>;
+  if (value._type === "Value") return parseHuggingFaceFeature(value.dtype);
   if (value._type === "ClassLabel" && Array.isArray(value.names)) {
     return {
       type: "classLabel",

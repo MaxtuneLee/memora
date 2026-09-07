@@ -7,6 +7,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { JSX } from "react";
 import type {
   DatasetExample,
   DatasetInspection,
@@ -82,7 +83,7 @@ function AudioPreview({ handleId, reference }: { handleId: string; reference: Me
   );
 }
 
-export default function DatasetInstaller() {
+export default function DatasetInstaller(): JSX.Element {
   const [datasetId, setDatasetId] = useState("google/fleurs");
   const [inspection, setInspection] = useState<DatasetInspection>();
   const [configuration, setConfiguration] = useState("");

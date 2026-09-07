@@ -66,6 +66,12 @@ describe("Chromium dataset flow", () => {
       ["test", 3],
       ["train", 3],
     ]);
+    expect(inspection.configurations[0]?.splits[0]?.features).toMatchObject({
+      id: { type: "number" },
+      transcription: { type: "string" },
+      lang_id: { type: "classLabel", names: ["Hindi", "English"] },
+      audio: { type: "audio", samplingRate: 16_000 },
+    });
 
     const inspectionStats = (await fetch("/__dataset_fixture/stats").then((response) =>
       response.json(),
