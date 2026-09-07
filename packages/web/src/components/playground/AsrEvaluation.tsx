@@ -159,10 +159,12 @@ export default function AsrEvaluation() {
       ) : null}
       {result ? (
         <div className="mt-7">
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
               ["Status", result.status],
+              ["Total", String(result.summary.total)],
               ["Succeeded", String(result.summary.succeeded)],
+              ["Failed", String(result.summary.failed)],
               ["WER", percentage(result.summary.wer.value)],
               ["CER", percentage(result.summary.cer.value)],
             ].map(([label, value]) => (

@@ -125,4 +125,47 @@ describe("runEvaluation", () => {
     expect(result.status).toBe("canceled");
     expect(result.summary).toMatchObject({ total: 2, succeeded: 0, failed: 0, canceled: true });
   });
+
+  it("fails the whole run when model initialization is unavailable", async () => {
+    const adapter: ModelAdapter = {
+      identity,
+      async initialize() {
+        throw new Error("model unavailable");
+      },
+      async predict() {
+        throw new Error("must not be called");
+      },
+    };
+
+    const result = await runEvaluation({
+      dataset: dataset([{ id: 1, audio: audio(0), transcription: "one" }]),
+      model: adapter,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.error).toMatchObject({ message: "model unavailable" });
+    expect(result.examples).toEqual([]);
+    expect(result.summary).toMatchObject({ total: 1, succeeded: 0, failed: 0, canceled: false });
+  });
+
+  it("fails the whole run when the dataset itself errors mid-stream", async () => {
+    const adapter: ModelAdapter = {
+      identity,
+      async initialize() {},
+      async predict() {
+        return "one";
+      },
+    };
+    const brokenDataset = dataset([{ id: 1, audio: audio(0), transcription: "one" }]);
+    brokenDataset[Symbol.asyncIterator] = async function* () {
+      yield { id: 1, audio: audio(0), transcription: "one" };
+      throw new Error("storage unavailable");
+    };
+
+    const result = await runEvaluation({ dataset: brokenDataset, model: adapter });
+
+    expect(result.status).toBe("failed");
+    expect(result.error).toMatchObject({ message: "storage unavailable" });
+    expect(result.summary).toMatchObject({ total: 1, succeeded: 1, failed: 0, canceled: false });
+  });
 });

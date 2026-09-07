@@ -5,6 +5,7 @@ import type {
   EditCounts,
   EvaluationExampleResult,
   EvaluationResult,
+  EvaluationSummary,
   MetricScore,
   RunEvaluationOptions,
 } from "./types";
@@ -36,6 +37,19 @@ const aggregate = (results: EvaluationExampleResult[], metric: "wer" | "cer"): M
   };
 };
 
+const buildSummary = (
+  results: EvaluationExampleResult[],
+  total: number,
+  canceled: boolean,
+): EvaluationSummary => ({
+  total,
+  succeeded: results.filter((result) => result.status === "succeeded").length,
+  failed: results.filter((result) => result.status === "failed").length,
+  canceled,
+  wer: aggregate(results, "wer"),
+  cer: aggregate(results, "cer"),
+});
+
 export async function runEvaluation(options: RunEvaluationOptions): Promise<EvaluationResult> {
   const now = options.now ?? (() => new Date());
   const startedAt = now();
@@ -62,14 +76,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<Eval
       finishedAt: finishedAt.toISOString(),
       modelInitializationMs: performance.now() - initializationStarted,
       examples: [],
-      summary: {
-        total: options.dataset.length ?? 0,
-        succeeded: 0,
-        failed: 0,
-        canceled: options.signal?.aborted ?? false,
-        wer: aggregate([], "wer"),
-        cer: aggregate([], "cer"),
-      },
+      summary: buildSummary([], options.dataset.length ?? 0, options.signal?.aborted ?? false),
       error: errorDetails(error),
     };
   }
@@ -128,14 +135,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<Eval
       finishedAt: finishedAt.toISOString(),
       modelInitializationMs,
       examples: results,
-      summary: {
-        total: options.dataset.length ?? results.length,
-        succeeded: results.filter((result) => result.status === "succeeded").length,
-        failed: results.filter((result) => result.status === "failed").length,
-        canceled: false,
-        wer: aggregate(results, "wer"),
-        cer: aggregate(results, "cer"),
-      },
+      summary: buildSummary(results, options.dataset.length ?? results.length, false),
       error: errorDetails(error),
     };
   }
@@ -146,13 +146,6 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<Eval
     finishedAt: now().toISOString(),
     modelInitializationMs,
     examples: results,
-    summary: {
-      total: options.dataset.length ?? results.length,
-      succeeded: results.filter((result) => result.status === "succeeded").length,
-      failed: results.filter((result) => result.status === "failed").length,
-      canceled,
-      wer: aggregate(results, "wer"),
-      cer: aggregate(results, "cer"),
-    },
+    summary: buildSummary(results, options.dataset.length ?? results.length, canceled),
   };
 }
