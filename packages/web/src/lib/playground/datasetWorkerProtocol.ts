@@ -10,13 +10,14 @@ import type {
 } from "@memora/datasets";
 
 export type DatasetWorkerRequest =
-  | { id: string; type: "inspect"; datasetId: string; revision?: string }
+  | { id: string; type: "inspect"; datasetId: string; revision?: string; hubUrl?: string }
   | {
       id: string;
       type: "install";
       inspection: DatasetInspection;
       configuration: string;
       splits: string[];
+      hubUrl?: string;
     }
   | { id: string; type: "list" }
   | { id: string; type: "open"; selection: DatasetSelection }

@@ -227,7 +227,8 @@ function encodedMedia(value: unknown): EncodedMedia {
   if (!value || typeof value !== "object")
     throw new DatasetError("unsupported", "The media value is missing.");
   const candidate = value as { bytes?: unknown; path?: unknown };
-  if (!(candidate.bytes instanceof Uint8Array) && !(candidate.bytes instanceof ArrayBuffer))
+  const bytes = candidate.bytes;
+  if (!ArrayBuffer.isView(bytes) && !(bytes instanceof ArrayBuffer) && !Array.isArray(bytes))
     throw new DatasetError("unsupported", "The media value does not contain encoded bytes.");
   const path = typeof candidate.path === "string" ? candidate.path : undefined;
   const extension = path?.split(".").pop()?.toLowerCase();
@@ -240,8 +241,11 @@ function encodedMedia(value: unknown): EncodedMedia {
           ? "audio/flac"
           : undefined;
   return {
-    bytes:
-      candidate.bytes instanceof Uint8Array ? candidate.bytes : new Uint8Array(candidate.bytes),
+    bytes: ArrayBuffer.isView(bytes)
+      ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      : bytes instanceof ArrayBuffer
+        ? new Uint8Array(bytes)
+        : Uint8Array.from(bytes),
     path,
     mimeType,
   };

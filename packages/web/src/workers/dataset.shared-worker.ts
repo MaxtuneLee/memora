@@ -1,5 +1,6 @@
 import {
   deleteInstalledDataset,
+  createHuggingFaceSource,
   inspectDataset,
   installDataset,
   listInstalledDatasets,
@@ -37,6 +38,7 @@ async function execute(
       return await inspectDataset(request.datasetId, {
         revision: request.revision,
         signal: controller.signal,
+        source: createHuggingFaceSource({ hubUrl: request.hubUrl }),
       });
     } finally {
       operations.delete(request.id);
@@ -50,6 +52,7 @@ async function execute(
         configuration: request.configuration,
         splits: request.splits,
         signal: controller.signal,
+        source: createHuggingFaceSource({ hubUrl: request.hubUrl }),
         onProgress: (progress) => post(port, { id: request.id, type: "progress", progress }),
       });
     } finally {

@@ -20,6 +20,7 @@
     "build": "vp pack",
     "lint": "vp lint .",
     "test": "vp test test",
+    "test:browser": "vp test --config vite.browser.config.ts --run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,6 +31,8 @@
     "valibot": "^1.2.0"
   },
   "devDependencies": {
+    "@vitest/browser-playwright": "4.1.10",
+    "hyparquet-writer": "^0.16.9",
     "typescript": "~5.9.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",

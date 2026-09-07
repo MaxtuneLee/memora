@@ -92,6 +92,7 @@ export const parquetReader: ParquetReader = {
       rowEnd: options.end,
       columns: options.columns,
       compressors: await getCompressors(),
+      utf8: false,
     })) as DatasetExample[];
   },
 };

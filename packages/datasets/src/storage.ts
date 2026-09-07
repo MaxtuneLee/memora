@@ -1,4 +1,4 @@
-import { file, ls, mkdir, rm, writeStream, write } from "@memora/fs";
+import { dir, file, ls, mkdir, rm, writeStream, write } from "@memora/fs";
 
 import type { DatasetStorage } from "./types";
 
@@ -13,7 +13,10 @@ export const opfsDatasetStorage: DatasetStorage = {
     if (typeof data === "string") await write(path, data, { overwrite: true });
     else await writeStream(path, data, { overwrite: true });
   },
-  remove: (path, options) => rm(path, { force: true, recursive: options?.recursive }),
+  remove: (path, options) =>
+    options?.recursive
+      ? dir(path).remove({ force: true, recursive: true })
+      : rm(path, { force: true }),
   list: async (path) => {
     try {
       return await ls(path, { recursive: true, includeDirs: false });

@@ -8,6 +8,7 @@ export {
 } from "./api";
 export { DatasetError, type DatasetErrorCode } from "./errors";
 export { createHuggingFaceSource } from "./hub";
+export { opfsDatasetStorage } from "./storage";
 export type {
   Dataset,
   DatasetConfigurationInspection,
