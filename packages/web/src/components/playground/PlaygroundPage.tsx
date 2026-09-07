@@ -15,31 +15,10 @@ import ImageDocumentPipeline from "./ImageDocumentPipeline";
 import GroundedRetrieval from "./GroundedRetrieval";
 import VectorDbInspector from "./VectorDbInspector";
 import DatasetInstaller from "./DatasetInstaller";
+import AsrEvaluation from "./AsrEvaluation";
 
 const TAB_CLASS_NAME =
   "relative z-10 inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-medium text-memora-text-muted outline-none transition-colors hover:text-memora-text focus-visible:ring-2 focus-visible:ring-memora-olive-soft data-active:text-memora-text";
-
-interface BenchmarkPlaceholderProps {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}
-
-function BenchmarkPlaceholder({ icon: Icon, title, description }: BenchmarkPlaceholderProps) {
-  return (
-    <div className="flex min-h-[440px] items-center justify-center rounded-[28px] border border-dashed border-memora-border-soft bg-memora-surface-soft px-6 py-16 text-center">
-      <div className="max-w-md">
-        <span className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-memora-surface-muted text-memora-text-muted">
-          <Icon className="size-5" />
-        </span>
-        <h2 className="mt-5 font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-          {title}
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-memora-text-muted">{description}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function PlaygroundPage() {
   return (
@@ -128,11 +107,7 @@ export default function PlaygroundPage() {
             value="local-models"
             className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
           >
-            <BenchmarkPlaceholder
-              icon={MicrophoneStageIcon}
-              title="Local model benchmarks"
-              description="ASR latency, timestamp accuracy, model loading, and memory measurements can be added without changing the playground shell."
-            />
+            <AsrEvaluation />
           </Tabs.Panel>
         </Tabs.Root>
       </div>

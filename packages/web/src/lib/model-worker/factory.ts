@@ -21,6 +21,7 @@ interface RunModelWorkerTaskInput {
   priority: LocalModelPriority;
   task: LocalModelTask;
   signal?: AbortSignal;
+  transfer?: Transferable[];
 }
 
 interface PendingRequest {
@@ -286,7 +287,10 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     async *run(pool, input) {
       const connection = connections.get(pool);
       if (!connection) {
-        console.error("[local-model-factory] run without connection", { pool, task: input.task.kind });
+        console.error("[local-model-factory] run without connection", {
+          pool,
+          task: input.task.kind,
+        });
         throw new Error("The shared model worker factory is not mounted at the root route.");
       }
 
@@ -310,12 +314,15 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       });
       const abortHandler = () => cancel(request);
       input.signal?.addEventListener("abort", abortHandler, { once: true });
-      connection.port.postMessage({
-        type: "run",
-        requestId: request.requestId,
-        priority: request.priority,
-        task: request.task,
-      } satisfies LocalModelSharedWorkerMessage);
+      connection.port.postMessage(
+        {
+          type: "run",
+          requestId: request.requestId,
+          priority: request.priority,
+          task: request.task,
+        } satisfies LocalModelSharedWorkerMessage,
+        input.transfer ?? [],
+      );
       console.warn("[local-model-factory] run sent", { pool, requestId: request.requestId });
 
       try {

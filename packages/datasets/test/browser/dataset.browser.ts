@@ -5,6 +5,10 @@ import type {
   DatasetWorkerResponse,
   DatasetWorkerResult,
 } from "../../../web/src/lib/playground/datasetWorkerProtocol";
+import type {
+  EvaluationWorkerRequest,
+  EvaluationWorkerResponse,
+} from "../../../web/src/lib/playground/evaluationWorkerProtocol";
 
 import {
   DatasetError,
@@ -116,7 +120,7 @@ describe("Chromium dataset flow", () => {
     expect(reference).toMatchObject({ type: "media", mediaType: "audio" });
     const media = await dataset.readMedia(reference);
     expect(media.path).toBe("2.wav");
-    expect(media.bytes[0]).toBe(2);
+    expect(new TextDecoder().decode(media.bytes.subarray(0, 4))).toBe("RIFF");
     dataset.close();
 
     await fetch("/__dataset_fixture/reset");
@@ -219,12 +223,88 @@ describe("Chromium dataset flow", () => {
       handleId: opened.handleId,
       reference: examples[0]?.audio as MediaReference,
     })) as { bytes: Uint8Array };
-    expect(media.bytes[0]).toBe(2);
+    expect(new TextDecoder().decode(media.bytes.subarray(0, 4))).toBe("RIFF");
     await requestWorker(worker.port, {
       id: "close",
       type: "close",
       handleId: opened.handleId,
     });
+    worker.port.close();
+  });
+
+  it("runs evaluation in a SharedWorker and transfers PCM through the Window bridge", async () => {
+    const inspection = await inspectFixture();
+    await installDataset(inspection, {
+      source: createHuggingFaceSource({ hubUrl: HUB_URL }),
+      configuration: "hi_in",
+      splits: ["test"],
+    });
+    const worker = new SharedWorker(
+      new URL("../../../web/src/workers/evaluation.shared-worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    const predictions = ["second", "first", "third"];
+    let predictionIndex = 0;
+    let transferredBuffers = 0;
+    const result = new Promise<Extract<EvaluationWorkerResponse, { type: "result" }>["result"]>(
+      (resolve, reject) => {
+        worker.port.onmessage = (event: MessageEvent<EvaluationWorkerResponse>) => {
+          const message = event.data;
+          if (message.type === "error") {
+            reject(new Error(message.message));
+            return;
+          }
+          if (message.type === "result") {
+            resolve(message.result);
+            return;
+          }
+          if (message.type !== "model-request") return;
+          if (message.operation === "preload") {
+            worker.port.postMessage({
+              id: crypto.randomUUID(),
+              type: "model-result",
+              targetId: message.id,
+              prediction: "",
+            } satisfies EvaluationWorkerRequest);
+            return;
+          }
+          expect(message.pcm.length).toBeGreaterThan(0);
+          const channel = new MessageChannel();
+          channel.port2.onmessage = () => {
+            transferredBuffers += 1;
+            worker.port.postMessage({
+              id: crypto.randomUUID(),
+              type: "model-result",
+              targetId: message.id,
+              prediction: predictions[predictionIndex++],
+            } satisfies EvaluationWorkerRequest);
+            channel.port1.close();
+            channel.port2.close();
+          };
+          channel.port1.postMessage(message.pcm, [message.pcm.buffer]);
+          expect(message.pcm.buffer.byteLength).toBe(0);
+        };
+      },
+    );
+    worker.port.start();
+    worker.port.postMessage({
+      id: "evaluation",
+      type: "run",
+      selection: {
+        datasetId: DATASET_ID,
+        revision: inspection.revision,
+        configuration: "hi_in",
+        split: "test",
+      },
+      modelId: "fake-asr",
+      language: "hi",
+    } satisfies EvaluationWorkerRequest);
+
+    const evaluation = await result;
+    expect(transferredBuffers).toBe(3);
+    expect(evaluation.status).toBe("completed");
+    expect(evaluation.summary).toMatchObject({ succeeded: 3, failed: 0 });
+    expect(evaluation.summary.wer.value).toBe(0);
     worker.port.close();
   });
 
