@@ -1,7 +1,14 @@
-import { datasetInfo, downloadFile, globMatch, listFiles } from "@huggingface/hub";
+import {
+  datasetInfo,
+  downloadFile,
+  fileDownloadInfo,
+  globMatch,
+  listFiles,
+} from "@huggingface/hub";
+import { asyncBufferFromUrl } from "hyparquet";
 
 import { DatasetError, toDatasetError } from "./errors";
-import { fileToAsyncBuffer, parquetReader } from "./parquet";
+import { parquetReader } from "./parquet";
 import type {
   DatasetConfigurationInspection,
   DatasetFile,
@@ -131,17 +138,23 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
         );
         await mapConcurrent(inspectionFiles, 6, async ({ datasetFile, split }) => {
           signal?.throwIfAborted();
-          const blob = await downloadFile({
+          const downloadInfo = await fileDownloadInfo({
             repo,
             path: datasetFile.path,
             revision: info.sha,
             hubUrl: options.hubUrl,
             fetch: requestFetch,
-            xet: false,
           });
-          if (!blob)
+          if (!downloadInfo)
             throw new DatasetError("network", `Dataset file disappeared: ${datasetFile.path}`);
-          const metadata = await parquetReader.metadata(fileToAsyncBuffer(blob));
+          // Only the Parquet footer is read here (hyparquet issues ranged HTTP reads),
+          // not the full file body, so inspecting a repo with hundreds of shards stays cheap.
+          const buffer = await asyncBufferFromUrl({
+            url: downloadInfo.url,
+            byteLength: datasetFile.size,
+            fetch: requestFetch,
+          });
+          const metadata = await parquetReader.metadata(buffer);
           datasetFile.examples = metadata.examples;
           if (Object.keys(split.features).length === 0) split.features = metadata.features;
         });
