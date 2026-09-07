@@ -1,5 +1,6 @@
 import type {
   DatasetExample,
+  FeatureSchema,
   DatasetInspection,
   DatasetSelection,
   EncodedMedia,
@@ -28,7 +29,7 @@ export type DatasetWorkerRequest =
 export type DatasetWorkerResult =
   | DatasetInspection
   | InstalledDataset[]
-  | { handleId: string; length?: number }
+  | { handleId: string; length?: number; features: FeatureSchema }
   | DatasetExample[]
   | EncodedMedia
   | null;

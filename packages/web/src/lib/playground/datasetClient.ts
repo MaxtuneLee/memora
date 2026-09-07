@@ -3,6 +3,7 @@ import type {
   DatasetInspection,
   DatasetSelection,
   EncodedMedia,
+  FeatureSchema,
   InstallProgress,
   InstalledDataset,
   MediaReference,
@@ -87,7 +88,10 @@ export const datasetClient = {
   ) => request<InstalledDataset[]>({ type: "install", inspection, configuration, splits }, options),
   list: () => request<InstalledDataset[]>({ type: "list" }),
   open: (selection: DatasetSelection) =>
-    request<{ handleId: string; length?: number }>({ type: "open", selection }),
+    request<{ handleId: string; length?: number; features: FeatureSchema }>({
+      type: "open",
+      selection,
+    }),
   next: (handleId: string, count = 8) =>
     request<DatasetExample[]>({ type: "next", handleId, count }),
   media: (handleId: string, reference: MediaReference) =>

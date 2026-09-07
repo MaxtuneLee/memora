@@ -61,7 +61,7 @@ async function execute(
     const dataset = await openDataset(request.selection);
     const handleId = `dataset-${++handleSequence}`;
     handles.set(handleId, { dataset, iterator: dataset[Symbol.asyncIterator]() });
-    return { handleId, length: dataset.length };
+    return { handleId, length: dataset.length, features: dataset.features };
   }
   if (request.type === "next") {
     const handle = handles.get(request.handleId);

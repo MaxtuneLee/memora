@@ -11,6 +11,7 @@ import type {
   DatasetExample,
   DatasetInspection,
   DatasetSelection,
+  FeatureSchema,
   InstalledDataset,
   MediaReference,
 } from "@memora/datasets";
@@ -38,6 +39,14 @@ function displayValue(value: unknown, fallback: string): string {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
     return String(value);
   return fallback;
+}
+
+function displayLabel(value: unknown, features: FeatureSchema): string {
+  const feature = features.lang_id ?? features.label;
+  if (feature?.type === "classLabel" && typeof value === "number") {
+    return feature.names[value] ?? String(value);
+  }
+  return displayValue(value, "Unknown");
 }
 
 function AudioPreview({ handleId, reference }: { handleId: string; reference: MediaReference }) {
@@ -81,6 +90,7 @@ export default function DatasetInstaller() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
   const [examples, setExamples] = useState<DatasetExample[]>([]);
   const [previewHandle, setPreviewHandle] = useState<string>();
+  const [previewFeatures, setPreviewFeatures] = useState<FeatureSchema>({});
   const [progress, setProgress] = useState<{ completedBytes: number; totalBytes: number }>();
   const [busy, setBusy] = useState<"inspect" | "install">();
   const [error, setError] = useState<string>();
@@ -151,6 +161,7 @@ export default function DatasetInstaller() {
     if (previewHandle) await datasetClient.close(previewHandle);
     const opened = await datasetClient.open(selectionOf(item));
     setPreviewHandle(opened.handleId);
+    setPreviewFeatures(opened.features);
     setExamples(await datasetClient.next(opened.handleId, 6));
   };
 
@@ -314,7 +325,7 @@ export default function DatasetInstaller() {
                       {displayValue(example.transcription ?? example.text, "No text field")}
                     </p>
                     <p className="mt-1 text-xs text-memora-text-soft">
-                      Label {displayValue(example.lang_id ?? example.label, "Unknown")}
+                      Label {displayLabel(example.lang_id ?? example.label, previewFeatures)}
                     </p>
                   </div>
                   {example.audio && typeof example.audio === "object" && "type" in example.audio ? (

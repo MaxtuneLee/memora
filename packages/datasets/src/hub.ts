@@ -1,4 +1,4 @@
-import { datasetInfo, downloadFile, listFiles } from "@huggingface/hub";
+import { datasetInfo, downloadFile, globMatch, listFiles } from "@huggingface/hub";
 
 import { DatasetError, toDatasetError } from "./errors";
 import { fileToAsyncBuffer, parquetReader } from "./parquet";
@@ -51,6 +51,33 @@ function inferLocation(path: string): { configuration: string; split: string } |
   return undefined;
 }
 
+interface DeclaredFile {
+  configuration: string;
+  split: string;
+  pattern: string;
+}
+
+function declaredFiles(
+  configs:
+    | Array<{
+        config_name: string;
+        data_files?: string | string[] | Array<{ split: string; path: string | string[] }>;
+      }>
+    | undefined,
+): DeclaredFile[] {
+  const declarations: DeclaredFile[] = [];
+  for (const config of configs ?? []) {
+    if (!Array.isArray(config.data_files)) continue;
+    for (const dataFile of config.data_files) {
+      if (typeof dataFile === "string") continue;
+      for (const pattern of Array.isArray(dataFile.path) ? dataFile.path : [dataFile.path]) {
+        declarations.push({ configuration: config.config_name, split: dataFile.split, pattern });
+      }
+    }
+  }
+  return declarations;
+}
+
 export function createHuggingFaceSource(options: HubSourceOptions = {}): DatasetSource {
   return {
     async inspect(datasetId, requestedRevision, signal) {
@@ -59,12 +86,13 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
         const info = await datasetInfo({
           name: datasetId,
           revision: requestedRevision,
-          additionalFields: ["sha"],
+          additionalFields: ["sha", "cardData"],
           hubUrl: options.hubUrl,
           fetch: requestFetch,
         });
         if (!info.sha)
           throw new DatasetError("unsupported", "The Hub did not return an immutable revision.");
+        const declarations = declaredFiles(info.cardData?.configs);
         const grouped = new Map<
           string,
           Map<string, { files: DatasetFile[]; features: FeatureSchema }>
@@ -77,7 +105,8 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
           fetch: requestFetch,
         })) {
           if (entry.type !== "file" || !entry.path.endsWith(".parquet")) continue;
-          const location = inferLocation(entry.path);
+          const declared = declarations.find(({ pattern }) => globMatch(pattern, entry.path));
+          const location = declared ?? inferLocation(entry.path);
           if (!location) continue;
           const configurations = grouped.get(location.configuration) ?? new Map();
           const split = configurations.get(location.split) ?? { files: [], features: {} };
