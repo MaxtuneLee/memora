@@ -12,6 +12,7 @@ import {
 import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
 
 import { datasetClient } from "@/lib/playground/datasetClient";
+import { downloadEvaluationJson } from "@/lib/playground/downloadEvaluationJson";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
 
 const inputClassName =
@@ -32,17 +33,6 @@ const selectionOf = (item: InstalledDataset) => ({
 const percentage = (value: number | null) =>
   value === null ? "Unavailable" : `${(value * 100).toFixed(2)}%`;
 const savedResultKey = (summary: SavedResultSummary) => summary.runId;
-
-function downloadJson(result: EvaluationResult) {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }),
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${result.runId}.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
 
 export default function AsrEvaluation() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
@@ -226,7 +216,7 @@ export default function AsrEvaluation() {
             <button
               type="button"
               className={secondaryButtonClassName}
-              onClick={() => downloadJson(result)}
+              onClick={() => downloadEvaluationJson(result)}
             >
               <DownloadSimpleIcon className="size-4" /> Download JSON
             </button>

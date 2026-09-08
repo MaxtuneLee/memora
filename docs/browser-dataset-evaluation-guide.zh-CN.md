@@ -116,7 +116,7 @@ const result = await runEvaluation({
 // result.status 会是 "canceled"，result.examples 保留已完成的部分结果。
 ```
 
-评测按顺序逐条调用模型；单条媒体或模型错误会记录在该条目上并继续下一条，只有初始化失败或数据集本身出错才会终止整个 run（此时 `result.status` 为 `"failed"`，附带顶层 `error` 字段）。`result.summary.wer` / `result.summary.cer` 已按 WER/CER 规范化规则（NFC、去除首尾空白、合并连续空白，保留大小写与标点）聚合，失败条目不计入分母，分母为零时 `value` 为 `null` 并附 `reason: "zero-reference-units"`。
+评测按顺序逐条调用模型；单条媒体或模型错误会记录在该条目上并继续下一条，只有初始化失败或数据集本身出错才会终止整个 run（此时 `result.status` 为 `"failed"`，附带顶层 `error` 字段）。`result.summary.wer` / `result.summary.cer` 已按 WER/CER 规范化规则（NFC、转小写、去除标点、去除首尾空白、合并连续空白）聚合——大小写与标点差异不计入错误，因为 FLEURS 等参考文本通常是无标点的小写文本，而模型输出天然带大小写和标点。失败条目不计入分母，分母为零时 `value` 为 `null` 并附 `reason: "zero-reference-units"`。
 
 ## 6. 保存评测结果并在之后读取
 

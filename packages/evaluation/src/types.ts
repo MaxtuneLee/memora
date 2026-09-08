@@ -25,8 +25,8 @@ export interface NormalizationProfile {
   version: number;
   unicode: "NFC";
   whitespace: "trim-and-collapse";
-  caseSensitive: true;
-  punctuation: "preserve";
+  caseSensitive: false;
+  punctuation: "strip";
 }
 
 export interface EditCounts {

@@ -11,13 +11,26 @@ describe("scoreText", () => {
       version: 1,
       unicode: "NFC",
       whitespace: "trim-and-collapse",
-      caseSensitive: true,
-      punctuation: "preserve",
+      caseSensitive: false,
+      punctuation: "strip",
     });
     expect(score.reference.normalized).toBe("café noir");
-    expect(score.prediction.normalized).toBe("cafe noir!");
-    expect(score.wer).toMatchObject({ edits: 2, referenceUnits: 2 });
-    expect(score.cer).toMatchObject({ edits: 2, referenceUnits: 8 });
+    expect(score.prediction.normalized).toBe("cafe noir");
+    expect(score.wer).toMatchObject({ edits: 1, referenceUnits: 2 });
+    expect(score.cer).toMatchObject({ edits: 1, referenceUnits: 8 });
+  });
+
+  it("does not score case or punctuation differences as errors", () => {
+    // FLEURS references are lowercase with no punctuation; Whisper output is naturally
+    // cased and punctuated. A transcription that is word-for-word correct must not be
+    // penalized just because casing/punctuation don't match the reference's convention.
+    const score = scoreText(
+      "the major religion in moldova is orthodox christian",
+      " The major religion in Moldova is Orthodox Christian.",
+    );
+
+    expect(score.wer).toMatchObject({ value: 0, edits: 0 });
+    expect(score.cer).toMatchObject({ value: 0, edits: 0 });
   });
 
   it("returns a reason instead of dividing by a zero reference", () => {

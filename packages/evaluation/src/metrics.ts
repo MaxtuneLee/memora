@@ -5,12 +5,17 @@ export const DEFAULT_NORMALIZATION_PROFILE: NormalizationProfile = {
   version: 1,
   unicode: "NFC",
   whitespace: "trim-and-collapse",
-  caseSensitive: true,
-  punctuation: "preserve",
+  caseSensitive: false,
+  punctuation: "strip",
 };
 
 export const normalizeText = (text: string): string =>
-  text.normalize("NFC").trim().replace(/\s+/gu, " ");
+  text
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\p{P}/gu, "")
+    .trim()
+    .replace(/\s+/gu, " ");
 
 const editDistance = (reference: string[], prediction: string[]): EditCounts => {
   type Cell = EditCounts & { edits: number };

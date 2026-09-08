@@ -103,9 +103,9 @@ describe("evaluation result persistence through real OPFS", () => {
   it("reports a save failure explicitly instead of appearing saved", async () => {
     const failing = {
       write: () => Promise.reject(new DOMException("no space", "QuotaExceededError")),
-      readText: opfsResultStorage.readText,
-      list: opfsResultStorage.list,
-      exists: opfsResultStorage.exists,
+      readText: (path: string) => opfsResultStorage.readText(path),
+      list: (path: string) => opfsResultStorage.list(path),
+      exists: (path: string) => opfsResultStorage.exists(path),
     };
     await expect(saveEvaluationResult(result(), { storage: failing })).rejects.toMatchObject({
       code: "save-failed",

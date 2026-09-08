@@ -37,8 +37,8 @@ const NormalizationProfileSchema = v.object({
   version: v.number(),
   unicode: v.literal("NFC"),
   whitespace: v.literal("trim-and-collapse"),
-  caseSensitive: v.literal(true),
-  punctuation: v.literal("preserve"),
+  caseSensitive: v.literal(false),
+  punctuation: v.literal("strip"),
 });
 
 const TextScoreSchema = v.object({

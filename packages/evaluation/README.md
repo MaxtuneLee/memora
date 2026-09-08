@@ -56,7 +56,7 @@ dataset.close();
 
 The returned object is complete in memory and has `completed`, `canceled`, or `failed` status. A media or inference failure is stored on that example and the run continues. Model initialization and dataset-wide failures end the run. Each successful example stores raw and normalized text, WER/CER edit counts, and model-call duration including queue wait.
 
-The default normalization profile is `memora-text-default` version 1: NFC, trimmed and collapsed whitespace, with case and punctuation preserved. WER uses whitespace-delimited words. CER uses Unicode code points and excludes whitespace. Aggregate rates use total edits divided by total successful reference units; failed examples do not enter the denominator. A zero denominator returns `null` with `zero-reference-units`.
+The default normalization profile is `memora-text-default` version 1: NFC, lowercased, punctuation stripped, trimmed and collapsed whitespace. Case and punctuation are not scored — a reference and prediction that differ only in casing or punctuation report zero edits, since ASR references (e.g. FLEURS) are typically unpunctuated and lowercase while model output naturally isn't. WER uses whitespace-delimited words. CER uses Unicode code points and excludes whitespace. Aggregate rates use total edits divided by total successful reference units; failed examples do not enter the denominator. A zero denominator returns `null` with `zero-reference-units`.
 
 ## Save and reopen results
 
