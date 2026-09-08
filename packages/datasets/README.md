@@ -1,6 +1,6 @@
 # @memora/datasets
 
-Browser-first access to public, declarative Parquet datasets on Hugging Face Hub. The package resolves moving revisions to a commit SHA, installs selected splits in OPFS, and opens them later without network access. It has no dependency on React or `@memora/web`.
+Browser-first access to public, declarative Parquet datasets on Hugging Face Hub. The package resolves moving revisions to a commit SHA, installs selected splits in OPFS, and opens them later without network access.
 
 ## Inspect and install
 
@@ -8,7 +8,7 @@ Browser-first access to public, declarative Parquet datasets on Hugging Face Hub
 import { inspectDataset, installDataset, resolveDatasetSplit } from "@memora/datasets";
 
 const inspection = await inspectDataset("google/fleurs", { revision: "main" });
-const hindi = inspection.configurations.find((configuration) => configuration.name === "hi_in");
+const hindi = inspection.configurations.find((configuration) => configuration.name === "en_us");
 const test = hindi?.splits.find((split) => split.name === "test");
 
 console.log(test?.examples, test?.size, inspection.revision);
@@ -16,14 +16,14 @@ console.log(test?.examples, test?.size, inspection.revision);
 // it never reads a Parquet footer, so it stays cheap for repositories with many splits
 // (google/fleurs has ~100 language configurations).
 
-const resolved = await resolveDatasetSplit(inspection, "hi_in", "test");
+const resolved = await resolveDatasetSplit(inspection, "en_us", "test");
 const resolvedTest = resolved.configurations
-  .find((configuration) => configuration.name === "hi_in")
+  .find((configuration) => configuration.name === "en_us")
   ?.splits.find((split) => split.name === "test");
 console.log(resolvedTest?.examples); // now a real count, read from just this split's shards
 
 await installDataset(inspection, {
-  configuration: "hi_in",
+  configuration: "en_us",
   splits: ["test"],
   onProgress: ({ completedBytes, totalBytes }) => {
     console.log(`${completedBytes} / ${totalBytes}`);
@@ -41,7 +41,7 @@ import { openDataset } from "@memora/datasets";
 const dataset = await openDataset({
   datasetId: "google/fleurs",
   revision: inspection.revision,
-  configuration: "hi_in",
+  configuration: "en_us",
   split: "test",
 });
 

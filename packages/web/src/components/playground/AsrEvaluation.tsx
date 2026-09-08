@@ -37,7 +37,7 @@ const savedResultKey = (summary: SavedResultSummary) => summary.runId;
 export default function AsrEvaluation() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
   const [selectionKey, setSelectionKey] = useState("");
-  const [language, setLanguage] = useState("hi");
+  const [language, setLanguage] = useState("en");
   const [progress, setProgress] = useState<EvaluationProgress>();
   const [result, setResult] = useState<EvaluationResult>();
   const [error, setError] = useState<string>();

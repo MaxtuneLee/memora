@@ -105,6 +105,7 @@ export default function PlaygroundPage() {
           </Tabs.Panel>
           <Tabs.Panel
             value="local-models"
+            keepMounted
             className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
           >
             <AsrEvaluation />
