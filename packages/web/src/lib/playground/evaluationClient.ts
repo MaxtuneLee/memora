@@ -2,6 +2,7 @@ import type { DatasetSelection } from "@memora/datasets";
 import type { EvaluationProgress, EvaluationResult } from "@memora/evaluation";
 
 import { localModelClient } from "../local-model/client";
+import { activeEvaluationRuns } from "./activeEvaluationRuns";
 import type { EvaluationWorkerRequest, EvaluationWorkerResponse } from "./evaluationWorkerProtocol";
 
 interface PendingRun {
@@ -107,6 +108,7 @@ export const evaluationClient = {
   ): Promise<EvaluationResult> {
     const id = crypto.randomUUID();
     const workerPort = getPort();
+    const release = activeEvaluationRuns.begin(selection);
     return new Promise((resolve, reject) => {
       const abort = () =>
         workerPort.postMessage({
@@ -118,9 +120,14 @@ export const evaluationClient = {
       runs.set(id, {
         resolve: (result) => {
           options?.signal?.removeEventListener("abort", abort);
+          release();
           resolve(result);
         },
-        reject,
+        reject: (error) => {
+          options?.signal?.removeEventListener("abort", abort);
+          release();
+          reject(error);
+        },
         onProgress: options?.onProgress,
       });
       workerPort.postMessage({

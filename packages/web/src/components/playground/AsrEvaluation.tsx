@@ -1,7 +1,14 @@
-import { PauseIcon, PlayIcon, WaveformIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, PauseIcon, PlayIcon, WaveformIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { InstalledDataset } from "@memora/datasets";
-import type { EvaluationProgress, EvaluationResult } from "@memora/evaluation";
+import {
+  listEvaluationResults,
+  readEvaluationResult,
+  saveEvaluationResult,
+  type EvaluationProgress,
+  type EvaluationResult,
+  type SavedResultSummary,
+} from "@memora/evaluation";
 import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
 
 import { datasetClient } from "@/lib/playground/datasetClient";
@@ -24,6 +31,18 @@ const selectionOf = (item: InstalledDataset) => ({
 });
 const percentage = (value: number | null) =>
   value === null ? "Unavailable" : `${(value * 100).toFixed(2)}%`;
+const savedResultKey = (summary: SavedResultSummary) => summary.runId;
+
+function downloadJson(result: EvaluationResult) {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }),
+  );
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${result.runId}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AsrEvaluation() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
@@ -33,17 +52,23 @@ export default function AsrEvaluation() {
   const [result, setResult] = useState<EvaluationResult>();
   const [error, setError] = useState<string>();
   const [running, setRunning] = useState(false);
+  const [savedResults, setSavedResults] = useState<SavedResultSummary[]>([]);
+  const [saveNotice, setSaveNotice] = useState<{ status: "saved" | "failed"; message?: string }>();
   const controller = useRef<AbortController | undefined>(undefined);
   const selected = useMemo(
     () => installed.find((item) => keyOf(item) === selectionKey),
     [installed, selectionKey],
   );
 
+  const refreshSavedResults = () =>
+    void listEvaluationResults().then(setSavedResults, () => setSavedResults([]));
+
   useEffect(() => {
     void datasetClient.list().then((items) => {
       setInstalled(items);
       setSelectionKey((current) => current || (items[0] ? keyOf(items[0]) : ""));
     });
+    refreshSavedResults();
     return () => controller.current?.abort();
   }, []);
 
@@ -54,21 +79,43 @@ export default function AsrEvaluation() {
     setRunning(true);
     setError(undefined);
     setResult(undefined);
+    setSaveNotice(undefined);
     setProgress({ completed: 0, total: selected.examples ?? 0 });
     try {
-      setResult(
-        await evaluationClient.run(
-          selectionOf(selected),
-          whisperBaseTimestampedManifest.id,
-          language,
-          { signal: nextController.signal, onProgress: setProgress },
-        ),
+      const evaluated = await evaluationClient.run(
+        selectionOf(selected),
+        whisperBaseTimestampedManifest.id,
+        language,
+        { signal: nextController.signal, onProgress: setProgress },
       );
+      setResult(evaluated);
+      try {
+        await saveEvaluationResult(evaluated);
+        setSaveNotice({ status: "saved" });
+        refreshSavedResults();
+      } catch (reason) {
+        setSaveNotice({
+          status: "failed",
+          message: reason instanceof Error ? reason.message : "The result could not be saved.",
+        });
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Evaluation failed.");
     } finally {
       setRunning(false);
       controller.current = undefined;
+    }
+  };
+
+  const viewSaved = async (runId: string) => {
+    setError(undefined);
+    try {
+      const loaded = await readEvaluationResult(runId);
+      setProgress(undefined);
+      setSaveNotice(undefined);
+      setResult(loaded);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The saved result could not be opened.");
     }
   };
 
@@ -159,7 +206,32 @@ export default function AsrEvaluation() {
       ) : null}
       {result ? (
         <div className="mt-7">
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="flex items-center justify-between gap-4">
+            {saveNotice ? (
+              <p
+                role={saveNotice.status === "failed" ? "alert" : undefined}
+                className={
+                  saveNotice.status === "failed"
+                    ? "text-sm text-memora-warning-text"
+                    : "text-sm text-memora-text-soft"
+                }
+              >
+                {saveNotice.status === "saved"
+                  ? "Saved."
+                  : `Not saved: ${saveNotice.message ?? "unknown error"}`}
+              </p>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className={secondaryButtonClassName}
+              onClick={() => downloadJson(result)}
+            >
+              <DownloadSimpleIcon className="size-4" /> Download JSON
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
               ["Status", result.status],
               ["Total", String(result.summary.total)],
@@ -201,6 +273,34 @@ export default function AsrEvaluation() {
                   </p>
                 )}
               </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {savedResults.length > 0 ? (
+        <div className="mt-8 border-t border-memora-border pt-6">
+          <h3 className="text-sm font-semibold text-memora-text">Saved results</h3>
+          <div className="mt-3 divide-y divide-memora-border">
+            {savedResults.map((summary) => (
+              <button
+                key={savedResultKey(summary)}
+                type="button"
+                className="flex w-full items-center justify-between gap-4 py-3 text-left hover:bg-memora-hover"
+                onClick={() => void viewSaved(summary.runId)}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-memora-text">
+                    {summary.dataset.datasetId} · {summary.dataset.configuration}/
+                    {summary.dataset.split}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-memora-text-soft">
+                    {summary.status} · {new Date(summary.startedAt).toLocaleString()}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-memora-text-muted">
+                  {summary.summary.succeeded}/{summary.summary.total} succeeded
+                </span>
+              </button>
             ))}
           </div>
         </div>

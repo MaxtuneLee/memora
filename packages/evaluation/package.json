@@ -19,12 +19,16 @@
   "scripts": {
     "build": "vp pack",
     "lint": "vp lint .",
-    "test": "vp test test"
+    "test": "vp test test",
+    "test:browser": "vp test --config vite.browser.config.ts --run"
   },
   "dependencies": {
-    "@memora/datasets": "workspace:*"
+    "@memora/datasets": "workspace:*",
+    "@memora/fs": "workspace:*",
+    "valibot": "^1.2.0"
   },
   "devDependencies": {
+    "@vitest/browser-playwright": "4.1.10",
     "typescript": "~5.9.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",

@@ -5,13 +5,22 @@ Browser-first access to public, declarative Parquet datasets on Hugging Face Hub
 ## Inspect and install
 
 ```ts
-import { inspectDataset, installDataset } from "@memora/datasets";
+import { inspectDataset, installDataset, resolveDatasetSplit } from "@memora/datasets";
 
 const inspection = await inspectDataset("google/fleurs", { revision: "main" });
 const hindi = inspection.configurations.find((configuration) => configuration.name === "hi_in");
 const test = hindi?.splits.find((split) => split.name === "test");
 
 console.log(test?.examples, test?.size, inspection.revision);
+// test.examples is undefined here: inspection only lists Hub files and sums their sizes,
+// it never reads a Parquet footer, so it stays cheap for repositories with many splits
+// (google/fleurs has ~100 language configurations).
+
+const resolved = await resolveDatasetSplit(inspection, "hi_in", "test");
+const resolvedTest = resolved.configurations
+  .find((configuration) => configuration.name === "hi_in")
+  ?.splits.find((split) => split.name === "test");
+console.log(resolvedTest?.examples); // now a real count, read from just this split's shards
 
 await installDataset(inspection, {
   configuration: "hi_in",
@@ -22,7 +31,7 @@ await installDataset(inspection, {
 });
 ```
 
-Inspection reads repository metadata and Parquet footers. It does not download complete shards. A branch or tag is resolved once; metadata and file downloads use the returned `inspection.revision` commit SHA.
+Inspection reads repository metadata only: file paths and sizes from the Hub's file listing, never a file's bytes. Resolving real example counts and feature schemas requires reading each file's Parquet footer, so that cost is scoped to `resolveDatasetSplit`, called for one configuration/split at a time — typically the one a user is about to select, not every split `inspect()` found. `installDataset` derives the same information for free from the shards it downloads, so direct `installDataset`/`loadDataset` callers get a correct manifest without calling `resolveDatasetSplit` themselves. A branch or tag is resolved once; metadata and file downloads use the returned `inspection.revision` commit SHA.
 
 ## Open offline and iterate
 
