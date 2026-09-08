@@ -67,31 +67,27 @@ describe("Chromium dataset flow", () => {
     expect(
       inspection.configurations[0]?.splits.map((split) => [split.name, split.examples]),
     ).toEqual([
-      ["test", 3],
-      ["train", 3],
+      ["test", undefined],
+      ["train", undefined],
     ]);
-    expect(inspection.configurations[0]?.splits[0]?.features).toMatchObject({
-      id: { type: "number" },
-      transcription: { type: "string" },
-      lang_id: { type: "classLabel", names: ["Hindi", "English"] },
-      audio: { type: "audio", samplingRate: 16_000 },
-    });
 
     const inspectionStats = (await fetch("/__dataset_fixture/stats").then((response) =>
       response.json(),
     )) as Record<string, number>;
-    expect(inspectionStats["parquet-data/hi_in/test-00000-of-00001.parquet"]).toBeLessThan(
-      inspection.configurations[0]?.splits[0]?.size ?? 0,
-    );
+    // inspect() only lists Hub files; it never fetches a file's bytes at all.
+    expect(inspectionStats["parquet-data/hi_in/test-00000-of-00001.parquet"]).toBeUndefined();
 
     await fetch("/__dataset_fixture/reset");
     const progress: number[] = [];
-    await installDataset(inspection, {
+    const [installed] = await installDataset(inspection, {
       source,
       configuration: "hi_in",
       splits: ["test"],
       onProgress: ({ completedBytes }) => progress.push(completedBytes),
     });
+    // installDataset reads example counts from the shards it just downloaded, not from
+    // inspect() (which never fetches Parquet footers), so this is where they become known.
+    expect(installed?.examples).toBe(3);
     const downloadStats = (await fetch("/__dataset_fixture/stats").then((response) =>
       response.json(),
     )) as Record<string, number>;
