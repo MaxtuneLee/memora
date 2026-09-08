@@ -17,6 +17,7 @@ import type {
   MediaReference,
 } from "@memora/datasets";
 
+import { activeEvaluationRuns } from "@/lib/playground/activeEvaluationRuns";
 import { datasetClient } from "@/lib/playground/datasetClient";
 import { formatBytes } from "@/lib/format";
 
@@ -34,6 +35,19 @@ function selectionOf(installed: InstalledDataset): DatasetSelection {
     configuration: installed.configuration,
     split: installed.split,
   };
+}
+
+function preferredConfiguration<T extends { name: string }>(configurations: T[]): T | undefined {
+  return configurations.find((item) => /^en([_-]|$)/iu.test(item.name)) ?? configurations[0];
+}
+
+// Falls back to the smallest split by size (already known for free from the Hub file
+// listing) rather than the first alphabetically, so a dataset without a "test" split
+// never defaults to auto-resolving a large "train" split's Parquet footers.
+function preferredSplit<T extends { name: string; size: number }>(splits: T[]): T | undefined {
+  return (
+    splits.find((item) => item.name === "test") ?? [...splits].sort((a, b) => a.size - b.size)[0]
+  );
 }
 
 function displayValue(value: unknown, fallback: string): string {
@@ -117,6 +131,51 @@ export default function DatasetInstaller(): JSX.Element {
     [previewHandle],
   );
 
+  // Example counts and features are only known once a split is installed or explicitly
+  // resolved; resolving on demand keeps inspection itself from touching ~100 configs' worth
+  // of Parquet footers when the user only cares about the one they selected.
+  const resolveSplit = (base: DatasetInspection, configurationName: string, splitName: string) => {
+    const target = base.configurations
+      .find((item) => item.name === configurationName)
+      ?.splits.find((item) => item.name === splitName);
+    if (!target || target.examples !== undefined) return;
+    void datasetClient.resolveSplit(base, configurationName, splitName).then(
+      (resolved) => {
+        const resolvedSplit = resolved.configurations
+          .find((item) => item.name === configurationName)
+          ?.splits.find((item) => item.name === splitName);
+        if (!resolvedSplit) return;
+        // Merge into whatever state is current, not the snapshot this call started from,
+        // so concurrent resolves for different splits don't clobber each other.
+        setInspection((current) =>
+          current?.datasetId !== resolved.datasetId || current.revision !== resolved.revision
+            ? current
+            : {
+                ...current,
+                configurations: current.configurations.map((item) =>
+                  item.name !== configurationName
+                    ? item
+                    : {
+                        ...item,
+                        splits: item.splits.map((candidate) =>
+                          candidate.name === splitName ? resolvedSplit : candidate,
+                        ),
+                      },
+                ),
+              },
+        );
+      },
+      () => undefined,
+    );
+  };
+
+  const selectDefaultSplit = (base: DatasetInspection, configurationName: string) => {
+    const target = base.configurations.find((item) => item.name === configurationName);
+    const split = target ? preferredSplit(target.splits) : undefined;
+    setSelectedSplits(new Set(split ? [split.name] : []));
+    if (split) resolveSplit(base, configurationName, split.name);
+  };
+
   const inspect = async () => {
     const controller = new AbortController();
     operation.current = controller;
@@ -126,9 +185,9 @@ export default function DatasetInstaller(): JSX.Element {
     try {
       const result = await datasetClient.inspect(datasetId, "main", controller.signal);
       setInspection(result);
-      const first = result.configurations[0];
-      setConfiguration(first?.name ?? "");
-      setSelectedSplits(new Set(first?.splits[0] ? [first.splits[0].name] : []));
+      const preferred = preferredConfiguration(result.configurations);
+      setConfiguration(preferred?.name ?? "");
+      if (preferred) selectDefaultSplit(result, preferred.name);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Dataset inspection failed.");
     } finally {
@@ -225,10 +284,7 @@ export default function DatasetInstaller(): JSX.Element {
                   value={configuration}
                   onChange={(event) => {
                     setConfiguration(event.target.value);
-                    const first = inspection.configurations.find(
-                      (item) => item.name === event.target.value,
-                    )?.splits[0];
-                    setSelectedSplits(new Set(first ? [first.name] : []));
+                    selectDefaultSplit(inspection, event.target.value);
                   }}
                 >
                   {inspection.configurations.map((item) => (
@@ -256,14 +312,15 @@ export default function DatasetInstaller(): JSX.Element {
                     type="checkbox"
                     className="size-4 accent-memora-olive"
                     checked={selectedSplits.has(split.name)}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setSelectedSplits((current) => {
                         const next = new Set(current);
                         if (event.target.checked) next.add(split.name);
                         else next.delete(split.name);
                         return next;
-                      })
-                    }
+                      });
+                      if (event.target.checked) resolveSplit(inspection, configuration, split.name);
+                    }}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-memora-text">{split.name}</span>
@@ -382,13 +439,20 @@ export default function DatasetInstaller(): JSX.Element {
                     type="button"
                     aria-label={`Delete ${item.configuration} ${item.split}`}
                     className={secondaryButtonClassName}
-                    onClick={() =>
+                    onClick={() => {
+                      // ponytail: same-tab guard only, checked at click time rather than
+                      // reactively disabling the button; a running evaluation's own
+                      // SharedWorker session isn't visible to this component either way.
+                      if (activeEvaluationRuns.isActive(selectionOf(item))) {
+                        setError("This split is in use by a running evaluation.");
+                        return;
+                      }
                       void datasetClient
                         .delete(selectionOf(item))
                         .then(refreshInstalled, (reason: unknown) =>
                           setError(reason instanceof Error ? reason.message : "Delete failed."),
-                        )
-                    }
+                        );
+                    }}
                   >
                     <TrashIcon className="size-4" />
                   </button>

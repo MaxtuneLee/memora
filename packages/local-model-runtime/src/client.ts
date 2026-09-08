@@ -17,6 +17,7 @@ export interface LocalModelWorkerRunner {
       priority: LocalModelPriority;
       task: LocalModelTask;
       signal?: AbortSignal;
+      transfer?: Transferable[];
     },
   ) => AsyncGenerator<LocalModelEvent>;
 }
@@ -24,7 +25,7 @@ export interface LocalModelWorkerRunner {
 export interface LocalModelClient {
   transcribeAudio: (
     request: LocalAsrRequest,
-    options?: { priority?: LocalModelPriority; signal?: AbortSignal },
+    options?: { priority?: LocalModelPriority; signal?: AbortSignal; transferAudio?: boolean },
   ) => AsyncGenerator<LocalAsrEvent>;
   streamChat: (
     request: LocalChatRequest,
@@ -54,6 +55,10 @@ export const createLocalModelClient = (workerFactory: LocalModelWorkerRunner): L
         priority: options.priority ?? "interactive",
         task: { kind: "asr.transcribe", input: request },
         signal: options.signal,
+        transfer:
+          options.transferAudio && request.audio.buffer instanceof ArrayBuffer
+            ? [request.audio.buffer]
+            : undefined,
       }) as AsyncGenerator<LocalAsrEvent>;
     },
     streamChat(request, options = {}) {

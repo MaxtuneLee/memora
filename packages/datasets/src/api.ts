@@ -58,6 +58,36 @@ function findSplit(inspection: DatasetInspection, configuration: string, split: 
   return selected;
 }
 
+export async function resolveDatasetSplit(
+  inspection: DatasetInspection,
+  configuration: string,
+  splitName: string,
+  options: DatasetOptions & { signal?: AbortSignal } = {},
+): Promise<DatasetInspection> {
+  const { source } = resolveDatasetDependencies(options);
+  const split = findSplit(inspection, configuration, splitName);
+  if (split.examples !== undefined) return inspection;
+  const resolved = await source.resolveSplit(
+    inspection.datasetId,
+    inspection.revision,
+    split,
+    options.signal,
+  );
+  return {
+    ...inspection,
+    configurations: inspection.configurations.map((item) =>
+      item.name !== configuration
+        ? item
+        : {
+            ...item,
+            splits: item.splits.map((candidate) =>
+              candidate.name === splitName ? resolved : candidate,
+            ),
+          },
+    ),
+  };
+}
+
 async function readManifest(
   storage: DatasetStorage,
   selection: DatasetSelection,
@@ -73,6 +103,23 @@ async function readManifest(
   }
 }
 
+async function shardMetadata(
+  storage: DatasetStorage,
+  reader: ParquetReader,
+  selection: DatasetSelection,
+  index: number,
+  expectedSize: number,
+): Promise<Awaited<ReturnType<ParquetReader["metadata"]>> | undefined> {
+  const path = shardPath(selection, index);
+  if (!(await storage.exists(path)) || (await storage.size(path)) !== expectedSize)
+    return undefined;
+  try {
+    return await reader.metadata(fileToAsyncBuffer(await storage.readFile(path)));
+  } catch {
+    return undefined;
+  }
+}
+
 async function verifyShard(
   storage: DatasetStorage,
   reader: ParquetReader,
@@ -80,14 +127,7 @@ async function verifyShard(
   index: number,
   expectedSize: number,
 ): Promise<boolean> {
-  const path = shardPath(selection, index);
-  if (!(await storage.exists(path)) || (await storage.size(path)) !== expectedSize) return false;
-  try {
-    await reader.metadata(fileToAsyncBuffer(await storage.readFile(path)));
-    return true;
-  } catch {
-    return false;
-  }
+  return (await shardMetadata(storage, reader, selection, index, expectedSize)) !== undefined;
 }
 
 function progressStream(
@@ -151,9 +191,12 @@ export async function installDataset(
         results.push(existing);
         continue;
       }
-      const reusableFiles = await Promise.all(
-        split.files.map((file, index) => verifyShard(storage, reader, selection, index, file.size)),
+      const shardsMetadata = await Promise.all(
+        split.files.map((file, index) =>
+          shardMetadata(storage, reader, selection, index, file.size),
+        ),
       );
+      const reusableFiles = shardsMetadata.map((metadata) => metadata !== undefined);
       const requiredBytes = split.files.reduce(
         (total, file, index) => total + (reusableFiles[index] ? 0 : file.size),
         0,
@@ -196,25 +239,36 @@ export async function installDataset(
               options.onProgress,
             ),
           );
-          if (!(await verifyShard(storage, reader, selection, index, datasetFile.size)))
+          const metadata = await shardMetadata(storage, reader, selection, index, datasetFile.size);
+          if (!metadata)
             throw new DatasetError(
               "network",
               `Downloaded file failed validation: ${datasetFile.path}`,
             );
+          shardsMetadata[index] = metadata;
         } catch (error) {
           await storage.remove(localPath).catch(() => undefined);
           throw error;
         }
         completedBytes += datasetFile.size;
       }
+      // Example counts and features are read from the shards on disk, not from
+      // inspection: inspect() only lists files, it never reads Parquet footers.
+      const resolvedFeatures =
+        shardsMetadata.find((metadata) => metadata && Object.keys(metadata.features).length > 0)
+          ?.features ?? split.features;
+      const resolvedExamples = shardsMetadata.reduce(
+        (sum, metadata) => sum + (metadata?.examples ?? 0),
+        0,
+      );
       const installed: InstallationManifest = {
         format: 1,
         source: "huggingface",
         ...selection,
         size: split.size,
-        examples: split.examples,
+        examples: resolvedExamples,
         installedAt: new Date().toISOString(),
-        features: split.features,
+        features: resolvedFeatures,
         files: split.files,
       };
       await storage.write(manifestPath(selection), JSON.stringify(installed));

@@ -13,7 +13,25 @@ const LARGE_AUDIO_BYTES = 200_000;
 function createFixture(): Uint8Array {
   const audio = (marker: number) => {
     const bytes = new Uint8Array(LARGE_AUDIO_BYTES);
-    bytes.fill(marker);
+    const view = new DataView(bytes.buffer);
+    const write = (offset: number, value: string) =>
+      Array.from(value).forEach((character, index) =>
+        view.setUint8(offset + index, character.charCodeAt(0)),
+      );
+    write(0, "RIFF");
+    view.setUint32(4, bytes.byteLength - 8, true);
+    write(8, "WAVE");
+    write(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 16_000, true);
+    view.setUint32(28, 32_000, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    write(36, "data");
+    view.setUint32(40, bytes.byteLength - 44, true);
+    view.setInt16(44, marker, true);
     return { bytes, path: `${marker}.wav` };
   };
   const features = {

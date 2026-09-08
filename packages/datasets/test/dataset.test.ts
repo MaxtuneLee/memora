@@ -5,9 +5,11 @@ import {
   installDataset,
   listInstalledDatasets,
   openDataset,
+  resolveDatasetSplit,
   type DatasetInspection,
   type DatasetSource,
   type DatasetStorage,
+  type FeatureSchema,
   type MediaReference,
   type ParquetReader,
 } from "../src/index";
@@ -102,7 +104,8 @@ const inspection: DatasetInspection = {
 function fixture() {
   const storage = new MemoryStorage();
   const download = vi.fn(async () => new Blob([new Uint8Array([1, 2, 3, 4])]).stream());
-  const source: DatasetSource = { inspect: vi.fn(), download };
+  const resolveSplit = vi.fn();
+  const source: DatasetSource = { inspect: vi.fn(), resolveSplit, download };
   const examples = [
     {
       id: 2,
@@ -140,7 +143,7 @@ function fixture() {
         ),
     ),
   };
-  return { storage, source, reader, download };
+  return { storage, source, reader, download, resolveSplit };
 }
 
 describe("installed datasets", () => {
@@ -207,6 +210,31 @@ describe("installed datasets", () => {
     ).rejects.toMatchObject({ code: "quota" });
   });
 
+  it("resolves example counts and features from the downloaded shard, not from inspection", async () => {
+    const deps = fixture();
+    const leanInspection: DatasetInspection = {
+      ...inspection,
+      configurations: [
+        {
+          ...inspection.configurations[0],
+          splits: [
+            { ...inspection.configurations[0].splits[0], examples: undefined, features: {} },
+          ],
+        },
+      ],
+    };
+    await installDataset(leanInspection, { ...deps, configuration: "hi_in", splits: ["test"] });
+    expect(await listInstalledDatasets(deps)).toMatchObject([{ examples: 3 }]);
+    const manifestPath = [...deps.storage.files.keys()].find((path) =>
+      path.endsWith("manifest.json"),
+    );
+    if (!manifestPath) throw new Error("Expected an installed manifest.");
+    const manifest = JSON.parse(await deps.storage.readText(manifestPath)) as {
+      features: FeatureSchema;
+    };
+    expect(manifest.features).toEqual(inspection.configurations[0].splits[0].features);
+  });
+
   it("checks quota only for shards that are not reusable", async () => {
     const deps = fixture();
     const split = inspection.configurations[0].splits[0];
@@ -245,5 +273,45 @@ describe("installed datasets", () => {
 
     await installDataset(multiShardInspection, options);
     expect(deps.download).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("resolveDatasetSplit", () => {
+  it("resolves only the requested split, leaving other configurations untouched", async () => {
+    const deps = fixture();
+    const resolvedSplit = {
+      ...inspection.configurations[0].splits[0],
+      examples: 3,
+      features: inspection.configurations[0].splits[0].features,
+    };
+    deps.resolveSplit.mockResolvedValue(resolvedSplit);
+    const leanInspection: DatasetInspection = {
+      ...inspection,
+      configurations: [
+        {
+          ...inspection.configurations[0],
+          splits: [
+            { ...inspection.configurations[0].splits[0], examples: undefined, features: {} },
+          ],
+        },
+      ],
+    };
+
+    const resolved = await resolveDatasetSplit(leanInspection, "hi_in", "test", deps);
+
+    expect(deps.resolveSplit).toHaveBeenCalledWith(
+      leanInspection.datasetId,
+      leanInspection.revision,
+      leanInspection.configurations[0].splits[0],
+      undefined,
+    );
+    expect(resolved.configurations[0].splits[0]).toEqual(resolvedSplit);
+  });
+
+  it("skips the network call once a split is already resolved", async () => {
+    const deps = fixture();
+    const resolved = await resolveDatasetSplit(inspection, "hi_in", "test", deps);
+    expect(deps.resolveSplit).not.toHaveBeenCalled();
+    expect(resolved).toBe(inspection);
   });
 });

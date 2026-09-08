@@ -1,12 +1,20 @@
-import { datasetInfo, downloadFile, globMatch, listFiles } from "@huggingface/hub";
+import {
+  datasetInfo,
+  downloadFile,
+  fileDownloadInfo,
+  globMatch,
+  listFiles,
+} from "@huggingface/hub";
+import { asyncBufferFromUrl } from "hyparquet";
 
 import { DatasetError, toDatasetError } from "./errors";
-import { fileToAsyncBuffer, parquetReader } from "./parquet";
+import { parquetReader } from "./parquet";
 import type {
   DatasetConfigurationInspection,
   DatasetFile,
   DatasetInspection,
   DatasetSource,
+  DatasetSplitInspection,
   FeatureSchema,
 } from "./types";
 
@@ -123,28 +131,10 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
             "unsupported",
             "No supported declarative Parquet files were found.",
           );
-        const repo = { type: "dataset" as const, name: datasetId };
-        const inspectionFiles = [...grouped.values()].flatMap((splits) =>
-          [...splits.values()].flatMap((split) =>
-            split.files.map((datasetFile) => ({ datasetFile, split })),
-          ),
-        );
-        await mapConcurrent(inspectionFiles, 6, async ({ datasetFile, split }) => {
-          signal?.throwIfAborted();
-          const blob = await downloadFile({
-            repo,
-            path: datasetFile.path,
-            revision: info.sha,
-            hubUrl: options.hubUrl,
-            fetch: requestFetch,
-            xet: false,
-          });
-          if (!blob)
-            throw new DatasetError("network", `Dataset file disappeared: ${datasetFile.path}`);
-          const metadata = await parquetReader.metadata(fileToAsyncBuffer(blob));
-          datasetFile.examples = metadata.examples;
-          if (Object.keys(split.features).length === 0) split.features = metadata.features;
-        });
+        // Example counts and feature schemas require reading each file's Parquet footer.
+        // That cost is only worth paying for the configuration/split the caller installs
+        // (installDataset reads it locally, for free, once the file is downloaded), so
+        // inspection itself never fetches file bodies — only the Hub's cheap file listing.
         const configurations: DatasetConfigurationInspection[] = [...grouped.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([name, splits]) => {
@@ -152,9 +142,7 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([splitName, split]) => ({
                 name: splitName,
-                examples: split.files.every((item) => item.examples !== undefined)
-                  ? split.files.reduce((sum, item) => sum + (item.examples ?? 0), 0)
-                  : undefined,
+                examples: undefined,
                 size: split.files.reduce((sum, item) => sum + item.size, 0),
                 files: split.files.sort((a, b) => a.path.localeCompare(b.path)),
                 features: split.features,
@@ -172,6 +160,44 @@ export function createHuggingFaceSource(options: HubSourceOptions = {}): Dataset
           revision: info.sha,
           configurations,
         } satisfies DatasetInspection;
+      } catch (error) {
+        throw toDatasetError(error, "network");
+      }
+    },
+    async resolveSplit(datasetId, revision, split, signal) {
+      try {
+        const requestFetch = withSignal(options.fetch, signal);
+        const repo = { type: "dataset" as const, name: datasetId };
+        let features = split.features;
+        const files: DatasetFile[] = split.files.map((file) => ({ ...file }));
+        await mapConcurrent(files, 6, async (datasetFile) => {
+          signal?.throwIfAborted();
+          const downloadInfo = await fileDownloadInfo({
+            repo,
+            path: datasetFile.path,
+            revision,
+            hubUrl: options.hubUrl,
+            fetch: requestFetch,
+          });
+          if (!downloadInfo)
+            throw new DatasetError("network", `Dataset file disappeared: ${datasetFile.path}`);
+          // Only the Parquet footer is read here (hyparquet issues ranged HTTP reads),
+          // not the full file body.
+          const buffer = await asyncBufferFromUrl({
+            url: downloadInfo.url,
+            byteLength: datasetFile.size,
+            fetch: requestFetch,
+          });
+          const metadata = await parquetReader.metadata(buffer);
+          datasetFile.examples = metadata.examples;
+          if (Object.keys(features).length === 0) features = metadata.features;
+        });
+        return {
+          ...split,
+          files,
+          features,
+          examples: files.reduce((sum, file) => sum + (file.examples ?? 0), 0),
+        } satisfies DatasetSplitInspection;
       } catch (error) {
         throw toDatasetError(error, "network");
       }
