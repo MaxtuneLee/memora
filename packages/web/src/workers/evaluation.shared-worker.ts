@@ -5,6 +5,8 @@ import type {
   EvaluationWorkerRequest,
   EvaluationWorkerResponse,
 } from "@/lib/playground/evaluationWorkerProtocol";
+import { createNemotronModelAdapter } from "@/lib/playground/nemotron/modelAdapter";
+import { NEMOTRON_MODEL_ID } from "@/lib/playground/nemotron/sessionManager";
 
 const operations = new Map<string, AbortController>();
 const modelRequests = new Map<
@@ -48,7 +50,11 @@ const requestModel = (
     post(port, message, transfer);
   });
 
-const createAdapter = (port: MessagePort, modelId: string, language: string): ModelAdapter => ({
+const createWhisperAdapter = (
+  port: MessagePort,
+  modelId: string,
+  language: string,
+): ModelAdapter => ({
   identity: {
     modelId,
     modelRevision: { status: "unknown" },
@@ -82,6 +88,11 @@ const createAdapter = (port: MessagePort, modelId: string, language: string): Mo
       signal,
     ),
 });
+
+const createAdapter = (port: MessagePort, modelId: string, language: string): ModelAdapter =>
+  modelId === NEMOTRON_MODEL_ID
+    ? createNemotronModelAdapter()
+    : createWhisperAdapter(port, modelId, language);
 
 async function execute(port: MessagePort, request: EvaluationWorkerRequest): Promise<void> {
   if (request.type === "cancel") {
