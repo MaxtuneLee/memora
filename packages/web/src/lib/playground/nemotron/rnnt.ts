@@ -76,3 +76,8 @@ export const detokenizeRnnt = (
   }
   return text.replaceAll("▁", " ").trim();
 };
+
+export const decodeRnnt = async <EncoderFrame, DecoderState, DecoderOutput>(
+  options: GreedyDecodeRnntOptions<EncoderFrame, DecoderState, DecoderOutput>,
+  vocabulary: readonly string[],
+): Promise<string> => detokenizeRnnt(await greedyDecodeRnnt(options), vocabulary);

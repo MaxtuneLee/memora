@@ -1,8 +1,29 @@
 import { describe, expect, it } from "vitest";
 
-import { detokenizeRnnt, greedyDecodeRnnt } from "@/lib/playground/nemotron/rnnt";
+import { decodeRnnt, detokenizeRnnt, greedyDecodeRnnt } from "@/lib/playground/nemotron/rnnt";
 
 describe("greedyDecodeRnnt", () => {
+  it("returns decoded text from encoder frames and a vocabulary", async () => {
+    const emittedTokens = [1, 2, 0];
+    let jointCall = 0;
+
+    const text = await decodeRnnt(
+      {
+        encoderFrames: ["frame"],
+        blankTokenId: 0,
+        initialDecoderState: 0,
+        decode: async (_tokenId, state) => ({ output: state, state: state + 1 }),
+        join: async () => {
+          const tokenId = emittedTokens[jointCall++];
+          return [0, 0, 0].map((_, index) => (index === tokenId ? 1 : 0));
+        },
+      },
+      ["<blank>", "▁Hello", "▁world"],
+    );
+
+    expect(text).toBe("Hello world");
+  });
+
   it("decodes encoder frames into a known token sequence", async () => {
     const emittedTokens = [1, 2, 0, 3, 0];
     let jointCall = 0;
