@@ -1,3 +1,4 @@
+export * from "./audioFeatures";
 export * from "./errors";
 export * from "./metrics";
 export * from "./results";
