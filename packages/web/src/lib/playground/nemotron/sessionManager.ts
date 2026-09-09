@@ -1,23 +1,20 @@
 import * as ort from "onnxruntime-web";
 
+import {
+  getNemotronResourcePath,
+  NEMOTRON_CACHE_ROOT,
+  NEMOTRON_MODEL_ID,
+  NEMOTRON_MODEL_REVISION,
+  NEMOTRON_RESOURCE_NAMES,
+  type NemotronResourceName,
+} from "./cache";
+
+export { NEMOTRON_CACHE_ROOT, NEMOTRON_MODEL_ID, NEMOTRON_MODEL_REVISION };
+
 type OpfsApi = typeof import("@memora/fs");
 
-export const NEMOTRON_MODEL_ID = "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4";
-export const NEMOTRON_MODEL_REVISION = "8364d9e2dd9da23789b480bdbba9e423717e42ee";
-export const NEMOTRON_CACHE_ROOT = "/nemotron-cache";
-
-const MODEL_BASE_URL = `https://huggingface.co/${NEMOTRON_MODEL_ID}/resolve/${NEMOTRON_MODEL_REVISION}`;
-const RESOURCE_NAMES = [
-  "encoder.onnx",
-  "encoder.onnx.data",
-  "decoder.onnx",
-  "decoder.onnx.data",
-  "joint.onnx",
-  "joint.onnx.data",
-  "vocab.txt",
-] as const;
-
-type ResourceName = (typeof RESOURCE_NAMES)[number];
+const RESOURCE_NAMES = NEMOTRON_RESOURCE_NAMES;
+type ResourceName = NemotronResourceName;
 type EncoderDevice = "webgpu" | "wasm";
 
 export interface NemotronDownloadProgress {
@@ -68,9 +65,9 @@ export interface NemotronSessionManager {
   load(options?: LoadNemotronSessionsOptions): Promise<NemotronSessions>;
 }
 
-const resourcePath = (name: ResourceName) =>
-  `${NEMOTRON_CACHE_ROOT}/${NEMOTRON_MODEL_REVISION}/${name}`;
+const resourcePath = getNemotronResourcePath;
 
+const MODEL_BASE_URL = `https://huggingface.co/${NEMOTRON_MODEL_ID}/resolve/${NEMOTRON_MODEL_REVISION}`;
 const resourceUrl = (name: ResourceName) => `${MODEL_BASE_URL}/${name}`;
 
 const defaultDependencies: NemotronSessionManagerDependencies = {

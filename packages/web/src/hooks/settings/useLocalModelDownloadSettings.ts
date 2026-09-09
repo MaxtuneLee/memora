@@ -6,6 +6,7 @@ import {
   getLocalModelOptions as getAllLocalModelOptions,
   getLocalModelCacheStatus,
   localModelClient,
+  removeLocalModelCache,
   writeLocalModelCacheMarker,
   type LocalModelOption,
 } from "@/lib/local-model";
@@ -191,9 +192,19 @@ export const useLocalModelDownloadActions = ({
     [add, refreshLocalModelState],
   );
 
+  const handleDeleteLocalModel = useCallback(
+    async (modelId: string) => {
+      await removeLocalModelCache(modelId);
+      await refreshLocalModelState(modelId);
+      add({ title: "Model removed", type: "success" });
+    },
+    [add, refreshLocalModelState],
+  );
+
   return {
     localModelOptions: modelOptions,
     handleDownloadLocalModel,
+    handleDeleteLocalModel,
     refreshLocalModelState,
   };
 };

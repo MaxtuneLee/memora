@@ -70,6 +70,21 @@ const testState = vi.hoisted(() => {
     },
   );
 
+  const rm = vi.fn(async (path: string) => {
+    const normalized = normalizePath(path);
+    for (const key of [...fileBytesByPath.keys(), ...fileTextByPath.keys()]) {
+      if (key === normalized || key.startsWith(`${normalized}/`)) {
+        fileBytesByPath.delete(key);
+        fileTextByPath.delete(key);
+      }
+    }
+    for (const key of directories) {
+      if (key === normalized || key.startsWith(`${normalized}/`)) {
+        directories.delete(key);
+      }
+    }
+  });
+
   return {
     dir,
     directories,
@@ -78,6 +93,7 @@ const testState = vi.hoisted(() => {
     fileTextByPath,
     ls,
     normalizePath,
+    rm,
     write,
   };
 });
@@ -86,11 +102,13 @@ vi.mock("@memora/fs", () => ({
   dir: testState.dir,
   file: testState.file,
   ls: testState.ls,
+  rm: testState.rm,
   write: testState.write,
 }));
 
 import {
   getLocalModelCacheStatus,
+  removeLocalModelCache,
   writeLocalModelCacheMarker,
 } from "../../src/lib/local-model/status";
 
@@ -105,6 +123,7 @@ describe("local model cache status", () => {
     testState.dir.mockClear();
     testState.file.mockClear();
     testState.ls.mockClear();
+    testState.rm.mockClear();
     testState.write.mockClear();
   });
 
@@ -146,5 +165,22 @@ describe("local model cache status", () => {
 
     expect(status.cached).toBe(false);
     expect(status.fileCount).toBe(1);
+  });
+
+  test("removes the model's entire cache directory", async () => {
+    testState.directories.add(GEMMA_CACHE_PATH);
+    testState.fileBytesByPath.set(`${GEMMA_CACHE_PATH}/config.json`, 128);
+    testState.fileBytesByPath.set(`${GEMMA_CACHE_PATH}/onnx/model.onnx_data`, 2048);
+    await writeLocalModelCacheMarker("gemma-4-e2b-it-onnx");
+
+    await removeLocalModelCache("gemma-4-e2b-it-onnx");
+
+    expect(testState.rm).toHaveBeenCalledWith(GEMMA_CACHE_PATH, {
+      recursive: true,
+      force: true,
+    });
+    const status = await getLocalModelCacheStatus("gemma-4-e2b-it-onnx");
+    expect(status.cached).toBe(false);
+    expect(status.fileCount).toBe(0);
   });
 });

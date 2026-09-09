@@ -141,6 +141,13 @@ export const clearLocalModelCacheMarker = async (modelId: string): Promise<void>
   await opfsFile(getLocalModelCacheMarkerPath(manifest)).remove({ force: true });
 };
 
+export const removeLocalModelCache = async (modelId: string): Promise<void> => {
+  const manifest = getLocalModelManifest(modelId);
+  if (!manifest) return;
+  const { rm } = await import("@memora/fs");
+  await rm(getManifestCachePath(manifest), { recursive: true, force: true });
+};
+
 export const writeLocalModelCacheMarker = async (modelId: string): Promise<void> => {
   const manifest = getLocalModelManifest(modelId);
   if (!manifest) {

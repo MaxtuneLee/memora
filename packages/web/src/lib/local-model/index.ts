@@ -5,6 +5,7 @@ export {
   getLocalModelOptions,
   getLocalModelCacheStatus,
   getRequiredOnboardingModelOptions,
+  removeLocalModelCache,
   writeLocalModelCacheMarker,
   type LocalModelCacheStatus,
   type LocalModelOption,
