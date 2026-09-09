@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web";
+import * as ort from "onnxruntime-web/webgpu";
 import { extractLogMelFeatures, type ModelAdapter } from "@memora/evaluation";
 
 import { decodeRnnt } from "./rnnt";
@@ -21,14 +21,24 @@ const DECODER_LAYERS = 2;
 const DECODER_HIDDEN_SIZE = 640;
 const BLANK_TOKEN_ID = 13_087;
 const MAX_SYMBOLS_PER_FRAME = 10;
-const AUTO_LANGUAGE_ID = 101;
-const LANGUAGE_TAG = /\s*<[a-z]{2,3}-[A-Z]{2}>\s*$/u;
+const AUTO_LANGUAGE_ID = 0;
+// Matches the model's trailing <language-REGION> tag wherever it lands in the transcript, since
+// its exact position isn't guaranteed to be the very end of the string.
+const LANGUAGE_TAG = /<[a-z]{2,3}-[A-Za-z]{2,3}>/gu;
+// 8x subsampling over 160-sample (10ms) mel hops at 16kHz = 80ms of audio per encoder frame.
+const ENCODER_FRAME_SECONDS = 0.08;
 
 type Tensor = ort.Tensor;
 
 interface DecoderState {
   hidden: Tensor;
   cell: Tensor;
+}
+
+export interface NemotronTranscriptWord {
+  word: string;
+  start: number;
+  end: number;
 }
 
 export interface CreateNemotronModelAdapterOptions {
@@ -44,6 +54,9 @@ const requireTensor = (outputs: ort.InferenceSession.ReturnType, name: string): 
 
 const int64Tensor = (values: readonly number[], dimensions: readonly number[]): Tensor =>
   new ort.Tensor("int64", BigInt64Array.from(values, BigInt), dimensions);
+
+const reshapeFloat32 = (tensor: Tensor, dimensions: readonly number[]): Tensor =>
+  new ort.Tensor("float32", tensor.data as Float32Array, dimensions);
 
 const createEncoderCache = (): { channel: Tensor; time: Tensor; length: Tensor } => ({
   channel: new ort.Tensor(
@@ -87,7 +100,7 @@ const encoderFrames = (tensor: Tensor, length: number): Tensor[] => {
         ? data[frameIndex * hiddenSize + channel]
         : data[channel * availableFrames + frameIndex];
     }
-    return new ort.Tensor("float32", frame, [1, hiddenSize, 1]);
+    return new ort.Tensor("float32", frame, [1, 1, hiddenSize]);
   });
 };
 
@@ -125,9 +138,22 @@ const encode = async (
     });
     signal?.throwIfAborted();
     cache = {
-      channel: requireTensor(output, "cache_last_channel_next"),
-      time: requireTensor(output, "cache_last_time_next"),
-      length: requireTensor(output, "cache_last_channel_len_next"),
+      channel: reshapeFloat32(requireTensor(output, "cache_last_channel_next"), [
+        1,
+        ENCODER_LAYERS,
+        ENCODER_LEFT_CONTEXT,
+        ENCODER_HIDDEN_SIZE,
+      ]),
+      time: reshapeFloat32(requireTensor(output, "cache_last_time_next"), [
+        1,
+        ENCODER_LAYERS,
+        ENCODER_HIDDEN_SIZE,
+        CONV_CONTEXT,
+      ]),
+      length: int64Tensor(
+        [Number((requireTensor(output, "cache_last_channel_len_next").data as BigInt64Array)[0])],
+        [1],
+      ),
     };
     const encodedLength = Number(
       (requireTensor(output, "encoded_lengths").data as BigInt64Array)[0],
@@ -138,18 +164,57 @@ const encode = async (
   return frames;
 };
 
+interface PendingWord {
+  pieces: string[];
+  startFrame: number;
+  endFrame: number;
+}
+
+const isLanguageTagToken = (token: string): boolean => /^<[a-z]{2,3}-[A-Za-z]{2,3}>$/u.test(token);
+
 const decode = async (
   sessions: NemotronSessions,
   frames: readonly Tensor[],
   signal?: AbortSignal,
-): Promise<string> => {
+): Promise<{ text: string; words: NemotronTranscriptWord[] }> => {
   const initialState = createDecoderState();
-  return decodeRnnt(
+  const words: NemotronTranscriptWord[] = [];
+  let pending: PendingWord | undefined;
+  const commitPending = () => {
+    if (!pending) return;
+    const word = pending.pieces.join("");
+    if (word) {
+      words.push({
+        word,
+        start: pending.startFrame * ENCODER_FRAME_SECONDS,
+        end: (pending.endFrame + 1) * ENCODER_FRAME_SECONDS,
+      });
+    }
+    pending = undefined;
+  };
+
+  const text = await decodeRnnt(
     {
       encoderFrames: frames,
       blankTokenId: BLANK_TOKEN_ID,
       maxSymbolsPerFrame: MAX_SYMBOLS_PER_FRAME,
       initialDecoderState: initialState,
+      onToken: (tokenId, frameIndex) => {
+        const token = sessions.vocabulary[tokenId];
+        if (token === undefined) return;
+        if (isLanguageTagToken(token)) {
+          commitPending();
+          return;
+        }
+        const piece = token.replaceAll("▁", "");
+        if (token.startsWith("▁") || !pending) {
+          commitPending();
+          pending = { pieces: [piece], startFrame: frameIndex, endFrame: frameIndex };
+        } else {
+          pending.pieces.push(piece);
+          pending.endFrame = frameIndex;
+        }
+      },
       decode: async (tokenId, state) => {
         signal?.throwIfAborted();
         const output = await sessions.decoder.run({
@@ -158,10 +223,22 @@ const decode = async (
           c_in: state.cell,
         });
         return {
-          output: requireTensor(output, "decoder_output"),
+          output: reshapeFloat32(requireTensor(output, "decoder_output"), [
+            1,
+            1,
+            DECODER_HIDDEN_SIZE,
+          ]),
           state: {
-            hidden: requireTensor(output, "h_out"),
-            cell: requireTensor(output, "c_out"),
+            hidden: reshapeFloat32(requireTensor(output, "h_out"), [
+              DECODER_LAYERS,
+              1,
+              DECODER_HIDDEN_SIZE,
+            ]),
+            cell: reshapeFloat32(requireTensor(output, "c_out"), [
+              DECODER_LAYERS,
+              1,
+              DECODER_HIDDEN_SIZE,
+            ]),
           },
         };
       },
@@ -176,10 +253,12 @@ const decode = async (
     },
     sessions.vocabulary,
   );
+  commitPending();
+  return { text, words };
 };
 
 export const stripNemotronLanguageTag = (transcript: string): string =>
-  transcript.replace(LANGUAGE_TAG, "").trim();
+  transcript.replace(LANGUAGE_TAG, " ").replace(/\s+/gu, " ").trim();
 
 export const createNemotronModelAdapter = ({
   sessionManager = nemotronSessionManager,
@@ -212,12 +291,43 @@ export const createNemotronModelAdapter = ({
       const loaded = await load(signal);
       const features = extractLogMelFeatures({ pcm, sampleRate });
       if (features.length === 0) return "";
-      const transcript = await decode(
+      const { text } = await decode(
         loaded,
         await encode(loaded, features, languageId, signal),
         signal,
       );
-      return stripNemotronLanguageTag(transcript);
+      return stripNemotronLanguageTag(text);
     },
   };
+};
+
+export interface NemotronTranscript {
+  text: string;
+  words: NemotronTranscriptWord[];
+}
+
+export interface TranscribeNemotronOptions {
+  sessionManager?: NemotronSessionManager;
+  languageId?: number;
+  signal?: AbortSignal;
+}
+
+export const transcribeNemotron = async (
+  { pcm, sampleRate }: { pcm: Float32Array; sampleRate: number },
+  {
+    sessionManager = nemotronSessionManager,
+    languageId = AUTO_LANGUAGE_ID,
+    signal,
+  }: TranscribeNemotronOptions = {},
+): Promise<NemotronTranscript> => {
+  signal?.throwIfAborted();
+  const sessions = await sessionManager.load({ signal });
+  const features = extractLogMelFeatures({ pcm, sampleRate });
+  if (features.length === 0) return { text: "", words: [] };
+  const { text, words } = await decode(
+    sessions,
+    await encode(sessions, features, languageId, signal),
+    signal,
+  );
+  return { text: stripNemotronLanguageTag(text), words };
 };

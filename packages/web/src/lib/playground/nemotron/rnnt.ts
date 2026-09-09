@@ -13,6 +13,7 @@ export interface GreedyDecodeRnntOptions<EncoderFrame, DecoderState, DecoderOutp
     state: DecoderState,
   ) => Promise<DecoderStepResult<DecoderState, DecoderOutput>>;
   join: (encoderFrame: EncoderFrame, decoderOutput: DecoderOutput) => Promise<ArrayLike<number>>;
+  onToken?: (tokenId: number, frameIndex: number) => void;
 }
 
 const DEFAULT_MAX_SYMBOLS_PER_FRAME = 10;
@@ -38,6 +39,7 @@ export const greedyDecodeRnnt = async <EncoderFrame, DecoderState, DecoderOutput
   initialDecoderState,
   decode,
   join,
+  onToken,
 }: GreedyDecodeRnntOptions<EncoderFrame, DecoderState, DecoderOutput>): Promise<number[]> => {
   if (!Number.isInteger(maxSymbolsPerFrame) || maxSymbolsPerFrame <= 0) {
     throw new RangeError("maxSymbolsPerFrame must be a positive integer.");
@@ -47,6 +49,7 @@ export const greedyDecodeRnnt = async <EncoderFrame, DecoderState, DecoderOutput
   let decoderStep = await decode(blankTokenId, decoderState);
   decoderState = decoderStep.state;
   const tokenIds: number[] = [];
+  let frameIndex = 0;
 
   for (const encoderFrame of encoderFrames) {
     for (let symbol = 0; symbol < maxSymbolsPerFrame; symbol += 1) {
@@ -54,9 +57,11 @@ export const greedyDecodeRnnt = async <EncoderFrame, DecoderState, DecoderOutput
       if (tokenId === blankTokenId) break;
 
       tokenIds.push(tokenId);
+      onToken?.(tokenId, frameIndex);
       decoderStep = await decode(tokenId, decoderState);
       decoderState = decoderStep.state;
     }
+    frameIndex += 1;
   }
 
   return tokenIds;

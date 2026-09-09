@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web";
+import * as ort from "onnxruntime-web/webgpu";
 
 import {
   getNemotronResourcePath,
@@ -30,7 +30,7 @@ interface ResourceWriteProgress {
 }
 
 interface SessionOptions {
-  executionProviders: readonly ("webgpu" | "wasm")[];
+  executionProviders: readonly ort.InferenceSession.ExecutionProviderConfig[];
   externalData: readonly { path: string; data: File }[];
 }
 
@@ -150,7 +150,7 @@ const loadResource = async (
 const createModelSession = (
   model: File,
   externalData: File,
-  executionProvider: EncoderDevice,
+  executionProvider: ort.InferenceSession.ExecutionProviderConfig,
   dependencies: NemotronSessionManagerDependencies,
 ) =>
   model.arrayBuffer().then((buffer) =>

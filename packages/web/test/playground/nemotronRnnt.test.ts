@@ -82,6 +82,30 @@ describe("greedyDecodeRnnt", () => {
     expect(jointCalls).toBe(6);
   });
 
+  it("reports the frame index for each emitted token via onToken", async () => {
+    const emittedTokens = [1, 0, 2, 0, 3, 0];
+    let jointCall = 0;
+    const observed: Array<{ tokenId: number; frameIndex: number }> = [];
+
+    await greedyDecodeRnnt({
+      encoderFrames: ["first", "second", "third"],
+      blankTokenId: 0,
+      initialDecoderState: 0,
+      decode: async (_tokenId, state) => ({ output: state, state: state + 1 }),
+      join: async () => {
+        const tokenId = emittedTokens[jointCall++];
+        return [0, 0, 0, 0].map((_, index) => (index === tokenId ? 1 : 0));
+      },
+      onToken: (tokenId, frameIndex) => observed.push({ tokenId, frameIndex }),
+    });
+
+    expect(observed).toEqual([
+      { tokenId: 1, frameIndex: 0 },
+      { tokenId: 2, frameIndex: 1 },
+      { tokenId: 3, frameIndex: 2 },
+    ]);
+  });
+
   it("threads decoder state through emitted tokens and later frames", async () => {
     const emittedTokens = [4, 0, 5, 0];
     const decoderCalls: Array<{ tokenId: number; state: string }> = [];
