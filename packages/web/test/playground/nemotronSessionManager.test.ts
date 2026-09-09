@@ -79,11 +79,15 @@ describe("Nemotron session manager", () => {
 
   test("a new manager loads the cached OPFS files without downloading again", async () => {
     const { dependencies, fetchResource } = createDependencies();
+    const progress = vi.fn();
 
     await createNemotronSessionManager(dependencies).load();
-    await createNemotronSessionManager(dependencies).load();
+    await createNemotronSessionManager(dependencies).load({ onProgress: progress });
 
     expect(fetchResource).toHaveBeenCalledTimes(7);
+    expect(progress).toHaveBeenCalledWith(
+      expect.objectContaining({ file: "encoder.onnx", cached: true }),
+    );
   });
 
   test("uses WebGPU for the encoder and wasm for decoder and joint", async () => {

@@ -78,10 +78,13 @@ const defaultDependencies: NemotronSessionManagerDependencies = {
   readCachedFile: async (path) => {
     const { file } = (await import("@memora/fs")) satisfies OpfsApi;
     const cached = file(path);
-    return (await cached.exists()) ? cached.getOriginFile() : undefined;
+    const complete = file(`${path}.complete`);
+    return (await cached.exists()) && (await complete.exists())
+      ? cached.getOriginFile()
+      : undefined;
   },
   writeCachedFile: async (path, response, onProgress) => {
-    const { file, writeStream } = (await import("@memora/fs")) satisfies OpfsApi;
+    const { file, write, writeStream } = (await import("@memora/fs")) satisfies OpfsApi;
     if (!response.body) throw new Error("Nemotron model response has no readable body.");
     const reader = response.body.getReader();
     const totalHeader = Number(response.headers.get("content-length"));
@@ -102,10 +105,21 @@ const defaultDependencies: NemotronSessionManagerDependencies = {
     });
     try {
       await writeStream(path, stream, { overwrite: true });
+      if (total !== undefined && loaded !== total) {
+        throw new Error(
+          `Incomplete Nemotron model download: expected ${total} bytes, received ${loaded}.`,
+        );
+      }
+      await write(`${path}.complete`, String(loaded), { overwrite: true });
     } catch (error) {
-      await file(path)
-        .remove({ force: true })
-        .catch(() => undefined);
+      await Promise.all([
+        file(path)
+          .remove({ force: true })
+          .catch(() => undefined),
+        file(`${path}.complete`)
+          .remove({ force: true })
+          .catch(() => undefined),
+      ]);
       throw error;
     }
     return file(path).getOriginFile();
