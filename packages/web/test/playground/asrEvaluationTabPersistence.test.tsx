@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import AsrEvaluation from "@/components/playground/AsrEvaluation";
+import { NEMOTRON_MODEL_ID } from "@/lib/playground/nemotron/sessionManager";
 
 const mock = vi.hoisted(() => ({
   list: vi.fn(),
@@ -78,4 +79,18 @@ test("switching Playground tabs keeps an in-flight ASR evaluation running instea
 
   expect(signal.aborted).toBe(false);
   expect(screen.getByLabelText("ASR language")).toHaveValue("en");
+});
+
+test("selecting Nemotron routes evaluationClient.run to the Nemotron model id", async () => {
+  const user = userEvent.setup();
+  render(<Fixture activeTab="local-models" />);
+
+  await screen.findByText(/google\/fleurs/);
+  await user.selectOptions(screen.getByLabelText("Model"), "Nemotron");
+  await user.clear(screen.getByLabelText("ASR language"));
+  await user.type(screen.getByLabelText("ASR language"), "en");
+  await user.click(screen.getByRole("button", { name: "Run evaluation" }));
+
+  expect(mock.run).toHaveBeenCalledOnce();
+  expect(mock.run.mock.calls[0]?.[1]).toBe(NEMOTRON_MODEL_ID);
 });
