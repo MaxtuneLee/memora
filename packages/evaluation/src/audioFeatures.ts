@@ -8,21 +8,19 @@ const PREEMPHASIS = 0.97;
 const LOG_ZERO_GUARD = 1e-10;
 const MEL_BIN_COUNT = 128;
 const FFT_BIN_COUNT = FFT_SIZE / 2 + 1;
+const MEL_LINEAR_SCALE = 200 / 3;
+const MEL_LOGARITHMIC_BOUNDARY = 1_000;
+const MEL_BOUNDARY_VALUE = MEL_LOGARITHMIC_BOUNDARY / MEL_LINEAR_SCALE;
+const MEL_LOGARITHMIC_STEP = Math.log(6.4) / 27;
 
 function hzToMel(frequency: number): number {
-  const linearScale = 200 / 3;
-  const logarithmicBoundary = 1_000;
-  const boundaryMel = logarithmicBoundary / linearScale;
-  if (frequency < logarithmicBoundary) return frequency / linearScale;
-  return boundaryMel + Math.log(frequency / logarithmicBoundary) / (Math.log(6.4) / 27);
+  if (frequency < MEL_LOGARITHMIC_BOUNDARY) return frequency / MEL_LINEAR_SCALE;
+  return MEL_BOUNDARY_VALUE + Math.log(frequency / MEL_LOGARITHMIC_BOUNDARY) / MEL_LOGARITHMIC_STEP;
 }
 
 function melToHz(mel: number): number {
-  const linearScale = 200 / 3;
-  const logarithmicBoundary = 1_000;
-  const boundaryMel = logarithmicBoundary / linearScale;
-  if (mel < boundaryMel) return mel * linearScale;
-  return logarithmicBoundary * Math.exp((Math.log(6.4) / 27) * (mel - boundaryMel));
+  if (mel < MEL_BOUNDARY_VALUE) return mel * MEL_LINEAR_SCALE;
+  return MEL_LOGARITHMIC_BOUNDARY * Math.exp(MEL_LOGARITHMIC_STEP * (mel - MEL_BOUNDARY_VALUE));
 }
 
 function createMelFilterbank(): Float32Array[] {
@@ -90,6 +88,7 @@ function fft(real: Float32Array, imaginary: Float32Array): void {
 }
 
 function reflectIndex(index: number, length: number): number {
+  if (length === 1) return 0;
   let reflected = index;
   while (reflected < 0 || reflected >= length) {
     reflected = reflected < 0 ? -reflected : 2 * length - 2 - reflected;

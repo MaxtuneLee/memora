@@ -19,6 +19,16 @@ describe("extractLogMelFeatures", () => {
     expect(frames.every((frame) => frame.length === 128)).toBe(true);
   });
 
+  it("extracts a centered frame from a single sample", () => {
+    const frames = extractLogMelFeatures({
+      pcm: new Float32Array([0.5]),
+      sampleRate: 16_000,
+    });
+
+    expect(frames).toHaveLength(1);
+    expect(frames[0].every(Number.isFinite)).toBe(true);
+  });
+
   it("produces near-zero mel energy for silence", () => {
     const frames = extractLogMelFeatures({
       pcm: new Float32Array(1_600),
