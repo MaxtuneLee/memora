@@ -172,6 +172,39 @@ describe("image document composition", () => {
       1,
     );
   });
+
+  test("assigns OCR text found inside a table region instead of discarding it", () => {
+    const blocks = composeImageDocumentBlocks({
+      detections: [
+        {
+          id: 1,
+          classId: 21,
+          label: "table",
+          score: 0.92,
+          bbox: [0, 0, 400, 120],
+          readingOrder: 0,
+        },
+      ],
+      ocrItems: [
+        {
+          poly: [
+            [10, 10],
+            [390, 10],
+            [390, 45],
+            [10, 45],
+          ],
+          text: "Verb Inflections in Four Italic Languages",
+          score: 0.96,
+        },
+      ],
+    });
+
+    expect(blocks[0]).toMatchObject({
+      kind: "table",
+      text: "Verb Inflections in Four Italic Languages",
+      recognition: "ocr",
+    });
+  });
 });
 
 describe("Texo LaTeX postprocessing", () => {
@@ -223,6 +256,21 @@ describe("image document Markdown", () => {
     expect(markdown).toContain("# Local documents");
     expect(markdown).toContain("E = mc^2 \\tag{1}");
     expect(markdown).toContain("<!-- table region · confidence 82.0% -->");
+  });
+
+  test("serializes recognized table text instead of a placeholder comment", () => {
+    const markdown = serializeImageDocumentMarkdown([
+      block({
+        id: "table",
+        kind: "table",
+        score: 0.93,
+        recognition: "ocr",
+        text: "Language | Present | Past",
+      }),
+    ]);
+
+    expect(markdown).toContain("Language | Present | Past");
+    expect(markdown).not.toContain("table region · confidence");
   });
 
   test("places inline formula LaTeX into the host text line by x coordinate", () => {

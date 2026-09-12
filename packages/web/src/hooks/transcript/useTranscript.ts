@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAppStore } from "@/livestore/store";
 import { MicVAD } from "@ricky0123/vad-web";
 import { dir as opfsDir } from "@memora/fs";
+import { isNemotronAsrModel } from "@memora/local-model-runtime";
+
+import { useAppStore } from "@/livestore/store";
 import { type RecordingWord, type TranscriptDiagnostics } from "@/types/library";
 import {
   TRANSFORMERS_CACHE_DIR,
@@ -10,10 +12,11 @@ import {
 } from "@/lib/transcript/transcriptUtils";
 import {
   getOrCreateWhisperWorker,
-  loadWhisperModel,
+  loadTranscriptionModel,
   subscribeToWhisperWorker,
   type WhisperProgressItem,
 } from "@/lib/transcript/whisper/client";
+import { useNemotronStreamCapture } from "@/hooks/transcript/useTranscript/useNemotronStreamCapture";
 import { useRecordingFinalizer } from "@/hooks/transcript/useTranscript/useRecordingFinalizer";
 import {
   chooseCompletedSpeechAudio,
@@ -21,11 +24,15 @@ import {
 } from "@/hooks/transcript/useTranscript/useSpeechBuffer";
 import { useSpeechQueue } from "@/hooks/transcript/useTranscript/useSpeechQueue";
 import { useWordAnimation } from "@/hooks/transcript/useTranscript/useWordAnimation";
-import { readTranscriptionRuntime } from "@/lib/models/transcriptionRuntime";
+import {
+  readTranscriptionRuntime,
+  type TranscriptionRuntime,
+} from "@/lib/models/transcriptionRuntime";
 
 export const useTranscript = () => {
   const store = useAppStore();
   const worker = useRef<Worker | null>(null);
+  const runtimeRef = useRef<TranscriptionRuntime | null>(null);
   const recordingRef = useRef(false);
   const [language, setLanguage] = useState(() => {
     if (typeof window === "undefined") return "en";
@@ -66,6 +73,7 @@ export const useTranscript = () => {
     useSpeechQueue({
       workerRef: worker,
       languageRef,
+      runtimeRef,
     });
   const {
     collectingRef,
@@ -77,6 +85,17 @@ export const useTranscript = () => {
     resetSpeechCollection,
   } = useSpeechBuffer({
     enqueueSpeech,
+  });
+  const {
+    start: startNemotronCapture,
+    stop: stopNemotronCapture,
+    suspend: suspendNemotronCapture,
+    resume: resumeNemotronCapture,
+    stopAudioGraph: stopNemotronAudioGraph,
+  } = useNemotronStreamCapture({
+    workerRef: worker,
+    runtimeRef,
+    languageRef,
   });
   const { clearWordAnimations, enqueueWordAnimation } = useWordAnimation({
     accumulatedTextRef,
@@ -192,7 +211,7 @@ export const useTranscript = () => {
     try {
       // Until the continuous cloud recording path is connected, reject that
       // selection explicitly instead of starting a different local model.
-      readTranscriptionRuntime(store);
+      return readTranscriptionRuntime(store);
     } catch (error) {
       setStatus("error");
       setLoadingMessage(
@@ -204,10 +223,11 @@ export const useTranscript = () => {
 
   const loadModel = useCallback(() => {
     try {
-      validateModelSelection();
+      const runtime = validateModelSelection();
+      runtimeRef.current = runtime;
       setLoadingMessage("");
       setStatus("loading");
-      loadWhisperModel(getOrCreateWhisperWorker(worker));
+      loadTranscriptionModel(getOrCreateWhisperWorker(worker), runtime);
     } catch {
       // The validation error is already exposed to the recording page.
     }
@@ -257,9 +277,11 @@ export const useTranscript = () => {
 
   const handleStartRecording = useCallback(async () => {
     if (status !== "ready") return;
-    validateModelSelection();
+    const runtime = validateModelSelection();
+    runtimeRef.current = runtime;
+    const isNemotron = isNemotronAsrModel(runtime.modelId);
     const mediaStream = await getOrCreateStream();
-    await ensureVAD();
+    if (!isNemotron) await ensureVAD();
     setRecording(true);
     setPaused(false);
     recordingRef.current = true;
@@ -296,37 +318,49 @@ export const useTranscript = () => {
     mediaRecorderRef.current = recorder;
     recorder.start(1000);
 
+    if (isNemotron) {
+      await startNemotronCapture(mediaStream);
+      return;
+    }
     void vadRef.current?.start();
-  }, [ensureVAD, finalizeIfReady, getOrCreateStream, status, validateModelSelection]);
+  }, [ensureVAD, getOrCreateStream, startNemotronCapture, status, validateModelSelection]);
 
   const handlePauseRecording = useCallback(() => {
     if (!recordingRef.current || paused) return;
     setPaused(true);
-    resetSpeechCollection();
-    void vadRef.current?.pause();
+    if (isNemotronAsrModel(runtimeRef.current?.modelId)) {
+      suspendNemotronCapture();
+    } else {
+      resetSpeechCollection();
+      void vadRef.current?.pause();
+    }
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.pause();
     }
-  }, [paused, resetSpeechCollection]);
+  }, [paused, resetSpeechCollection, suspendNemotronCapture]);
 
   const handleResumeRecording = useCallback(() => {
     if (!recordingRef.current || !paused) return;
     setPaused(false);
-    void vadRef.current?.start();
+    if (isNemotronAsrModel(runtimeRef.current?.modelId)) {
+      resumeNemotronCapture();
+    } else {
+      void vadRef.current?.start();
+    }
     if (mediaRecorderRef.current?.state === "paused") {
       mediaRecorderRef.current.resume();
     }
-  }, [paused]);
+  }, [paused, resumeNemotronCapture]);
 
   const handleFinalizeRecording = useCallback(() => {
     if (!recordingRef.current) return;
+    const isNemotron = isNemotronAsrModel(runtimeRef.current?.modelId);
     setRecording(false);
     setPaused(false);
     recordingRef.current = false;
     pendingSaveRef.current = true;
     resetSpeechCollection();
     clearWordAnimations();
-    void vadRef.current?.pause();
     if (
       mediaRecorderRef.current?.state === "recording" ||
       mediaRecorderRef.current?.state === "paused"
@@ -334,8 +368,15 @@ export const useTranscript = () => {
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
-    void finalizeIfReady();
-  }, [clearWordAnimations, finalizeIfReady, resetSpeechCollection]);
+    if (isNemotron) {
+      // Wait for the closing write/finish to land before deciding the recording is
+      // done, so we don't save it a beat before its transcript arrives.
+      void stopNemotronCapture().then(() => finalizeIfReady());
+    } else {
+      void vadRef.current?.pause();
+      void finalizeIfReady();
+    }
+  }, [clearWordAnimations, finalizeIfReady, resetSpeechCollection, stopNemotronCapture]);
 
   const handleReset = useCallback(() => {
     setAccumulatedText("");
@@ -397,6 +438,25 @@ export const useTranscript = () => {
                 ? message.output[0]
                 : "";
           const chunks = Array.isArray(message.chunks) ? message.chunks : [];
+          if (message.streaming) {
+            const text = newText.trim();
+            if (text) {
+              if (chunks.length > 0) {
+                enqueueWordAnimation(chunks, text);
+              } else {
+                setAccumulatedText(text);
+                accumulatedTextRef.current = text;
+              }
+              if (recordingIdRef.current) recordingTextRef.current = text;
+              if (recordingIdRef.current && chunks.length > 0) {
+                recordingWordsRef.current = chunks;
+              }
+            }
+            currentSegmentRef.current = null;
+            setCurrentSegment("");
+            void finalizeIfReady();
+            break;
+          }
           const segmentAudio = currentSegmentRef.current?.audio ?? new Float32Array();
           const evaluation = evaluateTranscriptCandidate({
             audio: segmentAudio,
@@ -454,12 +514,13 @@ export const useTranscript = () => {
 
   useEffect(() => {
     return () => {
+      void stopNemotronAudioGraph();
       void vadRef.current?.destroy();
       vadRef.current = null;
       streamRef.current?.getTracks().forEach((track) => track.stop());
       clearWordAnimations();
     };
-  }, [clearWordAnimations]);
+  }, [clearWordAnimations, stopNemotronAudioGraph]);
 
   return {
     isWebGpuAvailable,

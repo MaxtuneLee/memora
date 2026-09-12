@@ -217,10 +217,10 @@ const getStorageBreakdown = async () => {
   const sizes = createEmptyCategorySizes();
 
   await collectSizes(FILES_DIR, sizes);
-  const modelCacheUsage = await getDirectorySize("/transformers-cache");
+  const transformersCacheUsage = await getDirectorySize("/transformers-cache");
   return {
     contentCategorySizes: sizes,
-    modelCacheUsage,
+    modelCacheUsage: transformersCacheUsage,
   };
 };
 

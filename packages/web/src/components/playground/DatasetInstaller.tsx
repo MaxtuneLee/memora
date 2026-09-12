@@ -17,7 +17,6 @@ import type {
   MediaReference,
 } from "@memora/datasets";
 
-import { activeEvaluationRuns } from "@/lib/playground/activeEvaluationRuns";
 import { datasetClient } from "@/lib/playground/datasetClient";
 import { formatBytes } from "@/lib/format";
 
@@ -440,13 +439,6 @@ export default function DatasetInstaller(): JSX.Element {
                     aria-label={`Delete ${item.configuration} ${item.split}`}
                     className={secondaryButtonClassName}
                     onClick={() => {
-                      // ponytail: same-tab guard only, checked at click time rather than
-                      // reactively disabling the button; a running evaluation's own
-                      // SharedWorker session isn't visible to this component either way.
-                      if (activeEvaluationRuns.isActive(selectionOf(item))) {
-                        setError("This split is in use by a running evaluation.");
-                        return;
-                      }
                       void datasetClient
                         .delete(selectionOf(item))
                         .then(refreshInstalled, (reason: unknown) =>

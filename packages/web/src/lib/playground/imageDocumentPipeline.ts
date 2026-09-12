@@ -325,7 +325,8 @@ const assignOcrLines = (
 ): Map<string, RecognizedTextLine[]> => {
   const assignments = new Map<string, RecognizedTextLine[]>();
   const ocrBlocks = blocks.filter(
-    (block) => TEXT_KINDS.has(block.kind) || block.kind === "formula_number",
+    (block) =>
+      TEXT_KINDS.has(block.kind) || block.kind === "formula_number" || block.kind === "table",
   );
 
   for (const line of lines) {
@@ -491,8 +492,8 @@ export const composeImageDocumentBlocks = ({
       const rect = bboxToRect(detection.bbox);
       const latex = formulaLatex.get(detection.id)?.trim();
       const isFormula = kind === "display_formula" || kind === "inline_formula";
-      const isPlaceholder = kind === "table" || kind === "image" || kind === "chart";
-      const usesOcr = TEXT_KINDS.has(kind) || kind === "formula_number";
+      const isPlaceholder = kind === "image" || kind === "chart";
+      const usesOcr = TEXT_KINDS.has(kind) || kind === "formula_number" || kind === "table";
       return {
         id: `layout-${detection.id}`,
         classId: detection.classId,
@@ -557,7 +558,11 @@ export const serializeImageDocumentMarkdown = (blocks: ImageDocumentBlock[]): st
       sections.push(`$$\n${latex}\n$$`);
     } else if (block.kind === "inline_formula" && block.latex) {
       sections.push(`$${block.latex}$`);
-    } else if (block.kind === "table" || block.kind === "image" || block.kind === "chart") {
+    } else if (block.kind === "table") {
+      sections.push(
+        block.text || `<!-- table region · confidence ${(block.score * 100).toFixed(1)}% -->`,
+      );
+    } else if (block.kind === "image" || block.kind === "chart") {
       sections.push(
         `<!-- ${escapeHtmlComment(block.kind)} region · confidence ${(block.score * 100).toFixed(1)}% -->`,
       );

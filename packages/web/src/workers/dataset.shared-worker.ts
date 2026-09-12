@@ -8,6 +8,7 @@ import {
   resolveDatasetSplit,
   type Dataset,
   type DatasetExample,
+  type DatasetSelection,
 } from "@memora/datasets";
 
 import type {
@@ -19,6 +20,21 @@ import type {
 const handles = new Map<string, { dataset: Dataset; iterator: AsyncIterator<DatasetExample> }>();
 const operations = new Map<string, AbortController>();
 let handleSequence = 0;
+
+// Reserved by evaluationClient (from the initiating tab) before it starts an evaluation, and
+// released once it settles. This worker is the single owner of installed splits across every
+// tab, and "reserve"/"release" are handled synchronously below (no `await` before the mutation),
+// so a "delete" processed after a "reserve" response resolves is guaranteed to see it.
+const reservations: { selection: DatasetSelection; count: number }[] = [];
+
+function sameSelection(a: DatasetSelection, b: DatasetSelection): boolean {
+  return (
+    a.datasetId === b.datasetId &&
+    a.revision === b.revision &&
+    a.configuration === b.configuration &&
+    a.split === b.split
+  );
+}
 
 function post(port: MessagePort, response: DatasetWorkerResponse, transfer?: Transferable[]) {
   port.postMessage(response, transfer ?? []);
@@ -99,6 +115,22 @@ async function execute(
     handles.get(request.handleId)?.dataset.close();
     handles.delete(request.handleId);
     return null;
+  }
+  if (request.type === "reserve") {
+    const existing = reservations.find((entry) => sameSelection(entry.selection, request.selection));
+    if (existing) existing.count += 1;
+    else reservations.push({ selection: request.selection, count: 1 });
+    return null;
+  }
+  if (request.type === "release") {
+    const existing = reservations.find((entry) => sameSelection(entry.selection, request.selection));
+    if (existing && --existing.count <= 0) reservations.splice(reservations.indexOf(existing), 1);
+    return null;
+  }
+  if (reservations.some((entry) => sameSelection(entry.selection, request.selection))) {
+    throw Object.assign(new Error("This split is in use by a running evaluation."), {
+      code: "dataset-in-use",
+    });
   }
   await deleteInstalledDataset(request.selection);
   return null;

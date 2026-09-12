@@ -1,6 +1,9 @@
 import { getLocalModelManifest, validateLocalChatRequest } from "../validation";
 import type { LocalModelEvent, LocalModelTask } from "../types";
 
+import { isNemotronAsrModel } from "../manifests";
+import { runNemotronStream, runNemotronTranscription } from "./asr/nemotron";
+import { loadNemotronSessions } from "./asr/nemotron/sessions";
 import { runWhisperTranscription } from "./asr/whisper";
 import { preloadGemma4Chat, runGemma4Chat } from "./chat/gemma4";
 import { preloadQwen35Chat, runQwen35Chat } from "./chat/qwen35";
@@ -11,6 +14,7 @@ export const runLocalModelTask = async (
   task: LocalModelTask,
   emit: (event: LocalModelEvent) => void,
   canceled: () => boolean = () => false,
+  stream?: { nextChunk: () => Promise<{ audio: Float32Array; acknowledge: () => void } | null> },
 ): Promise<void> => {
   switch (task.kind) {
     case "embedding.generate":
@@ -44,6 +48,10 @@ export const runLocalModelTask = async (
       }
 
       if (manifest.task === "asr") {
+        if (isNemotronAsrModel(manifest.id)) {
+          await loadNemotronSessions(emit);
+          return;
+        }
         await runWhisperTranscription(
           {
             modelId: manifest.id,
@@ -66,7 +74,22 @@ export const runLocalModelTask = async (
       return;
     }
     case "asr.transcribe":
-      await runWhisperTranscription(task.input, emit);
+      if (isNemotronAsrModel(task.input.modelId)) await runNemotronTranscription(task.input, emit);
+      else await runWhisperTranscription(task.input, emit);
+      return;
+    case "asr.stream-open":
+      if (!isNemotronAsrModel(task.input.modelId)) {
+        emit({
+          type: "error",
+          error: {
+            code: "model-not-found",
+            message: `Streaming ASR is not available for ${task.input.modelId}.`,
+          },
+        });
+        return;
+      }
+      if (!stream) throw new Error("Streaming ASR requires a stream source.");
+      await runNemotronStream(task.input, stream, emit);
       return;
     case "chat.generate": {
       const validation = validateLocalChatRequest(task.input);

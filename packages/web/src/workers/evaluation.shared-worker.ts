@@ -1,5 +1,6 @@
 import { openDataset } from "@memora/datasets";
 import { runEvaluation, type ModelAdapter } from "@memora/evaluation";
+import { getLocalModelManifest } from "@memora/local-model-runtime";
 
 import type {
   EvaluationWorkerRequest,
@@ -48,12 +49,16 @@ const requestModel = (
     post(port, message, transfer);
   });
 
-const createAdapter = (port: MessagePort, modelId: string, language: string): ModelAdapter => ({
+const createLocalAsrAdapter = (
+  port: MessagePort,
+  modelId: string,
+  language: string,
+): ModelAdapter => ({
   identity: {
     modelId,
     modelRevision: { status: "unknown" },
-    adapter: "whisper",
-    runtime: "transformers-js",
+    adapter: getLocalModelManifest(modelId)?.asr?.adapter ?? "unknown",
+    runtime: getLocalModelManifest(modelId)?.runtime ?? "unknown",
     inference: { language, priority: "background" },
   },
   initialize: async (signal) => {
@@ -102,7 +107,7 @@ async function execute(port: MessagePort, request: EvaluationWorkerRequest): Pro
   try {
     const result = await runEvaluation({
       dataset,
-      model: createAdapter(port, request.modelId, request.language),
+      model: createLocalAsrAdapter(port, request.modelId, request.language),
       signal: controller.signal,
       onProgress: (progress) => post(port, { id: request.id, type: "progress", progress }),
     });

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp build && find dist/client/assets -maxdepth 1 -iname 'ort-wasm-simd-threaded.jsep-*.wasm' -delete",
     "deploy": "void deploy --project memora",
     "lint": "vp lint .",
     "test": "vp test test",
@@ -67,7 +67,7 @@
     "lucide-react": "^1.33.0",
     "mammoth": "^1.12.1",
     "motion": "^12.26.2",
-    "onnxruntime-web": "^1.23.2",
+    "onnxruntime-web": "1.26.0",
     "partial-json": "^0.1.7",
     "pdfjs-dist": "^6.2.108",
     "postcss": "^8.5.6",

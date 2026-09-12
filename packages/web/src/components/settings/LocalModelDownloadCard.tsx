@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CheckIcon, TrashIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import LocalModelDownloadFiles from "@/components/settings/LocalModelDownloadFiles";
@@ -21,6 +21,7 @@ interface LocalModelDownloadCardProps {
   meta?: ReactNode;
   onDownload: (modelId: string) => void;
   onRefresh?: (modelId: string) => void;
+  onDelete?: (modelId: string) => void;
 }
 
 const getManifestTotalBytes = (model: LocalModelOption): number | undefined => {
@@ -48,6 +49,7 @@ export default function LocalModelDownloadCard({
   meta,
   onDownload,
   onRefresh,
+  onDelete,
 }: LocalModelDownloadCardProps) {
   const manifestTotalBytes = getManifestTotalBytes(model);
   const totalBytes = getLocalModelDownloadTotalBytes(state, manifestTotalBytes);
@@ -60,6 +62,7 @@ export default function LocalModelDownloadCard({
   const resolvedDescription = description ?? model.manifest.modelId;
   const totalSizeLabel = formatBytes(totalBytes);
   const downloadedSizeLabel = formatBytes(downloadedBytes);
+  const cachedSizeLabel = formatBytes(state?.cache?.totalBytes ?? manifestTotalBytes);
 
   return (
     <section
@@ -72,9 +75,14 @@ export default function LocalModelDownloadCard({
           {meta ? <div className="mt-2">{meta}</div> : null}
         </div>
         {isCached ? (
-          <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#eef3e2] px-3 py-1 text-sm font-semibold text-[#5c6c3d]">
-            <CheckIcon className="size-3.5" weight="bold" />
-            <span>Downloaded</span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#eef3e2] px-3 py-1 text-sm font-semibold text-[#5c6c3d]">
+              <CheckIcon className="size-3.5" weight="bold" />
+              <span>Downloaded</span>
+            </div>
+            {cachedSizeLabel ? (
+              <span className="text-xs font-semibold text-[#6f695f]">{cachedSizeLabel}</span>
+            ) : null}
           </div>
         ) : totalSizeLabel ? (
           <p className="shrink-0 text-sm font-semibold tabular-nums text-[#6f695f]">
@@ -120,6 +128,17 @@ export default function LocalModelDownloadCard({
           >
             <ArrowsClockwiseIcon className={cn("size-3.5", isChecking ? "animate-spin" : "")} />
             <span>Refresh</span>
+          </Button>
+        ) : null}
+        {onDelete && isCached ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onDelete(model.id)}
+            disabled={isDownloading}
+          >
+            <TrashIcon className="size-3.5" />
+            <span>Delete</span>
           </Button>
         ) : null}
       </div>

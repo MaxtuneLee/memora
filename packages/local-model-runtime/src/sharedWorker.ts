@@ -12,6 +12,7 @@ import type {
   LocalModelRequestEnvelope,
   LocalModelSequencedEventEnvelope,
   LocalModelSharedWorkerMessage,
+  LocalModelStreamAcknowledgement,
   LocalModelTask,
   LocalModelTaskStatus,
 } from "./types";
@@ -19,6 +20,9 @@ import type {
 export interface SharedModelTaskContext {
   emit: (event: LocalModelEvent) => void;
   isCanceled: () => boolean;
+  stream?: {
+    nextChunk: () => Promise<{ audio: Float32Array; acknowledge: () => void } | null>;
+  };
 }
 
 export type SharedModelTaskRunner = (
@@ -40,6 +44,13 @@ interface RequestState {
   replaying: boolean;
   persistChain: Promise<void>;
   persistTimer: ReturnType<typeof setTimeout> | null;
+  stream?: {
+    chunks: Array<{ chunkId: string; audio: Float32Array; port: MessagePort }>;
+    waiting:
+      | ((chunk: { chunkId: string; audio: Float32Array; port: MessagePort } | null) => void)
+      | null;
+    closed: boolean;
+  };
 }
 
 const SNAPSHOT_FLUSH_DELAY_MS = 200;
@@ -47,6 +58,7 @@ const SNAPSHOT_FLUSH_DELAY_MS = 200;
 const getTaskPool = (task: LocalModelTask): LocalModelPoolKey | undefined => {
   switch (task.kind) {
     case "asr.transcribe":
+    case "asr.stream-open":
       return "asr";
     case "chat.generate":
       return "chat";
@@ -195,9 +207,51 @@ export const startSharedModelWorkerRuntime = ({
       modelId: "input" in queued.task.input ? queued.task.input.modelId : undefined,
     });
     emit(request, { type: "status", status: "assigned" });
+    const stream = request.stream
+      ? {
+          nextChunk: async (): Promise<{ audio: Float32Array; acknowledge: () => void } | null> => {
+            const next = request.stream?.chunks.shift();
+            if (next) {
+              return {
+                audio: next.audio,
+                acknowledge: () => {
+                  next.port.postMessage({
+                    type: "stream-ack",
+                    requestId: request.snapshot.requestId,
+                    chunkId: next.chunkId,
+                    accepted: true,
+                  } satisfies LocalModelStreamAcknowledgement);
+                },
+              };
+            }
+            if (!request.stream || request.stream.closed) return null;
+            const stream = request.stream;
+            return new Promise<{ audio: Float32Array; acknowledge: () => void } | null>(
+              (resolve) => {
+                stream.waiting = (chunk) => {
+                  stream.waiting = null;
+                  if (!chunk) return resolve(null);
+                  resolve({
+                    audio: chunk.audio,
+                    acknowledge: () => {
+                      chunk.port.postMessage({
+                        type: "stream-ack",
+                        requestId: request.snapshot.requestId,
+                        chunkId: chunk.chunkId,
+                        accepted: true,
+                      } satisfies LocalModelStreamAcknowledgement);
+                    },
+                  });
+                };
+              },
+            );
+          },
+        }
+      : undefined;
     void runTask(queued.task, {
       emit: (event) => emitRuntimeEvent(request, event),
       isCanceled: () => request.canceled,
+      ...(stream ? { stream } : {}),
     })
       .catch((error) => {
         console.error("[local-model-worker] task failed", {
@@ -288,6 +342,9 @@ export const startSharedModelWorkerRuntime = ({
       replaying: false,
       persistChain: Promise.resolve(),
       persistTimer: null,
+      ...(message.task.kind === "asr.stream-open"
+        ? { stream: { chunks: [], waiting: null, closed: false } }
+        : {}),
     };
     requests.set(message.requestId, request);
     try {
@@ -314,6 +371,39 @@ export const startSharedModelWorkerRuntime = ({
     for (const request of requests.values()) request.subscribers.delete(port);
   };
 
+  const acknowledgeRejectedStreamChunk = (
+    port: MessagePort,
+    requestId: string,
+    chunkId: string,
+    error: string,
+  ): void => {
+    port.postMessage({
+      type: "stream-ack",
+      requestId,
+      chunkId,
+      accepted: false,
+      error,
+    } satisfies LocalModelStreamAcknowledgement);
+  };
+
+  const closeStream = (request: RequestState, error?: string): void => {
+    const stream = request.stream;
+    if (!stream) return;
+    stream.closed = true;
+    if (stream.waiting) stream.waiting(null);
+    stream.waiting = null;
+    if (error) {
+      for (const chunk of stream.chunks.splice(0)) {
+        acknowledgeRejectedStreamChunk(
+          chunk.port,
+          request.snapshot.requestId,
+          chunk.chunkId,
+          error,
+        );
+      }
+    }
+  };
+
   const handleMessage = async (
     port: MessagePort,
     message: LocalModelSharedWorkerMessage,
@@ -331,8 +421,35 @@ export const startSharedModelWorkerRuntime = ({
           return;
         }
         request.canceled = true;
+        closeStream(request, "Stream was canceled.");
         queue.remove(message.requestId);
         emit(request, { type: "status", status: "aborted" });
+        return;
+      }
+      case "stream-chunk": {
+        const request = requests.get(message.requestId);
+        if (
+          !request?.stream ||
+          request.canceled ||
+          isTerminalStatusValue(request.snapshot.status)
+        ) {
+          acknowledgeRejectedStreamChunk(
+            port,
+            message.requestId,
+            message.chunkId,
+            "Stream is closed.",
+          );
+          return;
+        }
+        const chunk = { chunkId: message.chunkId, audio: message.audio, port };
+        if (request.stream.waiting) request.stream.waiting(chunk);
+        else request.stream.chunks.push(chunk);
+        return;
+      }
+      case "stream-close": {
+        const request = requests.get(message.requestId);
+        if (!request?.stream) return;
+        closeStream(request);
         return;
       }
       case "acknowledge": {
@@ -371,10 +488,19 @@ export const startSharedModelWorkerRuntime = ({
         const replayEvents = terminal
           ? []
           : snapshot.events.map((item) => item.event).filter(isReplayOutputEvent);
+        const interruptedStream = !terminal && snapshot.task.kind === "asr.stream-open";
+        if (interruptedStream) {
+          snapshot.status = "aborted";
+          snapshot.events.push({
+            sequence: (snapshot.events.at(-1)?.sequence ?? 0) + 1,
+            event: { type: "status", status: "aborted" },
+          });
+          void taskStore.updateSnapshot(pool, snapshot);
+        }
         requests.set(snapshot.requestId, {
           snapshot,
           subscribers: new Set(),
-          canceled: snapshot.status === "aborted",
+          canceled: snapshot.status === "aborted" || interruptedStream,
           failed: false,
           replayEvents,
           replayIndex: 0,
@@ -382,7 +508,7 @@ export const startSharedModelWorkerRuntime = ({
           persistChain: Promise.resolve(),
           persistTimer: null,
         });
-        if (!terminal) {
+        if (!terminal && !interruptedStream) {
           snapshot.status = "queued";
           queue.enqueue({
             requestId: snapshot.requestId,

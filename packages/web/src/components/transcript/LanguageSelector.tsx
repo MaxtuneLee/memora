@@ -19,14 +19,13 @@ const LANGUAGES = [
   { code: "pt", name: "Portuguese" },
 ];
 
-const languageItems = LANGUAGES.map((language) => ({
-  value: language.code,
-  label: language.name,
-}));
+const AUTO_DETECT_LANGUAGE = { code: "auto", name: "Auto-detect" };
 
 interface LanguageSelectorProps {
   language: string;
   setLanguage: (language: string) => void;
+  /** Only Nemotron actually auto-detects language; other models need an explicit code. */
+  includeAutoDetect?: boolean;
 }
 
 interface LanguageSelectorLayout {
@@ -50,13 +49,19 @@ const INITIAL_LAYOUT: LanguageSelectorLayout = {
   triggerWidth: 172,
 };
 
-export function LanguageSelector({ language, setLanguage }: LanguageSelectorProps) {
+export function LanguageSelector({
+  language,
+  setLanguage,
+  includeAutoDetect = false,
+}: LanguageSelectorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [layout, setLayout] = useState<LanguageSelectorLayout>(INITIAL_LAYOUT);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const languages = includeAutoDetect ? [AUTO_DETECT_LANGUAGE, ...LANGUAGES] : LANGUAGES;
+  const languageItems = languages.map((entry) => ({ value: entry.code, label: entry.name }));
 
   const syncLayout = useCallback(() => {
     const trigger = triggerRef.current;
@@ -146,7 +151,7 @@ export function LanguageSelector({ language, setLanguage }: LanguageSelectorProp
         <div className="language-selector-panel language-selector-panel--measure">
           <div className="language-selector-body language-selector-body--measure">
             <div className="language-selector-list">
-              {LANGUAGES.map((lang) => {
+              {languages.map((lang) => {
                 const isSelected = lang.code === language;
 
                 return (
@@ -200,7 +205,7 @@ export function LanguageSelector({ language, setLanguage }: LanguageSelectorProp
                   <div className="language-selector-shell" />
                   <div className="language-selector-body">
                     <Select.List className="language-selector-list">
-                      {LANGUAGES.map((lang) => (
+                      {languages.map((lang) => (
                         <Select.Item
                           key={lang.code}
                           value={lang.code}

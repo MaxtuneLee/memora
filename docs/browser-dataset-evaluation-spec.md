@@ -84,7 +84,7 @@ Memora 需要在浏览器中用真实数据集评测端侧模型。目前的数�
 - 单次 run 保存 dataset ID、resolved revision、configuration、split、模型身份、评测参数、起止时间、状态和 example results。example 使用 split 中稳定序号并保留源 id，无需依赖跨版本 ExampleKey 系统。
 - 每条结果保存 reference、prediction 或结构化错误、耗时和指标所需计数。单条模型/媒体错误记录后继续；模型不可用、存储不可用等全局故障终止并明确报告。
 - 实现 WER 与 CER 的可测试纯函数，以及明确 ID/version 的 normalization profile。保存原始文本与参与计分的文本；不静默进行未记录的语言清洗。
-- 默认采用 NFC、去除首尾空白和规范化空白序列，保留大小写与标点；WER 按空白分词，CER 按 Unicode code point 计数并排除规范化后的空白。该规则是首版明示的评测规则，不声称等同某官方排行榜协议。
+- 默认采用 NFC、转小写、去除标点、去除首尾空白和规范化空白序列；WER 按空白分词，CER 按 Unicode code point 计数并排除规范化后的空白。大小写与标点差异不计入错误，因为 FLEURS 等参考文本通常是无标点的小写文本，而模型输出天然带大小写和标点。该规则是首版明示的评测规则，不声称等同某官方排行榜协议。
 - 汇总按总编辑距离除以总 reference 单位数计算，不平均每条比例；WER/CER 可大于 1。零分母的汇总为 null 并附原因，保留插入/删除/替换计数。失败 example 不参与准确率分母，必须同时展示总数、成功数、失败数和取消状态。
 - 下载与模型初始化时间独立于每条调用耗时，调用耗时含队列等待并明确标注，不宣称纯模型执行延迟。首版不建立专门性能基准框架。
 - 评测结果为一个有版本标记的 JSON 文档，完成后保存 OPFS，并可在 UI 查询已有结果和下载 JSON。主动取消时可保存当前部分结果并标记 canceled；页面强制关闭可能丢失未完成 run。没有 checkpoint、结果分段或二进制 artifact store。

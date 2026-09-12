@@ -9,7 +9,10 @@ import {
   type EvaluationResult,
   type SavedResultSummary,
 } from "@memora/evaluation";
-import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
+import {
+  nemotron35AsrStreamingManifest,
+  whisperBaseTimestampedManifest,
+} from "@memora/local-model-runtime";
 
 import { datasetClient } from "@/lib/playground/datasetClient";
 import { downloadEvaluationJson } from "@/lib/playground/downloadEvaluationJson";
@@ -38,6 +41,7 @@ export default function AsrEvaluation() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
   const [selectionKey, setSelectionKey] = useState("");
   const [language, setLanguage] = useState("en");
+  const [modelId, setModelId] = useState(whisperBaseTimestampedManifest.id);
   const [progress, setProgress] = useState<EvaluationProgress>();
   const [result, setResult] = useState<EvaluationResult>();
   const [error, setError] = useState<string>();
@@ -74,7 +78,7 @@ export default function AsrEvaluation() {
     try {
       const evaluated = await evaluationClient.run(
         selectionOf(selected),
-        whisperBaseTimestampedManifest.id,
+        modelId,
         language,
         { signal: nextController.signal, onProgress: setProgress },
       );
@@ -120,7 +124,7 @@ export default function AsrEvaluation() {
           waiting.
         </p>
       </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.45fr)_auto]">
+      <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,0.35fr)_minmax(180px,0.35fr)_auto]">
         <label className="text-sm font-medium text-memora-text">
           Installed split
           <select
@@ -137,6 +141,22 @@ export default function AsrEvaluation() {
                 {item.datasetId} · {item.configuration}/{item.split}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-memora-text">
+          Model
+          <select
+            className={`${inputClassName} mt-2`}
+            value={modelId}
+            onChange={(event) => setModelId(event.target.value)}
+            disabled={running}
+          >
+            <option value={whisperBaseTimestampedManifest.id}>
+              {whisperBaseTimestampedManifest.displayName}
+            </option>
+            <option value={nemotron35AsrStreamingManifest.id}>
+              {nemotron35AsrStreamingManifest.displayName}
+            </option>
           </select>
         </label>
         <label className="text-sm font-medium text-memora-text">

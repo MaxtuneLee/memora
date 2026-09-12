@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   query: vi.fn(),
   commit: vi.fn(),
   load: vi.fn(),
+  transcribe: vi.fn(),
   directory: vi.fn(),
   microphone: vi.fn(),
   callback: undefined as ((message: WhisperWorkerMessage) => void) | undefined,
@@ -29,8 +30,8 @@ vi.mock("@/lib/transcript/whisper/client", () => ({
       state.callback = undefined;
     };
   },
-  loadWhisperModel: state.load,
-  generateWhisperTranscript: vi.fn(),
+  loadTranscriptionModel: state.load,
+  generateTranscription: state.transcribe,
 }));
 
 const cloudRoute = {
@@ -89,5 +90,22 @@ describe("recording feature selection", () => {
     expect(result.current.status).toBe("ready");
     expect(result.current.loadingMessage).toBe("");
     expect(state.load).toHaveBeenCalledOnce();
+  });
+
+  test("loads the selected Nemotron runtime", () => {
+    state.query.mockReturnValue({
+      modelRouting: {
+        transcription: {
+          source: "local",
+          modelId: "nemotron-3.5-asr-streaming-0.6b-int4",
+        },
+      },
+    });
+    const { result } = renderHook(() => useTranscript());
+    act(() => result.current.loadModel());
+    expect(state.load).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ modelId: "nemotron-3.5-asr-streaming-0.6b-int4" }),
+    );
   });
 });

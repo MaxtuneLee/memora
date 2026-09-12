@@ -20,6 +20,29 @@ export const whisperBaseTimestampedManifest: LocalModelManifest = {
   },
 };
 
+export const nemotron35AsrStreamingManifest: LocalModelManifest = {
+  id: "nemotron-3.5-asr-streaming-0.6b-int4",
+  displayName: "Nemotron 3.5 ASR Streaming 0.6B",
+  downloadSizeGB: 0.86,
+  family: "nemotron",
+  task: "asr",
+  modelId: "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4",
+  runtime: "onnxruntime-web",
+  device: "webgpu",
+  pool: "asr",
+  modalities: {
+    input: ["audio"],
+    output: ["text"],
+  },
+  asr: {
+    adapter: "nemotron",
+    supportsWordTimestamps: true,
+  },
+};
+
+export const isNemotronAsrModel = (modelId: string | undefined): boolean =>
+  modelId === nemotron35AsrStreamingManifest.id;
+
 export const qwen35OnnxOptManifest: LocalModelManifest = {
   id: "qwen3.5-0.8b-onnx-opt",
   displayName: "Qwen3.5 0.8B ONNX OPT",
@@ -113,6 +136,7 @@ export const gemma4E2bOnnxManifest: LocalModelManifest = {
 
 export const builtInLocalModelManifests = [
   whisperBaseTimestampedManifest,
+  nemotron35AsrStreamingManifest,
   qwen35OnnxOptManifest,
   gemma4E2bOnnxManifest,
 ] as const;

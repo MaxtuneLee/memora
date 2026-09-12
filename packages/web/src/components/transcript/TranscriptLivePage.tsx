@@ -1,4 +1,5 @@
 import { GearSixIcon, SlidersHorizontalIcon, WarningIcon } from "@phosphor-icons/react";
+import { isNemotronAsrModel } from "@memora/local-model-runtime";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -21,10 +22,14 @@ import {
   type TranscriptionRailPhase,
 } from "@/components/transcript/transcriptionControlMotion";
 import type { SettingsSectionId } from "@/types/settings";
+import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useTranscript } from "@/hooks/transcript/useTranscript";
 
 export const Component = () => {
+  const { routing } = useModelRouting();
+  const isNemotronSelected =
+    routing.transcription.source === "local" && isNemotronAsrModel(routing.transcription.modelId);
   const {
     isWebGpuAvailable,
     status,
@@ -245,7 +250,11 @@ export const Component = () => {
                   <AppMenuContent className="min-w-55 rounded-xl bg-white shadow-lg">
                     <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
                       <div className="mt-2">
-                        <LanguageSelector language={language} setLanguage={updateLanguage} />
+                        <LanguageSelector
+                          language={language}
+                          setLanguage={updateLanguage}
+                          includeAutoDetect={isNemotronSelected}
+                        />
                       </div>
                     </div>
                     <div className="my-2 h-px bg-zinc-100" />

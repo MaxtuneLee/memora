@@ -2,7 +2,7 @@ import type { DatasetSelection } from "@memora/datasets";
 import type { EvaluationProgress, EvaluationResult } from "@memora/evaluation";
 
 import { localModelClient } from "../local-model/client";
-import { activeEvaluationRuns } from "./activeEvaluationRuns";
+import { datasetClient } from "./datasetClient";
 import type { EvaluationWorkerRequest, EvaluationWorkerResponse } from "./evaluationWorkerProtocol";
 
 interface PendingRun {
@@ -108,35 +108,44 @@ export const evaluationClient = {
   ): Promise<EvaluationResult> {
     const id = crypto.randomUUID();
     const workerPort = getPort();
-    const release = activeEvaluationRuns.begin(selection);
-    return new Promise((resolve, reject) => {
-      const abort = () =>
+    // Reserve the split with the dataset SharedWorker (the single owner visible to every
+    // tab) before the evaluation worker opens it, so a delete request racing this run is
+    // guaranteed to see the reservation once this await resolves.
+    return datasetClient.reserve(selection).then((): Promise<EvaluationResult> => {
+      const release = () => void datasetClient.release(selection);
+      if (options?.signal?.aborted) {
+        release();
+        return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+      }
+      return new Promise((resolve, reject) => {
+        const abort = () =>
+          workerPort.postMessage({
+            id: crypto.randomUUID(),
+            type: "cancel",
+            targetId: id,
+          } satisfies EvaluationWorkerRequest);
+        options?.signal?.addEventListener("abort", abort, { once: true });
+        runs.set(id, {
+          resolve: (result) => {
+            options?.signal?.removeEventListener("abort", abort);
+            release();
+            resolve(result);
+          },
+          reject: (error) => {
+            options?.signal?.removeEventListener("abort", abort);
+            release();
+            reject(error);
+          },
+          onProgress: options?.onProgress,
+        });
         workerPort.postMessage({
-          id: crypto.randomUUID(),
-          type: "cancel",
-          targetId: id,
+          id,
+          type: "run",
+          selection,
+          modelId,
+          language,
         } satisfies EvaluationWorkerRequest);
-      options?.signal?.addEventListener("abort", abort, { once: true });
-      runs.set(id, {
-        resolve: (result) => {
-          options?.signal?.removeEventListener("abort", abort);
-          release();
-          resolve(result);
-        },
-        reject: (error) => {
-          options?.signal?.removeEventListener("abort", abort);
-          release();
-          reject(error);
-        },
-        onProgress: options?.onProgress,
       });
-      workerPort.postMessage({
-        id,
-        type: "run",
-        selection,
-        modelId,
-        language,
-      } satisfies EvaluationWorkerRequest);
     });
   },
 };

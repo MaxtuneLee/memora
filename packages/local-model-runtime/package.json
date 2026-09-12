@@ -26,7 +26,8 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0"
+    "@huggingface/transformers": "^4.2.0",
+    "onnxruntime-web": "1.26.0"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

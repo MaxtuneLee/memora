@@ -10,6 +10,13 @@ import type {
   LocalModelTask,
 } from "./types";
 
+export interface LocalAsrStream {
+  events: AsyncGenerator<LocalAsrEvent>;
+  write: (audio: Float32Array) => Promise<void>;
+  close: () => Promise<void>;
+  abort: () => void;
+}
+
 export interface LocalModelWorkerRunner {
   run: (
     pool: LocalModelPoolKey,
@@ -20,6 +27,11 @@ export interface LocalModelWorkerRunner {
       transfer?: Transferable[];
     },
   ) => AsyncGenerator<LocalModelEvent>;
+  openAsrStream?: (input: {
+    request: { modelId: string; language: string; returnTimestamps?: "word" };
+    priority: LocalModelPriority;
+    signal?: AbortSignal;
+  }) => LocalAsrStream;
 }
 
 export interface LocalModelClient {
@@ -35,6 +47,10 @@ export interface LocalModelClient {
     modelId: string,
     options?: { priority?: LocalModelPriority; signal?: AbortSignal },
   ) => AsyncGenerator<LocalChatEvent>;
+  openAsrStream: (
+    request: { modelId: string; language: string; returnTimestamps?: "word" },
+    options?: { priority?: LocalModelPriority; signal?: AbortSignal },
+  ) => LocalAsrStream;
 }
 
 const modelNotFoundEvents = async function* (modelId: string): AsyncGenerator<LocalChatEvent> {
@@ -79,6 +95,15 @@ export const createLocalModelClient = (workerFactory: LocalModelWorkerRunner): L
         task: { kind: "model.preload", input: { modelId } },
         signal: options.signal,
       }) as AsyncGenerator<LocalChatEvent>;
+    },
+    openAsrStream(request, options = {}) {
+      if (!workerFactory.openAsrStream)
+        throw new Error("The local model worker does not support streaming ASR.");
+      return workerFactory.openAsrStream({
+        request,
+        priority: options.priority ?? "interactive",
+        signal: options.signal,
+      });
     },
   };
 };

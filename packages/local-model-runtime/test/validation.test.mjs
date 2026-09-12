@@ -22,7 +22,12 @@ const qwenRequest = {
 test("exports initial manifests", () => {
   assert.deepEqual(
     builtInLocalModelManifests.map((manifest) => manifest.id),
-    ["whisper-base-timestamped", "qwen3.5-0.8b-onnx-opt", "gemma-4-e2b-it-onnx"],
+    [
+      "whisper-base-timestamped",
+      "nemotron-3.5-asr-streaming-0.6b-int4",
+      "qwen3.5-0.8b-onnx-opt",
+      "gemma-4-e2b-it-onnx",
+    ],
   );
 });
 

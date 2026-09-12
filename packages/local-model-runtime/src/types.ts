@@ -8,7 +8,7 @@ export type LocalModelTaskStatus =
   | "completed"
   | "failed"
   | "aborted";
-export type LocalModelRuntime = "transformers-js";
+export type LocalModelRuntime = "transformers-js" | "onnxruntime-web";
 export type LocalModelDevice = "webgpu" | "wasm";
 export type LocalModelModality = "text" | "image" | "audio" | "video";
 export type LocalModelOutputModality = "text" | "json" | "tool-call";
@@ -124,6 +124,12 @@ export interface LocalAsrRequest {
   returnTimestamps?: "word";
 }
 
+export interface LocalAsrStreamOpenRequest {
+  modelId: string;
+  language: string;
+  returnTimestamps?: "word";
+}
+
 export type LocalEmbeddingModel = "bge-small-en" | "bge-m3";
 export type LocalModelExecutionBackend = "webgpu" | "wasm";
 
@@ -138,6 +144,7 @@ export interface LocalFormulaRequest {
 
 export type LocalModelTask =
   | { kind: "asr.transcribe"; input: LocalAsrRequest }
+  | { kind: "asr.stream-open"; input: LocalAsrStreamOpenRequest }
   | { kind: "chat.generate"; input: LocalChatRequest }
   | { kind: "model.preload"; input: { modelId: string } }
   | { kind: "embedding.generate"; input: LocalEmbeddingRequest }
@@ -156,7 +163,31 @@ export interface LocalModelCancelMessage {
   requestId: string;
 }
 
-export type LocalModelWorkerMessage = LocalModelRequestEnvelope | LocalModelCancelMessage;
+export interface LocalModelStreamChunkMessage {
+  type: "stream-chunk";
+  requestId: string;
+  chunkId: string;
+  audio: Float32Array;
+}
+
+export interface LocalModelStreamCloseMessage {
+  type: "stream-close";
+  requestId: string;
+}
+
+export interface LocalModelStreamAcknowledgement {
+  type: "stream-ack";
+  requestId: string;
+  chunkId: string;
+  accepted: boolean;
+  error?: string;
+}
+
+export type LocalModelWorkerMessage =
+  | LocalModelRequestEnvelope
+  | LocalModelCancelMessage
+  | LocalModelStreamChunkMessage
+  | LocalModelStreamCloseMessage;
 
 export type LocalModelCommonEvent =
   | { type: "status"; status: LocalModelTaskStatus }

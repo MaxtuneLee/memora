@@ -23,7 +23,11 @@ vi.mock("@memora/evaluation", () => ({
   saveEvaluationResult: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@memora/local-model-runtime", () => ({
-  whisperBaseTimestampedManifest: { id: "whisper-base-timestamped" },
+  whisperBaseTimestampedManifest: { id: "whisper-base-timestamped", displayName: "Whisper" },
+  nemotron35AsrStreamingManifest: {
+    id: "nemotron-3.5-asr-streaming-0.6b-int4",
+    displayName: "Nemotron",
+  },
 }));
 vi.mock("@/lib/playground/downloadEvaluationJson", () => ({
   downloadEvaluationJson: vi.fn(),
@@ -78,4 +82,18 @@ test("switching Playground tabs keeps an in-flight ASR evaluation running instea
 
   expect(signal.aborted).toBe(false);
   expect(screen.getByLabelText("ASR language")).toHaveValue("en");
+});
+
+test("selecting Nemotron routes evaluationClient.run to the Nemotron model id", async () => {
+  const user = userEvent.setup();
+  render(<Fixture activeTab="local-models" />);
+
+  await screen.findByText(/google\/fleurs/);
+  await user.selectOptions(screen.getByLabelText("Model"), "Nemotron");
+  await user.clear(screen.getByLabelText("ASR language"));
+  await user.type(screen.getByLabelText("ASR language"), "en");
+  await user.click(screen.getByRole("button", { name: "Run evaluation" }));
+
+  expect(mock.run).toHaveBeenCalledOnce();
+  expect(mock.run.mock.calls[0]?.[1]).toBe("nemotron-3.5-asr-streaming-0.6b-int4");
 });

@@ -7,8 +7,13 @@ interface SettingsLocalModelsSectionProps {
 }
 
 export default function SettingsLocalModelsSection({ open }: SettingsLocalModelsSectionProps) {
-  const { localModelOptions, localModelStates, handleDownloadLocalModel, refreshLocalModelState } =
-    useLocalModelDownloadSettings({ open });
+  const {
+    localModelOptions,
+    localModelStates,
+    handleDownloadLocalModel,
+    handleDeleteLocalModel,
+    refreshLocalModelState,
+  } = useLocalModelDownloadSettings({ open });
 
   return (
     <div className="space-y-3">
@@ -50,6 +55,7 @@ export default function SettingsLocalModelsSection({ open }: SettingsLocalModels
             }
             onDownload={handleDownloadLocalModel}
             onRefresh={refreshLocalModelState}
+            onDelete={handleDeleteLocalModel}
           />
         );
       })}
