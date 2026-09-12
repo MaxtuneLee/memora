@@ -18,7 +18,7 @@ export const setLocalModelAssetCache = (cache: LocalModelAssetCache): void => {
   assetCache = cache;
 };
 
-const getAssetCache = (): LocalModelAssetCache => {
+export const getLocalModelAssetCache = (): LocalModelAssetCache => {
   if (!assetCache) throw new Error("Local model asset cache has not been configured.");
   return assetCache;
 };
@@ -26,16 +26,16 @@ const getAssetCache = (): LocalModelAssetCache => {
 export const clearTransformersModelCache = async (
   manifest: Pick<LocalModelManifest, "modelId">,
 ): Promise<void> => {
-  await getAssetCache().removeModel(manifest);
+  await getLocalModelAssetCache().removeModel(manifest);
 };
 
 export const isTransformersExternalDataCacheError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
-  return (
-    message.includes("Deserialize tensor") &&
-    message.includes("external data file") &&
-    message.includes("Out of bounds")
-  );
+  // transformers.js wraps this as "Deserialize tensor ... external data
+  // file ... Out of bounds"; raw onnxruntime-web session creation (Nemotron)
+  // surfaces the same underlying corruption as "Failed to load external
+  // data file ... Out of bounds" — no "Deserialize tensor" wrapper.
+  return message.includes("external data file") && message.includes("Out of bounds");
 };
 
 export const isTransformersModelCacheCorruptionError = (error: unknown): boolean => {
@@ -48,11 +48,11 @@ export const isTransformersModelCacheCorruptionError = (error: unknown): boolean
 
 class RuntimeAssetCache {
   static match(request: string): Promise<Response | undefined> {
-    return getAssetCache().match(request);
+    return getLocalModelAssetCache().match(request);
   }
 
   static put(request: string, response: Response): Promise<void> {
-    return getAssetCache().put(request, response);
+    return getLocalModelAssetCache().put(request, response);
   }
 }
 
@@ -71,7 +71,7 @@ const createCachingFetch = (nativeFetch: TransformersFetch): TransformersFetch =
     if (shouldBypassCache(init)) return nativeFetch(input, init);
 
     const request = getRequestUrl(input);
-    const cache = getAssetCache();
+    const cache = getLocalModelAssetCache();
     const cached = await cache.match(request);
     if (cached) return cached;
 

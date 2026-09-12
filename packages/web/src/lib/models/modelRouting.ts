@@ -1,3 +1,5 @@
+import { nemotron35AsrStreamingManifest } from "@memora/local-model-runtime";
+
 export const AI_FEATURES = [
   {
     id: "assistant",
@@ -99,7 +101,7 @@ const LOCAL_CHAT_MODELS = ["gemma-4-e2b-it-onnx", "qwen3.5-0.8b-onnx-opt"] as co
 
 export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   assistant: [],
-  transcription: ["whisper-base-timestamped"],
+  transcription: ["whisper-base-timestamped", nemotron35AsrStreamingManifest.id],
   personality: LOCAL_CHAT_MODELS,
   sessionTitle: LOCAL_CHAT_MODELS,
   memoryExtraction: LOCAL_CHAT_MODELS,

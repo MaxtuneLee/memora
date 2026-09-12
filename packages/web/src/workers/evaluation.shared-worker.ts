@@ -1,12 +1,11 @@
 import { openDataset } from "@memora/datasets";
 import { runEvaluation, type ModelAdapter } from "@memora/evaluation";
+import { getLocalModelManifest } from "@memora/local-model-runtime";
 
 import type {
   EvaluationWorkerRequest,
   EvaluationWorkerResponse,
 } from "@/lib/playground/evaluationWorkerProtocol";
-import { createNemotronModelAdapter } from "@/lib/playground/nemotron/modelAdapter";
-import { NEMOTRON_MODEL_ID } from "@/lib/playground/nemotron/sessionManager";
 
 const operations = new Map<string, AbortController>();
 const modelRequests = new Map<
@@ -50,7 +49,7 @@ const requestModel = (
     post(port, message, transfer);
   });
 
-const createWhisperAdapter = (
+const createLocalAsrAdapter = (
   port: MessagePort,
   modelId: string,
   language: string,
@@ -58,8 +57,8 @@ const createWhisperAdapter = (
   identity: {
     modelId,
     modelRevision: { status: "unknown" },
-    adapter: "whisper",
-    runtime: "transformers-js",
+    adapter: getLocalModelManifest(modelId)?.asr?.adapter ?? "unknown",
+    runtime: getLocalModelManifest(modelId)?.runtime ?? "unknown",
     inference: { language, priority: "background" },
   },
   initialize: async (signal) => {
@@ -89,11 +88,6 @@ const createWhisperAdapter = (
     ),
 });
 
-const createAdapter = (port: MessagePort, modelId: string, language: string): ModelAdapter =>
-  modelId === NEMOTRON_MODEL_ID
-    ? createNemotronModelAdapter()
-    : createWhisperAdapter(port, modelId, language);
-
 async function execute(port: MessagePort, request: EvaluationWorkerRequest): Promise<void> {
   if (request.type === "cancel") {
     operations.get(request.targetId)?.abort();
@@ -113,7 +107,7 @@ async function execute(port: MessagePort, request: EvaluationWorkerRequest): Pro
   try {
     const result = await runEvaluation({
       dataset,
-      model: createAdapter(port, request.modelId, request.language),
+      model: createLocalAsrAdapter(port, request.modelId, request.language),
       signal: controller.signal,
       onProgress: (progress) => post(port, { id: request.id, type: "progress", progress }),
     });

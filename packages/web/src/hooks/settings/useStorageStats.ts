@@ -218,10 +218,9 @@ const getStorageBreakdown = async () => {
 
   await collectSizes(FILES_DIR, sizes);
   const transformersCacheUsage = await getDirectorySize("/transformers-cache");
-  const nemotronCacheUsage = await getDirectorySize("/nemotron-cache");
   return {
     contentCategorySizes: sizes,
-    modelCacheUsage: transformersCacheUsage + nemotronCacheUsage,
+    modelCacheUsage: transformersCacheUsage,
   };
 };
 

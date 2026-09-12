@@ -62,6 +62,11 @@ const chatTask: Extract<LocalModelTask, { kind: "chat.generate" }> = {
   },
 };
 
+const nemotronStreamTask: Extract<LocalModelTask, { kind: "asr.stream-open" }> = {
+  kind: "asr.stream-open",
+  input: { modelId: "nemotron-3.5-asr-streaming-0.6b-int4", language: "auto" },
+};
+
 const flushPromises = async (): Promise<void> => {
   await Promise.resolve();
   await Promise.resolve();
@@ -154,6 +159,57 @@ describe("shared model worker runtime", () => {
         event: { type: "status", status: "assigned" },
       }),
     );
+    vi.unstubAllGlobals();
+  });
+
+  test("keeps the ASR task active until the client closes its audio stream", async () => {
+    const scope = new MockSharedWorkerScope();
+    vi.stubGlobal("self", scope);
+    const received: number[] = [];
+    startSharedModelWorkerRuntime("asr", async (task, context) => {
+      if (task.kind !== "asr.stream-open" || !context.stream)
+        throw new Error("Expected an ASR stream task.");
+      for (
+        let chunk = await context.stream.nextChunk();
+        chunk;
+        chunk = await context.stream.nextChunk()
+      ) {
+        received.push(chunk.audio.length);
+        chunk.acknowledge();
+      }
+    });
+
+    const port = new MockPort();
+    scope.connect(port);
+    port.deliver({
+      type: "run",
+      requestId: "nemotron-live",
+      priority: "interactive",
+      task: nemotronStreamTask,
+    });
+    await flushPromises();
+    port.deliver({
+      type: "stream-chunk",
+      requestId: "nemotron-live",
+      chunkId: "audio-1",
+      audio: new Float32Array([0.1, 0.2]),
+    });
+    await flushPromises();
+    expect(received).toEqual([2]);
+    expect(port.posted).toContainEqual({
+      type: "stream-ack",
+      requestId: "nemotron-live",
+      chunkId: "audio-1",
+      accepted: true,
+    });
+    port.deliver({ type: "stream-close", requestId: "nemotron-live" });
+    await flushPromises();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
+    expect(port.posted.at(-1)).toMatchObject({
+      requestId: "nemotron-live",
+      event: { type: "status", status: "completed" },
+    });
     vi.unstubAllGlobals();
   });
 

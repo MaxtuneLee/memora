@@ -33,6 +33,8 @@ export type DatasetWorkerRequest =
   | { id: string; type: "media"; handleId: string; reference: MediaReference }
   | { id: string; type: "close"; handleId: string }
   | { id: string; type: "delete"; selection: DatasetSelection }
+  | { id: string; type: "reserve"; selection: DatasetSelection }
+  | { id: string; type: "release"; selection: DatasetSelection }
   | { id: string; type: "cancel"; targetId: string };
 
 export type DatasetWorkerResult =

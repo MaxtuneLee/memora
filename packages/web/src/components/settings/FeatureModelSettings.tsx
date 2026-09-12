@@ -20,6 +20,7 @@ import type { provider } from "@/livestore/provider";
 const LOCAL_MODELS = getLocalModelOptions();
 const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
   "assistant",
+  "transcription",
   "personality",
   "sessionTitle",
   "memoryExtraction",

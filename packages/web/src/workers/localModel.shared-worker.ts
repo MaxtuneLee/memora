@@ -21,7 +21,7 @@ if (!pool) throw new Error(`Unknown shared model worker name: ${workerName}`);
 
 setLocalModelAssetCache(opfsLocalModelAssetCache);
 startSharedModelWorkerRuntime(pool, (task, context) =>
-  runLocalModelTask(task, context.emit, context.isCanceled),
+  runLocalModelTask(task, context.emit, context.isCanceled, context.stream),
 );
 
 export type SharedModelWorkerTask = LocalModelTask;

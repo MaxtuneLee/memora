@@ -9,17 +9,14 @@ import {
   type EvaluationResult,
   type SavedResultSummary,
 } from "@memora/evaluation";
-import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
+import {
+  nemotron35AsrStreamingManifest,
+  whisperBaseTimestampedManifest,
+} from "@memora/local-model-runtime";
 
 import { datasetClient } from "@/lib/playground/datasetClient";
 import { downloadEvaluationJson } from "@/lib/playground/downloadEvaluationJson";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
-import { NEMOTRON_MODEL_ID } from "@/lib/playground/nemotron/sessionManager";
-
-const MODEL_OPTIONS = [
-  { id: whisperBaseTimestampedManifest.id, label: "Whisper" },
-  { id: NEMOTRON_MODEL_ID, label: "Nemotron" },
-] as const;
 
 const inputClassName =
   "h-11 w-full rounded-xl border border-memora-border bg-memora-surface px-3.5 text-sm text-memora-text outline-none transition focus:border-memora-olive-soft focus:ring-2 focus:ring-memora-olive-soft/30";
@@ -44,7 +41,7 @@ export default function AsrEvaluation() {
   const [installed, setInstalled] = useState<InstalledDataset[]>([]);
   const [selectionKey, setSelectionKey] = useState("");
   const [language, setLanguage] = useState("en");
-  const [modelId, setModelId] = useState<string>(whisperBaseTimestampedManifest.id);
+  const [modelId, setModelId] = useState(whisperBaseTimestampedManifest.id);
   const [progress, setProgress] = useState<EvaluationProgress>();
   const [result, setResult] = useState<EvaluationResult>();
   const [error, setError] = useState<string>();
@@ -127,7 +124,7 @@ export default function AsrEvaluation() {
           waiting.
         </p>
       </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(160px,0.35fr)_minmax(160px,0.35fr)_auto]">
+      <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,0.35fr)_minmax(180px,0.35fr)_auto]">
         <label className="text-sm font-medium text-memora-text">
           Installed split
           <select
@@ -154,11 +151,12 @@ export default function AsrEvaluation() {
             onChange={(event) => setModelId(event.target.value)}
             disabled={running}
           >
-            {MODEL_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
+            <option value={whisperBaseTimestampedManifest.id}>
+              {whisperBaseTimestampedManifest.displayName}
+            </option>
+            <option value={nemotron35AsrStreamingManifest.id}>
+              {nemotron35AsrStreamingManifest.displayName}
+            </option>
           </select>
         </label>
         <label className="text-sm font-medium text-memora-text">

@@ -2,14 +2,17 @@ import type { MutableRefObject } from "react";
 import { useCallback, useRef } from "react";
 
 import { WHISPER_MAX_SAMPLES, WHISPER_SAMPLE_RATE } from "@/lib/transcript/transcriptUtils";
-import { generateWhisperTranscript } from "@/lib/transcript/whisper/client";
+import type { TranscriptionRuntime } from "@/lib/models/transcriptionRuntime";
+import { generateTranscription } from "@/lib/transcript/whisper/client";
 
 export const useSpeechQueue = ({
   workerRef,
   languageRef,
+  runtimeRef,
 }: {
   workerRef: MutableRefObject<Worker | null>;
   languageRef: { current: string };
+  runtimeRef: MutableRefObject<TranscriptionRuntime | null>;
 }) => {
   const pendingSegmentsRef = useRef<Array<{ audio: Float32Array; startSec: number }>>([]);
   const currentSegmentRef = useRef<{
@@ -24,7 +27,7 @@ export const useSpeechQueue = ({
     }
 
     const next = pendingSegmentsRef.current.shift();
-    if (!next || !workerRef.current) {
+    if (!next || !workerRef.current || !runtimeRef.current) {
       return;
     }
 
@@ -33,11 +36,12 @@ export const useSpeechQueue = ({
       audio: next.audio,
       startSec: next.startSec,
     };
-    generateWhisperTranscript(workerRef.current, {
-      audio: next.audio,
-      language: languageRef.current,
-    });
-  }, [languageRef, workerRef]);
+    generateTranscription(
+      workerRef.current,
+      { audio: next.audio, language: languageRef.current },
+      runtimeRef.current,
+    );
+  }, [languageRef, runtimeRef, workerRef]);
 
   const enqueueSpeech = useCallback(
     (audio: Float32Array, startSec: number) => {

@@ -105,4 +105,9 @@ export const datasetClient = {
     request<EncodedMedia>({ type: "media", handleId, reference }),
   close: (handleId: string) => request<null>({ type: "close", handleId }),
   delete: (selection: DatasetSelection) => request<null>({ type: "delete", selection }),
+  // Reserving/releasing round-trips through the dataset SharedWorker (the single owner of
+  // installed splits, visible to every tab) so a delete request processed after the reserve
+  // response resolves is guaranteed to observe it — no separate coordination channel to race.
+  reserve: (selection: DatasetSelection) => request<null>({ type: "reserve", selection }),
+  release: (selection: DatasetSelection) => request<null>({ type: "release", selection }),
 };

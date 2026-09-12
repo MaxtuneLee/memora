@@ -1,4 +1,5 @@
 import { Button } from "@base-ui/react/button";
+import { isNemotronAsrModel } from "@memora/local-model-runtime";
 import {
   CaretDownIcon,
   CaretRightIcon,
@@ -15,6 +16,7 @@ import { TranscriptWorkbench } from "@/components/transcript/transcriptLanding/T
 import { getTranscriptHistoryRowState } from "@/components/transcript/transcriptLanding/transcriptLandingState";
 import type { SettingsSectionId } from "@/types/settings";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
+import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { TRANSCRIPT_LANGUAGE_STORAGE_KEY } from "@/lib/transcript/transcriptUtils";
 
@@ -23,6 +25,9 @@ const SECTION_EASE = [0.22, 1, 0.36, 1] as const;
 export const Component = (): ReactElement => {
   const { recordings, deleteRecording } = useMediaFiles();
   const { openSettings } = useSettingsDialog();
+  const { routing } = useModelRouting();
+  const isNemotronSelected =
+    routing.transcription.source === "local" && isNemotronAsrModel(routing.transcription.modelId);
   const reducedMotion = useReducedMotion() ?? false;
   const [language, setLanguage] = useState(() => {
     if (typeof window === "undefined") return "en";
@@ -131,7 +136,11 @@ export const Component = (): ReactElement => {
                   Choose the language used when new transcript sessions start.
                 </p>
                 <div className="mt-3">
-                  <LanguageSelector language={language} setLanguage={handleLanguageChange} />
+                  <LanguageSelector
+                    language={language}
+                    setLanguage={handleLanguageChange}
+                    includeAutoDetect={isNemotronSelected}
+                  />
                 </div>
               </div>
               <div className="my-2 h-px bg-[#ede7dc]" />

@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 
 interface TranscriptionOutputProps {
@@ -6,6 +7,8 @@ interface TranscriptionOutputProps {
   currentSegment: string;
   tps: number | null;
 }
+
+const splitChars = (text: string) => Array.from(text);
 
 export const TranscriptionOutput = ({
   accumulatedText,
@@ -34,7 +37,16 @@ export const TranscriptionOutput = ({
             {currentSegment && (
               <span className="text-zinc-500 italic">
                 {visibleAccumulatedText ? " " : ""}
-                {currentSegment}
+                {splitChars(currentSegment).map((char, index) => (
+                  <motion.span
+                    key={index}
+                    initial={{ opacity: 0, filter: "blur(6px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
               </span>
             )}
           </>

@@ -1,7 +1,9 @@
 import type { Store } from "@livestore/livestore";
+import { isNemotronAsrModel } from "@memora/local-model-runtime";
 
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { createWhisperTranscriptionProvider } from "@/lib/transcript/providers/whisper";
+import { createNemotronTranscriptionProvider } from "@/lib/transcript/providers/nemotron";
 import type {
   TranscriptionProvider,
   TranscriptionTimestampLevel,
@@ -32,7 +34,9 @@ export const createTranscriptionRuntime = (
   const target = resolveFeatureModelTarget("transcription", routing);
   let provider: TranscriptionProvider;
   if (target.source === "local") {
-    provider = createWhisperTranscriptionProvider();
+    provider = isNemotronAsrModel(target.modelId)
+      ? createNemotronTranscriptionProvider()
+      : createWhisperTranscriptionProvider();
   } else {
     if (!resolveCloud)
       throw new Error(

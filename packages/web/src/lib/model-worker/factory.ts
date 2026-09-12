@@ -1,9 +1,12 @@
 import type {
+  LocalAsrEvent,
+  LocalAsrStream,
   LocalModelEvent,
   LocalModelPoolKey,
   LocalModelPriority,
   LocalModelSequencedEventEnvelope,
   LocalModelSharedWorkerMessage,
+  LocalModelStreamAcknowledgement,
   LocalModelTask,
 } from "@memora/local-model-runtime";
 
@@ -34,6 +37,9 @@ interface PendingRequest {
   lastSequence: number;
   closed: boolean;
   acknowledged: boolean;
+  streamAcks: Map<string, { resolve: () => void; reject: (error: Error) => void }>;
+  completion: Promise<void>;
+  resolveCompletion: () => void;
 }
 
 interface PoolConnection {
@@ -41,7 +47,10 @@ interface PoolConnection {
   port: MessagePort;
 }
 
-type SharedWorkerResponse = LocalModelSequencedEventEnvelope | LocalModelWorkerDebugMessage;
+type SharedWorkerResponse =
+  | LocalModelSequencedEventEnvelope
+  | LocalModelStreamAcknowledgement
+  | LocalModelWorkerDebugMessage;
 
 const POOLS: LocalModelPoolKey[] = ["asr", "chat", "embedding", "formula"];
 
@@ -104,6 +113,11 @@ const isStreamingEvent = (event: LocalModelEvent): boolean => {
 export interface ModelWorkerFactory {
   mount: () => () => void;
   run: (pool: LocalModelPoolKey, input: RunModelWorkerTaskInput) => AsyncGenerator<LocalModelEvent>;
+  openAsrStream: (input: {
+    request: { modelId: string; language: string; returnTimestamps?: "word" };
+    priority: LocalModelPriority;
+    signal?: AbortSignal;
+  }) => LocalAsrStream;
   vectorDb: VectorDbClient;
 }
 
@@ -157,6 +171,11 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       }
       if (event.status === "completed" || event.status === "failed" || event.status === "aborted") {
         request.closed = true;
+        request.resolveCompletion();
+        for (const ack of request.streamAcks.values()) {
+          ack.reject(new Error("The transcription stream closed before processing audio."));
+        }
+        request.streamAcks.clear();
         finishRequest(request);
         return;
       }
@@ -184,6 +203,16 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
           event: response.payload,
         });
       }
+      return;
+    }
+
+    if (response.type === "stream-ack") {
+      const request = pending.get(response.requestId);
+      const ack = request?.streamAcks.get(response.chunkId);
+      if (!request || !ack) return;
+      request.streamAcks.delete(response.chunkId);
+      if (response.accepted) ack.resolve();
+      else ack.reject(new Error(response.error ?? "The transcription stream rejected audio."));
       return;
     }
 
@@ -264,6 +293,47 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     } satisfies LocalModelSharedWorkerMessage);
   };
 
+  const createPendingRequest = (
+    pool: LocalModelPoolKey,
+    input: RunModelWorkerTaskInput,
+  ): PendingRequest => {
+    let resolveCompletion!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      resolveCompletion = resolve;
+    });
+    return {
+      requestId: createRequestId(),
+      pool,
+      priority: input.priority,
+      task: input.task,
+      events: [],
+      waiters: [],
+      lastSequence: 0,
+      closed: false,
+      acknowledged: false,
+      streamAcks: new Map(),
+      completion,
+      resolveCompletion,
+    };
+  };
+
+  const sendRequest = (request: PendingRequest, input: RunModelWorkerTaskInput): PoolConnection => {
+    const connection = connections.get(request.pool);
+    if (!connection)
+      throw new Error("The shared model worker factory is not mounted at the root route.");
+    pending.set(request.requestId, request);
+    connection.port.postMessage(
+      {
+        type: "run",
+        requestId: request.requestId,
+        priority: request.priority,
+        task: request.task,
+      } satisfies LocalModelSharedWorkerMessage,
+      input.transfer ?? [],
+    );
+    return connection;
+  };
+
   return {
     mount() {
       const unmountVectorDb = vectorDb.mount();
@@ -284,28 +354,74 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       };
     },
     vectorDb,
-    async *run(pool, input) {
-      const connection = connections.get(pool);
-      if (!connection) {
-        console.error("[local-model-factory] run without connection", {
-          pool,
-          task: input.task.kind,
-        });
-        throw new Error("The shared model worker factory is not mounted at the root route.");
-      }
-
-      const request: PendingRequest = {
-        requestId: createRequestId(),
-        pool,
-        priority: input.priority,
-        task: input.task,
-        events: [],
-        waiters: [],
-        lastSequence: 0,
-        closed: false,
-        acknowledged: false,
+    openAsrStream({ request: streamRequest, priority, signal }) {
+      const request = createPendingRequest("asr", {
+        priority,
+        task: { kind: "asr.stream-open", input: streamRequest },
+        signal,
+      });
+      const connection = sendRequest(request, { priority, task: request.task, signal });
+      const abortHandler = () => cancel(request);
+      signal?.addEventListener("abort", abortHandler, { once: true });
+      let closing = false;
+      return {
+        events: (async function* () {
+          try {
+            while (!request.closed || request.events.length > 0) {
+              const event = request.events.shift();
+              if (event) {
+                yield event as LocalAsrEvent;
+                finishRequest(request);
+                continue;
+              }
+              if (request.closed) break;
+              const result = await new Promise<IteratorResult<LocalModelEvent>>((resolve) => {
+                request.waiters.push(resolve);
+              });
+              if (result.done) break;
+              yield result.value as LocalAsrEvent;
+            }
+          } finally {
+            signal?.removeEventListener("abort", abortHandler);
+            if (!request.closed) cancel(request);
+            finishRequest(request);
+          }
+        })(),
+        write(audio: Float32Array) {
+          if (closing || request.closed)
+            return Promise.reject(new Error("The transcription stream is closed."));
+          const chunkId = createRequestId();
+          return new Promise<void>((resolve, reject) => {
+            request.streamAcks.set(chunkId, { resolve, reject });
+            connection.port.postMessage(
+              {
+                type: "stream-chunk",
+                requestId: request.requestId,
+                chunkId,
+                audio,
+              } satisfies LocalModelSharedWorkerMessage,
+              [audio.buffer],
+            );
+          });
+        },
+        async close() {
+          if (!closing) {
+            closing = true;
+            connection.port.postMessage({
+              type: "stream-close",
+              requestId: request.requestId,
+            } satisfies LocalModelSharedWorkerMessage);
+          }
+          await request.completion;
+        },
+        abort() {
+          closing = true;
+          cancel(request);
+        },
       };
-      pending.set(request.requestId, request);
+    },
+    async *run(pool, input) {
+      const request = createPendingRequest(pool, input);
       console.warn("[local-model-factory] send run", {
         pool,
         requestId: request.requestId,
@@ -314,15 +430,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       });
       const abortHandler = () => cancel(request);
       input.signal?.addEventListener("abort", abortHandler, { once: true });
-      connection.port.postMessage(
-        {
-          type: "run",
-          requestId: request.requestId,
-          priority: request.priority,
-          task: request.task,
-        } satisfies LocalModelSharedWorkerMessage,
-        input.transfer ?? [],
-      );
+      sendRequest(request, input);
       console.warn("[local-model-factory] run sent", { pool, requestId: request.requestId });
 
       try {

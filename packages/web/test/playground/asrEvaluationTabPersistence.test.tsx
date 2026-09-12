@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import AsrEvaluation from "@/components/playground/AsrEvaluation";
-import { NEMOTRON_MODEL_ID } from "@/lib/playground/nemotron/sessionManager";
 
 const mock = vi.hoisted(() => ({
   list: vi.fn(),
@@ -24,7 +23,11 @@ vi.mock("@memora/evaluation", () => ({
   saveEvaluationResult: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@memora/local-model-runtime", () => ({
-  whisperBaseTimestampedManifest: { id: "whisper-base-timestamped" },
+  whisperBaseTimestampedManifest: { id: "whisper-base-timestamped", displayName: "Whisper" },
+  nemotron35AsrStreamingManifest: {
+    id: "nemotron-3.5-asr-streaming-0.6b-int4",
+    displayName: "Nemotron",
+  },
 }));
 vi.mock("@/lib/playground/downloadEvaluationJson", () => ({
   downloadEvaluationJson: vi.fn(),
@@ -92,5 +95,5 @@ test("selecting Nemotron routes evaluationClient.run to the Nemotron model id", 
   await user.click(screen.getByRole("button", { name: "Run evaluation" }));
 
   expect(mock.run).toHaveBeenCalledOnce();
-  expect(mock.run.mock.calls[0]?.[1]).toBe(NEMOTRON_MODEL_ID);
+  expect(mock.run.mock.calls[0]?.[1]).toBe("nemotron-3.5-asr-streaming-0.6b-int4");
 });
