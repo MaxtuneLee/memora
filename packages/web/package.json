@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp build && find dist/client/assets -maxdepth 1 -iname 'ort-wasm-simd-threaded.jsep-*.wasm' -delete",
     "deploy": "void deploy --project memora",
     "lint": "vp lint .",
     "test": "vp test test",

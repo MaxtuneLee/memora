@@ -7,6 +7,11 @@ import {
 } from "../../../cache";
 import type { LocalAsrEvent } from "../../../types";
 
+// ponytail: the jsep wasm binary is ~26 MiB, over Cloudflare Pages' 25 MiB
+// per-file limit; fetch it from jsdelivr's npm mirror instead of bundling it.
+// Keep the version in sync with the "onnxruntime-web" dependency in package.json.
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
+
 const MODEL_ID = "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4";
 
 /**
