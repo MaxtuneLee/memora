@@ -41,9 +41,9 @@ describe("feature runtime selection", () => {
       yield { type: "status", status: "completed" };
     });
     const input = context();
-    input.routing.personality = { source: "local", modelId: "qwen3.5-0.8b-onnx-opt" };
+    input.routing.memoryExtraction = { source: "local", modelId: "qwen3.5-0.8b-onnx-opt" };
     const record = vi.fn();
-    createFeatureChatRuntime("personality", { ...input, onLocalUsage: record });
+    createFeatureChatRuntime("memoryExtraction", { ...input, onLocalUsage: record });
     const client = factories.local.mock.calls[0]?.[0].client;
     if (!client) throw new Error("Missing local runtime client");
     for await (const _event of client.streamChat({
@@ -71,12 +71,12 @@ describe("feature runtime selection", () => {
       }),
     );
   });
-  test("title and personality create independent local runtimes", () => {
+  test("title and memory extraction create independent local runtimes", () => {
     const input = context();
     input.routing.sessionTitle = { source: "local", modelId: "gemma-4-e2b-it-onnx" };
-    input.routing.personality = { source: "local", modelId: "qwen3.5-0.8b-onnx-opt" };
+    input.routing.memoryExtraction = { source: "local", modelId: "qwen3.5-0.8b-onnx-opt" };
     createFeatureChatRuntime("sessionTitle", input, "background");
-    createFeatureChatRuntime("personality", input);
+    createFeatureChatRuntime("memoryExtraction", input);
     expect(factories.local).toHaveBeenCalledTimes(2);
     expect(factories.remote).not.toHaveBeenCalled();
   });

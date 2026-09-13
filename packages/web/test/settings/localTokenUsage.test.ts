@@ -63,7 +63,7 @@ test("atomically accumulates device-local usage in existing settings without cha
       "user-settings",
       JSON.stringify({
         theme: "dark",
-        modelRouting: { personality: { source: "inherit", featureId: "assistant" } },
+        modelRouting: { sessionTitle: { source: "inherit", featureId: "assistant" } },
       }),
     );
     for (const value of [
@@ -76,7 +76,7 @@ test("atomically accumulates device-local usage in existing settings without cha
     const row = db.prepare("SELECT value FROM settings").get();
     expect(JSON.parse(String(row?.value))).toEqual({
       theme: "dark",
-      modelRouting: { personality: { source: "inherit", featureId: "assistant" } },
+      modelRouting: { sessionTitle: { source: "inherit", featureId: "assistant" } },
       localModelTokenUsage: {
         inputTokens: 30,
         outputTokens: 12,

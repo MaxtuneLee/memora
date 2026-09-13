@@ -134,17 +134,6 @@ describe("local model settings", () => {
     expect(filesSource).not.toContain("style={{ width: `${progress}%` }}");
   });
 
-  test("isolates onboarding progress subscriptions to each model card", () => {
-    const pageSource = readSource("../../src/pages/onboarding/index.tsx");
-    const experienceSource = readSource("../../src/components/onboarding/OnboardingExperience.tsx");
-
-    expect(pageSource).toContain("useLocalModelDownloadActions");
-    expect(pageSource).toContain("useLocalModelsReady");
-    expect(pageSource).not.toContain("localModelStates={localModelStates}");
-    expect(experienceSource).toContain("useLocalModelDownloadState(model.id)");
-    expect(experienceSource).not.toContain("localModelStates: Record");
-  });
-
   test("uses the remote chat prompt path only", () => {
     const chatPageSource = readSource("../../src/components/chat/ChatPage.tsx");
     const chatConfigSource = readSource("../../src/components/chat/chatPage/useChatModelConfig.ts");

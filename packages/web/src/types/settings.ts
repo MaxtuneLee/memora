@@ -17,8 +17,7 @@ export const SETTINGS_SECTIONS = [
   {
     id: "ai-provider",
     label: "Providers",
-    description:
-      "Manage cloud endpoints. API keys stay on this device and are never synced or exported.",
+    description: "Manage cloud endpoints. API keys will only stay on this device.",
   },
   {
     id: "local-models",
@@ -27,8 +26,8 @@ export const SETTINGS_SECTIONS = [
   },
   {
     id: "memory",
-    label: "Memory",
-    description: "Review and manage the assistant's saved long-term memory.",
+    label: "Personalization",
+    description: "Set how Memora addresses and responds to you, and manage its saved memory.",
   },
   {
     id: "indexing",

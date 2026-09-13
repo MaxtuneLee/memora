@@ -2,7 +2,6 @@ import { Button } from "@base-ui/react/button";
 import { isNemotronAsrModel } from "@memora/local-model-runtime";
 import {
   CaretDownIcon,
-  CaretRightIcon,
   GearSixIcon,
   PlusIcon,
   SlidersHorizontalIcon,
@@ -43,14 +42,9 @@ export const Component = (): ReactElement => {
   }> = useMemo(
     () => [
       {
-        description: "Manage provider defaults and model behavior.",
+        description: "Choose where each transcription feature runs.",
         label: "Model settings",
-        section: "ai-provider",
-      },
-      {
-        description: "Open broader language and transcription preferences.",
-        label: "Language preferences",
-        section: "general",
+        section: "model-routing",
       },
     ],
     [],
@@ -119,29 +113,11 @@ export const Component = (): ReactElement => {
             </AppMenuTrigger>
             <AppMenuContent className="w-[292px]">
               <div className="rounded-[1rem] bg-[#fcfaf5] px-3 py-3 text-sm text-[#6f695f]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f1ece2] text-[#7c7265]">
-                    <SlidersHorizontalIcon className="size-4" />
-                  </span>
-                  <div>
-                    <div className="text-[11px] font-semibold tracking-[0.18em] text-[#90897d] uppercase">
-                      Transcription
-                    </div>
-                    <div className="mt-0.5 text-sm font-semibold text-[#2b2925]">
-                      Quick defaults
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-3 text-[13px] leading-5 text-[#7b7469]">
-                  Choose the language used when new transcript sessions start.
-                </p>
-                <div className="mt-3">
-                  <LanguageSelector
-                    language={language}
-                    setLanguage={handleLanguageChange}
-                    includeAutoDetect={isNemotronSelected}
-                  />
-                </div>
+                <LanguageSelector
+                  language={language}
+                  setLanguage={handleLanguageChange}
+                  includeAutoDetect={isNemotronSelected}
+                />
               </div>
               <div className="my-2 h-px bg-[#ede7dc]" />
               {settingsItems.map((item) => (
@@ -159,11 +135,7 @@ export const Component = (): ReactElement => {
                     </span>
                   </span>
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f6f1e8] text-[#90897d] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#7d7569]">
-                    {item.section === "ai-provider" ? (
-                      <GearSixIcon className="size-[18px]" />
-                    ) : (
-                      <CaretRightIcon className="size-4" weight="bold" />
-                    )}
+                    <GearSixIcon className="size-[18px]" />
                   </span>
                 </AppMenuItem>
               ))}

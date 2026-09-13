@@ -22,6 +22,12 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  // Captured once per visit to /onboarding, not kept in sync afterward: finishing
+  // onboarding flips onboardingComplete mid-flow (e.g. after the profile step),
+  // but the wizard still has bonus steps to show before it navigates home itself.
+  // Only a visit that was ALREADY complete on arrival (e.g. a stale bookmark)
+  // should be bounced immediately.
+  const onboardingCompleteOnEntryRef = useRef<boolean | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
@@ -141,6 +147,16 @@ export default function AppLayout() {
   }, [location.pathname, settings.onboardingCompleted]);
 
   useEffect(() => {
+    if (!isOnboardingRoute) {
+      onboardingCompleteOnEntryRef.current = null;
+      return;
+    }
+    if (onboardingGateReady && onboardingCompleteOnEntryRef.current === null) {
+      onboardingCompleteOnEntryRef.current = onboardingComplete;
+    }
+  }, [isOnboardingRoute, onboardingComplete, onboardingGateReady]);
+
+  useEffect(() => {
     if (!onboardingGateReady) {
       return;
     }
@@ -150,7 +166,7 @@ export default function AppLayout() {
       return;
     }
 
-    if (onboardingComplete && isOnboardingRoute) {
+    if (isOnboardingRoute && onboardingCompleteOnEntryRef.current === true) {
       void navigate("/", { replace: true });
     }
   }, [isOnboardingRoute, navigate, onboardingComplete, onboardingGateReady]);

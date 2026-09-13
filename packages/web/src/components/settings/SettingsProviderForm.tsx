@@ -4,15 +4,17 @@ import type { ReactNode } from "react";
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
   SETTINGS_INSET_PANEL_CLASS_NAME,
-  SETTINGS_SECTION_BODY_CLASS_NAME,
-  SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { TabSelect, type TabSelectOption } from "@/components/ui/TabSelect";
 import { cn } from "@/lib/cn";
 import type { ProviderApiFormat, ProviderFormState } from "@/types/settingsDialog";
 
-const API_FORMATS: ProviderApiFormat[] = ["chat-completions", "responses"];
+const API_FORMAT_OPTIONS: readonly TabSelectOption<ProviderApiFormat>[] = [
+  { value: "chat-completions", label: "Chat completions" },
+  { value: "responses", label: "Responses" },
+];
 
 interface SettingsProviderFormProps {
   isAddingProvider: boolean;
@@ -37,15 +39,6 @@ export default function SettingsProviderForm({
 }: SettingsProviderFormProps) {
   return (
     <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "space-y-5")}>
-      <div className="space-y-2">
-        <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>
-          {isAddingProvider ? "Add provider" : "Edit provider"}
-        </h4>
-        <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-          Add a remote API endpoint and choose which hosted models Memora should use.
-        </p>
-      </div>
-
       <div className="grid gap-4">
         <div>
           <label
@@ -108,29 +101,16 @@ export default function SettingsProviderForm({
               {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
             </Button>
           </div>
-          <p
-            id="provider-api-key-hint"
-            className="mt-2 text-xs text-[var(--color-memora-text-muted)]"
-          >
-            Saved only on this device. API keys are never synced or included in workspace exports.
-          </p>
         </div>
 
         <div>
           <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>API format</p>
-          <div className="flex flex-wrap gap-2">
-            {API_FORMATS.map((format) => (
-              <Button
-                variant="segment"
-                active={providerForm.apiFormat === format}
-                key={format}
-                type="button"
-                onClick={() => onChange({ apiFormat: format })}
-              >
-                {format}
-              </Button>
-            ))}
-          </div>
+          <TabSelect
+            value={providerForm.apiFormat}
+            onValueChange={(apiFormat) => onChange({ apiFormat })}
+            options={API_FORMAT_OPTIONS}
+            aria-label="API format"
+          />
         </div>
       </div>
 

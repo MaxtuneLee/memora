@@ -20,14 +20,14 @@ describe("transcription feature routing", () => {
     );
     expect(query).toHaveBeenCalledExactlyOnceWith(settingsDocumentQuery$);
     query.mockReturnValue({ theme: "dark" });
-    expect(readTranscriptionRuntime({ query }).provider.adapterId).toBe("whisper-local");
+    expect(readTranscriptionRuntime({ query }).provider.adapterId).toBe("nemotron-local");
   });
-  test("an unset feature uses local Whisper without resolving cloud credentials", () => {
+  test("an unset feature uses the local default without resolving cloud credentials", () => {
     const resolveCloud = vi.fn();
     const runtime = createTranscriptionRuntime(normalizeAiModelRouting({}), resolveCloud);
     expect(runtime).toMatchObject({
-      provider: { adapterId: "whisper-local" },
-      modelId: "whisper-base-timestamped",
+      provider: { adapterId: "nemotron-local" },
+      modelId: "nemotron-3.5-asr-streaming-0.6b-int4",
       timestamps: "word",
     });
     expect(resolveCloud).not.toHaveBeenCalled();

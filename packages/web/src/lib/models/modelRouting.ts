@@ -14,12 +14,6 @@ export const AI_FEATURES = [
     description: "Recorded files and live speech.",
   },
   {
-    id: "personality",
-    label: "Personality",
-    task: "chat",
-    description: "Create the assistant profile during setup.",
-  },
-  {
     id: "sessionTitle",
     label: "Conversation titles",
     task: "chat",
@@ -52,7 +46,7 @@ export const AI_FEATURES = [
 ] as const;
 
 export type AiFeatureId = (typeof AI_FEATURES)[number]["id"];
-export type ChatFeatureId = "assistant" | "personality" | "sessionTitle" | "memoryExtraction";
+export type ChatFeatureId = "assistant" | "sessionTitle" | "memoryExtraction";
 export type TextGenerationFeatureId = ChatFeatureId | "imageExtraction" | "formulaRecognition";
 
 export interface CloudModelTarget {
@@ -78,7 +72,6 @@ export type FeatureModelRoute = ModelTarget | InheritedModelTarget;
 export interface AiModelRouting {
   assistant: CloudModelTarget;
   transcription: ModelTarget;
-  personality: FeatureModelRoute;
   sessionTitle: FeatureModelRoute;
   memoryExtraction: FeatureModelRoute;
   imageExtraction: ModelTarget;
@@ -88,8 +81,7 @@ export interface AiModelRouting {
 
 export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   assistant: { source: "cloud", providerId: "", modelId: "" },
-  transcription: { source: "local", modelId: "whisper-base-timestamped" },
-  personality: { source: "inherit", featureId: "assistant" },
+  transcription: { source: "local", modelId: nemotron35AsrStreamingManifest.id },
   sessionTitle: { source: "inherit", featureId: "assistant" },
   memoryExtraction: { source: "inherit", featureId: "assistant" },
   imageExtraction: { source: "local", modelId: "paddle-document-pipeline" },
@@ -97,12 +89,11 @@ export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   embedding: { source: "local", modelId: "bge-m3" },
 };
 
-const LOCAL_CHAT_MODELS = ["gemma-4-e2b-it-onnx", "qwen3.5-0.8b-onnx-opt"] as const;
+const LOCAL_CHAT_MODELS = ["qwen3.5-0.8b-onnx-opt", "gemma-4-e2b-it-onnx"] as const;
 
 export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   assistant: [],
   transcription: ["whisper-base-timestamped", nemotron35AsrStreamingManifest.id],
-  personality: LOCAL_CHAT_MODELS,
   sessionTitle: LOCAL_CHAT_MODELS,
   memoryExtraction: LOCAL_CHAT_MODELS,
   imageExtraction: ["paddle-document-pipeline"],
@@ -111,7 +102,7 @@ export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
 };
 
 export const canInheritChatModel = (feature: AiFeatureId): boolean =>
-  feature === "personality" || feature === "sessionTitle" || feature === "memoryExtraction";
+  feature === "sessionTitle" || feature === "memoryExtraction";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

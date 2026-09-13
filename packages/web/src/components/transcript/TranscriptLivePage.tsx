@@ -158,10 +158,7 @@ export const Component = () => {
   }, [isCheckingCache, isModelCached, status]);
 
   const settingsItems: Array<{ label: string; section: SettingsSectionId }> = useMemo(
-    () => [
-      { label: "Model settings", section: "ai-provider" },
-      { label: "Language preferences", section: "general" },
-    ],
+    () => [{ label: "Model settings", section: "model-routing" }],
     [],
   );
 
@@ -262,10 +259,10 @@ export const Component = () => {
                       <AppMenuItem
                         key={item.section}
                         onClick={() => openSettings(item.section)}
-                        className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-highlighted:bg-zinc-100 data-highlighted:text-zinc-900"
+                        className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-highlighted:bg-zinc-100 data-highlighted:text-zinc-900"
                       >
                         <span>{item.label}</span>
-                        <GearSixIcon className="size-4 text-zinc-400" />
+                        <GearSixIcon className="size-4 shrink-0 self-center text-zinc-400" />
                       </AppMenuItem>
                     ))}
                   </AppMenuContent>

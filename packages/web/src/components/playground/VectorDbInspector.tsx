@@ -9,11 +9,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { VectorDbIndexInspection } from "@/lib/vector-db";
 import { modelWorkerFactory } from "@/lib/model-worker";
-import {
-  buildBgeIndexConfig,
-  DEFAULT_BGE_CHUNK_SIZE,
-  DEFAULT_BGE_MODEL,
-} from "@/lib/playground/vectorDbConfig";
+import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 
 const SECONDARY_BUTTON_CLASS_NAME =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-memora-border bg-memora-surface px-4 text-sm font-medium text-memora-text transition-colors hover:bg-memora-surface-soft disabled:cursor-not-allowed disabled:opacity-45";
@@ -78,7 +74,7 @@ function EmptyInspector({
         </h2>
         <p className="mt-3 text-sm leading-6 text-memora-text-muted">
           {error
-            ? "Run semantic retrieval in the Grounded AI tab first, then refresh this inspector to read the same local SQLite database."
+            ? "Index a file first, then refresh this inspector to read the same local SQLite database."
             : "The inspector will show documents and passages after the local vector index has been initialized."}
         </p>
         {error ? (
@@ -120,7 +116,7 @@ export default function VectorDbInspector() {
 
   useEffect(() => {
     void modelWorkerFactory.vectorDb
-      .initialize(buildBgeIndexConfig(DEFAULT_BGE_MODEL, DEFAULT_BGE_CHUNK_SIZE))
+      .initialize(LEXICAL_INDEX_CONFIG)
       .then(() => refresh())
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : "Unable to open the local index.");
@@ -180,7 +176,7 @@ export default function VectorDbInspector() {
           <Stat label="Stored chunks" value={health.chunkCount.toLocaleString()} />
           <Stat
             label="Embedding model"
-            value={health.config.model === "bge-m3" ? "BGE-M3" : "BGE small EN"}
+            value={health.config.model}
             detail={`${health.config.dimensions} dimensions · ${health.config.metric}`}
           />
           <Stat

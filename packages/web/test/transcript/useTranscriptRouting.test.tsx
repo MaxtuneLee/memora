@@ -92,6 +92,25 @@ describe("recording feature selection", () => {
     expect(state.load).toHaveBeenCalledOnce();
   });
 
+  test("a worker error while loading surfaces as a fatal status instead of hanging silently", () => {
+    state.load.mockImplementation(() =>
+      state.callback?.({ status: "error", data: "Failed to fetch" }),
+    );
+    const { result } = renderHook(() => useTranscript());
+    act(() => result.current.loadModel());
+    expect(result.current.status).toBe("error");
+    expect(result.current.loadingMessage).toBe("Failed to fetch");
+  });
+
+  test("a worker error after the model is already ready is treated as one bad chunk, not a fatal error", () => {
+    const { result } = renderHook(() => useTranscript());
+    act(() => result.current.loadModel());
+    expect(result.current.status).toBe("ready");
+
+    act(() => state.callback?.({ status: "error", data: "Could not decode this segment" }));
+    expect(result.current.status).toBe("ready");
+  });
+
   test("loads the selected Nemotron runtime", () => {
     state.query.mockReturnValue({
       modelRouting: {

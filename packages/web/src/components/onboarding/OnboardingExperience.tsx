@@ -1,24 +1,29 @@
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
 import { Toast } from "@base-ui/react/toast";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  nemotron35AsrStreamingManifest,
+  whisperBaseTimestampedManifest,
+} from "@memora/local-model-runtime";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
 import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
 import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
-import { cn } from "@/lib/cn";
-import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
-import { useLocalModelDownloadState } from "@/hooks/settings/useLocalModelDownloadSettings";
+import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
+import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
+import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
+import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
 import {
-  MEMORA_STREAMDOWN_CLASS_NAME,
-  MEMORA_STREAMDOWN_CONTROLS,
-  MEMORA_STREAMDOWN_PLUGINS,
-  MEMORA_STREAMDOWN_THEME,
-} from "@/lib/streamdown";
-import type { LocalModelOption } from "@/lib/local-model";
+  useLocalModelDownloadActions,
+  useLocalModelDownloadState,
+} from "@/hooks/settings/useLocalModelDownloadSettings";
+import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
+import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
+import { cn } from "@/lib/cn";
+import { getLocalModelOptions } from "@/lib/local-model";
+import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ProviderFormState } from "@/types/settingsDialog";
 
@@ -39,12 +44,12 @@ export interface OnboardingProfileInput {
 interface OnboardingExperienceProps {
   isSaving: boolean;
   errorMessage: string | null;
-  streamingSoulDocument: string;
   providers: ProviderRow[];
   getProviderApiKey: (provider: ProviderRow) => string;
-  localModelOptions: LocalModelOption[];
   requiredModelsReady: boolean;
-  onDownloadLocalModel: (modelId: string) => void;
+  transcript: TranscriptSession;
+  transcriptionModelId: string;
+  onSelectTranscriptionMode: (modelId: string) => void;
   onCreateProvider: (providerForm: ProviderFormState) => void;
   onUpdateProvider: (providerId: string, providerForm: ProviderFormState) => void;
   onDeleteProvider: (providerId: string) => void;
@@ -52,7 +57,7 @@ interface OnboardingExperienceProps {
   onComplete: (input: OnboardingProfileInput) => Promise<void>;
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 8;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
 const STYLE_TAGS = [
@@ -75,6 +80,23 @@ const USE_CASE_TAGS = [
   "writing drafts",
 ] as const;
 
+const TRANSCRIPTION_MODES = [
+  {
+    modelId: nemotron35AsrStreamingManifest.id,
+    label: "Fast",
+    description: "Nemotron 3.5 ASR Streaming",
+  },
+  {
+    modelId: whisperBaseTimestampedManifest.id,
+    label: "Accurate",
+    description: "Whisper Base",
+  },
+] as const;
+
+const TRANSCRIPTION_MODEL_OPTIONS = getLocalModelOptions().filter((option) =>
+  TRANSCRIPTION_MODES.some((mode) => mode.modelId === option.id),
+);
+
 const emptyProviderForm = (): ProviderFormState => ({
   name: "",
   baseUrl: "",
@@ -95,25 +117,33 @@ const getStepTitle = (step: number): string => {
   if (step === 2) return "Connect a cloud provider";
   if (step === 3) return "Choose where models run";
   if (step === 4) return "Personalize Memora";
-  if (step === 5) return "Shape Personality";
+  if (step === 5) return "Choose transcription model";
+  if (step === 6) return "Try real-time transcription";
+  if (step === 7) return "Review your recording";
   return "Setup Complete";
 };
 
 const getStepDescription = (step: number): string => {
   if (step === 1) {
-    return "Memora is your personal knowledge base that lives on your device. ";
+    return "Memora is your personal knowledge base that lives in your browser. ";
   }
   if (step === 2) {
-    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys stay on this device and are never synced or exported.";
+    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys will only stay on this device.";
   }
   if (step === 3) {
-    return "Choose the model for chat and for creating your assistant profile. Other features can be configured individually in Settings.";
+    return "Choose the model for chat. Other features can be configured individually in Settings.";
   }
   if (step === 4) {
-    return "These details become the seed context for how Memora speaks and helps you work.";
+    return "These details shape how Memora addresses and responds to you. You can change them anytime in Settings.";
   }
   if (step === 5) {
-    return "I will shape my personality based on the following information.";
+    return "Fast models respond quicker; accurate models take longer but capture more detail. Download the one you want to try.";
+  }
+  if (step === 6) {
+    return "Say something and watch Memora transcribe it live.";
+  }
+  if (step === 7) {
+    return "Play back your recording and follow along with the transcript.";
   }
   return "All set! Memora is now ready to help you capture and organize your knowledge.";
 };
@@ -238,27 +268,15 @@ function BrandPanel() {
   );
 }
 
-function OnboardingLocalModelDownloadCard({
-  model,
-  onDownload,
-}: {
-  model: LocalModelOption;
-  onDownload: (modelId: string) => void;
-}) {
-  const state = useLocalModelDownloadState(model.id);
-
-  return <LocalModelDownloadCard model={model} state={state} onDownload={onDownload} />;
-}
-
 export default function OnboardingExperience({
   isSaving,
   errorMessage,
-  streamingSoulDocument,
   providers,
   getProviderApiKey,
-  localModelOptions,
   requiredModelsReady,
-  onDownloadLocalModel,
+  transcript,
+  transcriptionModelId,
+  onSelectTranscriptionMode,
   onCreateProvider,
   onUpdateProvider,
   onDeleteProvider,
@@ -281,6 +299,19 @@ export default function OnboardingExperience({
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["concise", "practical"]);
   const [customStyleTags, setCustomStyleTags] = useState("");
   const [showCustomStyleInput, setShowCustomStyleInput] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [mediaReadyToken, setMediaReadyToken] = useState(0);
+  const currentTimeRef = useRef(0);
+  const seekRef = useRef<number | null>(null);
+  const { recording: trialRecording } = useRecordingDetail(transcript.lastSavedId ?? undefined);
+  const { handleDownloadLocalModel } = useLocalModelDownloadActions({
+    open: true,
+    modelOptions: TRANSCRIPTION_MODEL_OPTIONS,
+  });
+  const transcriptionDownloadState = useLocalModelDownloadState(transcriptionModelId);
+  const selectedTranscriptionModelOption = TRANSCRIPTION_MODEL_OPTIONS.find(
+    (option) => option.id === transcriptionModelId,
+  );
   const primaryUseCase = buildTagList(selectedUseCaseTags, customUseCaseTags);
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
   const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
@@ -290,17 +321,56 @@ export default function OnboardingExperience({
     if (step === 4) {
       return !!name.trim() && !!primaryUseCase.trim() && !!assistantStyle.trim();
     }
-    if (step === 5) return !isSaving;
+    if (step === 5) return transcript.status === "ready";
+    if (step === 6) return transcript.saveStatus === "success";
     return true;
   }, [
     assistantStyle,
     isProviderFormOpen,
-    isSaving,
     name,
     primaryUseCase,
     requiredModelsReady,
     step,
+    transcript.saveStatus,
+    transcript.status,
   ]);
+
+  useEffect(() => {
+    if (step !== 5) return;
+    // Re-check whenever the mode changes AND whenever the download card's own
+    // state moves (e.g. to "cached") — otherwise a completed download never
+    // gets noticed here, since nothing else in this effect's deps changes
+    // while the user sits on step 5 downloading.
+    void transcript.checkModelCache();
+  }, [step, transcriptionModelId, transcriptionDownloadState?.status, transcript.checkModelCache]);
+
+  useEffect(() => {
+    if (step !== 5) return;
+    if (transcript.status !== null) return;
+    if (transcript.isCheckingCache) return;
+    if (!transcript.isModelCached) return;
+    transcript.loadModel();
+  }, [
+    step,
+    transcript.status,
+    transcript.isCheckingCache,
+    transcript.isModelCached,
+    transcript.loadModel,
+  ]);
+
+  useEffect(() => {
+    if (step !== 6) return;
+    if (transcript.saveStatus !== "success" || !transcript.lastSavedId) return;
+    setStep(7);
+  }, [step, transcript.saveStatus, transcript.lastSavedId]);
+
+  useEffect(() => {
+    if (step !== TOTAL_STEPS) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate("/", { replace: true });
+    }, 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [step, navigate]);
 
   const handleOpenAddProvider = (): void => {
     setIsAddingProvider(true);
@@ -378,27 +448,42 @@ export default function OnboardingExperience({
     );
   };
 
+  const handleStartTrial = async (): Promise<void> => {
+    setRecordingError(null);
+    try {
+      await transcript.handleStartRecording();
+    } catch (error) {
+      setRecordingError(
+        error instanceof Error ? error.message : "Could not access your microphone.",
+      );
+    }
+  };
+
   const handleContinue = async (): Promise<void> => {
     if (!canContinue || isSaving) return;
 
-    if (step < 5) {
-      setStep((current) => current + 1);
+    if (step === 2 && providers.length === 0) {
+      setStep(4);
       return;
     }
 
-    try {
-      await onComplete({
-        name: name.trim().replace(/\s+/g, " "),
-        primaryUseCase: primaryUseCase.trim(),
-        assistantStyle,
-      });
-    } catch {
+    if (step === 4) {
+      try {
+        await onComplete({
+          name: name.trim().replace(/\s+/g, " "),
+          primaryUseCase: primaryUseCase.trim(),
+          assistantStyle,
+        });
+      } catch {
+        return;
+      }
+      setStep(transcript.isWebGpuAvailable ? 5 : TOTAL_STEPS);
       return;
     }
-    setStep(6);
-    window.setTimeout(() => {
-      void navigate("/", { replace: true });
-    }, 650);
+
+    if (step < TOTAL_STEPS) {
+      setStep((current) => current + 1);
+    }
   };
 
   return (
@@ -435,16 +520,11 @@ export default function OnboardingExperience({
           >
             {step === 3 ? (
               <div className="space-y-5">
-                <FeatureModelSettings features={["assistant", "personality"]} disabled={isSaving} />
-                <div className="space-y-5">
-                  {localModelOptions.map((model) => (
-                    <OnboardingLocalModelDownloadCard
-                      key={model.id}
-                      model={model}
-                      onDownload={onDownloadLocalModel}
-                    />
-                  ))}
-                </div>
+                <FeatureModelSettings
+                  features={["assistant"]}
+                  disabled={isSaving}
+                  autoSelectFirstProvider
+                />
               </div>
             ) : null}
 
@@ -452,7 +532,6 @@ export default function OnboardingExperience({
               <div className="space-y-4">
                 <ProviderManagementSection
                   title="Configured providers"
-                  emptyMessage="No providers configured yet. Add one now or continue and set it up later in Settings."
                   providers={providers}
                   editingProviderId={editingProviderId}
                   isAddingProvider={isAddingProvider}
@@ -582,64 +661,163 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 5 ? (
-              <div className="space-y-4">
-                <AnimatePresence mode="wait" initial={false}>
-                  {isSaving ? (
-                    <motion.div
-                      key="stream"
-                      initial={
-                        prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 6, scale: 0.995 }
-                      }
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={
-                        prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.995 }
-                      }
-                      transition={{
-                        duration: prefersReducedMotion ? 0.12 : 0.28,
-                      }}
-                      className="space-y-2 px-0.5"
-                    >
-                      <p className="text-xs font-semibold tracking-[0.08em] text-[#8d877d] uppercase">
-                        Soul Document stream
-                      </p>
-                      <div className="max-h-72 overflow-y-auto rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-5 text-sm text-[#25231f]">
-                        <Streamdown
-                          parseIncompleteMarkdown
-                          mode="streaming"
-                          className={MEMORA_STREAMDOWN_CLASS_NAME}
-                          controls={MEMORA_STREAMDOWN_CONTROLS}
-                          plugins={MEMORA_STREAMDOWN_PLUGINS}
-                          shikiTheme={MEMORA_STREAMDOWN_THEME}
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {TRANSCRIPTION_MODES.map((mode) => {
+                    const selected = transcriptionModelId === mode.modelId;
+                    return (
+                      <button
+                        key={mode.modelId}
+                        type="button"
+                        onClick={() => onSelectTranscriptionMode(mode.modelId)}
+                        className={cn(
+                          "rounded-[1.2rem] border p-4 text-left transition",
+                          selected
+                            ? "border-[#24231f] bg-[#24231f] text-[#fffdf8]"
+                            : "border-[#ded7c9] bg-[#fffdf8] text-[#25231f] hover:bg-[#f3eee3]",
+                        )}
+                      >
+                        <p className="text-sm font-semibold">{mode.label}</p>
+                        <p
+                          className={cn(
+                            "mt-1 text-xs leading-5",
+                            selected ? "text-[#e8e4da]" : "text-[#777167]",
+                          )}
                         >
-                          {streamingSoulDocument || "Generating Soul Document..."}
-                        </Streamdown>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="summary"
-                      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-                      transition={{
-                        duration: prefersReducedMotion ? 0.12 : 0.24,
-                      }}
-                      className="space-y-3 rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-6 text-sm text-[#777167]"
+                          {mode.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedTranscriptionModelOption ? (
+                  <LocalModelDownloadCard
+                    model={selectedTranscriptionModelOption}
+                    state={transcriptionDownloadState}
+                    onDownload={handleDownloadLocalModel}
+                  />
+                ) : null}
+
+                {transcript.status === "error" && transcriptionDownloadState?.status !== "error" ? (
+                  <div className="space-y-2 rounded-[1.2rem] border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] p-4">
+                    <p className="text-sm text-[var(--color-memora-warning-text)]">
+                      {transcript.loadingMessage || "Could not prepare this model for recording."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={transcript.loadModel}
+                      className="text-xs font-semibold text-[var(--color-memora-warning-text)] underline underline-offset-2"
                     >
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Name:</span> {name.trim()}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Use case:</span>{" "}
-                        {primaryUseCase.trim()}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Reply tone:</span>{" "}
-                        {assistantStyle}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      Retry
+                    </button>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setStep(TOTAL_STEPS)}
+                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                >
+                  Skip for now
+                </button>
+              </div>
+            ) : null}
+
+            {step === 6 ? (
+              <div className="space-y-5">
+                <div className="space-y-4 rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8] p-4">
+                  <AudioVisualizer stream={transcript.stream} className="h-10 w-full" />
+                  <div className="h-40 overflow-hidden rounded-[1rem] bg-[#fbf7ed] p-3">
+                    <TranscriptionPanel
+                      accumulatedText={transcript.accumulatedText}
+                      currentSegmentPrefix={transcript.currentSegmentPrefix}
+                      currentSegment={transcript.currentSegment}
+                      tps={transcript.tps}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!transcript.recording ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleStartTrial()}
+                        disabled={transcript.status !== "ready"}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Start recording
+                      </button>
+                    ) : transcript.paused ? (
+                      <button
+                        type="button"
+                        onClick={transcript.handleResumeRecording}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                      >
+                        Resume
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={transcript.handlePauseRecording}
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                        >
+                          Pause
+                        </button>
+                        <button
+                          type="button"
+                          onClick={transcript.handleFinalizeRecording}
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e]"
+                        >
+                          Finish
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {recordingError ? (
+                    <p className="text-xs text-[var(--color-memora-warning-text)]">
+                      {recordingError}
+                    </p>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep(TOTAL_STEPS)}
+                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                >
+                  Skip for now
+                </button>
+              </div>
+            ) : null}
+
+            {step === 7 ? (
+              <div className="space-y-5">
+                {trialRecording ? (
+                  <>
+                    <div className="overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                      <RecordingPreviewSurface
+                        recording={trialRecording}
+                        mediaReadyToken={mediaReadyToken}
+                        transcriptWords={trialRecording.transcript?.words ?? []}
+                        currentTimeRef={currentTimeRef}
+                        seekRef={seekRef}
+                        onMediaReady={() => setMediaReadyToken((current) => current + 1)}
+                      />
+                    </div>
+                    <div className="h-64 overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                      <TranscriptSidebar
+                        words={trialRecording.transcript?.words ?? []}
+                        text={trialRecording.transcript?.text}
+                        timeRef={currentTimeRef}
+                        onSeek={(time) => {
+                          seekRef.current = time;
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#777167]">Loading your recording...</p>
+                )}
               </div>
             ) : null}
 
@@ -649,12 +827,17 @@ export default function OnboardingExperience({
               </p>
             ) : null}
 
-            {step < 6 ? (
+            {step < TOTAL_STEPS ? (
               <div className="flex items-center justify-between pt-2">
                 <motion.button
                   type="button"
                   disabled={step === 1 || isSaving}
-                  onClick={() => setStep((current) => Math.max(1, current - 1))}
+                  onClick={() =>
+                    setStep((current) => {
+                      if (current === 4 && providers.length === 0) return 2;
+                      return Math.max(1, current - 1);
+                    })
+                  }
                   whileHover={
                     prefersReducedMotion || step === 1 || isSaving
                       ? undefined
@@ -685,7 +868,7 @@ export default function OnboardingExperience({
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {step === 5 ? (isSaving ? "Constructing..." : "Next") : "Continue"}
+                  {isSaving ? "Saving..." : "Continue"}
                   <ArrowRightIcon className="size-3.5" weight="bold" />
                 </motion.button>
               </div>

@@ -23,7 +23,7 @@ export const whisperBaseTimestampedManifest: LocalModelManifest = {
 export const nemotron35AsrStreamingManifest: LocalModelManifest = {
   id: "nemotron-3.5-asr-streaming-0.6b-int4",
   displayName: "Nemotron 3.5 ASR Streaming 0.6B",
-  downloadSizeGB: 0.86,
+  downloadSizeGB: 753.8 / 1024,
   family: "nemotron",
   task: "asr",
   modelId: "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4",
