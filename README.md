@@ -5,7 +5,7 @@ Memora is a local-first workspace for learning across documents, audio, images, 
 ## Overview
 
 - Main app: `@memora/web`
-- Supporting packages: `@memora/ai-core`, `@memora/fs`
+- Supporting packages: `@memora/ai-core`, `@memora/ai-extension-skills`, `@memora/ai-provider-pi`, `@memora/datasets`, `@memora/evaluation`, `@memora/fs`, `@memora/livestore-devtool`, `@memora/local-model-runtime`
 
 ## Getting Started
 
@@ -13,7 +13,7 @@ If you are working with the project’s agent-driven development flow, install t
 
 ```bash
 vp install
-pnpm dev:web
+pnpm dev
 ```
 
 The main web app runs on `http://localhost:9003`.
@@ -21,27 +21,34 @@ The main web app runs on `http://localhost:9003`.
 ## Common Commands
 
 ```bash
-pnpm dev:web
-pnpm build:web
+pnpm dev
+pnpm build
 pnpm lint:web
+pnpm test:web
 ```
 
 You can also work on the main app directly:
 
 ```bash
-pnpm --filter @memora/web dev
-pnpm --filter @memora/web build
+vp run -t @memora/web#dev
+vp run -t @memora/web#build
 pnpm --filter @memora/web lint
-pnpm --filter @memora/web preview
+vp --filter @memora/web preview
 ```
 
 ## Workspace
 
 ```text
 packages/
-  web/       Main frontend application
-  ai-core/   Shared AI-related logic
-  fs/        Shared filesystem-related logic
+  web/                   Main frontend application
+  ai-core/               Shared AI orchestration logic
+  ai-extensions/skills/  Agent skill extensions
+  ai-provider/pi/        AI provider integration
+  datasets/              Dataset management
+  evaluation/            Model/metric evaluation tooling
+  fs/                    Shared filesystem-related logic
+  livestore-devtool/     LiveStore devtools panel
+  local-model-runtime/   Local model runtime (ASR/LLM handlers)
 ```
 
 ## Notes
