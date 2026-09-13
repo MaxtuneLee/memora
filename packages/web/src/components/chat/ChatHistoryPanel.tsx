@@ -111,10 +111,7 @@ function ChatHistoryPanelComponent({
           <div className="space-y-3">
             {groups.map((group) => (
               <section key={group.id}>
-                <div
-                  style={{ transform: "translateY(-0.75rem)" }}
-                  className="sticky top-0 z-10 bg-[#f7f2e9]/95 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500 uppercase backdrop-blur-sm"
-                >
+                <div className="sticky top-0 z-10 bg-[#f7f2e9]/95 px-2 py-1.5 text-xs font-semibold text-zinc-500 backdrop-blur-sm">
                   {group.label}
                 </div>
                 <div className="space-y-1">
