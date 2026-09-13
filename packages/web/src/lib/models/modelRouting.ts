@@ -89,7 +89,7 @@ export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   embedding: { source: "local", modelId: "bge-m3" },
 };
 
-const LOCAL_CHAT_MODELS = ["gemma-4-e2b-it-onnx", "qwen3.5-0.8b-onnx-opt"] as const;
+const LOCAL_CHAT_MODELS = ["qwen3.5-0.8b-onnx-opt", "gemma-4-e2b-it-onnx"] as const;
 
 export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   assistant: [],

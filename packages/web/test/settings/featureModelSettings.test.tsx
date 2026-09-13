@@ -124,11 +124,11 @@ test("selecting local execution warns when its model has not been downloaded", a
   await user.click(await screen.findByRole("option", { name: "On this device" }));
   expect(state.setFeatureModel).toHaveBeenCalledWith("sessionTitle", {
     source: "local",
-    modelId: "gemma-4-e2b-it-onnx",
+    modelId: "qwen3.5-0.8b-onnx-opt",
   });
   await waitFor(() =>
     expect(state.add).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Gemma needs to be downloaded" }),
+      expect.objectContaining({ title: "Qwen needs to be downloaded" }),
     ),
   );
 });
