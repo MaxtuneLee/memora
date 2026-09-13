@@ -17,20 +17,15 @@ export const TranscriptionOutput = ({
   tps,
 }: TranscriptionOutputProps) => {
   const visibleAccumulatedText = currentSegment ? currentSegmentPrefix : accumulatedText;
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
+    scrollEndRef.current?.scrollIntoView({ block: "end" });
   }, [visibleAccumulatedText, currentSegment]);
 
   return (
     <div className="relative h-full min-h-0">
-      <div
-        ref={scrollContainerRef}
-        className="h-full overflow-y-auto px-1 py-2 text-base leading-relaxed text-zinc-900 whitespace-pre-wrap md:px-2 md:py-3"
-      >
+      <div className="h-full overflow-y-auto px-1 py-2 text-base leading-relaxed text-zinc-900 whitespace-pre-wrap md:px-2 md:py-3">
         {visibleAccumulatedText || currentSegment ? (
           <>
             {visibleAccumulatedText && <span>{visibleAccumulatedText}</span>}
@@ -53,6 +48,7 @@ export const TranscriptionOutput = ({
         ) : (
           <span className="italic text-zinc-400">Start recording to see transcription...</span>
         )}
+        <div ref={scrollEndRef} />
       </div>
       {tps && (
         <span className="absolute bottom-4 right-4 rounded-full border border-zinc-200 bg-[rgba(250,248,243,0.92)] px-2.5 py-1 text-xs text-zinc-500 shadow-sm tabular-nums backdrop-blur-sm">
