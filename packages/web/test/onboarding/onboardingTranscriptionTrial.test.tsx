@@ -133,6 +133,13 @@ test("shows the transcription mode step and gates Continue until the model is re
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
 }, 30000);
 
+test("shows download details for the selected model, defaulting to Accurate", async () => {
+  const user = userEvent.setup();
+  await goToStep5(user);
+
+  expect(screen.getByRole("heading", { name: "Whisper Base Timestamped" })).toBeTruthy();
+}, 30000);
+
 test("selecting a mode commits it to the transcription routing", async () => {
   const user = userEvent.setup();
   await goToStep5(user);

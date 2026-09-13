@@ -10,14 +10,19 @@ import { useNavigate } from "react-router";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
 import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
+import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
 import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
 import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
-import { Progress } from "@/components/ui/Progress";
+import {
+  useLocalModelDownloadActions,
+  useLocalModelDownloadState,
+} from "@/hooks/settings/useLocalModelDownloadSettings";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { cn } from "@/lib/cn";
+import { getLocalModelOptions } from "@/lib/local-model";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ProviderFormState } from "@/types/settingsDialog";
@@ -87,6 +92,10 @@ const TRANSCRIPTION_MODES = [
     description: "Whisper Base — slower to load, more accurate transcription.",
   },
 ] as const;
+
+const TRANSCRIPTION_MODEL_OPTIONS = getLocalModelOptions().filter((option) =>
+  TRANSCRIPTION_MODES.some((mode) => mode.modelId === option.id),
+);
 
 const emptyProviderForm = (): ProviderFormState => ({
   name: "",
@@ -295,6 +304,14 @@ export default function OnboardingExperience({
   const currentTimeRef = useRef(0);
   const seekRef = useRef<number | null>(null);
   const { recording: trialRecording } = useRecordingDetail(transcript.lastSavedId ?? undefined);
+  const { handleDownloadLocalModel } = useLocalModelDownloadActions({
+    open: true,
+    modelOptions: TRANSCRIPTION_MODEL_OPTIONS,
+  });
+  const transcriptionDownloadState = useLocalModelDownloadState(transcriptionModelId);
+  const selectedTranscriptionModelOption = TRANSCRIPTION_MODEL_OPTIONS.find(
+    (option) => option.id === transcriptionModelId,
+  );
   const primaryUseCase = buildTagList(selectedUseCaseTags, customUseCaseTags);
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
   const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
@@ -465,15 +482,6 @@ export default function OnboardingExperience({
       setStep((current) => current + 1);
     }
   };
-
-  const transcriptModelBadge = (() => {
-    if (transcript.status === "error") return { label: "Download failed", tone: "bg-amber-400" };
-    if (transcript.status === "ready") return { label: "Ready", tone: "bg-emerald-400" };
-    if (transcript.status === "loading") return { label: "Downloading...", tone: "bg-amber-400" };
-    if (transcript.isCheckingCache) return { label: "Checking...", tone: "bg-zinc-400" };
-    if (transcript.isModelCached) return { label: "Preparing...", tone: "bg-amber-400" };
-    return { label: "Not downloaded", tone: "bg-zinc-400" };
-  })();
 
   return (
     <div className="grid h-dvh w-full overflow-hidden bg-[#fbf7ed] text-[#25231f] lg:grid-cols-[minmax(22rem,45vw)_minmax(0,1fr)]">
@@ -680,37 +688,28 @@ export default function OnboardingExperience({
                   })}
                 </div>
 
-                <div className="space-y-3 rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-[#24231f]">
-                      <span className={cn("size-2.5 rounded-full", transcriptModelBadge.tone)} />
-                      {transcriptModelBadge.label}
-                    </div>
-                    {!transcript.isCheckingCache &&
-                    (transcript.status === "error" ||
-                      (!transcript.isModelCached && transcript.status === null)) ? (
-                      <button
-                        type="button"
-                        onClick={transcript.loadModel}
-                        className="rounded-full bg-[#24231f] px-4 py-2 text-xs font-semibold text-[#fffdf8] transition hover:bg-[#35332e]"
-                      >
-                        {transcript.status === "error" ? "Retry" : "Download"}
-                      </button>
-                    ) : null}
-                  </div>
-                  {transcript.status === "error" && transcript.loadingMessage ? (
-                    <p className="text-xs text-[var(--color-memora-warning-text)]">
-                      {transcript.loadingMessage}
+                {selectedTranscriptionModelOption ? (
+                  <LocalModelDownloadCard
+                    model={selectedTranscriptionModelOption}
+                    state={transcriptionDownloadState}
+                    onDownload={handleDownloadLocalModel}
+                  />
+                ) : null}
+
+                {transcript.status === "error" && transcriptionDownloadState?.status !== "error" ? (
+                  <div className="space-y-2 rounded-[1.2rem] border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] p-4">
+                    <p className="text-sm text-[var(--color-memora-warning-text)]">
+                      {transcript.loadingMessage || "Could not prepare this model for recording."}
                     </p>
-                  ) : null}
-                  {transcript.progressItems.length > 0 ? (
-                    <div className="space-y-1">
-                      {transcript.progressItems.map(({ file, progress }, index) => (
-                        <Progress key={`${file}-${index}`} label={file} value={progress} />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                    <button
+                      type="button"
+                      onClick={transcript.loadModel}
+                      className="text-xs font-semibold text-[var(--color-memora-warning-text)] underline underline-offset-2"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : null}
 
                 <button
                   type="button"

@@ -51,7 +51,12 @@ export const useTranscript = () => {
   const accumulatedTextRef = useRef("");
   const segmentDiagnosticsRef = useRef<TranscriptDiagnostics[]>([]);
 
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatusState] = useState<string | null>(null);
+  const statusRef = useRef<string | null>(null);
+  const setStatus = useCallback((next: string | null) => {
+    statusRef.current = next;
+    setStatusState(next);
+  }, []);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [isModelCached, setIsModelCached] = useState(false);
   const [isCheckingCache, setIsCheckingCache] = useState(true);
@@ -499,6 +504,15 @@ export const useTranscript = () => {
           isProcessingRef.current = false;
           currentSegmentRef.current = null;
           setCurrentSegment("");
+          // Before the model has ever reached "ready", an error means the model
+          // itself failed to load — surface it instead of leaving the UI stuck
+          // showing "loading" forever. Once ready, an error is just one bad
+          // transcription chunk; recover and keep recording.
+          if (statusRef.current !== "ready") {
+            setStatus("error");
+            setLoadingMessage(message.data);
+            break;
+          }
           tryProcessNext();
           void finalizeIfReady();
           break;
