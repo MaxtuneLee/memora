@@ -1,11 +1,22 @@
 import { Toast } from "@base-ui/react/toast";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+  nemotron35AsrStreamingManifest,
+  whisperBaseTimestampedManifest,
+} from "@memora/local-model-runtime";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
 import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
+import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
+import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
+import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
+import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
+import { Progress } from "@/components/ui/Progress";
+import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
+import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { cn } from "@/lib/cn";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import type { provider as ProviderRow } from "@/livestore/provider";
@@ -31,6 +42,9 @@ interface OnboardingExperienceProps {
   providers: ProviderRow[];
   getProviderApiKey: (provider: ProviderRow) => string;
   requiredModelsReady: boolean;
+  transcript: TranscriptSession;
+  transcriptionModelId: string;
+  onSelectTranscriptionMode: (modelId: string) => void;
   onCreateProvider: (providerForm: ProviderFormState) => void;
   onUpdateProvider: (providerId: string, providerForm: ProviderFormState) => void;
   onDeleteProvider: (providerId: string) => void;
@@ -38,7 +52,7 @@ interface OnboardingExperienceProps {
   onComplete: (input: OnboardingProfileInput) => Promise<void>;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 8;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
 const STYLE_TAGS = [
@@ -61,6 +75,19 @@ const USE_CASE_TAGS = [
   "writing drafts",
 ] as const;
 
+const TRANSCRIPTION_MODES = [
+  {
+    modelId: nemotron35AsrStreamingManifest.id,
+    label: "Fast",
+    description: "Nemotron 3.5 ASR Streaming — lighter and quicker, tuned for live captions.",
+  },
+  {
+    modelId: whisperBaseTimestampedManifest.id,
+    label: "Accurate",
+    description: "Whisper Base — slower to load, more accurate transcription.",
+  },
+] as const;
+
 const emptyProviderForm = (): ProviderFormState => ({
   name: "",
   baseUrl: "",
@@ -81,6 +108,9 @@ const getStepTitle = (step: number): string => {
   if (step === 2) return "Connect a cloud provider";
   if (step === 3) return "Choose where models run";
   if (step === 4) return "Personalize Memora";
+  if (step === 5) return "Choose transcription speed";
+  if (step === 6) return "Try real-time transcription";
+  if (step === 7) return "Review your recording";
   return "Setup Complete";
 };
 
@@ -96,6 +126,15 @@ const getStepDescription = (step: number): string => {
   }
   if (step === 4) {
     return "These details shape how Memora addresses and responds to you. You can change them anytime in Settings.";
+  }
+  if (step === 5) {
+    return "Fast models respond quicker; accurate models take longer but capture more detail. Download the one you want to try.";
+  }
+  if (step === 6) {
+    return "Say something and watch Memora transcribe it live.";
+  }
+  if (step === 7) {
+    return "Play back your recording and follow along with the transcript.";
   }
   return "All set! Memora is now ready to help you capture and organize your knowledge.";
 };
@@ -226,6 +265,9 @@ export default function OnboardingExperience({
   providers,
   getProviderApiKey,
   requiredModelsReady,
+  transcript,
+  transcriptionModelId,
+  onSelectTranscriptionMode,
   onCreateProvider,
   onUpdateProvider,
   onDeleteProvider,
@@ -248,6 +290,11 @@ export default function OnboardingExperience({
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["concise", "practical"]);
   const [customStyleTags, setCustomStyleTags] = useState("");
   const [showCustomStyleInput, setShowCustomStyleInput] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [mediaReadyToken, setMediaReadyToken] = useState(0);
+  const currentTimeRef = useRef(0);
+  const seekRef = useRef<number | null>(null);
+  const { recording: trialRecording } = useRecordingDetail(transcript.lastSavedId ?? undefined);
   const primaryUseCase = buildTagList(selectedUseCaseTags, customUseCaseTags);
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
   const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
@@ -257,8 +304,53 @@ export default function OnboardingExperience({
     if (step === 4) {
       return !!name.trim() && !!primaryUseCase.trim() && !!assistantStyle.trim();
     }
+    if (step === 5) return transcript.status === "ready";
+    if (step === 6) return transcript.saveStatus === "success";
     return true;
-  }, [assistantStyle, isProviderFormOpen, name, primaryUseCase, requiredModelsReady, step]);
+  }, [
+    assistantStyle,
+    isProviderFormOpen,
+    name,
+    primaryUseCase,
+    requiredModelsReady,
+    step,
+    transcript.saveStatus,
+    transcript.status,
+  ]);
+
+  useEffect(() => {
+    if (step !== 5) return;
+    // Re-check whenever the user switches between Fast and Accurate.
+    void transcript.checkModelCache();
+  }, [step, transcriptionModelId, transcript.checkModelCache]);
+
+  useEffect(() => {
+    if (step !== 5) return;
+    if (transcript.status !== null) return;
+    if (transcript.isCheckingCache) return;
+    if (!transcript.isModelCached) return;
+    transcript.loadModel();
+  }, [
+    step,
+    transcript.status,
+    transcript.isCheckingCache,
+    transcript.isModelCached,
+    transcript.loadModel,
+  ]);
+
+  useEffect(() => {
+    if (step !== 6) return;
+    if (transcript.saveStatus !== "success" || !transcript.lastSavedId) return;
+    setStep(7);
+  }, [step, transcript.saveStatus, transcript.lastSavedId]);
+
+  useEffect(() => {
+    if (step !== TOTAL_STEPS) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate("/", { replace: true });
+    }, 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [step, navigate]);
 
   const handleOpenAddProvider = (): void => {
     setIsAddingProvider(true);
@@ -336,6 +428,17 @@ export default function OnboardingExperience({
     );
   };
 
+  const handleStartTrial = async (): Promise<void> => {
+    setRecordingError(null);
+    try {
+      await transcript.handleStartRecording();
+    } catch (error) {
+      setRecordingError(
+        error instanceof Error ? error.message : "Could not access your microphone.",
+      );
+    }
+  };
+
   const handleContinue = async (): Promise<void> => {
     if (!canContinue || isSaving) return;
 
@@ -344,25 +447,33 @@ export default function OnboardingExperience({
       return;
     }
 
-    if (step < 4) {
-      setStep((current) => current + 1);
+    if (step === 4) {
+      try {
+        await onComplete({
+          name: name.trim().replace(/\s+/g, " "),
+          primaryUseCase: primaryUseCase.trim(),
+          assistantStyle,
+        });
+      } catch {
+        return;
+      }
+      setStep(transcript.isWebGpuAvailable ? 5 : TOTAL_STEPS);
       return;
     }
 
-    try {
-      await onComplete({
-        name: name.trim().replace(/\s+/g, " "),
-        primaryUseCase: primaryUseCase.trim(),
-        assistantStyle,
-      });
-    } catch {
-      return;
+    if (step < TOTAL_STEPS) {
+      setStep((current) => current + 1);
     }
-    setStep(5);
-    window.setTimeout(() => {
-      void navigate("/", { replace: true });
-    }, 650);
   };
+
+  const transcriptModelBadge = (() => {
+    if (transcript.status === "error") return { label: "Download failed", tone: "bg-amber-400" };
+    if (transcript.status === "ready") return { label: "Ready", tone: "bg-emerald-400" };
+    if (transcript.status === "loading") return { label: "Downloading...", tone: "bg-amber-400" };
+    if (transcript.isCheckingCache) return { label: "Checking...", tone: "bg-zinc-400" };
+    if (transcript.isModelCached) return { label: "Preparing...", tone: "bg-amber-400" };
+    return { label: "Not downloaded", tone: "bg-zinc-400" };
+  })();
 
   return (
     <div className="grid h-dvh w-full overflow-hidden bg-[#fbf7ed] text-[#25231f] lg:grid-cols-[minmax(22rem,45vw)_minmax(0,1fr)]">
@@ -535,6 +646,176 @@ export default function OnboardingExperience({
                     />
                   ) : null}
                 </div>
+              </div>
+            ) : null}
+
+            {step === 5 ? (
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {TRANSCRIPTION_MODES.map((mode) => {
+                    const selected = transcriptionModelId === mode.modelId;
+                    return (
+                      <button
+                        key={mode.modelId}
+                        type="button"
+                        onClick={() => onSelectTranscriptionMode(mode.modelId)}
+                        className={cn(
+                          "rounded-[1.2rem] border p-4 text-left transition",
+                          selected
+                            ? "border-[#24231f] bg-[#24231f] text-[#fffdf8]"
+                            : "border-[#ded7c9] bg-[#fffdf8] text-[#25231f] hover:bg-[#f3eee3]",
+                        )}
+                      >
+                        <p className="text-sm font-semibold">{mode.label}</p>
+                        <p
+                          className={cn(
+                            "mt-1 text-xs leading-5",
+                            selected ? "text-[#e8e4da]" : "text-[#777167]",
+                          )}
+                        >
+                          {mode.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-3 rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-[#24231f]">
+                      <span className={cn("size-2.5 rounded-full", transcriptModelBadge.tone)} />
+                      {transcriptModelBadge.label}
+                    </div>
+                    {!transcript.isCheckingCache &&
+                    (transcript.status === "error" ||
+                      (!transcript.isModelCached && transcript.status === null)) ? (
+                      <button
+                        type="button"
+                        onClick={transcript.loadModel}
+                        className="rounded-full bg-[#24231f] px-4 py-2 text-xs font-semibold text-[#fffdf8] transition hover:bg-[#35332e]"
+                      >
+                        {transcript.status === "error" ? "Retry" : "Download"}
+                      </button>
+                    ) : null}
+                  </div>
+                  {transcript.status === "error" && transcript.loadingMessage ? (
+                    <p className="text-xs text-[var(--color-memora-warning-text)]">
+                      {transcript.loadingMessage}
+                    </p>
+                  ) : null}
+                  {transcript.progressItems.length > 0 ? (
+                    <div className="space-y-1">
+                      {transcript.progressItems.map(({ file, progress }, index) => (
+                        <Progress key={`${file}-${index}`} label={file} value={progress} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep(TOTAL_STEPS)}
+                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                >
+                  Skip for now
+                </button>
+              </div>
+            ) : null}
+
+            {step === 6 ? (
+              <div className="space-y-5">
+                <div className="space-y-4 rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8] p-4">
+                  <AudioVisualizer stream={transcript.stream} className="h-10 w-full" />
+                  <div className="h-40 overflow-hidden rounded-[1rem] bg-[#fbf7ed] p-3">
+                    <TranscriptionPanel
+                      accumulatedText={transcript.accumulatedText}
+                      currentSegmentPrefix={transcript.currentSegmentPrefix}
+                      currentSegment={transcript.currentSegment}
+                      tps={transcript.tps}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!transcript.recording ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleStartTrial()}
+                        disabled={transcript.status !== "ready"}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Start recording
+                      </button>
+                    ) : transcript.paused ? (
+                      <button
+                        type="button"
+                        onClick={transcript.handleResumeRecording}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                      >
+                        Resume
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={transcript.handlePauseRecording}
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                        >
+                          Pause
+                        </button>
+                        <button
+                          type="button"
+                          onClick={transcript.handleFinalizeRecording}
+                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e]"
+                        >
+                          Finish
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {recordingError ? (
+                    <p className="text-xs text-[var(--color-memora-warning-text)]">
+                      {recordingError}
+                    </p>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep(TOTAL_STEPS)}
+                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                >
+                  Skip for now
+                </button>
+              </div>
+            ) : null}
+
+            {step === 7 ? (
+              <div className="space-y-5">
+                {trialRecording ? (
+                  <>
+                    <div className="overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                      <RecordingPreviewSurface
+                        recording={trialRecording}
+                        mediaReadyToken={mediaReadyToken}
+                        transcriptWords={trialRecording.transcript?.words ?? []}
+                        currentTimeRef={currentTimeRef}
+                        seekRef={seekRef}
+                        onMediaReady={() => setMediaReadyToken((current) => current + 1)}
+                      />
+                    </div>
+                    <div className="h-64 overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                      <TranscriptSidebar
+                        words={trialRecording.transcript?.words ?? []}
+                        text={trialRecording.transcript?.text}
+                        timeRef={currentTimeRef}
+                        onSeek={(time) => {
+                          seekRef.current = time;
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#777167]">Loading your recording...</p>
+                )}
               </div>
             ) : null}
 

@@ -550,3 +550,5 @@ export const useTranscript = () => {
     handleReset,
   };
 };
+
+export type TranscriptSession = ReturnType<typeof useTranscript>;

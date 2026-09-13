@@ -100,3 +100,28 @@ test(
   },
   30000,
 );
+
+test(
+  "skips the transcription trial when WebGPU is unavailable",
+  async () => {
+    const { Component } = await import("@/pages/onboarding/index");
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Toast.Provider>
+          <Component />
+        </Toast.Provider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(screen.getByPlaceholderText("What should Memora call you?"), "Ada");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(screen.queryByRole("heading", { name: "Choose transcription speed" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Setup Complete" })).toBeTruthy();
+  },
+  30000,
+);

@@ -1,10 +1,12 @@
 import { Toast } from "@base-ui/react/toast";
+import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
 import { useAppStore } from "@/livestore/store";
 import { useCallback, useMemo, useState } from "react";
 import OnboardingExperience, {
   type OnboardingProfileInput,
 } from "@/components/onboarding/OnboardingExperience";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
+import { useTranscript } from "@/hooks/transcript/useTranscript";
 import { fetchProviderModels } from "@/lib/settings/providerModels";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import { settingsDocumentQuery$, settingsProvidersQuery$ } from "@/lib/settings/queries";
@@ -12,12 +14,18 @@ import { savePersonalityProfile } from "@/lib/settings/personalityStorage";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
 import { providerCredentialEvents } from "@/livestore/providerCredential";
 import { useProviderCredentials } from "@/hooks/settings/useProviderCredentials";
-import { normalizeSettingsValue, settingEvents, settingsTable, type setting } from "@/livestore/setting";
+import {
+  normalizeSettingsValue,
+  settingEvents,
+  settingsTable,
+  type setting,
+} from "@/livestore/setting";
 import type { ProviderFormState } from "@/types/settingsDialog";
 
 export const Component = () => {
   const store = useAppStore();
   const { routing, setFeatureModel } = useFeatureModels();
+  const transcript = useTranscript();
   const { add } = Toast.useToastManager();
   const providers = store.useQuery(settingsProvidersQuery$) as ProviderRow[];
   const settings = normalizeSettingsValue(
@@ -33,6 +41,19 @@ export const Component = () => {
     providers.some(
       (provider) => provider.id === routing.assistant.providerId && !!provider.baseUrl.trim(),
     );
+  // Onboarding only offers local Fast/Accurate modes; a cloud transcription route
+  // (set elsewhere, e.g. Settings) has no Fast/Accurate equivalent, so default the
+  // picker to Accurate rather than reflect an unrelated cloud choice.
+  const transcriptionModelId =
+    routing.transcription.source === "local"
+      ? routing.transcription.modelId
+      : whisperBaseTimestampedManifest.id;
+  const handleSelectTranscriptionMode = useCallback(
+    (modelId: string) => {
+      setFeatureModel("transcription", { source: "local", modelId });
+    },
+    [setFeatureModel],
+  );
 
   const markOnboardingCompleted = useCallback(
     (input: OnboardingProfileInput) => {
@@ -172,6 +193,9 @@ export const Component = () => {
       providers={providers}
       getProviderApiKey={getProviderApiKey}
       requiredModelsReady={requiredModelsReady}
+      transcript={transcript}
+      transcriptionModelId={transcriptionModelId}
+      onSelectTranscriptionMode={handleSelectTranscriptionMode}
       onCreateProvider={handleCreateProvider}
       onUpdateProvider={handleUpdateProvider}
       onDeleteProvider={handleDeleteProvider}
