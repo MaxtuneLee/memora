@@ -1,4 +1,4 @@
-import { useCallback, useId } from "react";
+import { useCallback, useEffect, useId } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -32,6 +32,7 @@ function FeatureModelRow({
   providers,
   getApiKey,
   disabled,
+  autoSelectFirstProvider,
   onChange,
 }: {
   feature: AiFeatureId;
@@ -40,6 +41,7 @@ function FeatureModelRow({
   providers: readonly provider[];
   getApiKey: (provider: provider) => string;
   disabled: boolean;
+  autoSelectFirstProvider: boolean;
   onChange: (feature: AiFeatureId, route: FeatureModelRoute) => void;
 }) {
   const id = useId();
@@ -70,6 +72,11 @@ function FeatureModelRow({
     { value: "cloud", label: "Cloud" },
     ...(canInheritChatModel(feature) ? [{ value: "inherit", label: "Follow chat model" }] : []),
   ];
+  useEffect(() => {
+    if (!autoSelectFirstProvider) return;
+    if (route.source !== "cloud" || route.providerId || providers.length === 0) return;
+    onChange(feature, { source: "cloud", providerId: providers[0].id, modelId: "" });
+  }, [autoSelectFirstProvider, feature, onChange, providers, route]);
   if (!info) return null;
   return (
     <fieldset
@@ -83,29 +90,34 @@ function FeatureModelRow({
         {info.description}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label htmlFor={`${id}-source`} className="text-xs text-[var(--color-memora-text-muted)]">
-            Execution
-          </label>
-          <Select
-            id={`${id}-source`}
-            disabled={disabled || feature === "assistant"}
-            value={route.source}
-            options={sourceOptions}
-            onValueChange={(source) => {
-              if (source === "inherit")
-                onChange(feature, { source: "inherit", featureId: "assistant" });
-              if (source === "local" && localOptions[0])
-                onChange(feature, { source: "local", modelId: localOptions[0].value });
-              if (source === "cloud")
-                onChange(feature, {
-                  source: "cloud",
-                  providerId: routing.assistant.providerId,
-                  modelId: routing.assistant.modelId,
-                });
-            }}
-          />
-        </div>
+        {sourceOptions.length > 1 ? (
+          <div className="space-y-1.5">
+            <label
+              htmlFor={`${id}-source`}
+              className="text-xs text-[var(--color-memora-text-muted)]"
+            >
+              Execution
+            </label>
+            <Select
+              id={`${id}-source`}
+              disabled={disabled}
+              value={route.source}
+              options={sourceOptions}
+              onValueChange={(source) => {
+                if (source === "inherit")
+                  onChange(feature, { source: "inherit", featureId: "assistant" });
+                if (source === "local" && localOptions[0])
+                  onChange(feature, { source: "local", modelId: localOptions[0].value });
+                if (source === "cloud")
+                  onChange(feature, {
+                    source: "cloud",
+                    providerId: routing.assistant.providerId,
+                    modelId: routing.assistant.modelId,
+                  });
+              }}
+            />
+          </div>
+        ) : null}
         {route.source === "local" ? (
           <div className="space-y-1.5">
             <label
@@ -200,9 +212,11 @@ function FeatureModelRow({
 export default function FeatureModelSettings({
   features = IMPLEMENTED_FEATURES,
   disabled = false,
+  autoSelectFirstProvider = false,
 }: {
   features?: readonly AiFeatureId[];
   disabled?: boolean;
+  autoSelectFirstProvider?: boolean;
 }) {
   const { routing, providers, credentials, setFeatureModel } = useFeatureModels();
   const notifyLocalModelSelection = useLocalModelSelectionNotice();
@@ -223,6 +237,7 @@ export default function FeatureModelSettings({
           routing={routing}
           providers={providers}
           disabled={disabled}
+          autoSelectFirstProvider={autoSelectFirstProvider}
           getApiKey={(entry) => readProviderApiKey(entry, credentials)}
           onChange={handleFeatureModelChange}
         />

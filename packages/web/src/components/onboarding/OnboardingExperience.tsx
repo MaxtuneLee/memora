@@ -339,6 +339,11 @@ export default function OnboardingExperience({
   const handleContinue = async (): Promise<void> => {
     if (!canContinue || isSaving) return;
 
+    if (step === 2 && providers.length === 0) {
+      setStep(4);
+      return;
+    }
+
     if (step < 4) {
       setStep((current) => current + 1);
       return;
@@ -393,7 +398,11 @@ export default function OnboardingExperience({
           >
             {step === 3 ? (
               <div className="space-y-5">
-                <FeatureModelSettings features={["assistant"]} disabled={isSaving} />
+                <FeatureModelSettings
+                  features={["assistant"]}
+                  disabled={isSaving}
+                  autoSelectFirstProvider
+                />
               </div>
             ) : null}
 
@@ -540,7 +549,12 @@ export default function OnboardingExperience({
                 <motion.button
                   type="button"
                   disabled={step === 1 || isSaving}
-                  onClick={() => setStep((current) => Math.max(1, current - 1))}
+                  onClick={() =>
+                    setStep((current) => {
+                      if (current === 4 && providers.length === 0) return 2;
+                      return Math.max(1, current - 1);
+                    })
+                  }
                   whileHover={
                     prefersReducedMotion || step === 1 || isSaving
                       ? undefined

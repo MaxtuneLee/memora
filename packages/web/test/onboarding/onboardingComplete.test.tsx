@@ -74,3 +74,29 @@ test(
   },
   30000,
 );
+
+test(
+  "skips the model step when no provider was configured, and back skips it too",
+  async () => {
+    state.providers = [];
+    const { Component } = await import("@/pages/onboarding/index");
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Toast.Provider>
+          <Component />
+        </Toast.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Welcome to Memora" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("heading", { name: "Connect a cloud provider" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("heading", { name: "Personalize Memora" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "Connect a cloud provider" })).toBeTruthy();
+  },
+  30000,
+);

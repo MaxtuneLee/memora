@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   cache: vi.fn(),
   add: vi.fn(),
   localSessionTitle: false,
+  assistantProviderId: "p",
 }));
 vi.mock("@base-ui/react/toast", () => ({ Toast: { useToastManager: () => ({ add: state.add }) } }));
 vi.mock("@/hooks/settings/useProviderModelCatalog", () => ({
@@ -22,7 +23,11 @@ vi.mock("@/hooks/settings/useProviderModelCatalog", () => ({
 vi.mock("@/hooks/settings/useFeatureModels", () => ({
   useFeatureModels: () => ({
     routing: normalizeAiModelRouting({
-      assistant: { source: "cloud", providerId: "p", modelId: "chat-model" },
+      assistant: {
+        source: "cloud",
+        providerId: state.assistantProviderId,
+        modelId: state.assistantProviderId ? "chat-model" : "",
+      },
       ...(state.localSessionTitle
         ? { sessionTitle: { source: "local", modelId: "gemma-4-e2b-it-onnx" } }
         : {}),
@@ -51,6 +56,7 @@ vi.mock("@/lib/local-model", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   state.localSessionTitle = false;
+  state.assistantProviderId = "p";
   state.cache.mockResolvedValue({ cached: false });
   state.catalog.mockReturnValue({
     models: [parseProviderModel({ id: "other-model", name: "Other model" })],
@@ -65,7 +71,7 @@ test("chat exposes cloud configuration and selects a fetched model", async () =>
   const user = userEvent.setup();
   render(<FeatureModelSettings features={["assistant"]} />);
   const chat = within(screen.getByRole("group", { name: "Chat" }));
-  expect(chat.getByLabelText("Execution").getAttribute("disabled")).not.toBeNull();
+  expect(chat.queryByLabelText("Execution")).toBeNull();
   expect(chat.queryByText("On this device")).toBeNull();
   expect(chat.getByText(/No API key on this device/)).toBeTruthy();
   expect(chat.getByRole("combobox", { name: "Model" })).toHaveTextContent("chat-model");
@@ -139,4 +145,22 @@ test("changing to another local model checks that model's download", async () =>
     ),
   );
   expect(state.cache).toHaveBeenCalledExactlyOnceWith("qwen3.5-0.8b-onnx-opt");
+});
+
+test("auto-selects the first provider for chat when enabled and none is chosen yet", async () => {
+  state.assistantProviderId = "";
+  render(<FeatureModelSettings features={["assistant"]} autoSelectFirstProvider />);
+  await waitFor(() =>
+    expect(state.setFeatureModel).toHaveBeenCalledWith("assistant", {
+      source: "cloud",
+      providerId: "p",
+      modelId: "",
+    }),
+  );
+});
+
+test("does not auto-select a provider when the flag is off", () => {
+  state.assistantProviderId = "";
+  render(<FeatureModelSettings features={["assistant"]} />);
+  expect(state.setFeatureModel).not.toHaveBeenCalled();
 });
