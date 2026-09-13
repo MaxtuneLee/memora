@@ -27,6 +27,9 @@ export interface setting {
   onboardingName?: string;
   onboardingCompleted?: boolean;
   onboardingSkippedAt?: string;
+  primaryUseCase?: string;
+  assistantStyle?: string;
+  customInstructions?: string;
 }
 
 export const defaultSettings: setting = {
@@ -58,6 +61,9 @@ export const defaultSettings: setting = {
   onboardingName: "",
   onboardingCompleted: false,
   onboardingSkippedAt: "",
+  primaryUseCase: "",
+  assistantStyle: "",
+  customInstructions: "",
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
@@ -93,6 +99,9 @@ export const settingsStoredValueSchema = Schema.Struct({
   onboardingName: Schema.optional(Schema.String),
   onboardingCompleted: Schema.optional(Schema.Boolean),
   onboardingSkippedAt: Schema.optional(Schema.String),
+  primaryUseCase: Schema.optional(Schema.String),
+  assistantStyle: Schema.optional(Schema.String),
+  customInstructions: Schema.optional(Schema.String),
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {

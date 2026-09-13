@@ -1,24 +1,13 @@
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
 import { Toast } from "@base-ui/react/toast";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
 import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
 import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
-import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
 import { cn } from "@/lib/cn";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
-import { useLocalModelDownloadState } from "@/hooks/settings/useLocalModelDownloadSettings";
-import {
-  MEMORA_STREAMDOWN_CLASS_NAME,
-  MEMORA_STREAMDOWN_CONTROLS,
-  MEMORA_STREAMDOWN_PLUGINS,
-  MEMORA_STREAMDOWN_THEME,
-} from "@/lib/streamdown";
-import type { LocalModelOption } from "@/lib/local-model";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ProviderFormState } from "@/types/settingsDialog";
 
@@ -39,12 +28,9 @@ export interface OnboardingProfileInput {
 interface OnboardingExperienceProps {
   isSaving: boolean;
   errorMessage: string | null;
-  streamingSoulDocument: string;
   providers: ProviderRow[];
   getProviderApiKey: (provider: ProviderRow) => string;
-  localModelOptions: LocalModelOption[];
   requiredModelsReady: boolean;
-  onDownloadLocalModel: (modelId: string) => void;
   onCreateProvider: (providerForm: ProviderFormState) => void;
   onUpdateProvider: (providerId: string, providerForm: ProviderFormState) => void;
   onDeleteProvider: (providerId: string) => void;
@@ -52,7 +38,7 @@ interface OnboardingExperienceProps {
   onComplete: (input: OnboardingProfileInput) => Promise<void>;
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
 const STYLE_TAGS = [
@@ -95,25 +81,21 @@ const getStepTitle = (step: number): string => {
   if (step === 2) return "Connect a cloud provider";
   if (step === 3) return "Choose where models run";
   if (step === 4) return "Personalize Memora";
-  if (step === 5) return "Shape Personality";
   return "Setup Complete";
 };
 
 const getStepDescription = (step: number): string => {
   if (step === 1) {
-    return "Memora is your personal knowledge base that lives on your device. ";
+    return "Memora is your personal knowledge base that lives in your browser. ";
   }
   if (step === 2) {
-    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys stay on this device and are never synced or exported.";
+    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys will only stay on this device.";
   }
   if (step === 3) {
-    return "Choose the model for chat and for creating your assistant profile. Other features can be configured individually in Settings.";
+    return "Choose the model for chat. Other features can be configured individually in Settings.";
   }
   if (step === 4) {
-    return "These details become the seed context for how Memora speaks and helps you work.";
-  }
-  if (step === 5) {
-    return "I will shape my personality based on the following information.";
+    return "These details shape how Memora addresses and responds to you. You can change them anytime in Settings.";
   }
   return "All set! Memora is now ready to help you capture and organize your knowledge.";
 };
@@ -238,27 +220,12 @@ function BrandPanel() {
   );
 }
 
-function OnboardingLocalModelDownloadCard({
-  model,
-  onDownload,
-}: {
-  model: LocalModelOption;
-  onDownload: (modelId: string) => void;
-}) {
-  const state = useLocalModelDownloadState(model.id);
-
-  return <LocalModelDownloadCard model={model} state={state} onDownload={onDownload} />;
-}
-
 export default function OnboardingExperience({
   isSaving,
   errorMessage,
-  streamingSoulDocument,
   providers,
   getProviderApiKey,
-  localModelOptions,
   requiredModelsReady,
-  onDownloadLocalModel,
   onCreateProvider,
   onUpdateProvider,
   onDeleteProvider,
@@ -290,17 +257,8 @@ export default function OnboardingExperience({
     if (step === 4) {
       return !!name.trim() && !!primaryUseCase.trim() && !!assistantStyle.trim();
     }
-    if (step === 5) return !isSaving;
     return true;
-  }, [
-    assistantStyle,
-    isProviderFormOpen,
-    isSaving,
-    name,
-    primaryUseCase,
-    requiredModelsReady,
-    step,
-  ]);
+  }, [assistantStyle, isProviderFormOpen, name, primaryUseCase, requiredModelsReady, step]);
 
   const handleOpenAddProvider = (): void => {
     setIsAddingProvider(true);
@@ -381,7 +339,7 @@ export default function OnboardingExperience({
   const handleContinue = async (): Promise<void> => {
     if (!canContinue || isSaving) return;
 
-    if (step < 5) {
+    if (step < 4) {
       setStep((current) => current + 1);
       return;
     }
@@ -395,7 +353,7 @@ export default function OnboardingExperience({
     } catch {
       return;
     }
-    setStep(6);
+    setStep(5);
     window.setTimeout(() => {
       void navigate("/", { replace: true });
     }, 650);
@@ -435,16 +393,7 @@ export default function OnboardingExperience({
           >
             {step === 3 ? (
               <div className="space-y-5">
-                <FeatureModelSettings features={["assistant", "personality"]} disabled={isSaving} />
-                <div className="space-y-5">
-                  {localModelOptions.map((model) => (
-                    <OnboardingLocalModelDownloadCard
-                      key={model.id}
-                      model={model}
-                      onDownload={onDownloadLocalModel}
-                    />
-                  ))}
-                </div>
+                <FeatureModelSettings features={["assistant"]} disabled={isSaving} />
               </div>
             ) : null}
 
@@ -452,7 +401,6 @@ export default function OnboardingExperience({
               <div className="space-y-4">
                 <ProviderManagementSection
                   title="Configured providers"
-                  emptyMessage="No providers configured yet. Add one now or continue and set it up later in Settings."
                   providers={providers}
                   editingProviderId={editingProviderId}
                   isAddingProvider={isAddingProvider}
@@ -581,75 +529,13 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {step === 5 ? (
-              <div className="space-y-4">
-                <AnimatePresence mode="wait" initial={false}>
-                  {isSaving ? (
-                    <motion.div
-                      key="stream"
-                      initial={
-                        prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 6, scale: 0.995 }
-                      }
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={
-                        prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.995 }
-                      }
-                      transition={{
-                        duration: prefersReducedMotion ? 0.12 : 0.28,
-                      }}
-                      className="space-y-2 px-0.5"
-                    >
-                      <p className="text-xs font-semibold tracking-[0.08em] text-[#8d877d] uppercase">
-                        Soul Document stream
-                      </p>
-                      <div className="max-h-72 overflow-y-auto rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-5 text-sm text-[#25231f]">
-                        <Streamdown
-                          parseIncompleteMarkdown
-                          mode="streaming"
-                          className={MEMORA_STREAMDOWN_CLASS_NAME}
-                          controls={MEMORA_STREAMDOWN_CONTROLS}
-                          plugins={MEMORA_STREAMDOWN_PLUGINS}
-                          shikiTheme={MEMORA_STREAMDOWN_THEME}
-                        >
-                          {streamingSoulDocument || "Generating Soul Document..."}
-                        </Streamdown>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="summary"
-                      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-                      transition={{
-                        duration: prefersReducedMotion ? 0.12 : 0.24,
-                      }}
-                      className="space-y-3 rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-6 text-sm text-[#777167]"
-                    >
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Name:</span> {name.trim()}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Use case:</span>{" "}
-                        {primaryUseCase.trim()}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-[#24231f]">Reply tone:</span>{" "}
-                        {assistantStyle}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : null}
-
             {errorMessage ? (
               <p className="rounded-[0.9rem] border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] px-3 py-2 text-xs text-[var(--color-memora-warning-text)]">
                 {errorMessage}
               </p>
             ) : null}
 
-            {step < 6 ? (
+            {step < TOTAL_STEPS ? (
               <div className="flex items-center justify-between pt-2">
                 <motion.button
                   type="button"
@@ -685,7 +571,7 @@ export default function OnboardingExperience({
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {step === 5 ? (isSaving ? "Constructing..." : "Next") : "Continue"}
+                  {isSaving ? "Saving..." : "Continue"}
                   <ArrowRightIcon className="size-3.5" weight="bold" />
                 </motion.button>
               </div>

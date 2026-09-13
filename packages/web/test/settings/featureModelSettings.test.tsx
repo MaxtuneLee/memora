@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
   reload: vi.fn(),
   cache: vi.fn(),
   add: vi.fn(),
-  localPersonality: false,
+  localSessionTitle: false,
 }));
 vi.mock("@base-ui/react/toast", () => ({ Toast: { useToastManager: () => ({ add: state.add }) } }));
 vi.mock("@/hooks/settings/useProviderModelCatalog", () => ({
@@ -23,8 +23,8 @@ vi.mock("@/hooks/settings/useFeatureModels", () => ({
   useFeatureModels: () => ({
     routing: normalizeAiModelRouting({
       assistant: { source: "cloud", providerId: "p", modelId: "chat-model" },
-      ...(state.localPersonality
-        ? { personality: { source: "local", modelId: "gemma-4-e2b-it-onnx" } }
+      ...(state.localSessionTitle
+        ? { sessionTitle: { source: "local", modelId: "gemma-4-e2b-it-onnx" } }
         : {}),
     }),
     providers: [
@@ -50,7 +50,7 @@ vi.mock("@/lib/local-model", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  state.localPersonality = false;
+  state.localSessionTitle = false;
   state.cache.mockResolvedValue({ cached: false });
   state.catalog.mockReturnValue({
     models: [parseProviderModel({ id: "other-model", name: "Other model" })],
@@ -78,17 +78,17 @@ test("chat exposes cloud configuration and selects a fetched model", async () =>
   });
 });
 
-test("personality defaults to following chat and can independently select cloud", async () => {
+test("session title defaults to following chat and can independently select cloud", async () => {
   const user = userEvent.setup();
-  render(<FeatureModelSettings features={["personality"]} />);
-  const personality = within(screen.getByRole("group", { name: "Personality" }));
-  expect(personality.queryByLabelText("Local model")).toBeNull();
-  expect(personality.getByRole("combobox", { name: "Execution" })).toHaveTextContent(
+  render(<FeatureModelSettings features={["sessionTitle"]} />);
+  const sessionTitle = within(screen.getByRole("group", { name: "Conversation titles" }));
+  expect(sessionTitle.queryByLabelText("Local model")).toBeNull();
+  expect(sessionTitle.getByRole("combobox", { name: "Execution" })).toHaveTextContent(
     "Follow chat model",
   );
-  await user.click(personality.getByLabelText("Execution"));
+  await user.click(sessionTitle.getByLabelText("Execution"));
   await user.click(await screen.findByRole("option", { name: "Cloud" }));
-  expect(state.setFeatureModel).toHaveBeenCalledWith("personality", {
+  expect(state.setFeatureModel).toHaveBeenCalledWith("sessionTitle", {
     source: "cloud",
     providerId: "p",
     modelId: "chat-model",
@@ -113,10 +113,10 @@ test("failed model loading keeps the saved selection and offers retry", async ()
 
 test("selecting local execution warns when its model has not been downloaded", async () => {
   const user = userEvent.setup();
-  render(<FeatureModelSettings features={["personality"]} />);
+  render(<FeatureModelSettings features={["sessionTitle"]} />);
   await user.click(screen.getByRole("combobox", { name: "Execution" }));
   await user.click(await screen.findByRole("option", { name: "On this device" }));
-  expect(state.setFeatureModel).toHaveBeenCalledWith("personality", {
+  expect(state.setFeatureModel).toHaveBeenCalledWith("sessionTitle", {
     source: "local",
     modelId: "gemma-4-e2b-it-onnx",
   });
@@ -128,9 +128,9 @@ test("selecting local execution warns when its model has not been downloaded", a
 });
 
 test("changing to another local model checks that model's download", async () => {
-  state.localPersonality = true;
+  state.localSessionTitle = true;
   const user = userEvent.setup();
-  render(<FeatureModelSettings features={["personality"]} />);
+  render(<FeatureModelSettings features={["sessionTitle"]} />);
   await user.click(screen.getByRole("combobox", { name: "Local model" }));
   await user.click(await screen.findByRole("option", { name: "Qwen" }));
   await waitFor(() =>

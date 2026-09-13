@@ -18,7 +18,6 @@ const inheritedTargetSchema = Schema.Union(
 export const modelRoutingSchema = Schema.Struct({
   assistant: Schema.optional(cloudTargetSchema),
   transcription: Schema.optional(modelTargetSchema),
-  personality: Schema.optional(inheritedTargetSchema),
   sessionTitle: Schema.optional(inheritedTargetSchema),
   memoryExtraction: Schema.optional(inheritedTargetSchema),
   imageExtraction: Schema.optional(modelTargetSchema),

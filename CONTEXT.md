@@ -71,3 +71,21 @@ _Avoid_: Job, session, benchmark
 **Example result**:
 The accepted outcome for one example in an evaluation run, including its prediction or error and the measurements needed for aggregation. Retries are attempts to produce this single result, not additional results.
 _Avoid_: Model event, checkpoint
+
+## Language — Chat personalization
+
+**Personalization**:
+The Settings section where a user sets how Memora addresses and responds to them: name, use case, tone, and Custom instructions.
+_Avoid_: Memory (the section's former name — still used for the assistant's long-term memory store, which now lives inside Personalization alongside these settings)
+
+**Personality**:
+The fixed, deterministically built text combining the user's name and preferred tone that Memora includes in every conversation's system prompt. Rebuilt automatically whenever Personalization settings change; never authored by a model.
+_Avoid_: Soul Document, personality profile (an earlier AI-generated version of this text, no longer produced)
+
+**Custom instructions**:
+User-authored directives set only in Personalization, included in every conversation. Written directly by the user, unlike a Notice.
+_Avoid_: Instructions, notice
+
+**Notice**:
+A lasting communication preference the assistant infers from conversation and stores automatically, included in every conversation until deleted. Inferred by the model, unlike Custom instructions.
+_Avoid_: Stable user preference, memory item

@@ -153,23 +153,18 @@ export const savePersonalityDoc = async (content: string): Promise<void> => {
   await opfsWrite(PERSONALITY_DOC_PATH, content, { overwrite: true });
 };
 
-export const buildPersonalityMarkdown = (input: {
+export interface PersonalityProfileInput {
   name: string;
-  primaryUseCase?: string;
+  primaryUseCase: string;
   assistantStyle: string;
-  languagePreference?: string;
-  aiSetupPreference?: "configure-now" | "later";
-}): string => {
+  customInstructions: string;
+}
+
+export const buildPersonalityMarkdown = (input: PersonalityProfileInput): string => {
   const name = input.name.trim();
-  const primaryUseCase = input.primaryUseCase?.trim() ?? "";
+  const primaryUseCase = input.primaryUseCase.trim();
   const assistantStyle = input.assistantStyle.trim();
-  const languagePreference = input.languagePreference?.trim() ?? "";
-  const aiSetupPreference =
-    input.aiSetupPreference === "configure-now"
-      ? "Configure AI now"
-      : input.aiSetupPreference === "later"
-        ? "Set up later"
-        : "Not specified";
+  const customInstructions = input.customInstructions.trim();
   const updatedAt = new Date().toISOString();
 
   return [
@@ -179,23 +174,26 @@ export const buildPersonalityMarkdown = (input: {
     "You are Memora's assistant. You support the user with concise, practical, and context-aware help across their files, transcripts, and notes.",
     "",
     "## User Identity",
-    name,
+    name || "Not specified",
     "",
     "## Primary Use Case",
     primaryUseCase || "Not specified",
     "",
     "## Preferred Assistant Style",
-    assistantStyle,
+    assistantStyle || "Not specified",
     "",
-    "## Language Preference",
-    languagePreference || "Not specified",
+    "## Custom Instructions",
+    customInstructions || "None",
     "",
-    "## AI Setup Preference",
-    aiSetupPreference,
-    "",
-    `## Updated At`,
+    "## Updated At",
     updatedAt,
   ].join("\n");
+};
+
+export const savePersonalityProfile = async (input: PersonalityProfileInput): Promise<void> => {
+  const personality = buildPersonalityMarkdown(input);
+  const existing = (await loadGlobalMemoryData()) ?? { notices: [] };
+  await saveGlobalMemoryData({ personality, notices: existing.notices });
 };
 
 const parseGlobalMemory = (text: string): GlobalMemoryRecord | null => {
@@ -254,15 +252,6 @@ export const saveGlobalMemoryData = async (memory: GlobalMemoryData): Promise<vo
 export const clearGlobalMemory = async (): Promise<void> => {
   await opfsFile(GLOBAL_MEMORY_PATH).remove({ force: true });
   await syncPersonalityDoc(undefined);
-};
-
-export const deleteGlobalMemoryPersonality = async (): Promise<GlobalMemoryData> => {
-  const existing = (await loadGlobalMemoryData()) ?? { notices: [] };
-  const nextMemory: GlobalMemoryData = {
-    notices: existing.notices,
-  };
-  await saveGlobalMemoryData(nextMemory);
-  return nextMemory;
 };
 
 export const deleteGlobalMemoryNotice = async (noticeId: string): Promise<GlobalMemoryData> => {

@@ -5,7 +5,6 @@ import {
   clearGlobalMemory,
   clearGlobalMemoryNotices,
   deleteGlobalMemoryNotice,
-  deleteGlobalMemoryPersonality,
   loadGlobalMemoryData,
   type GlobalMemoryData,
 } from "@/lib/settings/personalityStorage";
@@ -38,12 +37,6 @@ export const useMemorySettings = ({ open }: UseMemorySettingsOptions) => {
     void refreshMemoryData();
   }, [open, refreshMemoryData]);
 
-  const handleDeletePersonality = useCallback(async () => {
-    const nextMemory = await deleteGlobalMemoryPersonality();
-    setMemoryData(nextMemory);
-    add({ title: "Personality removed", type: "success" });
-  }, [add]);
-
   const handleDeleteNotice = useCallback(
     async (noticeId: string) => {
       const nextMemory = await deleteGlobalMemoryNotice(noticeId);
@@ -69,7 +62,6 @@ export const useMemorySettings = ({ open }: UseMemorySettingsOptions) => {
     memoryData,
     isMemoryLoading,
     refreshMemoryData,
-    handleDeletePersonality,
     handleDeleteNotice,
     handleClearNotices,
     handleClearAllMemory,
