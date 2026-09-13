@@ -84,12 +84,12 @@ const TRANSCRIPTION_MODES = [
   {
     modelId: nemotron35AsrStreamingManifest.id,
     label: "Fast",
-    description: "Nemotron 3.5 ASR Streaming — lighter and quicker, tuned for live captions.",
+    description: "Nemotron 3.5 ASR Streaming",
   },
   {
     modelId: whisperBaseTimestampedManifest.id,
     label: "Accurate",
-    description: "Whisper Base — slower to load, more accurate transcription.",
+    description: "Whisper Base",
   },
 ] as const;
 
@@ -117,7 +117,7 @@ const getStepTitle = (step: number): string => {
   if (step === 2) return "Connect a cloud provider";
   if (step === 3) return "Choose where models run";
   if (step === 4) return "Personalize Memora";
-  if (step === 5) return "Choose transcription speed";
+  if (step === 5) return "Choose transcription model";
   if (step === 6) return "Try real-time transcription";
   if (step === 7) return "Review your recording";
   return "Setup Complete";
@@ -337,9 +337,12 @@ export default function OnboardingExperience({
 
   useEffect(() => {
     if (step !== 5) return;
-    // Re-check whenever the user switches between Fast and Accurate.
+    // Re-check whenever the mode changes AND whenever the download card's own
+    // state moves (e.g. to "cached") — otherwise a completed download never
+    // gets noticed here, since nothing else in this effect's deps changes
+    // while the user sits on step 5 downloading.
     void transcript.checkModelCache();
-  }, [step, transcriptionModelId, transcript.checkModelCache]);
+  }, [step, transcriptionModelId, transcriptionDownloadState?.status, transcript.checkModelCache]);
 
   useEffect(() => {
     if (step !== 5) return;

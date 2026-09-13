@@ -1,5 +1,5 @@
 import { Toast } from "@base-ui/react/toast";
-import { whisperBaseTimestampedManifest } from "@memora/local-model-runtime";
+import { nemotron35AsrStreamingManifest } from "@memora/local-model-runtime";
 import { useAppStore } from "@/livestore/store";
 import { useCallback, useMemo, useState } from "react";
 import OnboardingExperience, {
@@ -42,12 +42,12 @@ export const Component = () => {
       (provider) => provider.id === routing.assistant.providerId && !!provider.baseUrl.trim(),
     );
   // Onboarding only offers local Fast/Accurate modes; a cloud transcription route
-  // (set elsewhere, e.g. Settings) has no Fast/Accurate equivalent, so default the
-  // picker to Accurate rather than reflect an unrelated cloud choice.
+  // (set elsewhere, e.g. Settings) has no Fast/Accurate equivalent, so fall back to
+  // the app-wide default (Fast/Nemotron) rather than reflect an unrelated cloud choice.
   const transcriptionModelId =
     routing.transcription.source === "local"
       ? routing.transcription.modelId
-      : whisperBaseTimestampedManifest.id;
+      : nemotron35AsrStreamingManifest.id;
   const handleSelectTranscriptionMode = useCallback(
     (modelId: string) => {
       setFeatureModel("transcription", { source: "local", modelId });

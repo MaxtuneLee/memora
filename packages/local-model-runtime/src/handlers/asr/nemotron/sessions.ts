@@ -45,14 +45,53 @@ const readModelAsset = async (
   const request = `${modelUrl}/${file}`;
   const cache = getLocalModelAssetCache();
   const cached = await cache.match(request);
-  if (cached) return cached.arrayBuffer();
+  if (cached) {
+    const buffer = await cached.arrayBuffer();
+    emit({ type: "model-progress", file, progress: 100, total: buffer.byteLength });
+    return buffer;
+  }
 
   const response = await fetch(request);
   if (!response.ok)
     throw new Error(`Nemotron model download failed for ${file}: HTTP ${response.status}.`);
-  await cache.put(request, response.clone());
-  emit({ type: "model-progress", file, progress: 100 });
-  return response.arrayBuffer();
+
+  const contentLength = Number(response.headers.get("content-length"));
+  const total = Number.isFinite(contentLength) && contentLength > 0 ? contentLength : undefined;
+
+  // Without a known total, there is nothing to weigh incremental chunks
+  // against — cache the whole response and report it done in one step,
+  // same as before.
+  if (!response.body || !total) {
+    await cache.put(request, response.clone());
+    const buffer = await response.arrayBuffer();
+    emit({ type: "model-progress", file, progress: 100, total: total ?? buffer.byteLength });
+    return buffer;
+  }
+
+  // Tee the body so caching and progress-tracked reading consume the same
+  // download independently, instead of fetching it twice.
+  const [cacheBody, progressBody] = response.body.tee();
+  const cachePut = cache.put(request, new Response(cacheBody, { headers: response.headers }));
+
+  const reader = progressBody.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.byteLength;
+    emit({ type: "model-progress", file, progress: (loaded / total) * 100, total });
+  }
+  await cachePut;
+
+  const buffer = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return buffer.buffer;
 };
 
 const createOnnxSession = async (

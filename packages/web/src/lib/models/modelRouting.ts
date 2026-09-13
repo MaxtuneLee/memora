@@ -81,7 +81,7 @@ export interface AiModelRouting {
 
 export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   assistant: { source: "cloud", providerId: "", modelId: "" },
-  transcription: { source: "local", modelId: "whisper-base-timestamped" },
+  transcription: { source: "local", modelId: nemotron35AsrStreamingManifest.id },
   sessionTitle: { source: "inherit", featureId: "assistant" },
   memoryExtraction: { source: "inherit", featureId: "assistant" },
   imageExtraction: { source: "local", modelId: "paddle-document-pipeline" },

@@ -129,15 +129,15 @@ test("shows the transcription mode step and gates Continue until the model is re
   const user = userEvent.setup();
   await goToStep5(user);
 
-  expect(screen.getByRole("heading", { name: "Choose transcription speed" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Choose transcription model" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
 }, 30000);
 
-test("shows download details for the selected model, defaulting to Accurate", async () => {
+test("shows download details for the selected model, defaulting to Fast", async () => {
   const user = userEvent.setup();
   await goToStep5(user);
 
-  expect(screen.getByRole("heading", { name: "Whisper Base Timestamped" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Nemotron 3.5 ASR Streaming 0.6B" })).toBeTruthy();
 }, 30000);
 
 test("selecting a mode commits it to the transcription routing", async () => {
