@@ -50,18 +50,6 @@ export const PAGE_SEARCH_ITEMS: GlobalSearchItem[] = [
       to: "/chat",
     },
   },
-  {
-    id: "page:files",
-    kind: "page",
-    title: "Files",
-    description: "Workspace file library",
-    preview: "Review all stored files in a single library view.",
-    keywords: ["library", "documents", "media", "assets"],
-    intent: {
-      type: "navigate",
-      to: "/files",
-    },
-  },
 ];
 
 export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [

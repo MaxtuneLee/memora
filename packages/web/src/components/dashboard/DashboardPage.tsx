@@ -31,7 +31,6 @@ import { cn } from "@/lib/cn";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
-import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 import { formatBytes, formatDuration } from "@/lib/format";
@@ -163,11 +162,7 @@ export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "t
     return getDocumentEditorHref(file.id);
   }
 
-  if (isFileViewerFile(file)) {
-    return getFileViewerHref(file.id);
-  }
-
-  return "/files";
+  return "/desktop";
 };
 
 const createUploadNavigationState = (): SearchNavigationState => {

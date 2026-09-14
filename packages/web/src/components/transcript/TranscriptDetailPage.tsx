@@ -4,6 +4,7 @@ import { useAppStore } from "@/livestore/store";
 import { write as opfsWrite } from "@memora/fs";
 
 import { BackButton } from "@/components/transcript/BackButton";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import { desktopFilesQuery$ } from "@/lib/desktop/queries";
 import { renamePathAddressableFile } from "@/lib/editor/pathMutations";
@@ -63,6 +64,7 @@ export const Component = () => {
     progress: transcriptionProgress,
   } = useFileTranscription();
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -423,10 +425,20 @@ export const Component = () => {
             }}
             onStartRename={() => setIsRenaming(true)}
             onToggleTranscript={handleTranscriptToggle}
-            onDelete={async () => {
+            onDelete={() => setShowDeleteConfirm(true)}
+          />
+
+          <ConfirmDialog
+            isOpen={showDeleteConfirm}
+            title="Move to trash?"
+            description="This transcript will be moved to Trash and can be restored later."
+            confirmLabel="Move to Trash"
+            onConfirm={async () => {
               await deleteRecording(recording);
-              void navigate("/files");
+              setShowDeleteConfirm(false);
+              void navigate("/desktop");
             }}
+            onCancel={() => setShowDeleteConfirm(false)}
           />
 
           <div

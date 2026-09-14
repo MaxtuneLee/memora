@@ -182,7 +182,7 @@ function DesktopItemComponent({
       <div
         className={`
           relative flex items-center justify-center rounded-xl bg-white/80
-          shadow-sm ring-1 ring-zinc-900/5 backdrop-blur-sm
+          shadow-sm ring-1 ring-zinc-900/5
           transition-transform group-hover:scale-105
           ${isSelected ? "ring-zinc-400 shadow-md" : ""}
         `}

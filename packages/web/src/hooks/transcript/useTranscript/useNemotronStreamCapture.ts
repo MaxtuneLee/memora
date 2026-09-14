@@ -8,6 +8,7 @@ import {
   startStreamingTranscription,
   writeStreamingTranscription,
 } from "@/lib/transcript/whisper/client";
+import pcmProcessorWorkletUrl from "../../../worklets/pcm-processor.ts?worker&url";
 
 // Nemotron's RNN-T decoder carries hidden state across the whole recording, so audio
 // streams through a single continuous session for the whole recording rather than a
@@ -99,9 +100,7 @@ export const useNemotronStreamCapture = ({
         if (context.sampleRate !== WHISPER_SAMPLE_RATE) {
           throw new Error("This browser cannot provide 16000 Hz audio for Nemotron.");
         }
-        await context.audioWorklet.addModule(
-          new URL("../../../worklets/pcm-processor.ts", import.meta.url),
-        );
+        await context.audioWorklet.addModule(pcmProcessorWorkletUrl);
         const source = context.createMediaStreamSource(mediaStream);
         const processor = new AudioWorkletNode(context, "pcm-processor");
         const silentSink = context.createGain();

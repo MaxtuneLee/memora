@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/livestore/store";
 
-import {
-  deleteRecording as deleteFileFromStore,
-  getRecordingAudioUrl,
-  getRecordingTranscript,
-} from "@/lib/library/fileService";
+import { getRecordingAudioUrl, getRecordingTranscript } from "@/lib/library/fileService";
 import { activeFilesQuery$ } from "@/lib/library/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { type FileItem, type FileMeta } from "@/types/library";
@@ -87,7 +83,6 @@ export const useFiles = (options: UseFilesOptions = {}) => {
 
   const deleteFile = useCallback(
     async (file: FileMeta) => {
-      await deleteFileFromStore(file);
       store.commit(
         fileEvents.fileDeleted({
           id: file.id,

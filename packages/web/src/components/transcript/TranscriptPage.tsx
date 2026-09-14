@@ -10,10 +10,12 @@ import { motion, useReducedMotion } from "motion/react";
 import { type ReactElement, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { LanguageSelector } from "@/components/transcript/LanguageSelector";
 import { TranscriptWorkbench } from "@/components/transcript/transcriptLanding/TranscriptWorkbench";
 import { getTranscriptHistoryRowState } from "@/components/transcript/transcriptLanding/transcriptLandingState";
 import type { SettingsSectionId } from "@/types/settings";
+import type { RecordingItem } from "@/types/library";
 import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
@@ -34,6 +36,14 @@ export const Component = (): ReactElement => {
   });
 
   const navigate = useNavigate();
+
+  const [pendingDelete, setPendingDelete] = useState<RecordingItem | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteRecording(pendingDelete);
+    setPendingDelete(null);
+  };
 
   const settingsItems: Array<{
     description: string;
@@ -144,8 +154,17 @@ export const Component = (): ReactElement => {
         </div>
       </motion.header>
       <div className="mt-6">
-        <TranscriptWorkbench items={workbenchItems} onDelete={deleteRecording} />
+        <TranscriptWorkbench items={workbenchItems} onDelete={setPendingDelete} />
       </div>
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        title="Move to trash?"
+        description="This transcript will be moved to Trash and can be restored later."
+        confirmLabel="Move to Trash"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

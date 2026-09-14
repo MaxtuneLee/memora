@@ -17,7 +17,6 @@ import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
-import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
@@ -87,11 +86,7 @@ export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "t
     return getDocumentEditorHref(file.id);
   }
 
-  if (isFileViewerFile(file)) {
-    return getFileViewerHref(file.id);
-  }
-
-  return "/files";
+  return "/desktop";
 };
 
 interface NavItemProps {
@@ -248,8 +243,7 @@ export function Sidebar() {
               {recentFiles.map((file) => {
                 const href = getFileHref(file);
                 const Icon = getFileIcon(file);
-                const isActive =
-                  href === "/files" ? currentPath.startsWith("/files") : currentPath === href;
+                const isActive = currentPath === href;
 
                 return (
                   <Link

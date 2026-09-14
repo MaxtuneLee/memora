@@ -9,7 +9,7 @@ if (import.meta.env.DEV) {
   });
 }
 
-if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_SCAN === "true") {
+if (import.meta.env.DEV) {
   void import("react-scan").then(({ scan }) => {
     scan({ enabled: true });
   });

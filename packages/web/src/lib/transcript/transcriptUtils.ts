@@ -16,5 +16,9 @@ export {
   isUsableText,
   summarizeTranscriptDiagnostics,
 } from "./utils/diagnostics";
-export { stripBlankAudioMarkers, trimRepeatedTailWords } from "./utils/text";
+export {
+  splitConfirmedStreamingText,
+  stripBlankAudioMarkers,
+  trimRepeatedTailWords,
+} from "./utils/text";
 export { buildWordAnimationWords } from "./utils/wordAnimation";

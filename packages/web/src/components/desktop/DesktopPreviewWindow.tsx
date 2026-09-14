@@ -5,7 +5,6 @@ import { useNavigate } from "react-router";
 
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { getFileIcon } from "@/lib/library/fileIcon";
-import { getFileViewerHref, isFileViewerFile } from "@/lib/library/fileViewer";
 import { formatBytes } from "@/lib/format";
 import { resolveRecordingFile } from "@/lib/library/fileService";
 import type { ContentLocator } from "@/lib/content/types";
@@ -56,11 +55,7 @@ export const getFileOpenHref = (
     return getDocumentEditorHref(fileMeta.id);
   }
 
-  if (isFileViewerFile(fileMeta)) {
-    return getFileViewerHref(fileMeta.id);
-  }
-
-  return "/files";
+  return "/desktop";
 };
 
 function formatDate(timestamp: number): string {

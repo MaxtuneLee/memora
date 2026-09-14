@@ -3,7 +3,6 @@ import { expect, test } from "vite-plus/test";
 import { getFileHref as getSidebarRecentFileHref } from "@/app/components/Sidebar";
 import { getFileHref as getDashboardRecentFileHref } from "@/components/dashboard/DashboardPage";
 import { getFileOpenHref } from "@/components/desktop/DesktopPreviewWindow";
-import { getFileHref as getLibraryFileHref } from "@/components/library/FilesPage";
 import { buildFileSearchItems } from "@/lib/search/searchItems";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { FileMeta } from "@/types/library";
@@ -122,27 +121,9 @@ test("desktop preview open action routes supported file viewers and editable tex
 
   expect(getFileOpenHref(markdownFile)).toBe("/editor/file/doc-1");
   expect(getFileOpenHref(audioFile)).toBe("/transcript/file/audio-1");
-  expect(getFileOpenHref(imageFile)).toBe("/files/file/image-1");
-  expect(getFileOpenHref(docxFile)).toBe("/files/file/docx-1");
-  expect(getFileOpenHref(pptxFile)).toBe("/files/file/pptx-1");
-});
-
-test("files page routes editable text documents to the editor", () => {
-  const markdownFile = createFileMeta({
-    id: "doc-1",
-    name: "notes.md",
-    type: "document",
-    mimeType: "text/markdown",
-  });
-  const imageFile = createFileMeta({
-    id: "image-1",
-    name: "diagram.png",
-    type: "image",
-    mimeType: "image/png",
-  });
-
-  expect(getLibraryFileHref(markdownFile)).toBe("/editor/file/doc-1");
-  expect(getLibraryFileHref(imageFile)).toBe("/files/file/image-1");
+  expect(getFileOpenHref(imageFile)).toBe("/desktop");
+  expect(getFileOpenHref(docxFile)).toBe("/desktop");
+  expect(getFileOpenHref(pptxFile)).toBe("/desktop");
 });
 
 test("global search routes editable text documents directly to the editor", () => {

@@ -150,6 +150,22 @@ export const buildTextFromChunks = (chunks: RecordingWord[]) => {
   return normalizeTranscriptSpacing(chunks.map((chunk) => chunk.text).join(""));
 };
 
+/**
+ * Splits a growing streaming hypothesis at its last word boundary. RNN-T-style
+ * streaming decoders never revise words they've already emitted, so everything
+ * before the trailing (still-forming) word is safe to commit permanently instead
+ * of waiting for the model's final pass.
+ */
+export const splitConfirmedStreamingText = (
+  text: string,
+): { confirmed: string; pending: string } => {
+  const lastSpace = text.lastIndexOf(" ");
+  if (lastSpace === -1) {
+    return { confirmed: "", pending: text };
+  }
+  return { confirmed: text.slice(0, lastSpace), pending: text.slice(lastSpace + 1) };
+};
+
 export const normalizeTextForTranscriptChecks = (text: string) => {
   return normalizeTranscriptSpacing(text);
 };

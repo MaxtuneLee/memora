@@ -9,6 +9,7 @@ import {
   TRANSFORMERS_CACHE_DIR,
   TRANSCRIPT_LANGUAGE_STORAGE_KEY,
   evaluateTranscriptCandidate,
+  splitConfirmedStreamingText,
 } from "@/lib/transcript/transcriptUtils";
 import {
   getOrCreateWhisperWorker,
@@ -430,10 +431,26 @@ export const useTranscript = () => {
           setCurrentSegment("");
           setTps(null);
           break;
-        case "update":
-          setCurrentSegment(message.output);
+        case "update": {
+          // Nemotron's RNN-T decoder never revises a word once it's emitted, so
+          // everything up to the last word boundary is already final: commit it
+          // straight to accumulatedText instead of leaving it in currentSegment,
+          // where it would otherwise pile up as animated spans for the whole
+          // recording and get replayed/torn down all at once at finalize time.
+          // Whisper's per-utterance VAD updates skip this: their text still needs
+          // the shouldKeep quality gate below before it's safe to commit.
+          if (isNemotronAsrModel(runtimeRef.current?.modelId)) {
+            const { confirmed, pending } = splitConfirmedStreamingText(message.output);
+            setAccumulatedText(confirmed);
+            accumulatedTextRef.current = confirmed;
+            setCurrentSegmentPrefix(confirmed);
+            setCurrentSegment(pending);
+          } else {
+            setCurrentSegment(message.output);
+          }
           setTps(message.tps ?? null);
           break;
+        }
         case "complete": {
           isProcessingRef.current = false;
           const newText =
@@ -445,19 +462,22 @@ export const useTranscript = () => {
           const chunks = Array.isArray(message.chunks) ? message.chunks : [];
           if (message.streaming) {
             const text = newText.trim();
+            // The "update" handler above already streamed confirmed words into
+            // accumulatedText live, word by word, as they were decoded. This final
+            // pass just reconciles with the model's authoritative text/timestamps —
+            // no need to replay the whole recording through the word-reveal
+            // animation again, which is what caused the mass render/teardown at
+            // save time.
             if (text) {
-              if (chunks.length > 0) {
-                enqueueWordAnimation(chunks, text);
-              } else {
-                setAccumulatedText(text);
-                accumulatedTextRef.current = text;
-              }
+              setAccumulatedText(text);
+              accumulatedTextRef.current = text;
               if (recordingIdRef.current) recordingTextRef.current = text;
               if (recordingIdRef.current && chunks.length > 0) {
                 recordingWordsRef.current = chunks;
               }
             }
             currentSegmentRef.current = null;
+            setCurrentSegmentPrefix("");
             setCurrentSegment("");
             void finalizeIfReady();
             break;
