@@ -7,6 +7,7 @@ import {
   HardDrivesIcon,
   MicrophoneStageIcon,
   ScanIcon,
+  SmileyIcon,
 } from "@phosphor-icons/react";
 
 import DocumentParsing from "./DocumentParsing";
@@ -16,6 +17,7 @@ import GroundedRetrieval from "./GroundedRetrieval";
 import VectorDbInspector from "./VectorDbInspector";
 import DatasetInstaller from "./DatasetInstaller";
 import AsrEvaluation from "./AsrEvaluation";
+import MascotShowcase from "./MascotShowcase";
 
 const TAB_CLASS_NAME =
   "relative z-10 inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-medium text-memora-text-muted outline-none transition-colors hover:text-memora-text focus-visible:ring-2 focus-visible:ring-memora-olive-soft data-active:text-memora-text";
@@ -64,6 +66,10 @@ export default function PlaygroundPage() {
               <HardDrivesIcon className="size-4" />
               Datasets
             </Tabs.Tab>
+            <Tabs.Tab value="mascot" className={TAB_CLASS_NAME}>
+              <SmileyIcon className="size-4" />
+              Mascot
+            </Tabs.Tab>
             <Tabs.Indicator className="absolute top-1.5 left-0 h-10 w-(--active-tab-width) translate-x-(--active-tab-left) rounded-xl border border-memora-border bg-memora-surface shadow-sm-soft transition-[translate,width] duration-200 ease-out-quart" />
           </Tabs.List>
 
@@ -109,6 +115,12 @@ export default function PlaygroundPage() {
             className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
           >
             <AsrEvaluation />
+          </Tabs.Panel>
+          <Tabs.Panel
+            value="mascot"
+            className="mt-7 outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft [[hidden]]:hidden"
+          >
+            <MascotShowcase />
           </Tabs.Panel>
         </Tabs.Root>
       </div>
