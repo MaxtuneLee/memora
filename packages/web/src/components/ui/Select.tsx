@@ -2,10 +2,59 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { CSSProperties } from "react";
 import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
 import { Select as BaseSelect } from "@base-ui/react/select";
+import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
 
 import "./select.css";
+
+const styles = stylex.create({
+  trigger: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text)",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: 12,
+    outline: "none",
+    paddingBlock: 10,
+    paddingInline: 14,
+    textAlign: "left",
+    transition:
+      "border-color 300ms var(--ease-out-quart), box-shadow 300ms var(--ease-out-quart), background-color 300ms var(--ease-out-quart)",
+    width: "100%",
+    ":hover": { backgroundColor: "var(--color-memora-hover)" },
+    ":focus-visible": {
+      borderColor: "var(--color-memora-olive-soft)",
+      boxShadow: "0 0 0 1px var(--color-memora-olive-soft)",
+    },
+    "[data-popup-open]": { borderColor: "var(--color-memora-olive-soft)" },
+  },
+  value: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textAlign: "left",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  icon: { color: "var(--color-memora-text-soft)", flexShrink: 0 },
+  iconGlyph: { height: 16, width: 16 },
+  positioner: { outline: "none", zIndex: 70 },
+  itemDisabled: { cursor: "not-allowed", opacity: 0.5 },
+  itemText: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textAlign: "left",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+});
 
 export interface SelectOption {
   value: string;
@@ -163,7 +212,7 @@ export function Select({
                 >
                   <span>{option.label}</span>
                   <span className="select-item-indicator" aria-hidden="true">
-                    <CheckIcon className="size-4" weight="bold" />
+                    <CheckIcon {...stylex.props(styles.iconGlyph)} weight="bold" />
                   </span>
                 </div>
               ))}
@@ -182,25 +231,22 @@ export function Select({
         <BaseSelect.Trigger
           ref={setTriggerRef}
           id={id}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3.5 py-2.5 text-left text-sm text-[var(--color-memora-text)] outline-none transition-[border-color,box-shadow,background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[var(--color-memora-hover)] focus-visible:border-[var(--color-memora-olive-soft)] focus-visible:ring-1 focus-visible:ring-[var(--color-memora-olive-soft)] data-[popup-open]:border-[var(--color-memora-olive-soft)]",
-            triggerClassName,
-          )}
+          className={cn(stylex.props(styles.trigger).className, triggerClassName)}
         >
-          <BaseSelect.Value className="min-w-0 flex-1 truncate text-left">
+          <BaseSelect.Value {...stylex.props(styles.value)}>
             {(selectedValue) =>
               options.find((option) => option.value === selectedValue)?.label ??
               selectedValue ??
               placeholder
             }
           </BaseSelect.Value>
-          <BaseSelect.Icon className="shrink-0 text-[var(--color-memora-text-soft)]">
-            <CaretDownIcon className="size-4" />
+          <BaseSelect.Icon {...stylex.props(styles.icon)}>
+            <CaretDownIcon {...stylex.props(styles.iconGlyph)} />
           </BaseSelect.Icon>
         </BaseSelect.Trigger>
         <BaseSelect.Portal container={portalContainer ?? undefined}>
           <BaseSelect.Positioner
-            className="z-[70] outline-none"
+            {...stylex.props(styles.positioner)}
             alignItemWithTrigger={false}
             positionMethod="fixed"
             side="bottom"
@@ -218,13 +264,16 @@ export function Select({
                         key={option.value}
                         value={option.value}
                         disabled={option.disabled}
-                        className="select-item data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+                        className={cn(
+                          "select-item",
+                          option.disabled && stylex.props(styles.itemDisabled).className,
+                        )}
                       >
-                        <BaseSelect.ItemText className="min-w-0 flex-1 truncate text-left">
+                        <BaseSelect.ItemText className={stylex.props(styles.itemText).className}>
                           {option.label}
                         </BaseSelect.ItemText>
                         <BaseSelect.ItemIndicator className="select-item-indicator">
-                          <CheckIcon className="size-4" weight="bold" />
+                          <CheckIcon {...stylex.props(styles.iconGlyph)} weight="bold" />
                         </BaseSelect.ItemIndicator>
                       </BaseSelect.Item>
                     ))}

@@ -7,6 +7,7 @@ import {
   useRef,
   type MutableRefObject,
 } from "react";
+import * as stylex from "@stylexjs/stylex";
 import "katex/dist/katex.min.css";
 import {
   $getSelection,
@@ -119,48 +120,236 @@ const EDITABLE_LINK_LABEL_SOURCE_STYLE =
   "color: var(--color-memora-accent); text-decoration-line: underline; text-decoration-color: color-mix(in srgb, var(--color-memora-accent) 58%, transparent); text-underline-offset: 2px;";
 const EDITABLE_LINK_MARKER_SOURCE_STYLE = "color: var(--color-memora-text-muted);";
 
-const theme = {
-  code: "my-4 block overflow-x-auto rounded-xl bg-zinc-50 px-4 py-3 font-mono text-sm leading-6 text-zinc-900",
-  heading: {
-    h1: "mb-4 scroll-mt-4 text-4xl font-semibold tracking-[-0.03em] text-zinc-950",
-    h2: "mb-3 mt-8 scroll-mt-4 text-2xl font-semibold tracking-[-0.02em] text-zinc-900",
-    h3: "mb-3 mt-6 scroll-mt-4 text-xl font-semibold text-zinc-900",
-    h4: "mb-2 mt-5 scroll-mt-4 text-lg font-semibold text-zinc-900",
-    h5: "mb-2 mt-4 scroll-mt-4 text-base font-semibold text-zinc-900",
-    h6: "mb-2 mt-4 scroll-mt-4 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-600",
+const editorStyles = stylex.create({
+  codeBlock: {
+    backgroundColor: "#fafafa",
+    borderRadius: "0.75rem",
+    color: "#18181b",
+    display: "block",
+    fontFamily: "monospace",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginBlock: "1rem",
+    overflowX: "auto",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
   },
-  image: "my-4",
-  hr: "my-6 border-0 border-t border-zinc-200",
-  link: "text-[var(--color-memora-olive)] underline decoration-[color-mix(in_srgb,var(--color-memora-olive)_58%,transparent)] underline-offset-2",
-  list: {
-    checklist: "my-4 ml-6 list-none space-y-2",
-    listitem: "my-1 leading-7 text-zinc-900",
-    listitemChecked:
-      "relative list-none pl-7 text-zinc-500 line-through before:absolute before:left-0 before:top-1.5 before:flex before:h-5 before:w-5 before:items-center before:justify-center before:rounded-md before:border before:border-zinc-300 before:bg-zinc-900 before:text-[11px] before:text-white before:content-['✓']",
-    listitemUnchecked:
-      "relative list-none pl-7 text-zinc-900 before:absolute before:left-0 before:top-1.5 before:h-5 before:w-5 before:rounded-md before:border before:border-zinc-300 before:bg-white before:content-['']",
-    nested: {
-      list: "mt-2",
-      listitem: "my-1",
+  h1: {
+    color: "#09090b",
+    fontSize: "2.25rem",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+    lineHeight: "2.5rem",
+    marginBottom: "1rem",
+    scrollMarginTop: "1rem",
+  },
+  h2: {
+    color: "#18181b",
+    fontSize: "1.5rem",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    lineHeight: "2rem",
+    marginBottom: "0.75rem",
+    marginTop: "2rem",
+    scrollMarginTop: "1rem",
+  },
+  h3: {
+    color: "#18181b",
+    fontSize: "1.25rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+    marginBottom: "0.75rem",
+    marginTop: "1.5rem",
+    scrollMarginTop: "1rem",
+  },
+  h4: {
+    color: "#18181b",
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+    marginBottom: "0.5rem",
+    marginTop: "1.25rem",
+    scrollMarginTop: "1rem",
+  },
+  h5: {
+    color: "#18181b",
+    fontSize: "1rem",
+    fontWeight: 600,
+    lineHeight: "1.5rem",
+    marginBottom: "0.5rem",
+    marginTop: "1rem",
+    scrollMarginTop: "1rem",
+  },
+  h6: {
+    color: "#52525b",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    letterSpacing: "0.14em",
+    lineHeight: "1.25rem",
+    marginBottom: "0.5rem",
+    marginTop: "1rem",
+    scrollMarginTop: "1rem",
+    textTransform: "uppercase",
+  },
+  image: { marginBlock: "1rem" },
+  horizontalRule: {
+    borderBottomWidth: 0,
+    borderInlineWidth: 0,
+    borderTopColor: "#e4e4e7",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    marginBlock: "1.5rem",
+  },
+  link: {
+    color: "var(--color-memora-olive)",
+    textDecorationColor: "color-mix(in srgb, var(--color-memora-olive) 58%, transparent)",
+    textDecorationLine: "underline",
+    textUnderlineOffset: 2,
+  },
+  list: { marginBlock: "1rem", marginLeft: "1.5rem" },
+  checklist: { listStyleType: "none" },
+  listItem: { color: "#18181b", lineHeight: "1.75rem", marginBlock: "0.25rem" },
+  checkedItem: {
+    color: "#71717a",
+    listStyleType: "none",
+    paddingLeft: "1.75rem",
+    position: "relative",
+    textDecorationLine: "line-through",
+    "::before": {
+      alignItems: "center",
+      backgroundColor: "#18181b",
+      borderColor: "#d4d4d8",
+      borderRadius: "0.375rem",
+      borderStyle: "solid",
+      borderWidth: 1,
+      color: "white",
+      content: '"✓"',
+      display: "flex",
+      fontSize: "0.6875rem",
+      height: "1.25rem",
+      justifyContent: "center",
+      left: 0,
+      position: "absolute",
+      top: "0.375rem",
+      width: "1.25rem",
     },
-    ol: "my-4 ml-6 list-decimal space-y-2 marker:text-zinc-400",
-    ul: "my-4 ml-6 list-disc space-y-2 marker:text-zinc-400",
   },
-  paragraph: "mb-3 leading-7 text-zinc-900",
-  quote: "border-l-2 border-zinc-300 pl-4 italic text-zinc-600",
-  root: "relative min-h-[420px] px-0 py-0",
-  table: "w-full border-collapse text-sm",
-  tableCell: "border border-zinc-200 px-3 py-2 align-top",
-  tableCellHeader:
-    "border border-zinc-200 bg-zinc-50 px-3 py-2 align-top font-semibold text-zinc-900",
-  tableRow: "align-top",
-  tableScrollableWrapper: "overflow-x-auto",
+  uncheckedItem: {
+    color: "#18181b",
+    listStyleType: "none",
+    paddingLeft: "1.75rem",
+    position: "relative",
+    "::before": {
+      backgroundColor: "white",
+      borderColor: "#d4d4d8",
+      borderRadius: "0.375rem",
+      borderStyle: "solid",
+      borderWidth: 1,
+      content: '""',
+      height: "1.25rem",
+      left: 0,
+      position: "absolute",
+      top: "0.375rem",
+      width: "1.25rem",
+    },
+  },
+  nestedList: { marginTop: "0.5rem" },
+  orderedList: { listStyleType: "decimal", "::marker": { color: "#a1a1aa" } },
+  unorderedList: { listStyleType: "disc", "::marker": { color: "#a1a1aa" } },
+  paragraph: { color: "#18181b", lineHeight: "1.75rem", marginBottom: "0.75rem" },
+  quote: {
+    borderLeftColor: "#d4d4d8",
+    borderLeftStyle: "solid",
+    borderLeftWidth: 2,
+    color: "#52525b",
+    fontStyle: "italic",
+    paddingLeft: "1rem",
+  },
+  editorRoot: { minHeight: 420, padding: 0, position: "relative" },
+  table: { borderCollapse: "collapse", fontSize: "0.875rem", lineHeight: "1.25rem", width: "100%" },
+  tableCell: {
+    borderColor: "#e4e4e7",
+    borderStyle: "solid",
+    borderWidth: 1,
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    verticalAlign: "top",
+  },
+  tableHeader: { backgroundColor: "#fafafa", color: "#18181b", fontWeight: 600 },
+  alignTop: { verticalAlign: "top" },
+  horizontalScroll: { overflowX: "auto" },
+  bold: { fontWeight: 600 },
+  inlineCode: {
+    backgroundColor: "#f4f4f5",
+    borderRadius: "0.25rem",
+    fontFamily: "monospace",
+    fontSize: "0.92em",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.375rem",
+  },
+  italic: { fontStyle: "italic" },
+  strikethrough: { textDecorationLine: "line-through" },
+  underline: { textDecorationLine: "underline" },
+  fullWidth: { width: "100%" },
+  editorContainer: { position: "relative" },
+  contentEditable: {
+    color: "var(--color-memora-text)",
+    lineHeight: "1.75rem",
+    minHeight: 420,
+    outline: "none",
+  },
+  placeholder: {
+    color: "var(--color-memora-text-soft)",
+    left: 0,
+    lineHeight: "1.75rem",
+    pointerEvents: "none",
+    position: "absolute",
+    top: 0,
+  },
+});
+
+const classNameFor = (...values: ReadonlyArray<stylex.StyleXStyles>): string =>
+  stylex.props(values).className ?? "";
+
+const theme = {
+  code: classNameFor(editorStyles.codeBlock),
+  heading: {
+    h1: classNameFor(editorStyles.h1),
+    h2: classNameFor(editorStyles.h2),
+    h3: classNameFor(editorStyles.h3),
+    h4: classNameFor(editorStyles.h4),
+    h5: classNameFor(editorStyles.h5),
+    h6: classNameFor(editorStyles.h6),
+  },
+  image: classNameFor(editorStyles.image),
+  hr: classNameFor(editorStyles.horizontalRule),
+  link: classNameFor(editorStyles.link),
+  list: {
+    checklist: classNameFor(editorStyles.list, editorStyles.checklist),
+    listitem: classNameFor(editorStyles.listItem),
+    listitemChecked: classNameFor(editorStyles.listItem, editorStyles.checkedItem),
+    listitemUnchecked: classNameFor(editorStyles.listItem, editorStyles.uncheckedItem),
+    nested: {
+      list: classNameFor(editorStyles.nestedList),
+      listitem: classNameFor(editorStyles.listItem),
+    },
+    ol: classNameFor(editorStyles.list, editorStyles.orderedList),
+    ul: classNameFor(editorStyles.list, editorStyles.unorderedList),
+  },
+  paragraph: classNameFor(editorStyles.paragraph),
+  quote: classNameFor(editorStyles.quote),
+  root: classNameFor(editorStyles.editorRoot),
+  table: classNameFor(editorStyles.table),
+  tableCell: classNameFor(editorStyles.tableCell),
+  tableCellHeader: classNameFor(editorStyles.tableCell, editorStyles.tableHeader),
+  tableRow: classNameFor(editorStyles.alignTop),
+  tableScrollableWrapper: classNameFor(editorStyles.horizontalScroll),
   text: {
-    bold: "font-semibold",
-    code: "rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.92em]",
-    italic: "italic",
-    strikethrough: "line-through",
-    underline: "underline",
+    bold: classNameFor(editorStyles.bold),
+    code: classNameFor(editorStyles.inlineCode),
+    italic: classNameFor(editorStyles.italic),
+    strikethrough: classNameFor(editorStyles.strikethrough),
+    underline: classNameFor(editorStyles.underline),
   },
 };
 
@@ -1810,7 +1999,7 @@ export const WysiwygDocumentEditor = forwardRef<
 
   return (
     <section
-      className="w-full"
+      {...stylex.props(editorStyles.fullWidth)}
       data-surface="wysiwyg-document-editor"
       data-testid="wysiwyg-document-editor"
     >
@@ -1835,13 +2024,13 @@ export const WysiwygDocumentEditor = forwardRef<
             commitMarkdown(markdown);
           }}
         />
-        <div className="relative">
+        <div {...stylex.props(editorStyles.editorContainer)}>
           <RichTextPlugin
             ErrorBoundary={LexicalErrorBoundary}
             contentEditable={
               <ContentEditable
                 aria-label="Document wysiwyg editor"
-                className="min-h-[420px] leading-7 text-[var(--color-memora-text)] outline-none"
+                {...stylex.props(editorStyles.contentEditable)}
                 data-testid="wysiwyg-contenteditable"
                 style={{
                   fontSize: "var(--document-editor-font-size, 16px)",
@@ -1850,7 +2039,7 @@ export const WysiwygDocumentEditor = forwardRef<
             }
             placeholder={
               <div
-                className="pointer-events-none absolute left-0 top-0 leading-7 text-[var(--color-memora-text-soft)]"
+                {...stylex.props(editorStyles.placeholder)}
                 style={{
                   fontSize: "var(--document-editor-font-size, 16px)",
                 }}

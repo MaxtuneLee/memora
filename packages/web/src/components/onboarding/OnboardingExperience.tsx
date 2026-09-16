@@ -5,6 +5,7 @@ import {
   whisperBaseTimestampedManifest,
 } from "@memora/local-model-runtime";
 import { motion, useReducedMotion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
@@ -21,7 +22,6 @@ import {
 } from "@/hooks/settings/useLocalModelDownloadSettings";
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
-import { cn } from "@/lib/cn";
 import { getLocalModelOptions } from "@/lib/local-model";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import type { provider as ProviderRow } from "@/livestore/provider";
@@ -59,6 +59,324 @@ interface OnboardingExperienceProps {
 
 const TOTAL_STEPS = 8;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
+
+const styles = stylex.create({
+  tailSvg: { height: "100%", overflow: "visible", width: "100%" },
+  tailInteractive: { cursor: "pointer" },
+  brandPanel: {
+    backgroundColor: "#8fa06f",
+    display: { default: "none", "@media (min-width: 1024px)": "block" },
+    height: "100dvh",
+    overflow: "hidden",
+    position: "relative",
+  },
+  patternLayer: { inset: 0, opacity: 0.35, position: "absolute" },
+  patternGrid: {
+    display: "grid",
+    gap: "2.25rem 2.5rem",
+    gridTemplateColumns: "repeat(8,minmax(0,1fr))",
+    padding: "2.5rem",
+  },
+  patternMark: {
+    display: "block",
+    height: "1.25rem",
+    position: "relative",
+    width: "1.25rem",
+    "::before": {
+      backgroundColor: "#6f8050",
+      borderRadius: "9999px",
+      content: "''",
+      height: "100%",
+      left: "50%",
+      position: "absolute",
+      top: 0,
+      transform: "translateX(-50%) rotate(45deg)",
+      width: "5px",
+    },
+    "::after": {
+      backgroundColor: "#6f8050",
+      borderRadius: "9999px",
+      content: "''",
+      height: "100%",
+      left: "50%",
+      position: "absolute",
+      top: 0,
+      transform: "translateX(-50%) rotate(-45deg)",
+      width: "5px",
+    },
+  },
+  tail: {
+    height: "26rem",
+    left: "50%",
+    maxWidth: "none",
+    position: "absolute",
+    top: "-9rem",
+    transform: "translateX(-58%) rotate(16deg)",
+    width: "14.08rem",
+  },
+  logo: {
+    left: "50%",
+    maxWidth: "none",
+    position: "absolute",
+    top: "44%",
+    transform: "translateX(-50%)",
+    userSelect: "none",
+    width: "min(13.5rem,28vw)",
+  },
+  cat: {
+    bottom: "-10rem",
+    left: "50%",
+    maxWidth: "none",
+    position: "absolute",
+    transform: "translateX(-48%)",
+    width: "min(30rem,54vw)",
+  },
+  root: {
+    backgroundColor: "#fbf7ed",
+    color: "#25231f",
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 1024px)": "minmax(22rem,45vw) minmax(0,1fr)",
+    },
+    height: "100dvh",
+    overflow: "hidden",
+    width: "100%",
+  },
+  main: {
+    height: "100dvh",
+    minWidth: 0,
+    overflowY: "auto",
+    paddingInline: {
+      default: "1.5rem",
+      "@media (min-width: 640px)": "2.5rem",
+      "@media (min-width: 1024px)": "5rem",
+    },
+  },
+  content: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    marginInline: "auto",
+    maxWidth: "46rem",
+    minHeight: "100%",
+    paddingBlock: "2.5rem",
+    width: "100%",
+  },
+  mobileBrand: {
+    marginBottom: "2rem",
+    display: { default: "block", "@media (min-width: 1024px)": "none" },
+  },
+  mobileBrandText: {
+    color: "#8fa06f",
+    fontFamily: "monospace",
+    fontSize: "0.6875rem",
+    fontWeight: 900,
+    letterSpacing: "0.24em",
+  },
+  intro: { marginBottom: "2.5rem" },
+  step: {
+    color: "#8d877d",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.18em",
+    marginBottom: "1rem",
+    textTransform: "uppercase",
+  },
+  heading: {
+    color: "#24231f",
+    fontSize: "clamp(2.1rem,3vw,3.2rem)",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    lineHeight: 1.05,
+  },
+  description: {
+    color: "#777167",
+    fontSize: "clamp(1rem,1.2vw,1.35rem)",
+    lineHeight: 1.35,
+    marginTop: "1.25rem",
+    maxWidth: "100%",
+  },
+  stack8: { display: "flex", flexDirection: "column", gap: "2rem" },
+  stack5: { display: "flex", flexDirection: "column", gap: "1.25rem" },
+  stack4: { display: "flex", flexDirection: "column", gap: "1rem" },
+  stack2: { display: "flex", flexDirection: "column", gap: "0.5rem" },
+  label: { display: "flex", flexDirection: "column", gap: "0.625rem" },
+  fieldLabel: {
+    color: "#8d877d",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
+  input: {
+    backgroundColor: "#fffdf8",
+    borderColor: { default: "#ded7c9", ":focus": "#9ca97a" },
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    fontSize: "1rem",
+    outline: "none",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+    transition: "border-color 150ms",
+    width: "100%",
+  },
+  tagList: { display: "flex", flexWrap: "wrap", gap: "0.5rem", userSelect: "none" },
+  tag: {
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    paddingBlock: "0.375rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 150ms",
+    userSelect: "none",
+  },
+  tagSelected: { backgroundColor: "#24231f", borderColor: "#24231f", color: "#fffdf8" },
+  tagIdle: {
+    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
+    borderColor: "#ded7c9",
+    color: "#777167",
+  },
+  customTag: { alignItems: "center", display: "inline-flex", gap: "0.25rem" },
+  icon12: { height: "0.75rem", width: "0.75rem" },
+  modeGrid: {
+    display: "grid",
+    gap: "0.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(2,minmax(0,1fr))",
+    },
+  },
+  mode: {
+    borderRadius: "1.2rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "1rem",
+    textAlign: "left",
+    transition: "background-color 150ms",
+  },
+  modeSelected: { backgroundColor: "#24231f", borderColor: "#24231f", color: "#fffdf8" },
+  modeIdle: {
+    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
+    borderColor: "#ded7c9",
+    color: "#25231f",
+  },
+  modeTitle: { fontSize: "0.875rem", fontWeight: 600 },
+  modeDescription: { fontSize: "0.75rem", lineHeight: "1.25rem", marginTop: "0.25rem" },
+  modeDescriptionSelected: { color: "#e8e4da" },
+  modeDescriptionIdle: { color: "#777167" },
+  warningCard: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderColor: "var(--color-memora-warning-border)",
+    borderRadius: "1.2rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    padding: "1rem",
+  },
+  warningText: { color: "var(--color-memora-warning-text)", fontSize: "0.875rem" },
+  warningAction: {
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    textDecoration: "underline",
+    textUnderlineOffset: 2,
+  },
+  skip: {
+    color: { default: "#8d877d", ":hover": "#5f5a52" },
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    textDecoration: "underline",
+    textUnderlineOffset: 2,
+  },
+  recordingCard: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#ded7c9",
+    borderRadius: "1.2rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    padding: "1rem",
+  },
+  visualizer: { height: "2.5rem", width: "100%" },
+  transcription: {
+    backgroundColor: "#fbf7ed",
+    borderRadius: "1rem",
+    height: "10rem",
+    overflow: "hidden",
+    padding: "0.75rem",
+  },
+  actionRow: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: "0.75rem" },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: { default: "#24231f", ":hover": "#35332e" },
+    borderRadius: "1rem",
+    color: "#fffdf8",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    justifyContent: "center",
+    minHeight: "3rem",
+    paddingInline: "1.5rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
+    borderColor: "#ded7c9",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "#5f5a52",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    justifyContent: "center",
+    minHeight: "3rem",
+    paddingInline: "1.25rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  smallWarning: { color: "var(--color-memora-warning-text)", fontSize: "0.75rem" },
+  preview: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#ded7c9",
+    borderRadius: "1.2rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  transcriptPreview: { height: "16rem" },
+  loading: { color: "#777167", fontSize: "0.875rem" },
+  error: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderColor: "var(--color-memora-warning-border)",
+    borderRadius: "0.9rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.75rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  navigation: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "space-between",
+    paddingTop: "0.5rem",
+  },
+  icon14: { height: "0.875rem", width: "0.875rem" },
+});
 
 const STYLE_TAGS = [
   "concise",
@@ -212,7 +530,7 @@ function AnimatedTail({ prefersReducedMotion }: { prefersReducedMotion: boolean 
     <svg
       ref={tailSvgRef}
       aria-hidden="true"
-      className="h-full w-full overflow-visible"
+      className={stylex.props(styles.tailSvg).className}
       viewBox="0 0 486 898"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -220,7 +538,7 @@ function AnimatedTail({ prefersReducedMotion }: { prefersReducedMotion: boolean 
       <path
         ref={tailPathRef}
         d={buildTailPath(0)}
-        className={prefersReducedMotion ? undefined : "cursor-pointer"}
+        className={stylex.props(!prefersReducedMotion && styles.tailInteractive).className}
         stroke="#030302"
         strokeWidth="120"
         strokeLinecap="round"
@@ -235,34 +553,24 @@ function BrandPanel() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <aside className="relative hidden h-dvh overflow-hidden bg-[#8fa06f] lg:block">
-      <div className="absolute inset-0 opacity-35">
-        <div className="grid grid-cols-8 gap-x-10 gap-y-9 p-10">
+    <aside {...stylex.props(styles.brandPanel)}>
+      <div {...stylex.props(styles.patternLayer)}>
+        <div {...stylex.props(styles.patternGrid)}>
           {PATTERN_MARKS.map((mark) => (
-            <span
-              key={mark}
-              className="relative block size-5 before:absolute before:left-1/2 before:top-0 before:h-full before:w-[5px] before:-translate-x-1/2 before:rotate-45 before:rounded-full before:bg-[#6f8050] after:absolute after:left-1/2 after:top-0 after:h-full after:w-[5px] after:-translate-x-1/2 after:-rotate-45 after:rounded-full after:bg-[#6f8050]"
-            />
+            <span key={mark} {...stylex.props(styles.patternMark)} />
           ))}
         </div>
       </div>
 
-      <div
-        aria-hidden="true"
-        className="absolute left-1/2 top-[-9rem] h-[26rem] w-[14.08rem] max-w-none -translate-x-[58%] rotate-[16deg]"
-      >
+      <div aria-hidden="true" {...stylex.props(styles.tail)}>
         <AnimatedTail prefersReducedMotion={!!prefersReducedMotion} />
       </div>
-      <img
-        src="/onboarding-assets/logo-text.svg"
-        alt="Memora"
-        className="absolute left-1/2 top-[44%] w-[min(13.5rem,28vw)] max-w-none -translate-x-1/2 select-none"
-      />
+      <img src="/onboarding-assets/logo-text.svg" alt="Memora" {...stylex.props(styles.logo)} />
       <img
         src="/onboarding-assets/cat-right.svg"
         alt=""
         aria-hidden="true"
-        className="absolute bottom-[-10rem] left-1/2 w-[min(30rem,54vw)] max-w-none -translate-x-[48%]"
+        {...stylex.props(styles.cat)}
       />
     </aside>
   );
@@ -487,25 +795,19 @@ export default function OnboardingExperience({
   };
 
   return (
-    <div className="grid h-dvh w-full overflow-hidden bg-[#fbf7ed] text-[#25231f] lg:grid-cols-[minmax(22rem,45vw)_minmax(0,1fr)]">
+    <div {...stylex.props(styles.root)}>
       <BrandPanel />
-      <main className="h-dvh min-w-0 overflow-y-auto px-6 sm:px-10 lg:px-20">
-        <section className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col justify-center py-10">
-          <div className="mb-8 lg:hidden">
-            <p className="text-[11px] font-black tracking-[0.24em] text-[#8fa06f] [font-family:monospace]">
-              MEMORA
-            </p>
+      <main {...stylex.props(styles.main)}>
+        <section {...stylex.props(styles.content)}>
+          <div {...stylex.props(styles.mobileBrand)}>
+            <p {...stylex.props(styles.mobileBrandText)}>MEMORA</p>
           </div>
-          <div className="mb-10">
-            <p className="mb-4 text-xs font-semibold tracking-[0.18em] text-[#8d877d] uppercase">
+          <div {...stylex.props(styles.intro)}>
+            <p {...stylex.props(styles.step)}>
               Step {step} / {TOTAL_STEPS}
             </p>
-            <h1 className="text-[clamp(2.1rem,3vw,3.2rem)] font-semibold leading-[1.05] tracking-[-0.01em] text-[#24231f]">
-              {getStepTitle(step)}
-            </h1>
-            <p className="mt-5 max-w-full text-[clamp(1rem,1.2vw,1.35rem)] leading-[1.35] text-[#777167]">
-              {getStepDescription(step)}
-            </p>
+            <h1 {...stylex.props(styles.heading)}>{getStepTitle(step)}</h1>
+            <p {...stylex.props(styles.description)}>{getStepDescription(step)}</p>
           </div>
 
           <motion.div
@@ -516,10 +818,10 @@ export default function OnboardingExperience({
               duration: prefersReducedMotion ? 0.1 : 0.22,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="space-y-8"
+            className={stylex.props(styles.stack8).className}
           >
             {step === 3 ? (
-              <div className="space-y-5">
+              <div {...stylex.props(styles.stack5)}>
                 <FeatureModelSettings
                   features={["assistant"]}
                   disabled={isSaving}
@@ -529,7 +831,7 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 2 ? (
-              <div className="space-y-4">
+              <div {...stylex.props(styles.stack4)}>
                 <ProviderManagementSection
                   title="Configured providers"
                   providers={providers}
@@ -560,25 +862,21 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 4 ? (
-              <div className="space-y-4">
-                <label className="block space-y-2.5">
-                  <span className="text-xs font-semibold tracking-[0.08em] text-[#8d877d] uppercase">
-                    Your name
-                  </span>
+              <div {...stylex.props(styles.stack4)}>
+                <label {...stylex.props(styles.label)}>
+                  <span {...stylex.props(styles.fieldLabel)}>Your name</span>
                   <input
                     autoFocus
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     placeholder="What should Memora call you?"
-                    className="w-full rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-4 py-3 text-base outline-none transition focus:border-[#9ca97a]"
+                    className={stylex.props(styles.input).className}
                   />
                 </label>
-                <div className="space-y-2.5">
-                  <p className="text-xs font-semibold tracking-[0.08em] text-[#8d877d] uppercase">
-                    What do you want to use Memora for?
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2 select-none">
+                <div {...stylex.props(styles.label)}>
+                  <p {...stylex.props(styles.fieldLabel)}>What do you want to use Memora for?</p>
+                  <div {...stylex.props(styles.stack2)}>
+                    <div {...stylex.props(styles.tagList)}>
                       {USE_CASE_TAGS.map((tag) => {
                         const selected = selectedUseCaseTags.includes(tag);
                         return (
@@ -586,11 +884,9 @@ export default function OnboardingExperience({
                             key={tag}
                             type="button"
                             onClick={() => handleToggleUseCaseTag(tag)}
-                            className={cn(
-                              "select-none rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                              selected
-                                ? "border-[#24231f] bg-[#24231f] text-[#fffdf8]"
-                                : "border-[#ded7c9] bg-[#fffdf8] text-[#777167] hover:bg-[#f3eee3]",
+                            {...stylex.props(
+                              styles.tag,
+                              selected ? styles.tagSelected : styles.tagIdle,
                             )}
                           >
                             {tag}
@@ -600,9 +896,9 @@ export default function OnboardingExperience({
                       <button
                         type="button"
                         onClick={() => setShowCustomUseCaseInput(true)}
-                        className="inline-flex select-none items-center gap-1 rounded-full border border-[#ded7c9] bg-[#fffdf8] px-3 py-1.5 text-xs font-medium text-[#777167] transition hover:bg-[#f3eee3]"
+                        {...stylex.props(styles.tag, styles.tagIdle, styles.customTag)}
                       >
-                        <PlusIcon className="size-3" weight="bold" />
+                        <PlusIcon className={stylex.props(styles.icon12).className} weight="bold" />
                         Custom
                       </button>
                     </div>
@@ -611,16 +907,14 @@ export default function OnboardingExperience({
                         value={customUseCaseTags}
                         onChange={(event) => setCustomUseCaseTags(event.target.value)}
                         placeholder="Add custom tags, separated by commas"
-                        className="w-full rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-4 py-3 text-base outline-none transition focus:border-[#9ca97a]"
+                        className={stylex.props(styles.input).className}
                       />
                     ) : null}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold tracking-[0.08em] text-[#8d877d] uppercase">
-                    Reply tone
-                  </p>
-                  <div className="flex flex-wrap gap-2 select-none">
+                <div {...stylex.props(styles.stack2)}>
+                  <p {...stylex.props(styles.fieldLabel)}>Reply tone</p>
+                  <div {...stylex.props(styles.tagList)}>
                     {STYLE_TAGS.map((tag) => {
                       const selected = selectedStyleTags.includes(tag);
                       return (
@@ -628,11 +922,9 @@ export default function OnboardingExperience({
                           key={tag}
                           type="button"
                           onClick={() => handleToggleStyleTag(tag)}
-                          className={cn(
-                            "select-none rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                            selected
-                              ? "border-[#24231f] bg-[#24231f] text-[#fffdf8]"
-                              : "border-[#ded7c9] bg-[#fffdf8] text-[#777167] hover:bg-[#f3eee3]",
+                          {...stylex.props(
+                            styles.tag,
+                            selected ? styles.tagSelected : styles.tagIdle,
                           )}
                         >
                           {tag}
@@ -642,9 +934,9 @@ export default function OnboardingExperience({
                     <button
                       type="button"
                       onClick={() => setShowCustomStyleInput(true)}
-                      className="inline-flex select-none items-center gap-1 rounded-full border border-[#ded7c9] bg-[#fffdf8] px-3 py-1.5 text-xs font-medium text-[#777167] transition hover:bg-[#f3eee3]"
+                      {...stylex.props(styles.tag, styles.tagIdle, styles.customTag)}
                     >
-                      <PlusIcon className="size-3" weight="bold" />
+                      <PlusIcon className={stylex.props(styles.icon12).className} weight="bold" />
                       Custom
                     </button>
                   </div>
@@ -653,7 +945,7 @@ export default function OnboardingExperience({
                       value={customStyleTags}
                       onChange={(event) => setCustomStyleTags(event.target.value)}
                       placeholder="Add custom tags, separated by commas"
-                      className="w-full rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-4 py-3 text-base outline-none transition focus:border-[#9ca97a]"
+                      className={stylex.props(styles.input).className}
                     />
                   ) : null}
                 </div>
@@ -661,8 +953,8 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 5 ? (
-              <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2">
+              <div {...stylex.props(styles.stack5)}>
+                <div {...stylex.props(styles.modeGrid)}>
                   {TRANSCRIPTION_MODES.map((mode) => {
                     const selected = transcriptionModelId === mode.modelId;
                     return (
@@ -670,18 +962,16 @@ export default function OnboardingExperience({
                         key={mode.modelId}
                         type="button"
                         onClick={() => onSelectTranscriptionMode(mode.modelId)}
-                        className={cn(
-                          "rounded-[1.2rem] border p-4 text-left transition",
-                          selected
-                            ? "border-[#24231f] bg-[#24231f] text-[#fffdf8]"
-                            : "border-[#ded7c9] bg-[#fffdf8] text-[#25231f] hover:bg-[#f3eee3]",
+                        {...stylex.props(
+                          styles.mode,
+                          selected ? styles.modeSelected : styles.modeIdle,
                         )}
                       >
-                        <p className="text-sm font-semibold">{mode.label}</p>
+                        <p {...stylex.props(styles.modeTitle)}>{mode.label}</p>
                         <p
-                          className={cn(
-                            "mt-1 text-xs leading-5",
-                            selected ? "text-[#e8e4da]" : "text-[#777167]",
+                          {...stylex.props(
+                            styles.modeDescription,
+                            selected ? styles.modeDescriptionSelected : styles.modeDescriptionIdle,
                           )}
                         >
                           {mode.description}
@@ -700,14 +990,14 @@ export default function OnboardingExperience({
                 ) : null}
 
                 {transcript.status === "error" && transcriptionDownloadState?.status !== "error" ? (
-                  <div className="space-y-2 rounded-[1.2rem] border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] p-4">
-                    <p className="text-sm text-[var(--color-memora-warning-text)]">
+                  <div {...stylex.props(styles.warningCard)}>
+                    <p {...stylex.props(styles.warningText)}>
                       {transcript.loadingMessage || "Could not prepare this model for recording."}
                     </p>
                     <button
                       type="button"
                       onClick={transcript.loadModel}
-                      className="text-xs font-semibold text-[var(--color-memora-warning-text)] underline underline-offset-2"
+                      className={stylex.props(styles.warningAction).className}
                     >
                       Retry
                     </button>
@@ -717,7 +1007,7 @@ export default function OnboardingExperience({
                 <button
                   type="button"
                   onClick={() => setStep(TOTAL_STEPS)}
-                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                  className={stylex.props(styles.skip).className}
                 >
                   Skip for now
                 </button>
@@ -725,10 +1015,13 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 6 ? (
-              <div className="space-y-5">
-                <div className="space-y-4 rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8] p-4">
-                  <AudioVisualizer stream={transcript.stream} className="h-10 w-full" />
-                  <div className="h-40 overflow-hidden rounded-[1rem] bg-[#fbf7ed] p-3">
+              <div {...stylex.props(styles.stack5)}>
+                <div {...stylex.props(styles.recordingCard)}>
+                  <AudioVisualizer
+                    stream={transcript.stream}
+                    className={stylex.props(styles.visualizer).className}
+                  />
+                  <div {...stylex.props(styles.transcription)}>
                     <TranscriptionPanel
                       accumulatedText={transcript.accumulatedText}
                       currentSegmentPrefix={transcript.currentSegmentPrefix}
@@ -736,13 +1029,13 @@ export default function OnboardingExperience({
                       tps={transcript.tps}
                     />
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div {...stylex.props(styles.actionRow)}>
                     {!transcript.recording ? (
                       <button
                         type="button"
                         onClick={() => void handleStartTrial()}
                         disabled={transcript.status !== "ready"}
-                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
+                        className={stylex.props(styles.primaryButton).className}
                       >
                         Start recording
                       </button>
@@ -750,7 +1043,7 @@ export default function OnboardingExperience({
                       <button
                         type="button"
                         onClick={transcript.handleResumeRecording}
-                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                        className={stylex.props(styles.secondaryButton).className}
                       >
                         Resume
                       </button>
@@ -759,14 +1052,14 @@ export default function OnboardingExperience({
                         <button
                           type="button"
                           onClick={transcript.handlePauseRecording}
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3]"
+                          className={stylex.props(styles.secondaryButton).className}
                         >
                           Pause
                         </button>
                         <button
                           type="button"
                           onClick={transcript.handleFinalizeRecording}
-                          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e]"
+                          className={stylex.props(styles.primaryButton).className}
                         >
                           Finish
                         </button>
@@ -774,16 +1067,14 @@ export default function OnboardingExperience({
                     )}
                   </div>
                   {recordingError ? (
-                    <p className="text-xs text-[var(--color-memora-warning-text)]">
-                      {recordingError}
-                    </p>
+                    <p {...stylex.props(styles.smallWarning)}>{recordingError}</p>
                   ) : null}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setStep(TOTAL_STEPS)}
-                  className="text-xs font-medium text-[#8d877d] underline underline-offset-2 hover:text-[#5f5a52]"
+                  className={stylex.props(styles.skip).className}
                 >
                   Skip for now
                 </button>
@@ -791,10 +1082,10 @@ export default function OnboardingExperience({
             ) : null}
 
             {step === 7 ? (
-              <div className="space-y-5">
+              <div {...stylex.props(styles.stack5)}>
                 {trialRecording ? (
                   <>
-                    <div className="overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                    <div {...stylex.props(styles.preview)}>
                       <RecordingPreviewSurface
                         recording={trialRecording}
                         mediaReadyToken={mediaReadyToken}
@@ -804,7 +1095,7 @@ export default function OnboardingExperience({
                         onMediaReady={() => setMediaReadyToken((current) => current + 1)}
                       />
                     </div>
-                    <div className="h-64 overflow-hidden rounded-[1.2rem] border border-[#ded7c9] bg-[#fffdf8]">
+                    <div {...stylex.props(styles.preview, styles.transcriptPreview)}>
                       <TranscriptSidebar
                         words={trialRecording.transcript?.words ?? []}
                         text={trialRecording.transcript?.text}
@@ -816,19 +1107,15 @@ export default function OnboardingExperience({
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-[#777167]">Loading your recording...</p>
+                  <p {...stylex.props(styles.loading)}>Loading your recording...</p>
                 )}
               </div>
             ) : null}
 
-            {errorMessage ? (
-              <p className="rounded-[0.9rem] border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] px-3 py-2 text-xs text-[var(--color-memora-warning-text)]">
-                {errorMessage}
-              </p>
-            ) : null}
+            {errorMessage ? <p {...stylex.props(styles.error)}>{errorMessage}</p> : null}
 
             {step < TOTAL_STEPS ? (
-              <div className="flex items-center justify-between pt-2">
+              <div {...stylex.props(styles.navigation)}>
                 <motion.button
                   type="button"
                   disabled={step === 1 || isSaving}
@@ -847,9 +1134,9 @@ export default function OnboardingExperience({
                     prefersReducedMotion || step === 1 || isSaving ? undefined : { scale: 0.98 }
                   }
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[#ded7c9] bg-[#fffdf8] px-5 text-sm font-semibold text-[#5f5a52] transition hover:bg-[#f3eee3] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={stylex.props(styles.secondaryButton).className}
                 >
-                  <ArrowLeftIcon className="size-3.5" weight="bold" />
+                  <ArrowLeftIcon className={stylex.props(styles.icon14).className} weight="bold" />
                   Back
                 </motion.button>
 
@@ -866,10 +1153,10 @@ export default function OnboardingExperience({
                     prefersReducedMotion || !canContinue || isSaving ? undefined : { scale: 0.98 }
                   }
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] bg-[#24231f] px-6 text-sm font-semibold text-[#fffdf8] transition hover:bg-[#35332e] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={stylex.props(styles.primaryButton).className}
                 >
                   {isSaving ? "Saving..." : "Continue"}
-                  <ArrowRightIcon className="size-3.5" weight="bold" />
+                  <ArrowRightIcon className={stylex.props(styles.icon14).className} weight="bold" />
                 </motion.button>
               </div>
             ) : null}

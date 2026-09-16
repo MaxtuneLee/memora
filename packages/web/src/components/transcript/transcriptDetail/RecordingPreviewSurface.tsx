@@ -5,12 +5,99 @@ import {
   VideoCameraIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import type { RefObject } from "react";
 
 import { AudioPlayer } from "@/components/library/AudioPlayer";
 import { VideoPlayer } from "@/components/library/VideoPlayer";
 import { formatBytes } from "@/lib/format";
 import type { RecordingItem, RecordingWord } from "@/types/library";
+
+const styles = stylex.create({
+  root: {
+    alignSelf: "flex-start",
+    display: "flex",
+    flexDirection: "column",
+    paddingBlock: "1.25rem",
+  },
+  header: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    paddingBottom: "1.25rem",
+  },
+  source: { alignItems: "center", display: "flex", gap: "0.75rem", minWidth: 0 },
+  iconFrame: {
+    alignItems: "center",
+    display: "flex",
+    height: "2rem",
+    justifyContent: "center",
+    color: "var(--color-memora-text-soft)",
+    width: "2rem",
+  },
+  sourceIcon: { height: "1.25rem", width: "1.25rem" },
+  sourceDetails: { minWidth: 0 },
+  label: { color: "var(--color-memora-text-soft)", fontSize: 11, lineHeight: "1rem" },
+  metadata: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  surface: { borderRadius: "1.5rem" },
+  videoSurface: { backgroundColor: "rgb(0 0 0 / 0.9)", overflow: "hidden" },
+  audioSurface: { backgroundColor: "var(--color-memora-surface-soft)" },
+  centeredSurface: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "20rem",
+  },
+  imageSurface: {
+    backgroundColor: "var(--color-memora-rail)",
+    overflow: "hidden",
+    padding: "1rem",
+  },
+  image: {
+    maxHeight: "100%",
+    objectFit: "contain",
+    transitionDuration: "500ms",
+    transitionProperty: "transform",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    width: "100%",
+    ":hover": { transform: "scale(1.01)" },
+  },
+  loading: { color: "var(--color-memora-text-muted)", fontSize: "0.875rem", lineHeight: "1.25rem" },
+  documentSurface: { backgroundColor: "var(--color-memora-surface-soft)", padding: "1.5rem" },
+  documentContent: { maxWidth: "24rem", textAlign: "center" },
+  documentIconFrame: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    height: "3.5rem",
+    justifyContent: "center",
+    marginInline: "auto",
+    width: "3.5rem",
+  },
+  documentIcon: { height: "1.75rem", width: "1.75rem" },
+  documentTitle: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    marginTop: "1rem",
+  },
+  documentDescription: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+  },
+});
 
 interface RecordingPreviewSurfaceProps {
   recording: RecordingItem;
@@ -39,17 +126,15 @@ export const RecordingPreviewSurface = ({
   const Icon = FILE_ICONS[recording.type];
 
   return (
-    <section data-surface="transcript-detail-preview" className="flex self-start flex-col py-5">
-      <div className="flex items-center justify-between gap-3 pb-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="memora-gentle-float flex size-8 items-center justify-center text-[var(--color-memora-text-soft)]">
-            <Icon className="size-5" weight="duotone" />
+    <section data-surface="transcript-detail-preview" {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.source)}>
+          <span className={`memora-gentle-float ${stylex.props(styles.iconFrame).className ?? ""}`}>
+            <Icon {...stylex.props(styles.sourceIcon)} weight="duotone" />
           </span>
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
-              Source
-            </p>
-            <p className="truncate text-sm font-medium text-[var(--color-memora-text)]">
+          <div {...stylex.props(styles.sourceDetails)}>
+            <p {...stylex.props(styles.label)}>Source</p>
+            <p {...stylex.props(styles.metadata)}>
               {recording.type} · {formatBytes(recording.sizeBytes)}
             </p>
           </div>
@@ -58,7 +143,9 @@ export const RecordingPreviewSurface = ({
 
       <div>
         {recording.type === "video" ? (
-          <div className="memora-surface-glow overflow-hidden rounded-[1.5rem] bg-black/90">
+          <div
+            className={`memora-surface-glow ${stylex.props(styles.surface, styles.videoSurface).className ?? ""}`}
+          >
             <VideoPlayer
               videoUrl={recording.audioUrl}
               readyToken={mediaReadyToken}
@@ -72,7 +159,9 @@ export const RecordingPreviewSurface = ({
         ) : null}
 
         {recording.type === "audio" ? (
-          <div className="memora-surface-glow rounded-[1.5rem] bg-[var(--color-memora-surface-soft)]">
+          <div
+            className={`memora-surface-glow ${stylex.props(styles.surface, styles.audioSurface).className ?? ""}`}
+          >
             <AudioPlayer
               audioUrl={recording.audioUrl}
               audioReadyToken={mediaReadyToken}
@@ -85,30 +174,34 @@ export const RecordingPreviewSurface = ({
         ) : null}
 
         {recording.type === "image" ? (
-          <div className="memora-surface-glow flex min-h-[20rem] items-center justify-center overflow-hidden rounded-[1.5rem] bg-[var(--color-memora-rail)] p-4">
+          <div
+            className={`memora-surface-glow ${stylex.props(styles.surface, styles.centeredSurface, styles.imageSurface).className ?? ""}`}
+          >
             {recording.audioUrl ? (
               <img
                 src={recording.audioUrl}
                 alt={recording.name}
-                className="max-h-full w-full object-contain transition-transform duration-500 ease-[var(--ease-out-quart)] hover:scale-[1.01]"
+                {...stylex.props(styles.image)}
                 loading="lazy"
               />
             ) : (
-              <div className="text-sm text-[var(--color-memora-text-muted)]">Loading image...</div>
+              <div {...stylex.props(styles.loading)}>Loading image...</div>
             )}
           </div>
         ) : null}
 
         {recording.type === "document" ? (
-          <div className="memora-surface-glow flex min-h-[20rem] items-center justify-center rounded-[1.5rem] bg-[var(--color-memora-surface-soft)] p-6">
-            <div className="max-w-sm text-center">
-              <span className="memora-gentle-float mx-auto flex size-14 items-center justify-center text-[var(--color-memora-text-soft)]">
-                <FileTextIcon className="size-7" weight="duotone" />
+          <div
+            className={`memora-surface-glow ${stylex.props(styles.surface, styles.centeredSurface, styles.documentSurface).className ?? ""}`}
+          >
+            <div {...stylex.props(styles.documentContent)}>
+              <span
+                className={`memora-gentle-float ${stylex.props(styles.documentIconFrame).className ?? ""}`}
+              >
+                <FileTextIcon {...stylex.props(styles.documentIcon)} weight="duotone" />
               </span>
-              <p className="mt-4 text-sm font-medium text-[var(--color-memora-text)]">
-                Document preview is kept minimal here.
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[var(--color-memora-text-muted)]">
+              <p {...stylex.props(styles.documentTitle)}>Document preview is kept minimal here.</p>
+              <p {...stylex.props(styles.documentDescription)}>
                 Focus this page on transcript work. File detail stays lightweight.
               </p>
             </div>

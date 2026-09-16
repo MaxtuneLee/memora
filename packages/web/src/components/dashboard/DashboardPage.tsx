@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import type { ComponentType, ReactElement } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -24,10 +25,9 @@ import {
 } from "@/components/dashboard/calendarMotion";
 import {
   getPrimaryWidgetOrder,
-  PRIMARY_WIDGET_GRID_CLASS,
+  dashboardLayoutStyles,
 } from "@/components/dashboard/dashboardLayout";
 import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
-import { cn } from "@/lib/cn";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
@@ -62,8 +62,7 @@ interface RecentItem {
   updatedAt: number;
   icon: ComponentType<{ className?: string; weight?: IconWeight }>;
   iconWeight?: IconWeight;
-  shellClassName: string;
-  iconClassName: string;
+  tone: "recording" | "file" | "chat";
 }
 
 interface CalendarDay {
@@ -82,6 +81,291 @@ const DEFAULT_WIDGET_VISIBILITY: WidgetVisibility = {
   recent: true,
 };
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+const styles = stylex.create({
+  icon: { height: 16, width: 16 },
+  menuAction: {
+    alignItems: "center",
+    borderRadius: 16,
+    cursor: "pointer",
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "2rem minmax(0, 1fr)",
+    outline: "none",
+    paddingBlock: 10,
+    paddingInline: 12,
+    textAlign: "left",
+    transition: "background-color 150ms",
+    width: "100%",
+    "[data-highlighted]": { backgroundColor: "#faf7f0" },
+  },
+  menuIconShell: {
+    alignItems: "center",
+    backgroundColor: "#f6f3ec",
+    borderRadius: 9999,
+    color: "#7c7265",
+    display: "flex",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  menuIcon: { height: 18, width: 18 },
+  menuCopy: { minWidth: 0 },
+  menuTitle: { color: "#1d1c1a", fontSize: 14, fontWeight: 600 },
+  menuNote: { color: "#7a7369", fontSize: 11, lineHeight: "16px", marginTop: 2 },
+  toggleItem: {
+    alignItems: "flex-start",
+    borderRadius: 16,
+    cursor: "pointer",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    outline: "none",
+    paddingBlock: 10,
+    paddingInline: 12,
+    textAlign: "left",
+    transition: "background-color 150ms",
+    width: "100%",
+    "[data-highlighted]": { backgroundColor: "#faf7f0" },
+  },
+  toggle: {
+    alignItems: "center",
+    backgroundColor: "white",
+    border: "1px solid #d8d1c5",
+    borderRadius: 6,
+    color: "transparent",
+    display: "flex",
+    height: 20,
+    justifyContent: "center",
+    marginTop: 2,
+    transition: "all 150ms",
+    width: 20,
+  },
+  toggleChecked: { backgroundColor: "#7b875a", borderColor: "#7b875a", color: "#fffdfa" },
+  checkIcon: { height: 14, width: 14 },
+  recentRow: {
+    alignItems: "center",
+    borderTop: "1px solid #ece5d9",
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "2.625rem minmax(0, 1fr) auto",
+    paddingBlock: 14,
+    paddingInline: 20,
+    textDecoration: "none",
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fcfaf5" },
+    ":first-child": { borderTopWidth: 0 },
+  },
+  recentIconShell: {
+    alignItems: "center",
+    borderRadius: 14,
+    display: "flex",
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  recordingShell: { backgroundColor: "#f5f0e8" },
+  fileShell: { backgroundColor: "#f4f1ea" },
+  chatShell: { backgroundColor: "#f2efe6" },
+  recentIcon: { height: 20, width: 20 },
+  recordingIcon: { color: "#8a7e6c" },
+  fileIcon: { color: "#6b655d" },
+  chatIcon: { color: "#65704e" },
+  recentCopy: { minWidth: 0 },
+  recentTitle: {
+    color: "#1d1c1a",
+    fontSize: 15,
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  recentSubtitle: {
+    color: "#716c64",
+    fontSize: 12,
+    marginTop: 4,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  recentArrow: { color: "#9a948a", height: 16, transition: "transform 150ms", width: 16 },
+  emptyWidgets: {
+    backgroundColor: "#fffdf8",
+    border: "1px solid #e9e5dc",
+    borderRadius: 28,
+    paddingBlock: 32,
+    paddingInline: 24,
+    textAlign: "center",
+  },
+  emptyTitle: { color: "#1d1c1a", fontSize: 14, fontWeight: 600 },
+  emptyDescription: { color: "#716c64", fontSize: 14, marginTop: 4 },
+  resetButton: {
+    alignItems: "center",
+    backgroundColor: "#fffdfa",
+    border: "1px solid #e7e1d7",
+    borderRadius: 9999,
+    color: "#1d1c1a",
+    display: "inline-flex",
+    fontSize: 14,
+    fontWeight: 600,
+    marginTop: 16,
+    minHeight: 44,
+    paddingInline: 16,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fffcf6" },
+  },
+  calendar: {
+    backgroundColor: "white",
+    border: "1px solid #e9e5dc",
+    borderRadius: 27,
+    padding: 20,
+    "@media (min-width: 48rem)": { padding: 24 },
+  },
+  calendarHeader: {
+    alignItems: "center",
+    display: "grid",
+    gap: 8,
+    gridTemplateColumns: "2rem 1fr 2rem",
+    marginBottom: 16,
+  },
+  calendarButton: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: "#9aa28d",
+    display: "flex",
+    height: 32,
+    justifyContent: "center",
+    outline: "none",
+    transition: "color 150ms, background-color 150ms",
+    width: 32,
+    ":hover": { backgroundColor: "#f5f1e8", color: "#6c7654" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a7af8f, 0 0 0 4px white" },
+  },
+  calendarLabelFrame: { height: 24, overflow: "hidden", position: "relative" },
+  calendarLabel: {
+    color: "#4f5742",
+    fontSize: 15,
+    fontWeight: 700,
+    inset: 0,
+    position: "absolute",
+    textAlign: "center",
+  },
+  calendarGrid: {
+    display: "grid",
+    columnGap: 4,
+    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+    rowGap: 8,
+  },
+  weekday: {
+    color: "#9aa28d",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  calendarGridDays: {
+    columnGap: 4,
+    display: "grid",
+    gridColumn: "span 7 / span 7",
+    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+    rowGap: 8,
+  },
+  calendarDay: {
+    alignItems: "center",
+    aspectRatio: 1,
+    borderRadius: 9999,
+    color: "#565b4f",
+    display: "flex",
+    fontSize: 14,
+    justifyContent: "center",
+    position: "relative",
+    transition: "transform 150ms",
+  },
+  calendarDayMuted: { color: "#c9c4bb" },
+  calendarDayActive: { backgroundColor: "#7b875a", color: "#fffdfa", fontWeight: 700 },
+  dayRing: {
+    border: "1px solid rgb(170 180 138 / 0.55)",
+    borderRadius: 9999,
+    inset: 0,
+    position: "absolute",
+  },
+  dayLabel: { position: "relative", zIndex: 10 },
+  activityDot: {
+    backgroundColor: "#74824d",
+    borderRadius: 9999,
+    bottom: 6,
+    height: 6,
+    position: "absolute",
+    width: 6,
+  },
+  activityDotActive: { backgroundColor: "#fffdfa" },
+  page: { backgroundColor: "#fcfaf6", color: "#1d1c1a", minHeight: "100%" },
+  pageContent: {
+    marginInline: "auto",
+    maxWidth: 1080,
+    paddingBlock: 32,
+    paddingInline: 24,
+    width: "100%",
+    "@media (min-width: 48rem)": { paddingBlock: 40, paddingInline: 40 },
+  },
+  hero: { paddingBottom: 28, "@media (min-width: 48rem)": { paddingBottom: 32 } },
+  welcomeHeader: { borderBottom: "1px solid #e9e5dc", paddingBottom: 16 },
+  widgetsArea: { marginTop: 24 },
+  menuRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "flex-end",
+    marginBottom: 24,
+  },
+  triggerIconShell: {
+    alignItems: "center",
+    backgroundColor: "#f6f3ec",
+    borderRadius: 9999,
+    color: "#7c7265",
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  triggerCaret: { color: "#9a948a", height: 14, width: 14 },
+  menuContentNarrow: { width: 224 },
+  menuContentWide: { width: 240 },
+  widgetStack: { display: "flex", flexDirection: "column", gap: 24 },
+  recentWidget: {
+    backgroundColor: "white",
+    border: "1px solid #ebe4d8",
+    borderRadius: 23,
+    overflow: "hidden",
+  },
+  recentWidgetHeader: { paddingBlock: 16, paddingInline: 20 },
+  recentWidgetTitle: { color: "#1d1c1a", fontSize: 17, fontWeight: 700 },
+});
+
+const getRecentShellStyle = (tone: RecentItem["tone"]) => {
+  if (tone === "recording") {
+    return styles.recordingShell;
+  }
+
+  if (tone === "file") {
+    return styles.fileShell;
+  }
+
+  return styles.chatShell;
+};
+
+const getRecentIconStyle = (tone: RecentItem["tone"]) => {
+  if (tone === "recording") {
+    return styles.recordingIcon;
+  }
+
+  if (tone === "file") {
+    return styles.fileIcon;
+  }
+
+  return styles.chatIcon;
+};
 
 const readWidgetVisibility = (): WidgetVisibility => {
   if (typeof window === "undefined") {
@@ -195,8 +479,7 @@ const buildFileRecentItem = (file: FileMeta): RecentItem => {
       updatedAt: file.updatedAt,
       icon: file.type === "video" ? VideoCameraIcon : MicrophoneIcon,
       iconWeight: file.type === "video" ? "fill" : "regular",
-      shellClassName: "bg-[#f5f0e8]",
-      iconClassName: "text-[#8a7e6c]",
+      tone: "recording",
     };
   }
 
@@ -208,8 +491,7 @@ const buildFileRecentItem = (file: FileMeta): RecentItem => {
     updatedAt: file.updatedAt,
     icon: getFileIcon(file),
     iconWeight: "fill",
-    shellClassName: "bg-[#f4f1ea]",
-    iconClassName: "text-[#6b655d]",
+    tone: "file",
   };
 };
 
@@ -222,8 +504,7 @@ const buildChatRecentItem = (session: ChatSessionSummary): RecentItem => {
     updatedAt: session.updatedAt,
     icon: ChatCircleDotsIcon,
     iconWeight: "fill",
-    shellClassName: "bg-[#f2efe6]",
-    iconClassName: "text-[#65704e]",
+    tone: "chat",
   };
 };
 
@@ -247,8 +528,7 @@ const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[])
       updatedAt: 0,
       icon: MicrophoneIcon,
       iconWeight: "regular",
-      shellClassName: "bg-[#f5f0e8]",
-      iconClassName: "text-[#8a7e6c]",
+      tone: "recording",
     },
     {
       id: "empty:upload",
@@ -258,8 +538,7 @@ const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[])
       updatedAt: 0,
       icon: UploadSimpleIcon,
       iconWeight: "regular",
-      shellClassName: "bg-[#f4f1ea]",
-      iconClassName: "text-[#6b655d]",
+      tone: "file",
     },
     {
       id: "empty:chat",
@@ -269,8 +548,7 @@ const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[])
       updatedAt: 0,
       icon: ChatCircleDotsIcon,
       iconWeight: "fill",
-      shellClassName: "bg-[#f2efe6]",
-      iconClassName: "text-[#65704e]",
+      tone: "chat",
     },
   ];
 };
@@ -351,16 +629,13 @@ function MenuActionItem({
   onSelect: () => void;
 }): ReactElement {
   return (
-    <AppMenuItem
-      onClick={onSelect}
-      className="grid w-full cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left outline-none transition data-[highlighted]:bg-[#faf7f0]"
-    >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-        <Icon className="size-[18px]" weight={iconWeight} />
+    <AppMenuItem onClick={onSelect} className={stylex.props(styles.menuAction).className}>
+      <div {...stylex.props(styles.menuIconShell)}>
+        <Icon className={stylex.props(styles.menuIcon).className} weight={iconWeight} />
       </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-memora-text">{title}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
+      <div {...stylex.props(styles.menuCopy)}>
+        <div {...stylex.props(styles.menuTitle)}>{title}</div>
+        <div {...stylex.props(styles.menuNote)}>{note}</div>
       </div>
     </AppMenuItem>
   );
@@ -378,23 +653,13 @@ function WidgetToggleItem({
   onSelect: () => void;
 }): ReactElement {
   return (
-    <AppMenuItem
-      onClick={onSelect}
-      className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-2xl px-3 py-2.5 text-left outline-none transition data-[highlighted]:bg-[#faf7f0]"
-    >
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-memora-text">{label}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
+    <AppMenuItem onClick={onSelect} className={stylex.props(styles.toggleItem).className}>
+      <div {...stylex.props(styles.menuCopy)}>
+        <div {...stylex.props(styles.menuTitle)}>{label}</div>
+        <div {...stylex.props(styles.menuNote)}>{note}</div>
       </div>
-      <div
-        className={cn(
-          "mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border transition",
-          checked
-            ? "border-[#7b875a] bg-[#7b875a] text-[#fffdfa]"
-            : "border-[#d8d1c5] bg-white text-transparent",
-        )}
-      >
-        <CheckIcon className="size-3.5" weight="bold" />
+      <div {...stylex.props(styles.toggle, checked && styles.toggleChecked)}>
+        <CheckIcon className={stylex.props(styles.checkIcon).className} weight="bold" />
       </div>
     </AppMenuItem>
   );
@@ -404,39 +669,30 @@ function RecentRow({ item }: { item: RecentItem }): ReactElement {
   const Icon = item.icon;
 
   return (
-    <Link
-      to={item.href}
-      className="group grid grid-cols-[2.625rem_minmax(0,1fr)_auto] items-center gap-3 border-t border-[#ece5d9] px-5 py-3.5 transition-colors first:border-t-0 hover:bg-[#fcfaf5]"
-    >
-      <div
-        className={cn(
-          "flex h-[42px] w-[42px] items-center justify-center rounded-[14px]",
-          item.shellClassName,
-        )}
-      >
-        <Icon className={cn("size-5", item.iconClassName)} weight={item.iconWeight ?? "regular"} />
+    <Link to={item.href} {...stylex.props(styles.recentRow)}>
+      <div {...stylex.props(styles.recentIconShell, getRecentShellStyle(item.tone))}>
+        <Icon
+          className={stylex.props(styles.recentIcon, getRecentIconStyle(item.tone)).className}
+          weight={item.iconWeight ?? "regular"}
+        />
       </div>
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-semibold text-memora-text">{item.title}</p>
-        <p className="mt-1 truncate text-xs text-[#716c64]">{item.subtitle}</p>
+      <div {...stylex.props(styles.recentCopy)}>
+        <p {...stylex.props(styles.recentTitle)}>{item.title}</p>
+        <p {...stylex.props(styles.recentSubtitle)}>{item.subtitle}</p>
       </div>
-      <CaretRightIcon className="size-4 text-[#9a948a] transition-transform group-hover:translate-x-0.5" />
+      <CaretRightIcon className={stylex.props(styles.recentArrow).className} />
     </Link>
   );
 }
 
 function EmptyWidgetsState({ onReset }: { onReset: () => void }): ReactElement {
   return (
-    <div className="rounded-[1.75rem] border border-[#e9e5dc] bg-[#fffdf8] px-6 py-8 text-center">
-      <p className="text-sm font-semibold text-memora-text">All widgets are hidden.</p>
-      <p className="mt-1 text-sm text-[#716c64]">
+    <div {...stylex.props(styles.emptyWidgets)}>
+      <p {...stylex.props(styles.emptyTitle)}>All widgets are hidden.</p>
+      <p {...stylex.props(styles.emptyDescription)}>
         Turn a few back on to rebuild your workspace view.
       </p>
-      <button
-        type="button"
-        onClick={onReset}
-        className="mt-4 inline-flex min-h-11 items-center rounded-full border border-[#e7e1d7] bg-[#fffdfa] px-4 text-sm font-semibold text-memora-text transition hover:bg-[#fffcf6]"
-      >
+      <button type="button" onClick={onReset} {...stylex.props(styles.resetButton)}>
         Reset widgets
       </button>
     </div>
@@ -604,8 +860,8 @@ export const Component = (): ReactElement => {
     todo: widgetVisibility.todo,
   });
   const calendarWidget = (
-    <div key="calendar" className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6">
-      <div className="mb-4 grid grid-cols-[2rem_1fr_2rem] items-center gap-2">
+    <div key="calendar" {...stylex.props(styles.calendar)}>
+      <div {...stylex.props(styles.calendarHeader)}>
         <motion.button
           type="button"
           onClick={() => handleCalendarNavigation(-1)}
@@ -615,18 +871,18 @@ export const Component = (): ReactElement => {
             duration: 0.16,
             ease: CALENDAR_MOTION_EASE,
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[#9aa28d] transition hover:bg-[#f5f1e8] hover:text-[#6c7654] focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-white outline-none"
+          {...stylex.props(styles.calendarButton)}
           aria-label="Previous month"
         >
-          <CaretLeftIcon className="size-4" weight="bold" />
+          <CaretLeftIcon className={stylex.props(styles.icon).className} weight="bold" />
         </motion.button>
-        <div className="relative h-6 overflow-hidden">
+        <div {...stylex.props(styles.calendarLabelFrame)}>
           <motion.h2
             key={`calendar-label-${calendarMonthKey}`}
             initial={calendarHeaderMotion.initial}
             animate={calendarHeaderMotion.animate}
             transition={calendarHeaderMotion.transition}
-            className="absolute inset-0 text-center text-[15px] font-bold text-[#4f5742]"
+            {...stylex.props(styles.calendarLabel)}
           >
             {getMonthLabel(visibleMonth)}
           </motion.h2>
@@ -640,19 +896,16 @@ export const Component = (): ReactElement => {
             duration: 0.16,
             ease: CALENDAR_MOTION_EASE,
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[#9aa28d] transition hover:bg-[#f5f1e8] hover:text-[#6c7654] focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-white outline-none"
+          {...stylex.props(styles.calendarButton)}
           aria-label="Next month"
         >
-          <CaretRightIcon className="size-4" weight="bold" />
+          <CaretRightIcon className={stylex.props(styles.icon).className} weight="bold" />
         </motion.button>
       </div>
 
-      <div className="grid grid-cols-7 gap-x-1 gap-y-2">
+      <div {...stylex.props(styles.calendarGrid)}>
         {WEEKDAY_LABELS.map((label) => (
-          <div
-            key={label}
-            className="text-center text-[10px] font-bold tracking-[0.12em] text-[#9aa28d] uppercase"
-          >
+          <div key={label} {...stylex.props(styles.weekday)}>
             {label}
           </div>
         ))}
@@ -662,19 +915,15 @@ export const Component = (): ReactElement => {
           initial={calendarGridMotion.initial}
           animate={calendarGridMotion.animate}
           transition={calendarGridMotion.transition}
-          className="col-span-7 grid grid-cols-7 gap-x-1 gap-y-2"
+          {...stylex.props(styles.calendarGridDays)}
         >
           {calendarDays.map((day) => (
             <motion.div
               key={day.key}
               whileHover={reducedMotion || day.muted ? undefined : { y: -1, scale: 1.02 }}
-              className={cn(
-                "relative flex aspect-square items-center justify-center rounded-full text-sm transition-transform",
-                day.muted
-                  ? "text-[#c9c4bb]"
-                  : day.active
-                    ? "bg-[#7b875a] font-bold text-[#fffdfa]"
-                    : "text-[#565b4f]",
+              {...stylex.props(
+                styles.calendarDay,
+                day.muted ? styles.calendarDayMuted : day.active ? styles.calendarDayActive : null,
               )}
             >
               {day.active && !reducedMotion ? (
@@ -686,10 +935,10 @@ export const Component = (): ReactElement => {
                     duration: 0.34,
                     ease: CALENDAR_MOTION_EASE,
                   }}
-                  className="absolute inset-0 rounded-full border border-[#aab48a]/55"
+                  {...stylex.props(styles.dayRing)}
                 />
               ) : null}
-              <span className="relative z-10">{day.label}</span>
+              <span {...stylex.props(styles.dayLabel)}>{day.label}</span>
               {day.hasActivity && (
                 <motion.span
                   initial={
@@ -701,10 +950,7 @@ export const Component = (): ReactElement => {
                     duration: reducedMotion ? 0.12 : 0.22,
                     ease: CALENDAR_MOTION_EASE,
                   }}
-                  className={cn(
-                    "absolute bottom-1.5 h-1.5 w-1.5 rounded-full",
-                    day.active ? "bg-[#fffdfa]" : "bg-[#74824d]",
-                  )}
+                  {...stylex.props(styles.activityDot, day.active && styles.activityDotActive)}
                 />
               )}
             </motion.div>
@@ -715,16 +961,10 @@ export const Component = (): ReactElement => {
   );
 
   return (
-    <div
-      className="min-h-full bg-memora-bg text-memora-text"
-      style={{ fontFamily: DASHBOARD_FONT_FAMILY }}
-    >
-      <motion.div
-        {...heroAnimations}
-        className="mx-auto w-full max-w-[1080px] px-6 py-8 md:px-10 md:py-10"
-      >
-        <div className="pb-7 md:pb-8">
-          <header className="border-b border-[#e9e5dc] pb-4">
+    <div {...stylex.props(styles.page)} style={{ fontFamily: DASHBOARD_FONT_FAMILY }}>
+      <motion.div {...heroAnimations} {...stylex.props(styles.pageContent)}>
+        <div {...stylex.props(styles.hero)}>
+          <header {...stylex.props(styles.welcomeHeader)}>
             <DashboardWelcomeHeading
               title={welcomeCopy.title}
               description={welcomeCopy.description}
@@ -733,21 +973,24 @@ export const Component = (): ReactElement => {
             />
           </header>
 
-          <div className="mt-6">
-            <div className="mb-6 flex flex-wrap justify-end gap-2.5">
+          <div {...stylex.props(styles.widgetsArea)}>
+            <div {...stylex.props(styles.menuRow)}>
               <AppMenu>
                 <AppMenuTrigger>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-                    <UploadSimpleIcon className="size-[18px]" weight="regular" />
+                  <span {...stylex.props(styles.triggerIconShell)}>
+                    <UploadSimpleIcon
+                      className={stylex.props(styles.menuIcon).className}
+                      weight="regular"
+                    />
                   </span>
                   <span>New file</span>
                   <CaretDownIcon
                     data-dashboard-menu-caret=""
-                    className="size-3.5 text-[#9a948a]"
+                    className={stylex.props(styles.triggerCaret).className}
                     weight="bold"
                   />
                 </AppMenuTrigger>
-                <AppMenuContent className="w-[224px]">
+                <AppMenuContent className={stylex.props(styles.menuContentNarrow).className}>
                   <MenuActionItem
                     title="New note"
                     note="Start a blank markdown note"
@@ -780,12 +1023,12 @@ export const Component = (): ReactElement => {
 
               <AppMenu>
                 <AppMenuTrigger>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-                    <SlidersHorizontalIcon className="size-[18px]" />
+                  <span {...stylex.props(styles.triggerIconShell)}>
+                    <SlidersHorizontalIcon className={stylex.props(styles.menuIcon).className} />
                   </span>
                   <span>Edit widgets</span>
                 </AppMenuTrigger>
-                <AppMenuContent className="w-[240px]">
+                <AppMenuContent className={stylex.props(styles.menuContentWide).className}>
                   <WidgetToggleItem
                     checked={widgetVisibility.calendar}
                     label="Calendar"
@@ -811,9 +1054,12 @@ export const Component = (): ReactElement => {
             {!hasVisibleWidgets ? (
               <EmptyWidgetsState onReset={resetWidgets} />
             ) : (
-              <div className="space-y-6">
+              <div {...stylex.props(styles.widgetStack)}>
                 {(widgetVisibility.calendar || widgetVisibility.todo) && (
-                  <motion.section {...getSectionMotion(0.08)} className={PRIMARY_WIDGET_GRID_CLASS}>
+                  <motion.section
+                    {...getSectionMotion(0.08)}
+                    {...stylex.props(dashboardLayoutStyles.primaryWidgetGrid)}
+                  >
                     {primaryWidgetOrder.map((widget) => {
                       if (widget === "todo") {
                         return <TodoPanel key="todo" files={files} store={store} />;
@@ -827,10 +1073,10 @@ export const Component = (): ReactElement => {
                 {widgetVisibility.recent && (
                   <motion.section
                     {...getSectionMotion(0.16)}
-                    className="overflow-hidden rounded-[1.45rem] border border-[#ebe4d8] bg-white"
+                    {...stylex.props(styles.recentWidget)}
                   >
-                    <div className="px-5 py-4">
-                      <h2 className="text-[17px] font-bold text-memora-text">Recent</h2>
+                    <div {...stylex.props(styles.recentWidgetHeader)}>
+                      <h2 {...stylex.props(styles.recentWidgetTitle)}>Recent</h2>
                     </div>
                     <div>
                       {recentItems.map((item) => (

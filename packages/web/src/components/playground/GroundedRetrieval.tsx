@@ -9,6 +9,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { Streamdown } from "streamdown";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import type { provider as ProviderRow } from "@/livestore/provider";
@@ -76,10 +77,649 @@ import {
 } from "@/lib/streamdown";
 import { cat } from "@memora/fs";
 
-const PRIMARY_BUTTON_CLASS_NAME =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-memora-text px-4 text-sm font-medium text-memora-surface transition-colors hover:bg-memora-text-strong disabled:cursor-not-allowed disabled:opacity-45";
-const SECONDARY_BUTTON_CLASS_NAME =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-memora-border bg-memora-surface px-4 text-sm font-medium text-memora-text transition-colors hover:bg-memora-surface-soft disabled:cursor-not-allowed disabled:opacity-45";
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: "1.75rem" },
+  topGrid: {
+    display: "grid",
+    gap: "1.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 1280px)": "minmax(320px,0.83fr) minmax(0,1.35fr)",
+    },
+  },
+  panel: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "26px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: { default: "1.25rem", "@media (min-width: 640px)": "1.5rem" },
+  },
+  boundaryPanel: { minWidth: 0 },
+  introRow: { alignItems: "flex-start", display: "flex", gap: "0.75rem" },
+  brainFrame: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-olive-faint)",
+    borderRadius: "0.5rem",
+    color: "var(--color-memora-olive)",
+    display: "flex",
+    flexShrink: 0,
+    height: "2rem",
+    justifyContent: "center",
+    marginTop: "0.125rem",
+    width: "2rem",
+  },
+  icon16: { height: "1rem", width: "1rem" },
+  icon16Olive: { color: "var(--color-memora-olive)", height: "1rem", width: "1rem" },
+  title: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.25rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "1.75rem",
+  },
+  description: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.25rem",
+  },
+  questionLabel: {
+    color: "var(--color-memora-text)",
+    display: "block",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    marginTop: "1.5rem",
+  },
+  textarea: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: { default: "var(--color-memora-border)", ":focus": "var(--color-memora-olive)" },
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+    minHeight: "6rem",
+    outline: "none",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.75rem",
+    resize: "vertical",
+    width: "100%",
+    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    ":focus": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+  },
+  sectionHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    marginTop: "1.5rem",
+  },
+  headingSmall: { color: "var(--color-memora-text)", fontSize: "0.875rem", fontWeight: 500 },
+  soft12: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem" },
+  transcriptList: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+    marginTop: "0.5rem",
+    maxHeight: "13rem",
+    overflow: "auto",
+    padding: "0.375rem",
+  },
+  transcriptRow: {
+    alignItems: "center",
+    borderRadius: "0.5rem",
+    cursor: "pointer",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.625rem",
+    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
+  },
+  checkbox: {
+    accentColor: "var(--color-memora-olive)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.25rem",
+    height: "1rem",
+    width: "1rem",
+    ":focus": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+  },
+  transcriptName: {
+    color: "var(--color-memora-text)",
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  transcriptType: { color: "var(--color-memora-text-soft)", flexShrink: 0, fontSize: "0.75rem" },
+  emptyTranscripts: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    paddingBlock: "1.25rem",
+    paddingInline: "0.75rem",
+  },
+  configGrid: {
+    display: "grid",
+    gap: "1rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(3,minmax(0,1fr))",
+    },
+    marginTop: "1.5rem",
+  },
+  fieldLabel: {
+    color: "var(--color-memora-text-muted)",
+    display: "block",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+  },
+  input: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: { default: "var(--color-memora-border)", ":focus": "var(--color-memora-olive)" },
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    height: "2.5rem",
+    marginTop: "0.375rem",
+    outline: "none",
+    paddingInline: "0.625rem",
+    width: "100%",
+    ":disabled": { opacity: 0.5 },
+  },
+  disabledCursor: { ":disabled": { cursor: "not-allowed" } },
+  helpText: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  warning: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderRadius: "0.75rem",
+    color: "var(--color-memora-warning-text)",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+    marginTop: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  warningIcon: { flexShrink: 0, height: "1rem", marginTop: "0.125rem", width: "1rem" },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--color-memora-text)",
+      ":hover": "var(--color-memora-text-strong)",
+    },
+    borderRadius: "0.75rem",
+    color: "var(--color-memora-surface)",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    height: "2.5rem",
+    justifyContent: "center",
+    paddingInline: "1rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.45 },
+  },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--color-memora-surface)",
+      ":hover": "var(--color-memora-surface-soft)",
+    },
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text)",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    height: "2.5rem",
+    justifyContent: "center",
+    paddingInline: "1rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.45 },
+  },
+  fullButton: { marginTop: "1.5rem", width: "100%" },
+  secondaryFull: { marginTop: "0.75rem", width: "100%" },
+  semanticLabel: { marginTop: "1.25rem" },
+  backendBadge: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    display: "inline-flex",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    marginTop: "0.75rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  indexCard: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    marginTop: "1rem",
+    padding: "0.75rem",
+  },
+  rowBetween: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  indexTitle: { color: "var(--color-memora-text)", fontSize: "0.75rem", fontWeight: 500 },
+  body12: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  indexId: {
+    color: "var(--color-memora-text-soft)",
+    fontFamily: "monospace",
+    fontSize: "0.6875rem",
+    marginTop: "0.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  syncText: { marginTop: "0.5rem" },
+  progressText: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.75rem",
+  },
+  boundaryHeader: {
+    alignItems: "flex-start",
+    borderBottomColor: "var(--color-memora-border)",
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBottom: "1.25rem",
+  },
+  budgetBadge: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  methodRow: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    marginTop: "1rem",
+  },
+  method: {
+    borderRadius: "0.5rem",
+    color: {
+      default: "var(--color-memora-text-muted)",
+      ":hover": "var(--color-memora-text-muted)",
+    },
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    paddingBlock: "0.375rem",
+    paddingInline: "0.625rem",
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
+    ":disabled": { cursor: "not-allowed", opacity: 0.45 },
+  },
+  methodActive: {
+    backgroundColor: "var(--color-memora-olive-faint)",
+    color: "var(--color-memora-olive)",
+    ":hover": { backgroundColor: "var(--color-memora-olive-faint)" },
+  },
+  contextStats: {
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    gap: "0.5rem",
+    marginTop: "1rem",
+  },
+  chunkList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+    marginTop: "1rem",
+    maxHeight: "420px",
+    overflow: "auto",
+    paddingRight: "0.25rem",
+  },
+  chunk: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  chunkHeader: {
+    alignItems: "center",
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    gap: "0.25rem 0.75rem",
+    justifyContent: "space-between",
+  },
+  chunkSource: { color: "var(--color-memora-text)", fontWeight: 500 },
+  chunkMeta: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    justifyContent: "flex-end",
+  },
+  cosine: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.375rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-soft)",
+    fontFamily: "monospace",
+    fontSize: "0.6875rem",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.5rem",
+  },
+  chunkText: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+    whiteSpace: "pre-wrap",
+  },
+  modelSection: {
+    borderTopColor: "var(--color-memora-border)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    marginTop: "1.25rem",
+    paddingTop: "1.25rem",
+  },
+  modelHeader: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  agentError: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderRadius: "0.75rem",
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.875rem",
+    marginTop: "0.75rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  response: {
+    borderTopColor: "var(--color-memora-border)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    marginTop: "1.25rem",
+    paddingTop: "1.25rem",
+  },
+  responseTitle: {
+    alignItems: "center",
+    color: "var(--color-memora-text)",
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+  },
+  streamdownSpacing: { marginTop: "0.75rem" },
+  boundaryEmpty: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "420px",
+    textAlign: "center",
+  },
+  emptyCopy: { maxWidth: "24rem" },
+  emptyTitle: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.25rem",
+    fontWeight: 500,
+  },
+  benchmarkHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    justifyContent: "space-between",
+  },
+  benchmarkCopy: { maxWidth: "42rem" },
+  benchmarkGrid: {
+    display: "grid",
+    gap: "1rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 768px)": "repeat(2,minmax(0,1fr))",
+      "@media (min-width: 1024px)": "minmax(0,1fr) minmax(220px,0.45fr) minmax(180px,0.3fr)",
+    },
+    marginTop: "1.25rem",
+  },
+  profileCard: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    marginTop: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  wrapBetween: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    justifyContent: "space-between",
+  },
+  link: {
+    color: "var(--color-memora-olive)",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    ":hover": { textDecoration: "underline" },
+  },
+  mono: { fontFamily: "monospace" },
+  datasetList: { display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" },
+  dataset: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  examples: { marginTop: "1rem" },
+  sampleGrid: {
+    display: "grid",
+    gap: "0.5rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 768px)": "repeat(2,minmax(0,1fr))",
+    },
+    marginTop: "0.5rem",
+  },
+  sample: {
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  sampleDataset: { color: "var(--color-memora-text)", fontWeight: 500 },
+  separator: { color: "var(--color-memora-text-soft)", marginInline: "0.375rem" },
+  benchmarkProgress: {
+    backgroundColor: "var(--color-memora-olive-faint)",
+    borderRadius: "0.5rem",
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    marginTop: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  report: { marginTop: "1.25rem" },
+  scoreGrid: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(2,minmax(0,1fr))",
+      "@media (min-width: 1024px)": "repeat(4,minmax(0,1fr))",
+    },
+    overflow: "hidden",
+  },
+  score: {
+    borderLeftColor: {
+      default: "transparent",
+      "@media (min-width: 1024px)": "var(--color-memora-border-soft)",
+    },
+    borderLeftStyle: "solid",
+    borderLeftWidth: { default: 0, "@media (min-width: 1024px)": 1 },
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+    ":first-child": { borderLeftWidth: 0 },
+  },
+  scoreLabel: { color: "var(--color-memora-text-muted)", fontSize: "0.75rem", fontWeight: 500 },
+  scoreValue: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: "monospace",
+    fontSize: "1.5rem",
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 500,
+    marginTop: "0.25rem",
+  },
+  reportMeta: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem", marginTop: "0.75rem" },
+  reportDetail: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  tableWrap: {
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    marginTop: "1rem",
+    overflowX: "auto",
+  },
+  table: { borderCollapse: "collapse", minWidth: "760px", textAlign: "left", width: "100%" },
+  detailTable: { minWidth: "920px" },
+  tableHead: {
+    backgroundColor: "var(--color-memora-canvas)",
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+  },
+  stickyHead: { position: "sticky", top: 0 },
+  thWide: { fontWeight: 500, paddingBlock: "0.625rem", paddingInline: "1rem" },
+  th: { fontWeight: 500, paddingBlock: "0.625rem", paddingInline: "0.75rem" },
+  alignRight: { textAlign: "right" },
+  tableRow: {
+    borderTopColor: "var(--color-memora-border-soft)",
+    borderTopStyle: "solid",
+    borderTopWidth: { default: 1, ":first-child": 0 },
+    color: "var(--color-memora-text)",
+  },
+  tdWide: { paddingBlock: "0.75rem", paddingInline: "1rem" },
+  td: { padding: "0.75rem" },
+  datasetDomain: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.75rem",
+    marginLeft: "0.5rem",
+  },
+  numeric: {
+    color: "var(--color-memora-text-muted)",
+    fontFamily: "monospace",
+    fontSize: "0.75rem",
+    fontVariantNumeric: "tabular-nums",
+  },
+  details: {
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    marginTop: "1rem",
+  },
+  summary: {
+    color: "var(--color-memora-text)",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  detailsScroll: {
+    borderTopColor: "var(--color-memora-border-soft)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    maxHeight: "560px",
+    overflow: "auto",
+  },
+  query: { lineHeight: "1.25rem", maxWidth: "36rem" },
+  emptyBenchmark: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "1.25rem",
+    paddingBlock: "1.25rem",
+    paddingInline: "1rem",
+  },
+});
 const EMPTY_MODEL = {
   id: "unconfigured",
   name: "Unconfigured",
@@ -862,18 +1502,16 @@ export default function GroundedRetrieval() {
   }, [contextPack, question, send]);
 
   return (
-    <div className="space-y-7">
-      <div className="grid gap-7 xl:grid-cols-[minmax(320px,0.83fr)_minmax(0,1.35fr)]">
-        <section className="rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-memora-olive-faint text-memora-olive">
-              <BrainIcon className="size-4" />
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.topGrid)}>
+        <section {...stylex.props(styles.panel)}>
+          <div {...stylex.props(styles.introRow)}>
+            <span {...stylex.props(styles.brainFrame)}>
+              <BrainIcon className={stylex.props(styles.icon16).className} />
             </span>
             <div>
-              <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
-                Prepare local context
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-memora-text-muted">
+              <h2 {...stylex.props(styles.title)}>Prepare local context</h2>
+              <p {...stylex.props(styles.description)}>
                 Choose saved transcripts, then inspect exactly what the configured model can
                 receive.
               </p>
@@ -881,7 +1519,7 @@ export default function GroundedRetrieval() {
           </div>
 
           <label
-            className="mt-6 block text-sm font-medium text-memora-text"
+            className={stylex.props(styles.questionLabel).className}
             htmlFor="grounded-question"
           >
             Question
@@ -898,42 +1536,39 @@ export default function GroundedRetrieval() {
               setBgeElapsedMs(null);
             }}
             placeholder="What decision was made about the study plan?"
-            className="mt-2 min-h-24 w-full resize-y rounded-xl border border-memora-border bg-memora-canvas px-3 py-2.5 text-sm leading-6 text-memora-text outline-none placeholder:text-memora-text-soft focus:border-memora-olive focus:ring-2 focus:ring-memora-olive-soft"
+            className={stylex.props(styles.textarea).className}
           />
 
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-memora-text">Local transcripts</p>
-            <span className="text-xs text-memora-text-soft">{selectedIds.length} selected</span>
+          <div {...stylex.props(styles.sectionHeader)}>
+            <p {...stylex.props(styles.headingSmall)}>Local transcripts</p>
+            <span {...stylex.props(styles.soft12)}>{selectedIds.length} selected</span>
           </div>
-          <div className="mt-2 max-h-52 space-y-1 overflow-auto rounded-xl border border-memora-border bg-memora-canvas p-1.5">
+          <div {...stylex.props(styles.transcriptList)}>
             {transcriptFiles.length ? (
               transcriptFiles.map((file) => {
                 const checked = selectedIds.includes(file.id);
                 return (
-                  <label
-                    key={file.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-sm hover:bg-memora-surface-soft"
-                  >
+                  <label key={file.id} {...stylex.props(styles.transcriptRow)}>
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleFile(file.id)}
-                      className="size-4 rounded border-memora-border text-memora-olive focus:ring-memora-olive-soft"
+                      className={stylex.props(styles.checkbox).className}
                     />
-                    <span className="min-w-0 flex-1 truncate text-memora-text">{file.name}</span>
-                    <span className="shrink-0 text-xs text-memora-text-soft">{file.type}</span>
+                    <span {...stylex.props(styles.transcriptName)}>{file.name}</span>
+                    <span {...stylex.props(styles.transcriptType)}>{file.type}</span>
                   </label>
                 );
               })
             ) : (
-              <p className="px-3 py-5 text-sm leading-6 text-memora-text-muted">
+              <p {...stylex.props(styles.emptyTranscripts)}>
                 No saved audio or video transcripts are available yet.
               </p>
             )}
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <label className="block text-xs font-medium text-memora-text-muted">
+          <div {...stylex.props(styles.configGrid)}>
+            <label {...stylex.props(styles.fieldLabel)}>
               Chunk size
               <input
                 type="number"
@@ -947,10 +1582,10 @@ export default function GroundedRetrieval() {
                   setPreparedChunks([]);
                   setBenchmarkReport(null);
                 }}
-                className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive"
+                className={stylex.props(styles.input).className}
               />
             </label>
-            <label className="block text-xs font-medium text-memora-text-muted">
+            <label {...stylex.props(styles.fieldLabel)}>
               Top-k
               <input
                 type="number"
@@ -963,10 +1598,10 @@ export default function GroundedRetrieval() {
                   setBgePack(null);
                   setPreparedChunks([]);
                 }}
-                className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive"
+                className={stylex.props(styles.input).className}
               />
             </label>
-            <label className="block text-xs font-medium text-memora-text-muted">
+            <label {...stylex.props(styles.fieldLabel)}>
               Context budget
               <input
                 type="number"
@@ -979,29 +1614,29 @@ export default function GroundedRetrieval() {
                   setBgePack(null);
                   setPreparedChunks([]);
                 }}
-                className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive"
+                className={stylex.props(styles.input).className}
               />
             </label>
           </div>
-          <p className="mt-2 text-xs leading-5 text-memora-text-soft">
+          <p {...stylex.props(styles.helpText)}>
             All limits are characters for this experiment. The 420-character default stays within
             the BGE small EN input limit and is also valid for BGE-M3.
           </p>
           {prepareError ? (
-            <p className="mt-4 flex gap-2 rounded-xl bg-memora-warning-surface px-3 py-2 text-sm leading-5 text-memora-warning-text">
-              <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+            <p {...stylex.props(styles.warning)}>
+              <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
               {prepareError}
             </p>
           ) : null}
           <Button
             onClick={() => void prepareContext()}
             disabled={isPreparing}
-            className={`${PRIMARY_BUTTON_CLASS_NAME} mt-6 w-full`}
+            className={stylex.props(styles.primaryButton, styles.fullButton).className}
           >
             {isPreparing ? "Preparing context…" : "Prepare context"}
-            <CaretRightIcon className="size-4" />
+            <CaretRightIcon className={stylex.props(styles.icon16).className} />
           </Button>
-          <label className="mt-5 block text-xs font-medium text-memora-text-muted">
+          <label {...stylex.props(styles.fieldLabel, styles.semanticLabel)}>
             Semantic model
             <select
               value={bgeModel}
@@ -1014,7 +1649,7 @@ export default function GroundedRetrieval() {
                 setActiveMethod("keyword");
                 setBenchmarkReport(null);
               }}
-              className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive"
+              className={stylex.props(styles.input).className}
             >
               {Object.entries(BGE_MODELS).map(([id, model]) => (
                 <option key={id} value={id}>
@@ -1023,32 +1658,28 @@ export default function GroundedRetrieval() {
               ))}
             </select>
           </label>
-          <p className="mt-2 text-xs leading-5 text-memora-text-soft">
-            {BGE_MODELS[bgeModel].description}
-          </p>
-          <span className="mt-3 inline-flex rounded-full border border-memora-border bg-memora-surface-soft px-2.5 py-1 text-xs font-medium text-memora-text-muted">
+          <p {...stylex.props(styles.helpText)}>{BGE_MODELS[bgeModel].description}</p>
+          <span {...stylex.props(styles.backendBadge)}>
             Backend:{" "}
             {bgeBackend === "webgpu" ? "WebGPU" : bgeBackend === "wasm" ? "WASM" : "Not loaded"}
           </span>
-          <div className="mt-4 rounded-xl border border-memora-border-soft bg-memora-canvas px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-memora-text">Persistent local index</p>
-              <span className="text-xs text-memora-text-soft">
+          <div {...stylex.props(styles.indexCard)}>
+            <div {...stylex.props(styles.rowBetween)}>
+              <p {...stylex.props(styles.indexTitle)}>Persistent local index</p>
+              <span {...stylex.props(styles.soft12)}>
                 {indexHealth?.persistent ? "OPFS" : indexHealth ? "SQLite" : "Not initialized"}
               </span>
             </div>
-            <p className="mt-1 text-xs leading-5 text-memora-text-muted">
+            <p {...stylex.props(styles.body12)}>
               {indexHealth
                 ? `${indexHealth.documentCount} documents · ${indexHealth.chunkCount} chunks · ${indexHealth.sqliteVecVersion}`
                 : "Run semantic retrieval to initialize the SQLite + sqlite-vec database."}
             </p>
             {indexHealth ? (
-              <p className="mt-1 truncate font-mono text-[11px] text-memora-text-soft">
-                indexId {indexHealth.indexId}
-              </p>
+              <p {...stylex.props(styles.indexId)}>indexId {indexHealth.indexId}</p>
             ) : null}
             {lastIndexSync ? (
-              <p className="mt-2 text-xs leading-5 text-memora-text-muted">
+              <p {...stylex.props(styles.body12, styles.syncText)}>
                 Last sync: {lastIndexSync.reusedDocumentCount} reused ·{" "}
                 {lastIndexSync.indexedDocumentCount} written · {lastIndexSync.embeddedChunkCount}{" "}
                 embedded · {lastIndexSync.resumedChunkCount} resumed from OPFS
@@ -1056,52 +1687,48 @@ export default function GroundedRetrieval() {
             ) : null}
           </div>
           {indexError ? (
-            <p className="mt-3 flex gap-2 rounded-xl bg-memora-warning-surface px-3 py-2 text-sm leading-5 text-memora-warning-text">
-              <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+            <p {...stylex.props(styles.warning)}>
+              <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
               {indexError}
             </p>
           ) : null}
           <Button
             onClick={() => void runBgeComparison()}
             disabled={!preparedChunks.length || isRunningBge || isRunningBenchmark}
-            className={`${SECONDARY_BUTTON_CLASS_NAME} mt-3 w-full`}
+            className={stylex.props(styles.secondaryButton, styles.secondaryFull).className}
           >
             {isRunningBge ? "Running semantic retrieval…" : `Run ${BGE_MODELS[bgeModel].label}`}
           </Button>
-          {bgeProgress ? (
-            <p className="mt-3 text-xs leading-5 text-memora-text-muted">{bgeProgress}</p>
-          ) : null}
+          {bgeProgress ? <p {...stylex.props(styles.progressText)}>{bgeProgress}</p> : null}
           {bgeError ? (
-            <p className="mt-3 flex gap-2 rounded-xl bg-memora-warning-surface px-3 py-2 text-sm leading-5 text-memora-warning-text">
-              <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+            <p {...stylex.props(styles.warning)}>
+              <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
               {bgeError}
             </p>
           ) : null}
         </section>
 
-        <section className="min-w-0 rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-memora-border pb-5">
+        <section {...stylex.props(styles.panel, styles.boundaryPanel)}>
+          <div {...stylex.props(styles.boundaryHeader)}>
             <div>
-              <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
-                Model boundary
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-memora-text-muted">
+              <h2 {...stylex.props(styles.title)}>Model boundary</h2>
+              <p {...stylex.props(styles.description)}>
                 The blocks below are the whole remote context for this run.
               </p>
             </div>
             {contextPack ? (
-              <span className="rounded-full border border-memora-border bg-memora-surface-soft px-2.5 py-1 text-xs font-medium text-memora-text-muted">
+              <span {...stylex.props(styles.budgetBadge)}>
                 {contextPack.characterCount.toLocaleString()} / {contextBudget.toLocaleString()}{" "}
                 chars
               </span>
             ) : null}
           </div>
           {keywordPack ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div {...stylex.props(styles.methodRow)}>
               <button
                 type="button"
                 onClick={() => setActiveMethod("keyword")}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${activeMethod === "keyword" ? "bg-memora-olive-faint text-memora-olive" : "text-memora-text-muted hover:bg-memora-surface-soft"}`}
+                {...stylex.props(styles.method, activeMethod === "keyword" && styles.methodActive)}
               >
                 Keyword baseline · {formatElapsed(keywordElapsedMs)}
               </button>
@@ -1109,18 +1736,18 @@ export default function GroundedRetrieval() {
                 type="button"
                 onClick={() => bgePack && setActiveMethod("bge")}
                 disabled={!bgePack}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${activeMethod === "bge" ? "bg-memora-olive-faint text-memora-olive" : "text-memora-text-muted hover:bg-memora-surface-soft"} disabled:cursor-not-allowed disabled:opacity-45`}
+                {...stylex.props(styles.method, activeMethod === "bge" && styles.methodActive)}
               >
                 {BGE_MODELS[bgeModel].label} · {formatElapsed(bgeElapsedMs)}
               </button>
-              <span className="text-xs text-memora-text-soft">
+              <span {...stylex.props(styles.soft12)}>
                 Semantic retrieval runs locally in a worker.
               </span>
             </div>
           ) : null}
           {contextPack ? (
             <>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs text-memora-text-muted">
+              <div {...stylex.props(styles.contextStats)}>
                 <span>{contextPack.chunks.length} included</span>
                 <span>·</span>
                 <span>{contextPack.candidateCount} retrieved</span>
@@ -1131,19 +1758,16 @@ export default function GroundedRetrieval() {
                   </>
                 ) : null}
               </div>
-              <div className="mt-4 max-h-[420px] space-y-3 overflow-auto pr-1">
+              <div {...stylex.props(styles.chunkList)}>
                 {contextPack.chunks.map((chunk) => (
-                  <article
-                    key={chunk.id}
-                    className="rounded-xl border border-memora-border-soft bg-memora-canvas px-4 py-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-memora-text-muted">
-                      <span className="font-medium text-memora-text">{chunk.sourceName}</span>
-                      <span className="flex flex-wrap items-center justify-end gap-2">
+                  <article key={chunk.id} {...stylex.props(styles.chunk)}>
+                    <div {...stylex.props(styles.chunkHeader)}>
+                      <span {...stylex.props(styles.chunkSource)}>{chunk.sourceName}</span>
+                      <span {...stylex.props(styles.chunkMeta)}>
                         {chunk.cosineSimilarity !== undefined &&
                         chunk.vectorDistance !== undefined ? (
                           <span
-                            className="rounded-md border border-memora-border-soft bg-memora-surface px-2 py-0.5 font-mono text-[11px] text-memora-text-soft"
+                            className={stylex.props(styles.cosine).className}
                             title="Cosine distance equals 1 minus cosine similarity."
                           >
                             Cosine {chunk.cosineSimilarity.toFixed(3)} · distance{" "}
@@ -1156,50 +1780,49 @@ export default function GroundedRetrieval() {
                         </span>
                       </span>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-memora-text">
-                      {chunk.text}
-                    </p>
+                    <p {...stylex.props(styles.chunkText)}>{chunk.text}</p>
                   </article>
                 ))}
               </div>
-              <div className="mt-5 border-t border-memora-border pt-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+              <div {...stylex.props(styles.modelSection)}>
+                <div {...stylex.props(styles.modelHeader)}>
                   <div>
-                    <p className="text-sm font-medium text-memora-text">Configured chat model</p>
-                    <p className="mt-1 text-xs text-memora-text-soft">
+                    <p {...stylex.props(styles.headingSmall)}>Configured chat model</p>
+                    <p {...stylex.props(styles.helpText)}>
                       {isConfigured
                         ? (selectedModelInfo?.name ?? "Selected model")
                         : "Choose a provider and model in Settings first."}
                     </p>
                   </div>
                   {isStreaming ? (
-                    <Button onClick={abort} className={SECONDARY_BUTTON_CLASS_NAME}>
+                    <Button
+                      onClick={abort}
+                      className={stylex.props(styles.secondaryButton).className}
+                    >
                       Stop
                     </Button>
                   ) : (
                     <Button
                       onClick={() => void runModel()}
                       disabled={!isConfigured}
-                      className={PRIMARY_BUTTON_CLASS_NAME}
+                      className={stylex.props(styles.primaryButton).className}
                     >
-                      <PlayIcon className="size-4" />
+                      <PlayIcon className={stylex.props(styles.icon16).className} />
                       Ask model
                     </Button>
                   )}
                 </div>
                 {agentError ? (
-                  <p className="mt-3 rounded-xl bg-memora-warning-surface px-3 py-2 text-sm text-memora-warning-text">
-                    {agentError.message}
-                  </p>
+                  <p {...stylex.props(styles.agentError)}>{agentError.message}</p>
                 ) : null}
                 {answer ? (
-                  <div className="mt-5 border-t border-memora-border pt-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-memora-text">
-                      <CheckCircleIcon className="size-4 text-memora-olive" />
+                  <div {...stylex.props(styles.response)}>
+                    <div {...stylex.props(styles.responseTitle)}>
+                      <CheckCircleIcon className={stylex.props(styles.icon16Olive).className} />
                       Model response
                     </div>
                     <Streamdown
-                      className={`${MEMORA_STREAMDOWN_CLASS_NAME} mt-3`}
+                      className={`${MEMORA_STREAMDOWN_CLASS_NAME} ${stylex.props(styles.streamdownSpacing).className}`}
                       controls={MEMORA_STREAMDOWN_CONTROLS}
                       plugins={{ ...MEMORA_STREAMDOWN_PLUGINS }}
                       shikiTheme={MEMORA_STREAMDOWN_THEME}
@@ -1211,12 +1834,10 @@ export default function GroundedRetrieval() {
               </div>
             </>
           ) : (
-            <div className="flex min-h-[420px] items-center justify-center text-center">
-              <div className="max-w-sm">
-                <p className="font-serif text-xl font-medium text-memora-text-strong">
-                  Nothing is selected for remote use.
-                </p>
-                <p className="mt-2 text-sm leading-6 text-memora-text-muted">
+            <div {...stylex.props(styles.boundaryEmpty)}>
+              <div {...stylex.props(styles.emptyCopy)}>
+                <p {...stylex.props(styles.emptyTitle)}>Nothing is selected for remote use.</p>
+                <p {...stylex.props(styles.description)}>
                   Prepare a query to inspect the retrieved chunks before calling the model.
                 </p>
               </div>
@@ -1225,13 +1846,11 @@ export default function GroundedRetrieval() {
         </section>
       </div>
 
-      <section className="rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl">
-            <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
-              NanoBEIR retrieval benchmark
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-memora-text-muted">
+      <section {...stylex.props(styles.panel)}>
+        <div {...stylex.props(styles.benchmarkHeader)}>
+          <div {...stylex.props(styles.benchmarkCopy)}>
+            <h2 {...stylex.props(styles.title)}>NanoBEIR retrieval benchmark</h2>
+            <p {...stylex.props(styles.description)}>
               Runs public queries and qrels from NanoBEIR-en against the same SQLite + sqlite-vec
               OPFS index used by transcript retrieval.
             </p>
@@ -1239,14 +1858,14 @@ export default function GroundedRetrieval() {
           <Button
             onClick={() => void runRetrievalBenchmark()}
             disabled={isRunningBenchmark || isRunningBge || isLoadingBenchmarkPreview}
-            className={SECONDARY_BUTTON_CLASS_NAME}
+            className={stylex.props(styles.secondaryButton).className}
           >
             {isRunningBenchmark ? "Running benchmark…" : "Run retrieval benchmark"}
           </Button>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.45fr)_minmax(180px,0.3fr)]">
-          <label className="block text-xs font-medium text-memora-text-muted">
+        <div {...stylex.props(styles.benchmarkGrid)}>
+          <label {...stylex.props(styles.fieldLabel)}>
             Evaluation profile
             <select
               value={benchmarkProfileId}
@@ -1256,7 +1875,7 @@ export default function GroundedRetrieval() {
                 setBenchmarkPreview([]);
               }}
               disabled={isRunningBenchmark}
-              className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive disabled:opacity-50"
+              className={stylex.props(styles.input).className}
             >
               {Object.values(NANO_BEIR_PROFILES).map((profile) => (
                 <option key={profile.id} value={profile.id}>
@@ -1265,7 +1884,7 @@ export default function GroundedRetrieval() {
               ))}
             </select>
           </label>
-          <label className="block text-xs font-medium text-memora-text-muted">
+          <label {...stylex.props(styles.fieldLabel)}>
             Retrieval method
             <select
               value={benchmarkMethod}
@@ -1274,7 +1893,7 @@ export default function GroundedRetrieval() {
                 setBenchmarkReport(null);
               }}
               disabled={isRunningBenchmark}
-              className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive disabled:opacity-50"
+              className={stylex.props(styles.input).className}
             >
               {Object.entries(BENCHMARK_METHODS).map(([method, config]) => (
                 <option key={method} value={method}>
@@ -1283,7 +1902,7 @@ export default function GroundedRetrieval() {
               ))}
             </select>
           </label>
-          <label className="block text-xs font-medium text-memora-text-muted">
+          <label {...stylex.props(styles.fieldLabel)}>
             RRF rank constant
             <select
               value={benchmarkRrfK}
@@ -1292,7 +1911,7 @@ export default function GroundedRetrieval() {
                 setBenchmarkReport(null);
               }}
               disabled={isRunningBenchmark || !BENCHMARK_METHODS[benchmarkMethod].usesRrf}
-              className="mt-1.5 h-10 w-full rounded-lg border border-memora-border bg-memora-canvas px-2.5 text-sm text-memora-text outline-none focus:border-memora-olive disabled:cursor-not-allowed disabled:opacity-50"
+              className={stylex.props(styles.input, styles.disabledCursor).className}
             >
               {RRF_K_OPTIONS.map((rrfK) => (
                 <option key={rrfK} value={rrfK}>
@@ -1303,9 +1922,9 @@ export default function GroundedRetrieval() {
           </label>
         </div>
 
-        <div className="mt-4 rounded-xl border border-memora-border-soft bg-memora-canvas px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-memora-text">
+        <div {...stylex.props(styles.profileCard)}>
+          <div {...stylex.props(styles.wrapBetween)}>
+            <p {...stylex.props(styles.headingSmall)}>
               {benchmarkProfile.label} · {benchmarkProfile.datasetIds.length} dataset
               {benchmarkProfile.datasetIds.length === 1 ? "" : "s"}
             </p>
@@ -1313,25 +1932,25 @@ export default function GroundedRetrieval() {
               href="https://huggingface.co/datasets/sentence-transformers/NanoBEIR-en"
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-medium text-memora-olive hover:underline"
+              className={stylex.props(styles.link).className}
             >
               Public dataset source
             </a>
           </div>
-          <p className="mt-1 text-xs leading-5 text-memora-text-muted">
+          <p {...stylex.props(styles.body12)}>
             {benchmarkTotals.queryCount.toLocaleString()} queries ·{" "}
             {benchmarkTotals.corpusCount.toLocaleString()} corpus passages ·{" "}
             {benchmarkTotals.qrelCount.toLocaleString()} qrels · revision{" "}
-            <span className="font-mono">{NANO_BEIR_REVISION.slice(0, 8)}</span>
+            <span {...stylex.props(styles.mono)}>{NANO_BEIR_REVISION.slice(0, 8)}</span>
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div {...stylex.props(styles.datasetList)}>
             {benchmarkProfile.datasetIds.map((datasetId) => {
               const dataset = NANO_BEIR_DATASETS[datasetId];
               return (
                 <span
                   key={datasetId}
                   title={`${dataset.domain} · ${dataset.queryCount} queries · ${dataset.corpusCount} passages · ${dataset.qrelCount} qrels`}
-                  className="rounded-full border border-memora-border bg-memora-surface px-2.5 py-1 text-xs text-memora-text-muted"
+                  className={stylex.props(styles.dataset).className}
                 >
                   {dataset.label} · {dataset.domain}
                 </span>
@@ -1340,24 +1959,21 @@ export default function GroundedRetrieval() {
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-medium text-memora-text">Public query examples</p>
-            <span className="text-xs text-memora-text-soft">
+        <div {...stylex.props(styles.examples)}>
+          <div {...stylex.props(styles.rowBetween)}>
+            <p {...stylex.props(styles.indexTitle)}>Public query examples</p>
+            <span {...stylex.props(styles.soft12)}>
               {isLoadingBenchmarkPreview
                 ? "Loading…"
                 : `${benchmarkPreview.reduce((total, dataset) => total + dataset.queries.length, 0)} loaded`}
             </span>
           </div>
           {benchmarkQuerySamples.length ? (
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <div {...stylex.props(styles.sampleGrid)}>
               {benchmarkQuerySamples.map((sample) => (
-                <div
-                  key={sample.id}
-                  className="rounded-lg border border-memora-border-soft px-3 py-2 text-xs leading-5 text-memora-text-muted"
-                >
-                  <span className="font-medium text-memora-text">{sample.datasetLabel}</span>
-                  <span className="mx-1.5 text-memora-text-soft">·</span>
+                <div key={sample.id} {...stylex.props(styles.sample)}>
+                  <span {...stylex.props(styles.sampleDataset)}>{sample.datasetLabel}</span>
+                  <span {...stylex.props(styles.separator)}>·</span>
                   {sample.text}
                 </div>
               ))}
@@ -1366,81 +1982,73 @@ export default function GroundedRetrieval() {
         </div>
 
         {benchmarkProgress ? (
-          <p className="mt-4 rounded-lg bg-memora-olive-faint px-3 py-2 text-sm text-memora-text-muted">
-            {benchmarkProgress}
-          </p>
+          <p {...stylex.props(styles.benchmarkProgress)}>{benchmarkProgress}</p>
         ) : null}
         {benchmarkError ? (
-          <p className="mt-4 flex gap-2 rounded-xl bg-memora-warning-surface px-3 py-2 text-sm leading-5 text-memora-warning-text">
-            <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+          <p {...stylex.props(styles.warning)}>
+            <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
             {benchmarkError}
           </p>
         ) : null}
 
         {benchmarkReport ? (
-          <div className="mt-5">
-            <div className="grid overflow-hidden rounded-xl border border-memora-border-soft bg-memora-canvas sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-memora-border-soft">
+          <div {...stylex.props(styles.report)}>
+            <div {...stylex.props(styles.scoreGrid)}>
               {[
                 ["MRR@10", benchmarkReport.mrr],
                 ["Recall@10", benchmarkReport.recallAt10],
                 ["HitRate@10", benchmarkReport.hitRate],
                 ["nDCG@10", benchmarkReport.ndcgAt10],
               ].map(([label, value]) => (
-                <div key={String(label)} className="px-4 py-3">
-                  <p className="text-xs font-medium text-memora-text-muted">{label}</p>
-                  <p className="mt-1 font-mono text-2xl font-medium tabular-nums text-memora-text-strong">
-                    {Number(value).toFixed(3)}
-                  </p>
+                <div key={String(label)} {...stylex.props(styles.score)}>
+                  <p {...stylex.props(styles.scoreLabel)}>{label}</p>
+                  <p {...stylex.props(styles.scoreValue)}>{Number(value).toFixed(3)}</p>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-memora-text-soft">
+            <p {...stylex.props(styles.reportMeta)}>
               {benchmarkReport.evaluatedCaseCount} evaluated · {benchmarkReport.skippedCaseCount}{" "}
               skipped · {BENCHMARK_METHODS[benchmarkReport.method].label}
               {benchmarkReport.rrfK ? ` · k=${benchmarkReport.rrfK}` : ""} ·{" "}
               {formatElapsed(benchmarkReport.durationMs)} total
             </p>
-            <p className="mt-1 text-xs leading-5 text-memora-text-muted">
+            <p {...stylex.props(styles.reportDetail)}>
               OPFS index: {benchmarkReport.indexSync.reusedDocumentCount} dataset documents reused ·{" "}
               {benchmarkReport.indexSync.indexedDocumentCount} written ·{" "}
               {benchmarkReport.indexSync.embeddedChunkCount.toLocaleString()} passages embedded ·{" "}
               {benchmarkReport.indexSync.resumedChunkCount.toLocaleString()} resumed from OPFS
             </p>
 
-            <div className="mt-4 overflow-x-auto rounded-xl border border-memora-border-soft">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-                <thead className="bg-memora-canvas text-xs text-memora-text-muted">
+            <div {...stylex.props(styles.tableWrap)}>
+              <table {...stylex.props(styles.table)}>
+                <thead {...stylex.props(styles.tableHead)}>
                   <tr>
-                    <th className="px-4 py-2.5 font-medium">Dataset</th>
-                    <th className="px-3 py-2.5 font-medium">Queries</th>
-                    <th className="px-3 py-2.5 font-medium">MRR@10</th>
-                    <th className="px-3 py-2.5 font-medium">Recall@10</th>
-                    <th className="px-3 py-2.5 font-medium">HitRate@10</th>
-                    <th className="px-4 py-2.5 text-right font-medium">nDCG@10</th>
+                    <th {...stylex.props(styles.thWide)}>Dataset</th>
+                    <th {...stylex.props(styles.th)}>Queries</th>
+                    <th {...stylex.props(styles.th)}>MRR@10</th>
+                    <th {...stylex.props(styles.th)}>Recall@10</th>
+                    <th {...stylex.props(styles.th)}>HitRate@10</th>
+                    <th {...stylex.props(styles.thWide, styles.alignRight)}>nDCG@10</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-memora-border-soft">
+                <tbody>
                   {benchmarkDatasetReports.map(({ definition, report }) => (
-                    <tr key={definition.id} className="text-memora-text">
-                      <td className="px-4 py-3">
-                        <span className="font-medium">{definition.label}</span>
-                        <span className="ml-2 text-xs text-memora-text-soft">
-                          {definition.domain}
-                        </span>
+                    <tr key={definition.id} {...stylex.props(styles.tableRow)}>
+                      <td {...stylex.props(styles.tdWide)}>
+                        <span {...stylex.props(styles.headingSmall)}>{definition.label}</span>
+                        <span {...stylex.props(styles.datasetDomain)}>{definition.domain}</span>
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
+                      <td {...stylex.props(styles.td, styles.numeric)}>
                         {report.evaluatedCaseCount}
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
-                        {report.mrr.toFixed(3)}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
+                      <td {...stylex.props(styles.td, styles.numeric)}>{report.mrr.toFixed(3)}</td>
+                      <td {...stylex.props(styles.td, styles.numeric)}>
                         {report.recallAt10.toFixed(3)}
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
+                      <td {...stylex.props(styles.td, styles.numeric)}>
                         {report.hitRate.toFixed(3)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-memora-text-muted">
+                      <td {...stylex.props(styles.tdWide, styles.numeric, styles.alignRight)}>
                         {report.ndcgAt10.toFixed(3)}
                       </td>
                     </tr>
@@ -1449,40 +2057,38 @@ export default function GroundedRetrieval() {
               </table>
             </div>
 
-            <details className="mt-4 rounded-xl border border-memora-border-soft">
-              <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-memora-text">
+            <details {...stylex.props(styles.details)}>
+              <summary {...stylex.props(styles.summary)}>
                 Inspect all {benchmarkReport.cases.length} query results
               </summary>
-              <div className="max-h-[560px] overflow-auto border-t border-memora-border-soft">
-                <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-                  <thead className="sticky top-0 bg-memora-canvas text-xs text-memora-text-muted">
+              <div {...stylex.props(styles.detailsScroll)}>
+                <table {...stylex.props(styles.table, styles.detailTable)}>
+                  <thead {...stylex.props(styles.tableHead, styles.stickyHead)}>
                     <tr>
-                      <th className="px-4 py-2.5 font-medium">Dataset</th>
-                      <th className="px-3 py-2.5 font-medium">Public query</th>
-                      <th className="px-3 py-2.5 font-medium">Qrels</th>
-                      <th className="px-3 py-2.5 font-medium">First relevant</th>
-                      <th className="px-3 py-2.5 font-medium">nDCG@10</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Latency</th>
+                      <th {...stylex.props(styles.thWide)}>Dataset</th>
+                      <th {...stylex.props(styles.th)}>Public query</th>
+                      <th {...stylex.props(styles.th)}>Qrels</th>
+                      <th {...stylex.props(styles.th)}>First relevant</th>
+                      <th {...stylex.props(styles.th)}>nDCG@10</th>
+                      <th {...stylex.props(styles.thWide, styles.alignRight)}>Latency</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-memora-border-soft">
+                  <tbody>
                     {benchmarkReport.cases.map((item) => (
-                      <tr key={item.id} className="text-memora-text">
-                        <td className="px-4 py-3 text-xs text-memora-text-muted">
+                      <tr key={item.id} {...stylex.props(styles.tableRow)}>
+                        <td {...stylex.props(styles.tdWide, styles.numeric)}>
                           {NANO_BEIR_DATASETS[item.datasetId as NanoBeirDatasetId]?.label ??
                             item.datasetId}
                         </td>
-                        <td className="max-w-xl px-3 py-3 leading-5">{item.query}</td>
-                        <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
-                          {item.relevantCount}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
+                        <td {...stylex.props(styles.td, styles.query)}>{item.query}</td>
+                        <td {...stylex.props(styles.td, styles.numeric)}>{item.relevantCount}</td>
+                        <td {...stylex.props(styles.td, styles.numeric)}>
                           {item.firstRelevantRank ? `#${item.firstRelevantRank}` : "—"}
                         </td>
-                        <td className="px-3 py-3 font-mono text-xs tabular-nums text-memora-text-muted">
+                        <td {...stylex.props(styles.td, styles.numeric)}>
                           {item.ndcgAt10.toFixed(3)}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-memora-text-muted">
+                        <td {...stylex.props(styles.tdWide, styles.numeric, styles.alignRight)}>
                           {formatElapsed(item.latencyMs)}
                         </td>
                       </tr>
@@ -1493,7 +2099,7 @@ export default function GroundedRetrieval() {
             </details>
           </div>
         ) : (
-          <p className="mt-5 rounded-xl border border-dashed border-memora-border bg-memora-canvas px-4 py-5 text-sm leading-6 text-memora-text-muted">
+          <p {...stylex.props(styles.emptyBenchmark)}>
             The first run downloads the selected public corpus and writes its vectors into the
             existing OPFS index. Later runs with the same dataset revision, model, and index
             configuration reuse those vectors and only embed the queries.

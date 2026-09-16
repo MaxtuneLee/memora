@@ -1,5 +1,6 @@
 import { GearSixIcon, SlidersHorizontalIcon, WarningIcon } from "@phosphor-icons/react";
 import { isNemotronAsrModel } from "@memora/local-model-runtime";
+import * as stylex from "@stylexjs/stylex";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -25,6 +26,163 @@ import type { SettingsSectionId } from "@/types/settings";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useTranscript } from "@/hooks/transcript/useTranscript";
+
+const styles = stylex.create({
+  unsupported: { alignItems: "center", display: "flex", height: "100%", justifyContent: "center" },
+  unsupportedContent: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    textAlign: "center",
+  },
+  warningIcon: { color: "#f59e0b", height: "4rem", width: "4rem" },
+  unsupportedTitle: { color: "#18181b", fontSize: "1.5rem", fontWeight: 600, lineHeight: "2rem" },
+  unsupportedText: { color: "#71717a", marginTop: "0.5rem" },
+  page: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1.5rem",
+    marginInline: "auto",
+    maxWidth: "64rem",
+    minHeight: "calc(100dvh - 4rem)",
+    padding: { default: "1.5rem", "@media (min-width: 768px)": "2rem" },
+    paddingBottom: { default: "8rem", "@media (min-width: 768px)": "9rem" },
+  },
+  header: { alignItems: "center", display: "flex", justifyContent: "space-between" },
+  dock: { bottom: "1rem", marginTop: "auto", position: "sticky", zIndex: 20 },
+  dockSurface: {
+    backdropFilter: "blur(12px)",
+    backgroundColor: "rgba(250,248,243,0.92)",
+    borderColor: "rgba(228,228,231,0.8)",
+    borderRadius: "28px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 18px 50px rgba(24,24,27,0.08)",
+    padding: { default: "0.75rem", "@media (min-width: 768px)": "1rem" },
+  },
+  readyRail: { alignItems: "center", display: "flex", minHeight: "3.75rem", position: "relative" },
+  railLeading: {
+    alignItems: "center",
+    display: "flex",
+    flex: 1,
+    gap: "0.75rem",
+    minWidth: 0,
+    paddingRight: { default: "11.5rem", "@media (min-width: 768px)": "18rem" },
+  },
+  settingsTrigger: {
+    alignItems: "center",
+    backgroundColor: { default: "#ffffff", ":hover": "#fafafa" },
+    borderColor: "#e4e4e7",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    color: "#3f3f46",
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 150ms",
+  },
+  icon: { height: "1rem", width: "1rem" },
+  menu: {
+    backgroundColor: "#ffffff",
+    borderRadius: "0.75rem",
+    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+    minWidth: "13.75rem",
+  },
+  language: {
+    borderRadius: "0.5rem",
+    color: "#3f3f46",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  languageInner: { marginTop: "0.5rem" },
+  divider: { backgroundColor: "#f4f4f5", height: 1, marginBlock: "0.5rem" },
+  menuItem: {
+    alignItems: "center",
+    borderRadius: "0.5rem",
+    color: "#3f3f46",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    lineHeight: "1.25rem",
+    outline: "none",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 150ms, color 150ms",
+    "[data-highlighted]": { backgroundColor: "#f4f4f5", color: "#18181b" },
+  },
+  menuIcon: { alignSelf: "center", color: "#a1a1aa", flexShrink: 0, height: "1rem", width: "1rem" },
+  visualizer: { flex: 1, minWidth: 0 },
+  visualizerCanvas: { height: "1.5rem", minWidth: 0, width: "100%" },
+  controls: {
+    alignItems: "center",
+    display: "flex",
+    insetBlock: 0,
+    insetInline: 0,
+    pointerEvents: "none",
+    position: "absolute",
+  },
+  loading: { display: "flex", flexDirection: "column", gap: "1rem" },
+  loadingHeader: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  loadingCopy: { minWidth: 0 },
+  badge: {
+    alignItems: "center",
+    color: "#27272a",
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+  },
+  badgeDot: { borderRadius: "9999px", height: "0.625rem", width: "0.625rem" },
+  badgeWarning: { backgroundColor: "#fbbf24" },
+  badgeReady: { backgroundColor: "#34d399" },
+  badgeNeutral: { backgroundColor: "#a1a1aa" },
+  loadingText: {
+    color: "#71717a",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  loadButton: {
+    backgroundColor: { default: "#18181b", ":hover": "#27272a" },
+    borderRadius: "9999px",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    color: "#ffffff",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "1rem",
+    transition: "background-color 150ms",
+  },
+  progressList: {
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderColor: "rgba(228,228,231,0.8)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    padding: "0.75rem",
+  },
+});
 
 export const Component = () => {
   const { routing } = useModelRouting();
@@ -125,35 +283,35 @@ export const Component = () => {
 
   const modelBadge = useMemo(() => {
     if (status === "error") {
-      return { label: "Transcription unavailable", tone: "bg-amber-400" };
+      return { label: "Transcription unavailable", tone: "warning" as const };
     }
     if (status === "ready") {
       return {
         label: "Model Ready",
-        tone: "bg-emerald-400",
+        tone: "ready" as const,
       };
     }
     if (status === "loading") {
       return {
         label: "Model Loading",
-        tone: "bg-amber-400",
+        tone: "warning" as const,
       };
     }
     if (isCheckingCache) {
       return {
         label: "Checking Model Cache",
-        tone: "bg-zinc-400",
+        tone: "neutral" as const,
       };
     }
     if (isModelCached) {
       return {
         label: "Preparing Model",
-        tone: "bg-amber-400",
+        tone: "warning" as const,
       };
     }
     return {
       label: "Model Not Downloaded",
-      tone: "bg-zinc-400",
+      tone: "neutral" as const,
     };
   }, [isCheckingCache, isModelCached, status]);
 
@@ -197,12 +355,12 @@ export const Component = () => {
 
   if (!isWebGpuAvailable) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <WarningIcon className="size-16 text-amber-500" weight="fill" />
+      <div {...stylex.props(styles.unsupported)}>
+        <div {...stylex.props(styles.unsupportedContent)}>
+          <WarningIcon className={stylex.props(styles.warningIcon).className} weight="fill" />
           <div>
-            <h2 className="text-2xl font-semibold text-zinc-900">WebGPU is not supported</h2>
-            <p className="mt-2 text-zinc-500">
+            <h2 {...stylex.props(styles.unsupportedTitle)}>WebGPU is not supported</h2>
+            <p {...stylex.props(styles.unsupportedText)}>
               Your browser doesn't support WebGPU, which is required for real-time transcription.
             </p>
           </div>
@@ -212,8 +370,8 @@ export const Component = () => {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-5xl flex-col gap-6 p-6 pb-32 md:p-8 md:pb-36">
-      <div className="flex items-center justify-between">
+    <div {...stylex.props(styles.page)}>
+      <div {...stylex.props(styles.header)}>
         <BackButton />
       </div>
 
@@ -234,19 +392,19 @@ export const Component = () => {
         </>
       )}
 
-      <div className="sticky bottom-4 z-20 mt-auto">
-        <div className="rounded-[28px] border border-zinc-200/80 bg-[rgba(250,248,243,0.92)] p-3 shadow-[0_18px_50px_rgba(24,24,27,0.08)] backdrop-blur-md md:p-4">
+      <div {...stylex.props(styles.dock)}>
+        <div {...stylex.props(styles.dockSurface)}>
           {isReady ? (
-            <div className="relative flex min-h-[3.75rem] items-center">
-              <div className="flex min-w-0 flex-1 items-center gap-3 pr-[11.5rem] md:pr-[18rem]">
+            <div {...stylex.props(styles.readyRail)}>
+              <div {...stylex.props(styles.railLeading)}>
                 <AppMenu>
-                  <AppMenuTrigger className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50">
-                    <SlidersHorizontalIcon className="size-4" />
+                  <AppMenuTrigger className={stylex.props(styles.settingsTrigger).className}>
+                    <SlidersHorizontalIcon className={stylex.props(styles.icon).className} />
                     Settings
                   </AppMenuTrigger>
-                  <AppMenuContent className="min-w-55 rounded-xl bg-white shadow-lg">
-                    <div className="rounded-lg px-3 py-2 text-sm text-zinc-700">
-                      <div className="mt-2">
+                  <AppMenuContent className={stylex.props(styles.menu).className}>
+                    <div {...stylex.props(styles.language)}>
+                      <div {...stylex.props(styles.languageInner)}>
                         <LanguageSelector
                           language={language}
                           setLanguage={updateLanguage}
@@ -254,15 +412,15 @@ export const Component = () => {
                         />
                       </div>
                     </div>
-                    <div className="my-2 h-px bg-zinc-100" />
+                    <div {...stylex.props(styles.divider)} />
                     {settingsItems.map((item) => (
                       <AppMenuItem
                         key={item.section}
                         onClick={() => openSettings(item.section)}
-                        className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-highlighted:bg-zinc-100 data-highlighted:text-zinc-900"
+                        className={stylex.props(styles.menuItem).className}
                       >
                         <span>{item.label}</span>
-                        <GearSixIcon className="size-4 shrink-0 self-center text-zinc-400" />
+                        <GearSixIcon className={stylex.props(styles.menuIcon).className} />
                       </AppMenuItem>
                     ))}
                   </AppMenuContent>
@@ -277,14 +435,17 @@ export const Component = () => {
                     duration: layoutState.showVisualizer ? 0.24 : 0.18,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="min-w-0 flex-1"
+                  className={stylex.props(styles.visualizer).className}
                   style={{ transformOrigin: "center right" }}
                 >
-                  <AudioVisualizer stream={stream} className="h-6 w-full min-w-0" />
+                  <AudioVisualizer
+                    stream={stream}
+                    className={stylex.props(styles.visualizerCanvas).className}
+                  />
                 </motion.div>
               </div>
 
-              <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center">
+              <div {...stylex.props(styles.controls)}>
                 <TranscriptionControls
                   controlMode={layoutState.controlMode}
                   dockedRight={layoutState.dockedRight}
@@ -299,15 +460,24 @@ export const Component = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                    <span className={`h-2.5 w-2.5 rounded-full ${modelBadge.tone}`} />
+            <div {...stylex.props(styles.loading)}>
+              <div {...stylex.props(styles.loadingHeader)}>
+                <div {...stylex.props(styles.loadingCopy)}>
+                  <div {...stylex.props(styles.badge)}>
+                    <span
+                      {...stylex.props(
+                        styles.badgeDot,
+                        modelBadge.tone === "warning"
+                          ? styles.badgeWarning
+                          : modelBadge.tone === "ready"
+                            ? styles.badgeReady
+                            : styles.badgeNeutral,
+                      )}
+                    />
                     {modelBadge.label}
                   </div>
                   <p
-                    className="mt-1 text-sm text-zinc-500"
+                    className={stylex.props(styles.loadingText).className}
                     role={status === "error" ? "alert" : undefined}
                   >
                     {status === "error"
@@ -327,7 +497,7 @@ export const Component = () => {
                     <button
                       type="button"
                       onClick={loadModel}
-                      className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+                      className={stylex.props(styles.loadButton).className}
                     >
                       {status === "error" ? "Retry" : "Load model"}
                     </button>
@@ -335,7 +505,7 @@ export const Component = () => {
               </div>
 
               {progressItems.length > 0 && (
-                <div className="space-y-2 rounded-2xl border border-zinc-200/80 bg-white/60 p-3">
+                <div {...stylex.props(styles.progressList)}>
                   {progressItems.map(({ file, progress }, index) => (
                     <Progress key={`${file}-${index}`} label={file} value={progress} />
                   ))}

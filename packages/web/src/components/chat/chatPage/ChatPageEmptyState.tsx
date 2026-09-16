@@ -1,8 +1,68 @@
 import { AnimatePresence, motion } from "motion/react";
 import { GearIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { Persona } from "@/components/assistant/Persona";
 import { suggestions } from "./helpers";
 import type { SuggestionCard } from "./types";
+
+const styles = stylex.create({
+  root: {
+    alignItems: "center",
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+    paddingBlock: 40,
+    textAlign: "center",
+  },
+  hero: { alignItems: "center", display: "flex", flexDirection: "column", gap: 16 },
+  error: { color: "#dc2626", fontSize: 12, textAlign: "center" },
+  persona: { height: 80, width: 80 },
+  title: { color: "#18181b", fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em" },
+  configure: {
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: 12,
+    color: "#b45309",
+    display: "flex",
+    fontSize: 14,
+    gap: 8,
+    paddingBlock: 10,
+    paddingInline: 16,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fef3c7" },
+  },
+  icon: { height: 16, width: 16 },
+  suggestions: {
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    marginTop: 32,
+    width: "100%",
+  },
+  suggestion: {
+    alignItems: "flex-start",
+    backgroundColor: "rgb(255 255 255 / 0.6)",
+    border: "1px solid rgb(228 228 231 / 0.6)",
+    borderRadius: 12,
+    display: "flex",
+    gap: 12,
+    paddingBlock: 12,
+    paddingInline: 14,
+    textAlign: "left",
+    transition: "all 150ms",
+    ":hover": {
+      backgroundColor: "rgb(255 255 255 / 0.9)",
+      borderColor: "#d4d4d8",
+      boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    },
+  },
+  suggestionIcon: { color: "#a1a1aa", flexShrink: 0, height: 16, marginTop: 2, width: 16 },
+  suggestionCopy: { minWidth: 0 },
+  suggestionTitle: { color: "#3f3f46", fontSize: 14, fontWeight: 500 },
+  suggestionDescription: { color: "#a1a1aa", fontSize: 12, lineHeight: 1.375, marginTop: 2 },
+});
 
 interface ChatPageEmptyStateProps {
   greetingTitle: string;
@@ -20,18 +80,14 @@ export const ChatPageEmptyState = ({
   onSuggestionClick,
 }: ChatPageEmptyStateProps) => {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-      <div className="flex flex-col items-center gap-4">
-        {sessionsError && <p className="text-center text-xs text-red-600">{sessionsError}</p>}
-        <Persona state="idle" className="size-20" />
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{greetingTitle}</h1>
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.hero)}>
+        {sessionsError && <p {...stylex.props(styles.error)}>{sessionsError}</p>}
+        <Persona state="idle" className={stylex.props(styles.persona).className} />
+        <h1 {...stylex.props(styles.title)}>{greetingTitle}</h1>
         {!isConfigured && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100"
-          >
-            <GearIcon className="size-4" />
+          <button type="button" onClick={onOpenSettings} {...stylex.props(styles.configure)}>
+            <GearIcon className={stylex.props(styles.icon).className} />
             Configure an AI provider to get started
           </button>
         )}
@@ -43,21 +99,19 @@ export const ChatPageEmptyState = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 8 }}
           transition={{ duration: 0.2 }}
-          className="mt-8 grid w-full grid-cols-2 gap-2.5"
+          {...stylex.props(styles.suggestions)}
         >
           {suggestions.map((suggestion) => (
             <button
               key={suggestion.title}
               type="button"
               onClick={() => onSuggestionClick(suggestion)}
-              className="flex items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-3.5 py-3 text-left transition-all hover:border-zinc-300 hover:bg-white/90 hover:shadow-sm"
+              {...stylex.props(styles.suggestion)}
             >
-              <suggestion.icon className="mt-0.5 size-4 shrink-0 text-zinc-400" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-zinc-700">{suggestion.title}</p>
-                <p className="mt-0.5 text-xs leading-snug text-zinc-400">
-                  {suggestion.description}
-                </p>
+              <suggestion.icon className={stylex.props(styles.suggestionIcon).className} />
+              <div {...stylex.props(styles.suggestionCopy)}>
+                <p {...stylex.props(styles.suggestionTitle)}>{suggestion.title}</p>
+                <p {...stylex.props(styles.suggestionDescription)}>{suggestion.description}</p>
               </div>
             </button>
           ))}

@@ -1,10 +1,8 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import {
-  FileTextIcon,
-  FolderIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
-import { memo, useCallback, useEffect, useRef } from "react";
+import { FileTextIcon, FolderIcon, TrashIcon } from "@phosphor-icons/react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import { getFileIcon } from "@/lib/library/fileIcon";
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
@@ -12,6 +10,108 @@ import { DesktopFileTip } from "./DesktopFileTip";
 import { areDesktopItemsEqual } from "./desktop/utils";
 import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
 import type { JSX } from "react";
+
+const styles = stylex.create({
+  folderIcon: { color: "#3b82f6", height: 40, width: 40 },
+  trashIcon: { color: "#ef4444", height: 36, width: 36 },
+  fileIcon: { color: "#71717a", height: 32, width: 32 },
+  item: {
+    outline: "none",
+    transition: "background-color 150ms",
+    userSelect: "none",
+  },
+  listItem: {
+    alignItems: "center",
+    borderRadius: 8,
+    display: "flex",
+    gap: 12,
+    paddingBlock: 8,
+    paddingInline: 12,
+    width: "100%",
+  },
+  desktopItem: {
+    alignItems: "center",
+    borderRadius: 8,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    padding: 8,
+  },
+  listSelected: { backgroundColor: "#f4f4f5" },
+  listIdle: { ":hover": { backgroundColor: "#fafafa" } },
+  desktopSelected: { backgroundColor: "rgb(228 228 231 / 0.8)" },
+  desktopIdle: { ":hover": { backgroundColor: "rgb(244 244 245 / 0.6)" } },
+  dragging: { boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)", outline: "2px solid #d4d4d8" },
+  overFolder: {
+    backgroundColor: "rgb(239 246 255 / 0.6)",
+    outline: "2px solid rgb(96 165 250 / 0.7)",
+  },
+  iconSurface: {
+    alignItems: "center",
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    borderRadius: 12,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    display: "flex",
+    justifyContent: "center",
+    outline: "1px solid rgb(24 24 27 / 0.05)",
+    position: "relative",
+    transition: "transform 150ms",
+  },
+  iconHovered: { transform: "scale(1.05)" },
+  iconSelected: { boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)", outlineColor: "#a1a1aa" },
+  listRenameInput: {
+    backgroundColor: "#fff",
+    borderColor: "#e4e4e7",
+    borderRadius: 6,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "#18181b",
+    flex: 1,
+    fontSize: "0.875rem",
+    outline: "none",
+    paddingBlock: 4,
+    paddingInline: 8,
+    ":focus": { borderColor: "#a1a1aa" },
+  },
+  desktopRenameInput: {
+    backgroundColor: "#fff",
+    borderColor: "#e4e4e7",
+    borderRadius: 6,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "#18181b",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    outline: "none",
+    paddingBlock: 4,
+    paddingInline: 8,
+    textAlign: "center",
+    width: 88,
+    ":focus": { borderColor: "#a1a1aa" },
+  },
+  listName: {
+    flex: 1,
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  desktopName: {
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 2,
+    display: "-webkit-box",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "1.25",
+    maxWidth: 80,
+    overflow: "hidden",
+    overflowWrap: "break-word",
+    textAlign: "center",
+  },
+  selectedName: { color: "#18181b" },
+  idleName: { color: "#3f3f46" },
+});
 
 interface DesktopItemProps {
   item: DesktopItemData;
@@ -42,6 +142,7 @@ function DesktopItemComponent({
 }: DesktopItemProps) {
   const wasDraggingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -133,17 +234,17 @@ function DesktopItemComponent({
 
   const getIcon = (): JSX.Element => {
     if (item.type === "folder") {
-      return <FolderIcon className="size-10 text-blue-500" weight="duotone" />;
+      return <FolderIcon {...stylex.props(styles.folderIcon)} weight="duotone" />;
     }
     if (item.type === "widget" && item.widgetType === "trash") {
-      return <TrashIcon className="size-9 text-red-500" weight="duotone" />;
+      return <TrashIcon {...stylex.props(styles.trashIcon)} weight="duotone" />;
     }
     if (item.type === "file") {
       const Icon = getFileIcon(item.fileMeta);
-      return <Icon className="size-8 text-zinc-500" weight="duotone" />;
+      return <Icon {...stylex.props(styles.fileIcon)} weight="duotone" />;
     }
     // Widget icons handled separately
-    return <FileTextIcon className="size-8 text-zinc-500" weight="duotone" />;
+    return <FileTextIcon {...stylex.props(styles.fileIcon)} weight="duotone" />;
   };
 
   // Only show tooltip for files and folders
@@ -160,32 +261,31 @@ function DesktopItemComponent({
       style={style}
       {...listeners}
       {...attributes}
-      className={
+      {...stylex.props(
+        styles.item,
+        isListLayout ? styles.listItem : styles.desktopItem,
         isListLayout
-          ? `
-            group flex w-full items-center gap-3 rounded-lg px-3 py-2
-            transition-colors select-none outline-none
-            ${isSelected ? "bg-zinc-100" : "hover:bg-zinc-50"}
-          `
-          : `
-            group flex flex-col items-center gap-1.5 p-2 rounded-lg
-            transition-colors select-none outline-none
-            ${isSelected ? "bg-zinc-200/80" : "hover:bg-zinc-100/60"}
-            ${isDragging ? "shadow-lg ring-2 ring-zinc-300" : ""}
-            ${isOver ? "ring-2 ring-blue-400/70 bg-blue-50/60" : ""}
-          `
-      }
+          ? isSelected
+            ? styles.listSelected
+            : styles.listIdle
+          : isSelected
+            ? styles.desktopSelected
+            : styles.desktopIdle,
+        isDragging && styles.dragging,
+        isOver && styles.overFolder,
+      )}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`
-          relative flex items-center justify-center rounded-xl bg-white/80
-          shadow-sm ring-1 ring-zinc-900/5
-          transition-transform group-hover:scale-105
-          ${isSelected ? "ring-zinc-400 shadow-md" : ""}
-        `}
+        {...stylex.props(
+          styles.iconSurface,
+          isHovered && styles.iconHovered,
+          isSelected && styles.iconSelected,
+        )}
         style={{ width: isListLayout ? 40 : ICON_SIZE, height: isListLayout ? 40 : ICON_SIZE }}
       >
         {getIcon()}
@@ -213,26 +313,14 @@ function DesktopItemComponent({
               if (inputRef.current) inputRef.current.value = item.name;
             }
           }}
-          className={
-            isListLayout
-              ? "flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900 outline-none focus:border-zinc-400"
-              : "w-[88px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-center text-xs font-medium text-zinc-900 outline-none focus:border-zinc-400"
-          }
+          {...stylex.props(isListLayout ? styles.listRenameInput : styles.desktopRenameInput)}
         />
       ) : (
         <span
-          className={
-            isListLayout
-              ? `
-                flex-1 truncate text-sm font-medium
-                ${isSelected ? "text-zinc-900" : "text-zinc-700"}
-              `
-              : `
-                max-w-[80px] text-center text-xs font-medium leading-tight
-                line-clamp-2 break-words
-                ${isSelected ? "text-zinc-900" : "text-zinc-700"}
-              `
-          }
+          {...stylex.props(
+            isListLayout ? styles.listName : styles.desktopName,
+            isSelected ? styles.selectedName : styles.idleName,
+          )}
         >
           {item.name}
         </span>

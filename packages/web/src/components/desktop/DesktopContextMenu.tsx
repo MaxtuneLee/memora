@@ -1,5 +1,6 @@
 import { Menu } from "@base-ui/react/menu";
 import { useMemo, useCallback } from "react";
+import * as stylex from "@stylexjs/stylex";
 import {
   FileTextIcon,
   FolderPlusIcon,
@@ -9,6 +10,61 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import type { Position } from "@/types/desktop";
+
+const menuEnter = stylex.keyframes({
+  from: { opacity: 0, transform: "scale(0.95)" },
+  to: { opacity: 1, transform: "scale(1)" },
+});
+
+const styles = stylex.create({
+  positioner: { zIndex: 30 },
+  popup: {
+    animationDuration: "100ms",
+    animationName: menuEnter,
+    backdropFilter: "blur(12px)",
+    backgroundColor: "rgb(255 255 255 / 0.95)",
+    borderColor: "#e4e4e7",
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    minWidth: 180,
+    padding: 6,
+  },
+  item: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: "#3f3f46",
+    cursor: "pointer",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: 8,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "background-color 150ms, color 150ms",
+    width: "100%",
+    "[data-highlighted]": { backgroundColor: "#f4f4f5", color: "#18181b" },
+  },
+  deleteItem: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: "#3f3f46",
+    cursor: "pointer",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: 8,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "background-color 150ms, color 150ms",
+    width: "100%",
+    "[data-highlighted]": { backgroundColor: "#fef2f2", color: "#dc2626" },
+  },
+  icon: { color: "#a1a1aa", height: 16, width: 16 },
+  deleteIcon: { color: "#dc2626", height: 16, width: 16 },
+  separator: { backgroundColor: "#f4f4f5", height: 1, marginBlock: 4 },
+});
 
 interface DesktopContextMenuProps {
   isOpen: boolean;
@@ -25,11 +81,8 @@ interface DesktopContextMenuProps {
   onReindex?: () => void;
 }
 
-const menuItemClassName =
-  "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 cursor-pointer";
-
-const deleteItemClassName =
-  "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-none transition-colors data-[highlighted]:bg-red-50 data-[highlighted]:text-red-600 cursor-pointer";
+const menuItemClassName = stylex.props(styles.item).className;
+const deleteItemClassName = stylex.props(styles.deleteItem).className;
 
 export function DesktopContextMenu({
   isOpen,
@@ -86,55 +139,52 @@ export function DesktopContextMenu({
       {" "}
       <Menu.Portal>
         <Menu.Positioner
-          className="z-30"
+          {...stylex.props(styles.positioner)}
           anchor={virtualAnchor}
           side="bottom"
           align="start"
           sideOffset={0}
           alignOffset={0}
         >
-          <Menu.Popup
-            className="min-w-[180px] rounded-xl border border-zinc-200 bg-white/95 backdrop-blur-md p-1.5 shadow-lg animate-in fade-in zoom-in-95 duration-100"
-            onClick={handlePopupClick}
-          >
+          <Menu.Popup {...stylex.props(styles.popup)} onClick={handlePopupClick}>
             {isDesktopMenu ? (
               <>
                 <Menu.Item className={menuItemClassName} onClick={onNewFolder}>
-                  <FolderPlusIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                  <FolderPlusIcon {...stylex.props(styles.icon)} />
                   <span>New Folder</span>
                 </Menu.Item>
-                <Menu.Separator className="my-1 h-px bg-zinc-100" />
+                <Menu.Separator {...stylex.props(styles.separator)} />
                 <Menu.Item className={menuItemClassName} onClick={onNewNote}>
-                  <FileTextIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                  <FileTextIcon {...stylex.props(styles.icon)} />
                   <span>New Note</span>
                 </Menu.Item>
-                <Menu.Separator className="my-1 h-px bg-zinc-100" />
+                <Menu.Separator {...stylex.props(styles.separator)} />
                 <Menu.Item className={menuItemClassName} onClick={onUploadAudio}>
-                  <UploadIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                  <UploadIcon {...stylex.props(styles.icon)} />
                   <span>Upload File</span>
                 </Menu.Item>
               </>
             ) : (
               <>
                 <Menu.Item className={menuItemClassName} onClick={onRename}>
-                  <PencilSimpleIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                  <PencilSimpleIcon {...stylex.props(styles.icon)} />
                   <span>Rename</span>
                 </Menu.Item>
                 {onOpenInNewWindow && (
                   <Menu.Item className={menuItemClassName} onClick={onOpenInNewWindow}>
-                    <FolderPlusIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                    <FolderPlusIcon {...stylex.props(styles.icon)} />
                     <span>Open in New Window</span>
                   </Menu.Item>
                 )}
                 {targetType === "file" && onReindex ? (
                   <Menu.Item className={menuItemClassName} onClick={onReindex}>
-                    <ArrowClockwiseIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-zinc-600" />
+                    <ArrowClockwiseIcon {...stylex.props(styles.icon)} />
                     <span>Reindex file</span>
                   </Menu.Item>
                 ) : null}
-                <Menu.Separator className="my-1 h-px bg-zinc-100" />
+                <Menu.Separator {...stylex.props(styles.separator)} />
                 <Menu.Item className={deleteItemClassName} onClick={onDelete}>
-                  <TrashIcon className="size-4 text-zinc-400 group-data-[highlighted]:text-red-600" />
+                  <TrashIcon {...stylex.props(styles.deleteIcon)} />
                   <span>Delete</span>
                 </Menu.Item>
               </>

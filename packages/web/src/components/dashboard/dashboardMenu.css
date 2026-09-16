@@ -9,6 +9,7 @@
   border: 0;
   background: transparent;
   color: inherit;
+  z-index: 10;
   transition:
     overlay 440ms allow-discrete,
     display 440ms allow-discrete;
@@ -17,6 +18,14 @@
 
 .dashboard-menu-popover::backdrop {
   background: transparent;
+}
+
+.dashboard-menu-trigger [data-dashboard-menu-caret] {
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dashboard-menu-trigger[data-open="true"] [data-dashboard-menu-caret] {
+  transform: rotate(180deg);
 }
 
 .dashboard-menu-measure {
@@ -44,6 +53,7 @@
     display 440ms allow-discrete;
   transition-behavior: allow-discrete;
   will-change: clip-path, border-radius;
+  outline: none;
 }
 
 .dashboard-menu-panel::after {
@@ -177,6 +187,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dashboard-menu-trigger,
   .dashboard-menu-panel,
   .dashboard-menu-shell,
   .dashboard-menu-body {
@@ -186,6 +197,20 @@
 
   .dashboard-menu-panel {
     clip-path: inset(0 0 0 0 round 1.1rem);
+  }
+
+  .dashboard-menu-trigger,
+  .dashboard-menu-trigger:hover {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .dashboard-menu-trigger[data-open="true"] {
+    opacity: 1;
+  }
+
+  .dashboard-menu-trigger [data-dashboard-menu-caret] {
+    transition: none;
   }
 
   .dashboard-menu-body {

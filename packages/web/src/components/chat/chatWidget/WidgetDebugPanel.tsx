@@ -1,8 +1,112 @@
+import * as stylex from "@stylexjs/stylex";
+
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import type { ShowWidgetDebugState } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
 import { formatDebugTimestamp, formatStreamFootprint } from "./constants";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: "#09090b",
+    borderTopColor: "rgba(228,228,231,0.8)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    color: "#f4f4f5",
+  },
+  summary: {
+    cursor: "pointer",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    letterSpacing: "0.02em",
+    lineHeight: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  content: { display: "flex", flexDirection: "column", gap: "0.75rem", padding: "0.75rem" },
+  facts: {
+    color: "#d4d4d8",
+    display: "grid",
+    fontSize: "11px",
+    gap: "0.5rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 640px)": "repeat(2, minmax(0, 1fr))",
+      "@media (min-width: 1024px)": "repeat(3, minmax(0, 1fr))",
+    },
+  },
+  muted: { color: "#71717a" },
+  section: { display: "flex", flexDirection: "column", gap: "0.25rem" },
+  label: {
+    color: "#71717a",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: "10px",
+    letterSpacing: "0.08em",
+    lineHeight: "1rem",
+  },
+  code: {
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: "11px",
+    lineHeight: "1.25rem",
+    maxHeight: "12rem",
+    overflow: "auto",
+    overflowWrap: "anywhere",
+    padding: "0.75rem",
+    whiteSpace: "pre-wrap",
+  },
+  amberCode: { color: "#fef3c7" },
+  emeraldCode: { color: "#d1fae5", maxHeight: "16rem" },
+  events: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    maxHeight: "16rem",
+    overflow: "auto",
+  },
+  event: {
+    borderBottomColor: "rgba(255,255,255,0.05)",
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    ":last-child": { borderBottomWidth: 0 },
+  },
+  eventHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    fontSize: "11px",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  eventCopy: { minWidth: 0 },
+  eventTitle: { color: "#f4f4f5", fontWeight: 500 },
+  monoMuted: {
+    color: "#71717a",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  },
+  timestamp: { flexShrink: 0 },
+  details: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderRadius: "0.5rem",
+    color: "#d4d4d8",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: "10px",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+    overflow: "auto",
+    overflowWrap: "anywhere",
+    padding: "0.5rem",
+    whiteSpace: "pre-wrap",
+  },
+  empty: { color: "#71717a", fontSize: "11px", paddingBlock: "0.5rem", paddingInline: "0.75rem" },
+});
 
 export const WidgetDebugPanel = ({
   widget,
@@ -18,29 +122,27 @@ export const WidgetDebugPanel = ({
   hasRuntimeDom: boolean;
 }) => {
   return (
-    <details className="border-t border-zinc-200/80 bg-zinc-950 text-zinc-100">
-      <summary className="cursor-pointer px-3 py-2 text-xs font-medium tracking-[0.02em]">
-        Widget Debug
-      </summary>
-      <div className="space-y-3 px-3 py-3">
-        <div className="grid gap-2 text-[11px] text-zinc-300 sm:grid-cols-2 lg:grid-cols-3">
+    <details {...stylex.props(styles.panel)}>
+      <summary {...stylex.props(styles.summary)}>Widget debug</summary>
+      <div {...stylex.props(styles.content)}>
+        <div {...stylex.props(styles.facts)}>
           <div>
-            <span className="text-zinc-500">phase</span>: {widget.phase}
+            <span {...stylex.props(styles.muted)}>phase</span>: {widget.phase}
           </div>
           <div>
-            <span className="text-zinc-500">args buffer</span>:{" "}
+            <span {...stylex.props(styles.muted)}>args buffer</span>:{" "}
             {formatStreamFootprint(debugState.argsBuffer.length)}
           </div>
           <div>
-            <span className="text-zinc-500">widget_code</span>:{" "}
+            <span {...stylex.props(styles.muted)}>widget_code</span>:{" "}
             {formatStreamFootprint(widget.widgetCode.length)}
           </div>
           <div>
-            <span className="text-zinc-500">style</span>:{" "}
+            <span {...stylex.props(styles.muted)}>style</span>:{" "}
             {parsedCode.hasStyle ? (parsedCode.styleReady ? "ready" : "streaming") : "none"}
           </div>
           <div>
-            <span className="text-zinc-500">html</span>:{" "}
+            <span {...stylex.props(styles.muted)}>html</span>:{" "}
             {hasRenderableHtml
               ? `${formatStreamFootprint(parsedCode.htmlRenderable.length)} renderable`
               : parsedCode.htmlText.trim()
@@ -48,42 +150,36 @@ export const WidgetDebugPanel = ({
                 : "empty"}
           </div>
           <div>
-            <span className="text-zinc-500">script</span>:{" "}
+            <span {...stylex.props(styles.muted)}>script</span>:{" "}
             {parsedCode.hasScript ? (parsedCode.scriptReady ? "ready" : "streaming") : "none"}
           </div>
           <div>
-            <span className="text-zinc-500">runtime dom</span>:{" "}
+            <span {...stylex.props(styles.muted)}>runtime dom</span>:{" "}
             {hasRuntimeDom ? "mounted" : "empty"}
           </div>
           <div>
-            <span className="text-zinc-500">latest delta</span>:{" "}
+            <span {...stylex.props(styles.muted)}>latest delta</span>:{" "}
             {formatStreamFootprint(debugState.latestDelta.length)}
           </div>
           <div>
-            <span className="text-zinc-500">events</span>: {debugState.events.length}
+            <span {...stylex.props(styles.muted)}>events</span>: {debugState.events.length}
           </div>
         </div>
-        <div className="space-y-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            Raw Args Buffer
-          </p>
-          <pre className="max-h-48 overflow-auto rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[11px] leading-5 text-amber-100 whitespace-pre-wrap break-all">
+        <div {...stylex.props(styles.section)}>
+          <p {...stylex.props(styles.label)}>Raw args buffer</p>
+          <pre {...stylex.props(styles.code, styles.amberCode)}>
             {debugState.argsBuffer || "(empty)"}
           </pre>
         </div>
-        <div className="space-y-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            Extracted Widget Code
-          </p>
-          <pre className="max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[11px] leading-5 text-emerald-100 whitespace-pre-wrap break-all">
+        <div {...stylex.props(styles.section)}>
+          <p {...stylex.props(styles.label)}>Extracted widget code</p>
+          <pre {...stylex.props(styles.code, styles.emeraldCode)}>
             {widget.widgetCode || "(empty)"}
           </pre>
         </div>
-        <div className="space-y-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            Recent Events
-          </p>
-          <div className="max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/20">
+        <div {...stylex.props(styles.section)}>
+          <p {...stylex.props(styles.label)}>Recent events</p>
+          <div {...stylex.props(styles.events)}>
             {debugState.events.length > 0 ? (
               debugState.events
                 .slice()
@@ -91,26 +187,26 @@ export const WidgetDebugPanel = ({
                 .map((event, index) => (
                   <div
                     key={`${event.at}-${event.type}-${index}`}
-                    className="border-b border-white/5 px-3 py-2 last:border-b-0"
+                    className={stylex.props(styles.event).className}
                   >
-                    <div className="flex items-start justify-between gap-3 text-[11px]">
-                      <div className="min-w-0">
-                        <p className="font-medium text-zinc-100">{event.summary}</p>
-                        <p className="font-mono text-zinc-500">{event.type}</p>
+                    <div {...stylex.props(styles.eventHeader)}>
+                      <div {...stylex.props(styles.eventCopy)}>
+                        <p {...stylex.props(styles.eventTitle)}>{event.summary}</p>
+                        <p {...stylex.props(styles.monoMuted)}>{event.type}</p>
                       </div>
-                      <span className="shrink-0 font-mono text-zinc-500">
+                      <span {...stylex.props(styles.monoMuted, styles.timestamp)}>
                         {formatDebugTimestamp(event.at)}
                       </span>
                     </div>
                     {event.details && (
-                      <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-black/20 p-2 font-mono text-[10px] leading-5 text-zinc-300">
+                      <pre {...stylex.props(styles.details)}>
                         {JSON.stringify(event.details, null, 2)}
                       </pre>
                     )}
                   </div>
                 ))
             ) : (
-              <div className="px-3 py-2 text-[11px] text-zinc-500">No debug events yet.</div>
+              <div {...stylex.props(styles.empty)}>No debug events yet.</div>
             )}
           </div>
         </div>

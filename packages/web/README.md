@@ -1,6 +1,6 @@
 # `@memora/web`
 
-Memora 的主前端应用，基于 React 19、Vite、React Router 和 Tailwind CSS 4。
+Memora 的主前端应用，基于 React 19、Vite、React Router 和 StyleX。
 
 ## Development
 

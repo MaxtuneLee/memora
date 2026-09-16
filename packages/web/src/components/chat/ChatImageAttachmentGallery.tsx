@@ -2,8 +2,8 @@ import { XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+import * as stylex from "@stylexjs/stylex";
 
-import { cn } from "@/lib/cn";
 import {
   resolveChatImageAttachmentBlob,
   type ChatImageAttachment,
@@ -25,6 +25,184 @@ interface ChatImageAttachmentGalleryProps {
 interface ViewTransitionHandle {
   finished: Promise<void>;
 }
+
+const styles = stylex.create({
+  gallery: { display: "flex", flexWrap: "wrap", gap: 6 },
+  composerGallery: { alignItems: "flex-start" },
+  userGallery: { justifyContent: "flex-end" },
+  attachment: {
+    alignItems: "center",
+    border: "1px solid",
+    borderRadius: 12,
+    display: "inline-flex",
+    gap: 8,
+    maxWidth: "100%",
+    textAlign: "left",
+    transition: "background-color 150ms",
+  },
+  composerAttachment: {
+    backgroundColor: "#f7f4ef",
+    borderColor: "#eee8df",
+    paddingBlock: 8,
+    paddingInline: 10,
+  },
+  userAttachment: {
+    backgroundColor: "#fffdfa",
+    borderColor: "#ded6ca",
+    paddingBlock: 6,
+    paddingInline: 8,
+  },
+  previewable: {
+    cursor: "zoom-in",
+    ":hover": { backgroundColor: "#f1ece7" },
+    ":focus-visible": { outline: "none", boxShadow: "0 0 0 2px rgb(167 175 143 / 0.55)" },
+  },
+  thumbnail: { border: "1px solid", flexShrink: 0, overflow: "hidden", position: "relative" },
+  composerThumbnail: {
+    backgroundColor: "#ece7de",
+    borderColor: "#e0d8cd",
+    borderRadius: 8,
+    height: 40,
+    width: 40,
+  },
+  userThumbnail: {
+    backgroundColor: "#f1ece4",
+    borderColor: "#ded6ca",
+    borderRadius: 8,
+    height: 28,
+    width: 28,
+  },
+  image: { height: "100%", objectFit: "cover", width: "100%" },
+  fallback: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: 10,
+    height: "100%",
+    justifyContent: "center",
+    width: "100%",
+  },
+  composerFallback: { color: "#8f897d" },
+  userFallback: { color: "#716c64" },
+  nameWrap: { minWidth: 0 },
+  name: {
+    fontSize: 12,
+    fontWeight: 500,
+    margin: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  composerName: { color: "#4b4740", maxWidth: "9.5rem" },
+  userName: { color: "#716c64", maxWidth: "8.5rem" },
+  size: { color: "#8f897d", fontSize: 11, lineHeight: 1, marginBlock: 2 },
+  saved: {
+    backgroundColor: "#f1ece4",
+    borderRadius: 9999,
+    color: "#8f897d",
+    flexShrink: 0,
+    fontSize: 10,
+    fontWeight: 500,
+    paddingBlock: 2,
+    paddingInline: 6,
+  },
+  saveButton: {
+    backgroundColor: "#f1ece4",
+    borderRadius: 9999,
+    color: "#716c64",
+    flexShrink: 0,
+    fontSize: 10,
+    fontWeight: 500,
+    paddingBlock: 4,
+    paddingInline: 8,
+    transition: "background-color 150ms, color 150ms",
+    ":hover": { backgroundColor: "#ebe3d8", color: "#1d1c1a" },
+  },
+  disabled: { cursor: "not-allowed", opacity: 0.6 },
+  removeButton: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: "#8f897d",
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 24,
+    justifyContent: "center",
+    transition: "background-color 150ms, color 150ms",
+    width: 24,
+    ":hover": { backgroundColor: "#ece7de", color: "#1d1c1a" },
+  },
+  removeIcon: { height: 14, width: 14 },
+  backdrop: {
+    alignItems: "center",
+    backdropFilter: "blur(12px)",
+    backgroundColor: "rgb(34 31 29 / 0.35)",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    padding: 16,
+    position: "fixed",
+    zIndex: 50,
+  },
+  dialog: {
+    backgroundColor: "#fffdfa",
+    border: "1px solid #e9e5dc",
+    borderRadius: 24,
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "88dvh",
+    maxWidth: "64rem",
+    overflow: "hidden",
+    width: "100%",
+  },
+  dialogHeader: {
+    alignItems: "center",
+    borderBottom: "1px solid #e9e5dc",
+    display: "flex",
+    gap: 16,
+    justifyContent: "space-between",
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  titleWrap: { minWidth: 0 },
+  title: {
+    color: "#1d1c1a",
+    fontSize: 14,
+    fontWeight: 500,
+    margin: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  dialogSize: { color: "#8f897d", fontSize: 12, marginBlock: 2 },
+  closeButton: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: "#716c64",
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 32,
+    justifyContent: "center",
+    transition: "background-color 150ms, color 150ms",
+    width: 32,
+    ":hover": { backgroundColor: "#f1ece4", color: "#1d1c1a" },
+    ":focus-visible": { outline: "none", boxShadow: "0 0 0 2px rgb(167 175 143 / 0.55)" },
+  },
+  closeIcon: { height: 16, width: 16 },
+  previewSurface: {
+    alignItems: "center",
+    backgroundColor: "#f7f4ef",
+    display: "flex",
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 0,
+    padding: 12,
+  },
+  previewImage: {
+    borderRadius: 16,
+    maxHeight: "calc(88dvh - 5.5rem)",
+    maxWidth: "100%",
+    objectFit: "contain",
+  },
+});
 
 const formatAttachmentSize = (sizeBytes: number): string => {
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
@@ -216,7 +394,12 @@ export function ChatImageAttachmentGallery({
 
   return (
     <>
-      <div className={cn("flex flex-wrap gap-1.5", isComposerTone ? "items-start" : "justify-end")}>
+      <div
+        {...stylex.props(
+          styles.gallery,
+          isComposerTone ? styles.composerGallery : styles.userGallery,
+        )}
+      >
         {attachments.map((attachment) => {
           const previewEntry = previewEntries[attachment.id] ?? {
             status: "loading" as const,
@@ -235,23 +418,17 @@ export function ChatImageAttachmentGallery({
               tabIndex={canOpenPreview ? 0 : undefined}
               onClick={() => openImagePreview(attachment, previewEntry)}
               onKeyDown={(event) => handleAttachmentKeyDown(event, attachment, previewEntry)}
-              className={cn(
-                "group/attachment inline-flex max-w-full items-center gap-2 rounded-xl border text-left transition-colors",
-                isComposerTone
-                  ? "border-[#eee8df] bg-[#f7f4ef] px-2.5 py-2"
-                  : "border-[#ded6ca] bg-[#fffdfa] px-2 py-1.5",
-                canOpenPreview
-                  ? "cursor-zoom-in hover:bg-[#f1ece7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7af8f]/55"
-                  : "",
+              {...stylex.props(
+                styles.attachment,
+                isComposerTone ? styles.composerAttachment : styles.userAttachment,
+                canOpenPreview && styles.previewable,
               )}
               aria-label={canOpenPreview ? `Open ${attachment.name}` : undefined}
             >
               <div
-                className={cn(
-                  "relative shrink-0 overflow-hidden border",
-                  isComposerTone
-                    ? "size-10 rounded-lg border-[#e0d8cd] bg-[#ece7de]"
-                    : "size-7 rounded-lg border-[#ded6ca] bg-[#f1ece4]",
+                {...stylex.props(
+                  styles.thumbnail,
+                  isComposerTone ? styles.composerThumbnail : styles.userThumbnail,
                 )}
                 style={
                   transitionSourceId === attachment.id
@@ -264,40 +441,34 @@ export function ChatImageAttachmentGallery({
                     src={previewEntry.url}
                     alt={attachment.name}
                     loading="lazy"
-                    className="h-full w-full object-cover"
+                    {...stylex.props(styles.image)}
                   />
                 ) : (
                   <div
-                    className={cn(
-                      "flex h-full w-full items-center justify-center text-[10px]",
-                      isComposerTone ? "text-[#8f897d]" : "text-[#716c64]",
+                    {...stylex.props(
+                      styles.fallback,
+                      isComposerTone ? styles.composerFallback : styles.userFallback,
                     )}
                   >
                     {previewEntry.status === "missing" ? "!" : ""}
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
+              <div {...stylex.props(styles.nameWrap)}>
                 <p
-                  className={cn(
-                    "truncate text-xs font-medium",
-                    isComposerTone
-                      ? "max-w-[9.5rem] text-[#4b4740]"
-                      : "max-w-[8.5rem] text-[#716c64]",
+                  {...stylex.props(
+                    styles.name,
+                    isComposerTone ? styles.composerName : styles.userName,
                   )}
                 >
                   {attachment.name}
                 </p>
                 {isComposerTone && (
-                  <p className="mt-0.5 text-[11px] leading-none text-[#8f897d]">
-                    {formatAttachmentSize(attachment.sizeBytes)}
-                  </p>
+                  <p {...stylex.props(styles.size)}>{formatAttachmentSize(attachment.sizeBytes)}</p>
                 )}
               </div>
               {!isComposerTone && attachment.savedFileId && (
-                <span className="shrink-0 rounded-full bg-[#f1ece4] px-1.5 py-0.5 text-[10px] font-medium text-[#8f897d]">
-                  Saved
-                </span>
+                <span {...stylex.props(styles.saved)}>Saved</span>
               )}
               {canSaveToLibrary && onSaveToLibrary && !isComposerTone && (
                 <button
@@ -307,10 +478,7 @@ export function ChatImageAttachmentGallery({
                     onSaveToLibrary(attachment.id);
                   }}
                   disabled={isSaving}
-                  className={cn(
-                    "shrink-0 rounded-full bg-[#f1ece4] px-2 py-1 text-[10px] font-medium text-[#716c64] transition hover:bg-[#ebe3d8] hover:text-[#1d1c1a]",
-                    isSaving ? "cursor-not-allowed opacity-60" : "",
-                  )}
+                  {...stylex.props(styles.saveButton, isSaving && styles.disabled)}
                 >
                   {isSaving ? "Saving" : "Save"}
                 </button>
@@ -322,10 +490,10 @@ export function ChatImageAttachmentGallery({
                     handleInlineActionClick(event);
                     onRemove(attachment.id);
                   }}
-                  className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[#8f897d] transition hover:bg-[#ece7de] hover:text-[#1d1c1a]"
+                  {...stylex.props(styles.removeButton)}
                   aria-label={`Remove ${attachment.name}`}
                 >
-                  <XIcon className="size-3.5" />
+                  <XIcon className={stylex.props(styles.removeIcon).className} />
                 </button>
               )}
             </div>
@@ -341,23 +509,23 @@ export function ChatImageAttachmentGallery({
             role="dialog"
             aria-modal="true"
             aria-labelledby={`chat-image-preview-${selectedAttachment.id}`}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#221f1d]/35 p-4 backdrop-blur-md"
+            {...stylex.props(styles.backdrop)}
             onClick={(event) => {
               if (event.target === event.currentTarget) {
                 closeImagePreview();
               }
             }}
           >
-            <div className="flex max-h-[88dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#e9e5dc] bg-[#fffdfa]">
-              <div className="flex items-center justify-between gap-4 border-b border-[#e9e5dc] px-4 py-3">
-                <div className="min-w-0">
+            <div {...stylex.props(styles.dialog)}>
+              <div {...stylex.props(styles.dialogHeader)}>
+                <div {...stylex.props(styles.titleWrap)}>
                   <h2
                     id={`chat-image-preview-${selectedAttachment.id}`}
-                    className="truncate text-sm font-medium text-[#1d1c1a]"
+                    {...stylex.props(styles.title)}
                   >
                     {selectedAttachment.name}
                   </h2>
-                  <p className="mt-0.5 text-xs text-[#8f897d]">
+                  <p {...stylex.props(styles.dialogSize)}>
                     {formatAttachmentSize(selectedAttachment.sizeBytes)}
                   </p>
                 </div>
@@ -365,17 +533,17 @@ export function ChatImageAttachmentGallery({
                   ref={closePreviewButtonRef}
                   type="button"
                   onClick={closeImagePreview}
-                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[#716c64] transition hover:bg-[#f1ece4] hover:text-[#1d1c1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7af8f]/55"
+                  {...stylex.props(styles.closeButton)}
                   aria-label="Close image preview"
                 >
-                  <XIcon className="size-4" />
+                  <XIcon className={stylex.props(styles.closeIcon).className} />
                 </button>
               </div>
-              <div className="flex min-h-0 flex-1 items-center justify-center bg-[#f7f4ef] p-3">
+              <div {...stylex.props(styles.previewSurface)}>
                 <img
                   src={selectedPreviewEntry.url}
                   alt={selectedAttachment.name}
-                  className="max-h-[calc(88dvh-5.5rem)] max-w-full rounded-2xl object-contain"
+                  {...stylex.props(styles.previewImage)}
                   style={
                     {
                       viewTransitionName: getAttachmentTransitionName(selectedAttachment.id),

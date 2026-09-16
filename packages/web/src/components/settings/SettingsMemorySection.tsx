@@ -1,5 +1,6 @@
 import { TrashIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
@@ -13,8 +14,59 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { usePersonalizationProfile } from "@/hooks/settings/usePersonalizationProfile";
 import { useMemorySettings } from "@/hooks/settings/useMemorySettings";
-import { cn } from "@/lib/cn";
 import { formatMemoryTimestamp } from "@/lib/settings/dialogHelpers";
+
+const styles = stylex.create({
+  stack: { display: "flex", flexDirection: "column", gap: 16 },
+  endRow: { display: "flex", justifyContent: "flex-end" },
+  heading: { display: "flex", flexDirection: "column", gap: 8 },
+  twoColumn: {
+    display: "grid",
+    gap: 16,
+    marginTop: 20,
+    "@media (min-width: 640px)": { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+  },
+  fullColumn: { "@media (min-width: 640px)": { gridColumn: "span 2 / span 2" } },
+  inputMargin: { marginTop: 8 },
+  textarea: {
+    backgroundColor: "var(--color-memora-surface)",
+    border: "1px solid var(--color-memora-border)",
+    borderRadius: 16,
+    color: "var(--color-memora-text)",
+    fontSize: 14,
+    marginTop: 20,
+    outline: "none",
+    paddingBlock: 10,
+    paddingInline: 14,
+    transitionDuration: "300ms",
+    transitionProperty: "background-color, border-color, box-shadow",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    width: "100%",
+    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    ":focus": {
+      borderColor: "var(--color-memora-olive-soft)",
+      boxShadow: "0 0 0 1px var(--color-memora-olive-soft)",
+    },
+  },
+  noticeHeader: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    "@media (min-width: 1024px)": {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+  },
+  buttonRow: { display: "flex", flexWrap: "wrap", gap: 8 },
+  notices: { display: "flex", flexDirection: "column", gap: 12, marginTop: 20 },
+  notice: { alignItems: "flex-start", display: "flex", gap: 12 },
+  noticeBody: { flex: 1, minWidth: 0 },
+  noticeText: { color: "var(--color-memora-text)", fontSize: 14, lineHeight: "24px", margin: 0 },
+  timestamp: { color: "var(--color-memora-text-soft)", fontSize: 11, marginTop: 8 },
+  icon: { height: 16, width: 16 },
+  insetMargin: { marginTop: 20 },
+});
 
 interface SettingsMemorySectionProps {
   open: boolean;
@@ -45,8 +97,8 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
   const hasStoredMemory = !!memoryData?.personality || sortedNotices.length > 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
+    <div {...stylex.props(styles.stack)}>
+      <div {...stylex.props(styles.endRow)}>
         <Button
           variant="secondary"
           onClick={() => void refreshMemoryData()}
@@ -57,14 +109,14 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
       </div>
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <div className="space-y-2">
+        <div {...stylex.props(styles.heading)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Personality</h3>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             How Memora addresses you and the tone it responds with. Included in every conversation.
           </p>
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div {...stylex.props(styles.twoColumn)}>
           <div>
             <label htmlFor="personalization-name" className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
               Name
@@ -74,7 +126,7 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
               value={name}
               onChange={(event) => handleNameChange(event.target.value)}
               placeholder="What should Memora call you?"
-              className="mt-2"
+              className={stylex.props(styles.inputMargin).className}
             />
           </div>
           <div>
@@ -86,10 +138,10 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
               value={primaryUseCase}
               onChange={(event) => handleUseCaseChange(event.target.value)}
               placeholder="What do you use Memora for?"
-              className="mt-2"
+              className={stylex.props(styles.inputMargin).className}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div {...stylex.props(styles.fullColumn)}>
             <label htmlFor="personalization-style" className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
               Tone
             </label>
@@ -98,14 +150,14 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
               value={assistantStyle}
               onChange={(event) => handleStyleChange(event.target.value)}
               placeholder="How should Memora reply to you?"
-              className="mt-2"
+              className={stylex.props(styles.inputMargin).className}
             />
           </div>
         </div>
       </section>
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <div className="space-y-2">
+        <div {...stylex.props(styles.heading)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Custom instructions</h3>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             Anything else Memora should always keep in mind when responding to you.
@@ -116,20 +168,20 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
           onChange={(event) => handleCustomInstructionsChange(event.target.value)}
           placeholder="e.g. Always cite the source file when summarizing a document."
           rows={4}
-          className="mt-5 w-full rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3.5 py-2.5 text-sm text-[var(--color-memora-text)] outline-none transition-[border-color,box-shadow,background-color] duration-300 ease-[var(--ease-out-quart)] placeholder:text-[var(--color-memora-text-soft)] focus:border-[var(--color-memora-olive-soft)] focus:ring-1 focus:ring-[var(--color-memora-olive-soft)]"
+          {...stylex.props(styles.textarea)}
         />
       </section>
 
       {!hasStoredMemory && !isMemoryLoading ? (
-        <section className={cn(SETTINGS_INSET_PANEL_CLASS_NAME)}>
+        <section className={SETTINGS_INSET_PANEL_CLASS_NAME}>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No saved memory yet.</p>
         </section>
       ) : null}
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div {...stylex.props(styles.noticeHeader)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Notices</h3>
-          <div className="flex flex-wrap gap-2">
+          <div {...stylex.props(styles.buttonRow)}>
             <Button
               variant="secondary"
               onClick={() => void handleClearNotices()}
@@ -148,15 +200,15 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
         </div>
 
         {sortedNotices.length > 0 ? (
-          <div className="mt-5 space-y-3">
+          <div {...stylex.props(styles.notices)}>
             {sortedNotices.map((notice) => (
               <div
                 key={notice.id}
-                className={cn(SETTINGS_ROW_CLASS_NAME, "flex items-start gap-3")}
+                className={`${SETTINGS_ROW_CLASS_NAME} ${stylex.props(styles.notice).className}`}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-6 text-[var(--color-memora-text)]">{notice.text}</p>
-                  <p className="mt-2 text-[11px] text-[var(--color-memora-text-soft)]">
+                <div {...stylex.props(styles.noticeBody)}>
+                  <p {...stylex.props(styles.noticeText)}>{notice.text}</p>
+                  <p {...stylex.props(styles.timestamp)}>
                     Updated {formatMemoryTimestamp(notice.updatedAt)}
                   </p>
                 </div>
@@ -166,13 +218,15 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
                   onClick={() => void handleDeleteNotice(notice.id)}
                   aria-label="Delete notice"
                 >
-                  <TrashIcon className="size-4" />
+                  <TrashIcon className={stylex.props(styles.icon).className} />
                 </Button>
               </div>
             ))}
           </div>
         ) : (
-          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-5")}>
+          <div
+            className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetMargin).className}`}
+          >
             <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>No saved notices.</p>
           </div>
         )}

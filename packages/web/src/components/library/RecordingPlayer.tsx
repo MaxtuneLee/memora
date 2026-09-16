@@ -1,7 +1,82 @@
 import { PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { Slider } from "@base-ui/react/slider";
 import { Button } from "@base-ui/react/button";
+import * as stylex from "@stylexjs/stylex";
 import { formatDuration } from "@/lib/format";
+
+const styles = stylex.create({
+  root: {
+    backgroundColor: "#fff",
+    border: "1px solid #e4e4e7",
+    borderRadius: 12,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    padding: 16,
+  },
+  hidden: { display: "none" },
+  row: { alignItems: "center", display: "flex", gap: 12 },
+  playButton: {
+    alignItems: "center",
+    backgroundColor: "#18181b",
+    borderRadius: 9999,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    color: "#fff",
+    display: "flex",
+    height: 40,
+    justifyContent: "center",
+    transition: "transform 150ms",
+    width: 40,
+    ":active": { transform: "scale(0.95)" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+  },
+  icon: { height: 16, width: 16 },
+  body: { flex: 1 },
+  times: {
+    alignItems: "center",
+    color: "#71717a",
+    display: "flex",
+    fontSize: 12,
+    justifyContent: "space-between",
+  },
+  slider: { marginTop: 8 },
+  control: {
+    alignItems: "center",
+    display: "flex",
+    paddingBlock: 8,
+    touchAction: "none",
+    userSelect: "none",
+    width: "100%",
+  },
+  track: {
+    backgroundColor: "#e4e4e7",
+    borderRadius: 9999,
+    boxShadow: "0 0 0 1px #e4e4e7 inset",
+    height: 4,
+    position: "relative",
+    userSelect: "none",
+    width: "100%",
+  },
+  indicator: {
+    backgroundColor: "#18181b",
+    borderRadius: 9999,
+    height: "100%",
+    transition: "width 200ms",
+    userSelect: "none",
+  },
+  thumb: {
+    backgroundColor: "#fff",
+    border: "1px solid #d4d4d8",
+    borderRadius: 9999,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    height: 12,
+    outline: "none",
+    userSelect: "none",
+    width: 12,
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+  },
+});
 
 interface RecordingPlayerProps {
   audioRef: React.Ref<HTMLAudioElement>;
@@ -23,18 +98,22 @@ export const RecordingPlayer = ({
   const clampedTime = Math.min(currentTime, duration || 0);
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm space-y-3">
-      <audio ref={audioRef} className="hidden" />
-      <div className="flex items-center gap-3">
+    <div {...stylex.props(styles.root)}>
+      <audio ref={audioRef} {...stylex.props(styles.hidden)} />
+      <div {...stylex.props(styles.row)}>
         <Button
           onClick={onTogglePlay}
-          className="flex size-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-zinc-400"
+          {...stylex.props(styles.playButton)}
           aria-label={isPlaying ? "Pause playback" : "Play recording"}
         >
-          {isPlaying ? <PauseIcon className="size-4" /> : <PlayIcon className="size-4" />}
+          {isPlaying ? (
+            <PauseIcon className={stylex.props(styles.icon).className} />
+          ) : (
+            <PlayIcon className={stylex.props(styles.icon).className} />
+          )}
         </Button>
-        <div className="flex-1">
-          <div className="flex items-center justify-between text-xs text-zinc-500">
+        <div {...stylex.props(styles.body)}>
+          <div {...stylex.props(styles.times)}>
             <span>{formatDuration(currentTime)}</span>
             <span>{formatDuration(duration)}</span>
           </div>
@@ -44,16 +123,13 @@ export const RecordingPlayer = ({
             max={duration || 0}
             step={0.1}
             onValueChange={(value) => onSeek(Number(value))}
-            className="mt-2"
+            className={stylex.props(styles.slider).className}
             aria-label="Seek recording"
           >
-            <Slider.Control className="flex w-full touch-none items-center py-2 select-none">
-              <Slider.Track className="relative h-1 w-full rounded-full bg-zinc-200 shadow-[inset_0_0_0_1px] shadow-zinc-200 select-none">
-                <Slider.Indicator className="h-full rounded-full bg-zinc-900 transition-[width] duration-200 select-none" />
-                <Slider.Thumb
-                  className="size-3 rounded-full bg-white outline outline-1 outline-zinc-300 shadow-sm select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-400"
-                  aria-label="Seek"
-                />
+            <Slider.Control className={stylex.props(styles.control).className}>
+              <Slider.Track className={stylex.props(styles.track).className}>
+                <Slider.Indicator className={stylex.props(styles.indicator).className} />
+                <Slider.Thumb className={stylex.props(styles.thumb).className} aria-label="Seek" />
               </Slider.Track>
             </Slider.Control>
           </Slider.Root>

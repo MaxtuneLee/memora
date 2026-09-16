@@ -12,12 +12,12 @@ import {
   ScanIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import "katex/dist/katex.min.css";
 
-import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import {
   ImageDocumentPipelineSession,
@@ -57,6 +57,518 @@ const BLOCK_COLORS: Record<string, string> = {
   unknown: "#8b8981",
   ignored: "#aaa69d",
 };
+
+const pulse = stylex.keyframes({
+  "0%, 100%": { opacity: 1 },
+  "50%": { opacity: 0.5 },
+});
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: "1.75rem" },
+  layout: {
+    display: "grid",
+    gap: "1.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 1280px)": "minmax(420px,0.95fr) minmax(560px,1.05fr)",
+    },
+  },
+  panel: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "28px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 3px rgba(47,45,40,0.08)",
+    overflow: "hidden",
+  },
+  imagePanel: {
+    gridColumnStart: { default: "auto", "@media (min-width: 1280px)": 1 },
+    gridRowStart: { default: "auto", "@media (min-width: 1280px)": 1 },
+  },
+  pipelinePanel: {
+    gridColumnStart: { default: "auto", "@media (min-width: 1280px)": 1 },
+    gridRowStart: { default: "auto", "@media (min-width: 1280px)": 2 },
+    overflow: "visible",
+    padding: "1.5rem",
+  },
+  resultsColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1.75rem",
+    gridColumnStart: { default: "auto", "@media (min-width: 1280px)": 2 },
+    gridRow: { default: "auto", "@media (min-width: 1280px)": "1 / span 2" },
+  },
+  panelHeader: {
+    alignItems: "flex-end",
+    borderBottomColor: "var(--color-memora-border)",
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBlock: "1.25rem",
+    paddingInline: "1.5rem",
+  },
+  title: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "2rem",
+  },
+  secondaryButton: {
+    backgroundColor: {
+      default: "var(--color-memora-surface)",
+      ":hover": "var(--color-memora-surface-muted)",
+    },
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 150ms",
+    ":disabled": { opacity: 0.5 },
+  },
+  previewWrap: { padding: "1.25rem" },
+  dropzone: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: {
+      default: "var(--color-memora-border-soft)",
+      ":hover": "var(--color-memora-olive-soft)",
+    },
+    borderRadius: "24px",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "520px",
+    outline: "none",
+    overflow: "hidden",
+    position: "relative",
+    transition: "border-color 150ms",
+    ":focus-within": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+  },
+  dropzoneSelected: { backgroundColor: "#ebe7df", borderStyle: "solid", padding: "1rem" },
+  srOnly: {
+    clip: "rect(0,0,0,0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+  imageFrame: {
+    boxShadow: "0 14px 46px rgba(42,39,33,0.14)",
+    maxHeight: "720px",
+    maxWidth: "100%",
+    overflow: "hidden",
+    position: "relative",
+  },
+  previewImage: { display: "block", maxHeight: "720px", maxWidth: "100%" },
+  blockButton: {
+    borderStyle: "solid",
+    borderWidth: 2,
+    position: "absolute",
+    transition: "background-color 150ms, border-color 150ms",
+    ":hover": { backgroundColor: "rgba(255,255,255,0.2)" },
+    ":focus-visible": { outline: "2px solid white" },
+  },
+  blockSelected: { backgroundColor: "rgba(255,255,255,0.2)", boxShadow: "0 0 0 2px white" },
+  blockLabel: {
+    borderRadius: "0.25rem 0.25rem 0 0",
+    color: "white",
+    fontSize: "9px",
+    fontWeight: 600,
+    left: 0,
+    maxWidth: "7rem",
+    overflow: "hidden",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.375rem",
+    position: "absolute",
+    textOverflow: "ellipsis",
+    top: "-1.25rem",
+    whiteSpace: "nowrap",
+  },
+  emptyPreview: { maxWidth: "20rem", paddingInline: "2rem", textAlign: "center" },
+  emptyIcon: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "1rem",
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    height: "3rem",
+    justifyContent: "center",
+    marginInline: "auto",
+    width: "3rem",
+  },
+  icon20: { height: "1.25rem", width: "1.25rem" },
+  emptyTitle: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    marginTop: "1rem",
+  },
+  softCopy: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  panelFooter: {
+    alignItems: "center",
+    borderTopColor: "var(--color-memora-border)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBlock: "1.25rem",
+    paddingInline: "1.5rem",
+  },
+  minZero: { minWidth: 0 },
+  fileName: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  fileMeta: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem", marginTop: "0.125rem" },
+  actions: { alignItems: "center", display: "flex", gap: "0.5rem" },
+  iconButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--color-memora-surface)",
+      ":hover": "var(--color-memora-surface-muted)",
+    },
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    height: "2.5rem",
+    justifyContent: "center",
+    transition: "background-color 150ms",
+    width: "2.5rem",
+    ":disabled": { opacity: 0.5 },
+  },
+  icon16: { height: "1rem", width: "1rem" },
+  runButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--color-memora-olive)",
+      ":hover": "var(--color-memora-olive-strong)",
+    },
+    borderRadius: "0.75rem",
+    color: "white",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    height: "2.5rem",
+    paddingInline: "1rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.45 },
+  },
+  icon14: { height: "0.875rem", width: "0.875rem" },
+  sectionHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: "1.25rem",
+    justifyContent: "space-between",
+  },
+  countBadge: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.6875rem",
+    fontWeight: 500,
+    paddingBlock: "0.375rem",
+    paddingInline: "0.75rem",
+  },
+  stages: {
+    display: "grid",
+    gap: "0.5rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(5,minmax(0,1fr))",
+    },
+    marginTop: "1.5rem",
+  },
+  stage: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "0.75rem",
+  },
+  stageRunning: {
+    backgroundColor: "var(--color-memora-olive-faint)",
+    borderColor: "var(--color-memora-olive-soft)",
+  },
+  stageHeader: { alignItems: "center", display: "flex", gap: "0.5rem" },
+  stageIcon: { color: "var(--color-memora-olive)", height: "0.875rem", width: "0.875rem" },
+  stageDot: {
+    backgroundColor: "var(--color-memora-border-soft)",
+    borderRadius: "9999px",
+    height: "0.5rem",
+    width: "0.5rem",
+  },
+  stageDotRunning: {
+    animationName: pulse,
+    animationDuration: "2s",
+    animationIterationCount: "infinite",
+    backgroundColor: "var(--color-memora-olive)",
+  },
+  stageName: { color: "var(--color-memora-text)", fontSize: "0.75rem", fontWeight: 600 },
+  stageDetail: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.625rem",
+    lineHeight: "1rem",
+    marginTop: "0.375rem",
+  },
+  progress: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "1rem",
+    marginTop: "1rem",
+    padding: "0.75rem",
+  },
+  progressHeader: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  progressLabel: { color: "var(--color-memora-text-muted)", fontWeight: 500 },
+  progressValue: { color: "var(--color-memora-text-soft)" },
+  track: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderRadius: "9999px",
+    height: "0.375rem",
+    marginTop: "0.5rem",
+    overflow: "hidden",
+  },
+  bar: {
+    backgroundColor: "var(--color-memora-olive)",
+    borderRadius: "9999px",
+    height: "100%",
+    transition: "width 150ms",
+  },
+  indeterminate: {
+    animationName: pulse,
+    animationDuration: "2s",
+    animationIterationCount: "infinite",
+    width: "33.333333%",
+  },
+  warning: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderColor: "var(--color-memora-warning-border)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-warning-text)",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    marginTop: "1rem",
+    padding: "1rem",
+  },
+  warningIcon: { flexShrink: 0, height: "1rem", marginTop: "0.125rem", width: "1rem" },
+  breakWords: { minWidth: 0, overflowWrap: "anywhere" },
+  metrics: {
+    display: "grid",
+    gap: "0.75rem",
+    gridTemplateColumns: {
+      default: "repeat(2,minmax(0,1fr))",
+      "@media (min-width: 640px)": "repeat(3,minmax(0,1fr))",
+    },
+    marginTop: "1.25rem",
+  },
+  metric: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderRadius: "1rem",
+    padding: "0.75rem",
+  },
+  metricLabel: { color: "var(--color-memora-text-soft)", fontSize: "0.6875rem", fontWeight: 500 },
+  metricValue: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    marginTop: "0.25rem",
+  },
+  metricMeta: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.625rem",
+    marginTop: "0.125rem",
+  },
+  truncate: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  inspectorEmpty: {
+    alignItems: "center",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "1rem",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "0.75rem",
+    justifyContent: "center",
+    lineHeight: "1.25rem",
+    minHeight: "9rem",
+    paddingInline: "1.25rem",
+    textAlign: "center",
+  },
+  inspector: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "1rem",
+  },
+  inspectorHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  inspectorTitle: { color: "var(--color-memora-text)", fontSize: "0.875rem", fontWeight: 600 },
+  score: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "9999px",
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.625rem",
+    fontWeight: 600,
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  inspectorCopy: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.75rem",
+    whiteSpace: "pre-wrap",
+  },
+  details: {
+    borderTopColor: "var(--color-memora-border)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "grid",
+    fontSize: "0.6875rem",
+    gap: "0.5rem",
+    gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+    marginTop: "1rem",
+    paddingTop: "0.75rem",
+  },
+  detailLabel: { color: "var(--color-memora-text-soft)" },
+  detailValue: { color: "var(--color-memora-text)", fontWeight: 500, marginTop: "0.125rem" },
+  tabHeader: {
+    alignItems: "center",
+    borderBottomColor: "var(--color-memora-border)",
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  tabList: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "0.75rem",
+    display: "flex",
+    gap: "0.25rem",
+    padding: "0.25rem",
+  },
+  tab: {
+    alignItems: "center",
+    borderRadius: "0.5rem",
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    gap: "0.375rem",
+    height: "2rem",
+    outline: "none",
+    paddingInline: "0.75rem",
+    ":is([data-active])": {
+      backgroundColor: "var(--color-memora-surface)",
+      boxShadow: "0 1px 2px rgba(47,45,40,0.08)",
+      color: "var(--color-memora-text)",
+    },
+  },
+  copyButton: {
+    alignItems: "center",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    display: "inline-flex",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    gap: "0.375rem",
+    height: "2rem",
+    paddingInline: "0.625rem",
+    ":disabled": { opacity: 0.4 },
+  },
+  tabPanel: { minHeight: "360px", outline: "none", padding: "1.5rem" },
+  emptyResult: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "0.875rem",
+    justifyContent: "center",
+    minHeight: "300px",
+    textAlign: "center",
+  },
+  centeredIcon: { height: "1.25rem", marginInline: "auto", width: "1.25rem" },
+  emptyResultText: { marginTop: "0.75rem" },
+  sourcePanel: { minHeight: "360px", outline: "none" },
+  source: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1.5rem",
+    minHeight: "360px",
+    overflow: "auto",
+    padding: "1.5rem",
+    whiteSpace: "pre-wrap",
+  },
+  blocksSource: { lineHeight: "1.25rem", whiteSpace: "pre" },
+  notice: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "0.75rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+});
 
 const formatMilliseconds = (value: number): string => {
   if (value >= 1000) return `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)} s`;
@@ -191,10 +703,7 @@ function ImagePreview({
 }: ImagePreviewProps) {
   return (
     <label
-      className={cn(
-        "group relative flex min-h-[520px] cursor-pointer items-center justify-center overflow-hidden rounded-[24px] border border-dashed border-memora-border-soft bg-memora-surface-soft outline-none transition-colors hover:border-memora-olive-soft focus-within:ring-2 focus-within:ring-memora-olive-soft",
-        previewUrl && "border-solid bg-[#ebe7df] p-4",
-      )}
+      {...stylex.props(styles.dropzone, Boolean(previewUrl) && styles.dropzoneSelected)}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -204,7 +713,7 @@ function ImagePreview({
       <input
         type="file"
         accept="image/*"
-        className="sr-only"
+        className={stylex.props(styles.srOnly).className}
         disabled={isRunning}
         onChange={(event) => {
           onSelectImage(event.target.files?.[0] ?? null);
@@ -212,17 +721,17 @@ function ImagePreview({
         }}
       />
       {previewUrl && image ? (
-        <div className="relative max-h-[720px] max-w-full overflow-hidden shadow-[0_14px_46px_rgba(42,39,33,0.14)]">
-          <img src={previewUrl} alt={image.name} className="block max-h-[720px] max-w-full" />
+        <div {...stylex.props(styles.imageFrame)}>
+          <img src={previewUrl} alt={image.name} {...stylex.props(styles.previewImage)} />
           {result
             ? result.blocks.map((block) => (
                 <button
                   key={block.id}
                   type="button"
                   aria-label={`Select ${block.kind} block`}
-                  className={cn(
-                    "absolute border-2 transition-[background-color,border-color] hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white",
-                    selectedBlockId === block.id && "bg-white/20 shadow-[0_0_0_2px_white]",
+                  {...stylex.props(
+                    styles.blockButton,
+                    selectedBlockId === block.id && styles.blockSelected,
                   )}
                   style={{
                     left: `${(block.rect.x / result.image.width) * 100}%`,
@@ -237,7 +746,7 @@ function ImagePreview({
                   }}
                 >
                   <span
-                    className="absolute -top-5 left-0 max-w-28 truncate rounded-t px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                    className={stylex.props(styles.blockLabel).className}
                     style={{ background: BLOCK_COLORS[block.kind] ?? BLOCK_COLORS.unknown }}
                   >
                     {block.kind.replaceAll("_", " ")}
@@ -247,12 +756,12 @@ function ImagePreview({
             : null}
         </div>
       ) : (
-        <div className="max-w-xs px-8 text-center">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-memora-surface-muted text-memora-text-muted">
-            <ImageSquareIcon className="size-5" />
+        <div {...stylex.props(styles.emptyPreview)}>
+          <span {...stylex.props(styles.emptyIcon)}>
+            <ImageSquareIcon className={stylex.props(styles.icon20).className} />
           </span>
-          <p className="mt-4 text-sm font-semibold text-memora-text">Drop a document image</p>
-          <p className="mt-2 text-xs leading-5 text-memora-text-soft">
+          <p {...stylex.props(styles.emptyTitle)}>Drop a document image</p>
+          <p {...stylex.props(styles.softCopy)}>
             One full-page PNG, JPEG, or WebP. No PDF parsing in this experiment.
           </p>
         </div>
@@ -264,46 +773,42 @@ function ImagePreview({
 function BlockInspector({ block }: { block: ImageDocumentBlock | null }) {
   if (!block) {
     return (
-      <div className="flex min-h-36 items-center justify-center rounded-2xl border border-dashed border-memora-border-soft px-5 text-center text-xs leading-5 text-memora-text-soft">
+      <div {...stylex.props(styles.inspectorEmpty)}>
         Run the pipeline, then select a colored region to inspect its source and coordinates.
       </div>
     );
   }
   return (
-    <div className="rounded-2xl border border-memora-border bg-memora-surface-soft p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div {...stylex.props(styles.inspector)}>
+      <div {...stylex.props(styles.inspectorHeader)}>
         <div>
-          <h4 className="text-sm font-semibold text-memora-text">
-            {block.kind.replaceAll("_", " ")}
-          </h4>
+          <h4 {...stylex.props(styles.inspectorTitle)}>{block.kind.replaceAll("_", " ")}</h4>
         </div>
-        <span className="rounded-full bg-memora-surface-muted px-2.5 py-1 text-[10px] font-semibold text-memora-text-muted">
-          {(block.score * 100).toFixed(1)}%
-        </span>
+        <span {...stylex.props(styles.score)}>{(block.score * 100).toFixed(1)}%</span>
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-memora-text-muted">
+      <p {...stylex.props(styles.inspectorCopy)}>
         {block.latex ?? block.text ?? "This region is currently retained as a placeholder."}
       </p>
-      <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-memora-border pt-3 text-[11px]">
+      <dl {...stylex.props(styles.details)}>
         <div>
-          <dt className="text-memora-text-soft">Class</dt>
-          <dd className="mt-0.5 font-medium text-memora-text">
+          <dt {...stylex.props(styles.detailLabel)}>Class</dt>
+          <dd {...stylex.props(styles.detailValue)}>
             {block.classId} · {block.label}
           </dd>
         </div>
         <div>
-          <dt className="text-memora-text-soft">Recognizer</dt>
-          <dd className="mt-0.5 font-medium text-memora-text">{block.recognition}</dd>
+          <dt {...stylex.props(styles.detailLabel)}>Recognizer</dt>
+          <dd {...stylex.props(styles.detailValue)}>{block.recognition}</dd>
         </div>
         <div>
-          <dt className="text-memora-text-soft">Position</dt>
-          <dd className="mt-0.5 font-medium text-memora-text">
+          <dt {...stylex.props(styles.detailLabel)}>Position</dt>
+          <dd {...stylex.props(styles.detailValue)}>
             {Math.round(block.rect.x)}, {Math.round(block.rect.y)}
           </dd>
         </div>
         <div>
-          <dt className="text-memora-text-soft">Size</dt>
-          <dd className="mt-0.5 font-medium text-memora-text">
+          <dt {...stylex.props(styles.detailLabel)}>Size</dt>
+          <dd {...stylex.props(styles.detailValue)}>
             {Math.round(block.rect.width)} × {Math.round(block.rect.height)}
           </dd>
         </div>
@@ -395,24 +900,22 @@ export default function ImageDocumentPipeline() {
   );
 
   return (
-    <div className="space-y-7">
-      <div className="grid gap-7 xl:grid-cols-[minmax(420px,0.95fr)_minmax(560px,1.05fr)]">
-        <section className="overflow-hidden rounded-[28px] border border-memora-border bg-memora-surface shadow-sm-soft xl:col-start-1 xl:row-start-1">
-          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-memora-border px-6 py-5">
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.layout)}>
+        <section {...stylex.props(styles.panel, styles.imagePanel)}>
+          <div {...stylex.props(styles.panelHeader)}>
             <div>
-              <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-                Inspect the page geometry
-              </h2>
+              <h2 {...stylex.props(styles.title)}>Inspect the page geometry</h2>
             </div>
             <Button
               onClick={handleUseSample}
               disabled={isRunning}
-              className="rounded-xl border border-memora-border bg-memora-surface px-3 py-2 text-xs font-semibold text-memora-text-muted transition-colors hover:bg-memora-surface-muted disabled:opacity-50"
+              className={stylex.props(styles.secondaryButton).className}
             >
               Use sample
             </Button>
           </div>
-          <div className="p-5">
+          <div {...stylex.props(styles.previewWrap)}>
             <ImagePreview
               previewUrl={previewUrl}
               image={image}
@@ -423,98 +926,88 @@ export default function ImageDocumentPipeline() {
               onSelectBlock={setSelectedBlockId}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-memora-border px-6 py-5">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-memora-text">
-                {image?.name ?? "No image selected"}
-              </p>
-              <p className="mt-0.5 text-xs text-memora-text-soft">
+          <div {...stylex.props(styles.panelFooter)}>
+            <div {...stylex.props(styles.minZero)}>
+              <p {...stylex.props(styles.fileName)}>{image?.name ?? "No image selected"}</p>
+              <p {...stylex.props(styles.fileMeta)}>
                 {image ? formatBytes(image.size) : "Full-page raster image"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div {...stylex.props(styles.actions)}>
               <Button
                 onClick={handleResetModels}
                 disabled={isRunning}
                 title="Release model sessions"
-                className="flex size-10 items-center justify-center rounded-xl border border-memora-border bg-memora-surface text-memora-text-muted transition-colors hover:bg-memora-surface-muted disabled:opacity-50"
+                className={stylex.props(styles.iconButton).className}
               >
-                <ArrowClockwiseIcon className="size-4" />
+                <ArrowClockwiseIcon className={stylex.props(styles.icon16).className} />
               </Button>
               <Button
                 onClick={handleRun}
                 disabled={!image || isRunning}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-memora-olive px-4 text-sm font-semibold text-white transition-colors hover:bg-memora-olive-strong disabled:cursor-not-allowed disabled:opacity-45"
+                className={stylex.props(styles.runButton).className}
               >
-                <PlayIcon weight="fill" className="size-3.5" />
+                <PlayIcon weight="fill" className={stylex.props(styles.icon14).className} />
                 {isRunning ? "Running…" : "Run pipeline"}
               </Button>
             </div>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-memora-border bg-memora-surface p-6 shadow-sm-soft xl:col-start-1 xl:row-start-2">
-          <div className="flex items-start justify-between gap-5">
+        <section {...stylex.props(styles.panel, styles.pipelinePanel)}>
+          <div {...stylex.props(styles.sectionHeader)}>
             <div>
-              <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-                Pipeline
-              </h2>
+              <h2 {...stylex.props(styles.title)}>Pipeline</h2>
             </div>
             {result ? (
-              <span className="rounded-full border border-memora-border bg-memora-surface-muted px-3 py-1.5 text-[11px] font-medium text-memora-text-muted">
-                {result.blocks.length} blocks
-              </span>
+              <span {...stylex.props(styles.countBadge)}>{result.blocks.length} blocks</span>
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-2 sm:grid-cols-5">
+          <div {...stylex.props(styles.stages)}>
             {PIPELINE_STAGES.map((stage) => {
               const state = getStageState(stage.id, progress, result, isRunning);
               return (
                 <div
                   key={stage.id}
-                  className={cn(
-                    "rounded-2xl border p-3",
-                    state === "running"
-                      ? "border-memora-olive-soft bg-memora-olive-faint"
-                      : "border-memora-border bg-memora-surface-soft",
-                  )}
+                  {...stylex.props(styles.stage, state === "running" && styles.stageRunning)}
                 >
-                  <div className="flex items-center gap-2">
+                  <div {...stylex.props(styles.stageHeader)}>
                     {state === "complete" ? (
-                      <CheckCircleIcon weight="fill" className="size-3.5 text-memora-olive" />
+                      <CheckCircleIcon
+                        weight="fill"
+                        className={stylex.props(styles.stageIcon).className}
+                      />
                     ) : (
                       <span
-                        className={cn(
-                          "size-2 rounded-full bg-memora-border-soft",
-                          state === "running" && "animate-pulse bg-memora-olive",
+                        {...stylex.props(
+                          styles.stageDot,
+                          state === "running" && styles.stageDotRunning,
                         )}
                       />
                     )}
-                    <p className="text-xs font-semibold text-memora-text">{stage.label}</p>
+                    <p {...stylex.props(styles.stageName)}>{stage.label}</p>
                   </div>
-                  <p className="mt-1.5 text-[10px] leading-4 text-memora-text-soft">
-                    {stage.detail}
-                  </p>
+                  <p {...stylex.props(styles.stageDetail)}>{stage.detail}</p>
                 </div>
               );
             })}
           </div>
           {progress ? (
-            <div className="mt-4 rounded-2xl bg-memora-surface-muted p-3">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-medium text-memora-text-muted">{progress.label}</span>
+            <div {...stylex.props(styles.progress)}>
+              <div {...stylex.props(styles.progressHeader)}>
+                <span {...stylex.props(styles.progressLabel)}>{progress.label}</span>
                 {progress.progress !== undefined ? (
-                  <span className="text-memora-text-soft">
+                  <span {...stylex.props(styles.progressValue)}>
                     {Math.round(progress.progress * 100)}%
                   </span>
                 ) : null}
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-memora-surface">
+              <div {...stylex.props(styles.track)}>
                 <div
-                  className={cn(
-                    "h-full rounded-full bg-memora-olive transition-[width]",
-                    progress.progress === undefined && "w-1/3 animate-pulse",
+                  {...stylex.props(
+                    styles.bar,
+                    progress.progress === undefined && styles.indeterminate,
                   )}
                   style={
                     progress.progress === undefined
@@ -526,55 +1019,49 @@ export default function ImageDocumentPipeline() {
             </div>
           ) : null}
           {error ? (
-            <div className="mt-4 flex gap-3 rounded-2xl border border-memora-warning-border bg-memora-warning-surface p-4 text-sm text-memora-warning-text">
-              <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
-              <p className="min-w-0 break-words">{error}</p>
+            <div {...stylex.props(styles.warning)}>
+              <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
+              <p {...stylex.props(styles.breakWords)}>{error}</p>
             </div>
           ) : null}
           {result ? (
-            <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Layout</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+            <dl {...stylex.props(styles.metrics)}>
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Layout</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {formatMilliseconds(result.timings.layoutMs)}
                 </dd>
-                <dd className="mt-0.5 text-[10px] text-memora-text-soft">
-                  {result.backend.layout}
-                </dd>
+                <dd {...stylex.props(styles.metricMeta)}>{result.backend.layout}</dd>
               </div>
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Text OCR</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Text OCR</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {formatMilliseconds(result.timings.ocrMs)}
                 </dd>
-                <dd className="mt-0.5 truncate text-[10px] text-memora-text-soft">
-                  {result.backend.ocr}
-                </dd>
+                <dd {...stylex.props(styles.metricMeta, styles.truncate)}>{result.backend.ocr}</dd>
               </div>
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Formula</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Formula</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {formatMilliseconds(result.timings.formulaMs)}
                 </dd>
-                <dd className="mt-0.5 text-[10px] text-memora-text-soft">
-                  {result.backend.formula}
-                </dd>
+                <dd {...stylex.props(styles.metricMeta)}>{result.backend.formula}</dd>
               </div>
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Compose</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Compose</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {formatMilliseconds(result.timings.composeMs)}
                 </dd>
               </div>
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Total</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Total</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {formatMilliseconds(result.timings.totalMs)}
                 </dd>
               </div>
-              <div className="rounded-2xl bg-memora-surface-soft p-3">
-                <dt className="text-[11px] font-medium text-memora-text-soft">Image</dt>
-                <dd className="mt-1 text-sm font-semibold text-memora-text">
+              <div {...stylex.props(styles.metric)}>
+                <dt {...stylex.props(styles.metricLabel)}>Image</dt>
+                <dd {...stylex.props(styles.metricValue)}>
                   {result.image.width} × {result.image.height}
                 </dd>
               </div>
@@ -582,48 +1069,36 @@ export default function ImageDocumentPipeline() {
           ) : null}
         </section>
 
-        <div className="space-y-7 xl:col-start-2 xl:row-span-2 xl:row-start-1">
+        <div {...stylex.props(styles.resultsColumn)}>
           <BlockInspector block={selectedBlock} />
 
-          <section className="overflow-hidden rounded-[28px] border border-memora-border bg-memora-surface shadow-sm-soft">
+          <section {...stylex.props(styles.panel)}>
             <Tabs.Root defaultValue="preview">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-memora-border px-4 py-3">
-                <Tabs.List className="flex gap-1 rounded-xl bg-memora-surface-muted p-1">
-                  <Tabs.Tab
-                    value="preview"
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-memora-text-muted outline-none data-active:bg-memora-surface data-active:text-memora-text data-active:shadow-sm"
-                  >
-                    <FileImageIcon className="size-3.5" />
+              <div {...stylex.props(styles.tabHeader)}>
+                <Tabs.List className={stylex.props(styles.tabList).className}>
+                  <Tabs.Tab value="preview" className={stylex.props(styles.tab).className}>
+                    <FileImageIcon className={stylex.props(styles.icon14).className} />
                     Preview
                   </Tabs.Tab>
-                  <Tabs.Tab
-                    value="source"
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-memora-text-muted outline-none data-active:bg-memora-surface data-active:text-memora-text data-active:shadow-sm"
-                  >
-                    <CodeIcon className="size-3.5" />
+                  <Tabs.Tab value="source" className={stylex.props(styles.tab).className}>
+                    <CodeIcon className={stylex.props(styles.icon14).className} />
                     Markdown
                   </Tabs.Tab>
-                  <Tabs.Tab
-                    value="blocks"
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-memora-text-muted outline-none data-active:bg-memora-surface data-active:text-memora-text data-active:shadow-sm"
-                  >
-                    <BracketsCurlyIcon className="size-3.5" />
+                  <Tabs.Tab value="blocks" className={stylex.props(styles.tab).className}>
+                    <BracketsCurlyIcon className={stylex.props(styles.icon14).className} />
                     Blocks
                   </Tabs.Tab>
                 </Tabs.List>
                 <Button
                   onClick={handleCopy}
                   disabled={!result?.markdown}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-memora-border px-2.5 text-xs font-semibold text-memora-text-muted disabled:opacity-40"
+                  className={stylex.props(styles.copyButton).className}
                 >
-                  <ClipboardIcon className="size-3.5" />
+                  <ClipboardIcon className={stylex.props(styles.icon14).className} />
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
-              <Tabs.Panel
-                value="preview"
-                className="min-h-[360px] p-6 outline-none [[hidden]]:hidden"
-              >
+              <Tabs.Panel value="preview" className={stylex.props(styles.tabPanel).className}>
                 {result?.markdown ? (
                   <Streamdown
                     className={MEMORA_STREAMDOWN_CLASS_NAME}
@@ -634,21 +1109,23 @@ export default function ImageDocumentPipeline() {
                     {result.markdown}
                   </Streamdown>
                 ) : (
-                  <div className="flex min-h-[300px] items-center justify-center text-center text-sm text-memora-text-soft">
+                  <div {...stylex.props(styles.emptyResult)}>
                     <div>
-                      <ScanIcon className="mx-auto size-5" />
-                      <p className="mt-3">Rendered Markdown will appear here.</p>
+                      <ScanIcon className={stylex.props(styles.centeredIcon).className} />
+                      <p {...stylex.props(styles.emptyResultText)}>
+                        Rendered Markdown will appear here.
+                      </p>
                     </div>
                   </div>
                 )}
               </Tabs.Panel>
-              <Tabs.Panel value="source" className="min-h-[360px] outline-none [[hidden]]:hidden">
-                <pre className="min-h-[360px] overflow-auto whitespace-pre-wrap bg-memora-surface-soft p-6 text-xs leading-6 text-memora-text-muted">
+              <Tabs.Panel value="source" className={stylex.props(styles.sourcePanel).className}>
+                <pre {...stylex.props(styles.source)}>
                   {result?.markdown || "Run the image pipeline to generate Markdown."}
                 </pre>
               </Tabs.Panel>
-              <Tabs.Panel value="blocks" className="min-h-[360px] outline-none [[hidden]]:hidden">
-                <pre className="min-h-[360px] overflow-auto bg-memora-surface-soft p-6 text-xs leading-5 text-memora-text-muted">
+              <Tabs.Panel value="blocks" className={stylex.props(styles.sourcePanel).className}>
+                <pre {...stylex.props(styles.source, styles.blocksSource)}>
                   {result
                     ? JSON.stringify(result.blocks, null, 2)
                     : "Run the image pipeline to inspect structured blocks."}
@@ -659,8 +1136,8 @@ export default function ImageDocumentPipeline() {
         </div>
       </div>
 
-      <div className="flex gap-3 rounded-2xl border border-memora-border bg-memora-surface-soft px-4 py-3 text-xs leading-5 text-memora-text-soft">
-        <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+      <div {...stylex.props(styles.notice)}>
+        <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
         <p>
           PP-DocLayoutV3, PP-OCRv6, and Texo use the same @memora/fs-backed OPFS model cache as
           local ASR and LLM models. Media stays in the browser. Tables and figures are preserved as

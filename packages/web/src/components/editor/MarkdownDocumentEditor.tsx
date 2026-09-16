@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 
 import {
@@ -28,6 +29,199 @@ import { getFileExtension } from "@/lib/editor/editableTextDocument";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 
 type EditorMode = "source" | "wysiwyg";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: "1.5rem" },
+  header: {
+    display: "grid",
+    gap: "1rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 768px)": "minmax(0, 1fr) auto minmax(0, 1fr)",
+    },
+    alignItems: { default: "stretch", "@media (min-width: 768px)": "center" },
+  },
+  headerStart: {
+    alignItems: "center",
+    display: "flex",
+    justifySelf: { default: "auto", "@media (min-width: 768px)": "start" },
+  },
+  backButton: {
+    alignItems: "center",
+    color: {
+      default: "var(--color-memora-text-muted)",
+      ":hover": "var(--color-memora-text-strong)",
+    },
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.25rem",
+    paddingInline: 0,
+    transition: "color 200ms",
+  },
+  backIcon: { height: "1.125rem", width: "1.125rem" },
+  modeSwitch: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "9999px",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+    display: "inline-flex",
+    justifySelf: { default: "start", "@media (min-width: 768px)": "center" },
+    padding: "0.25rem",
+  },
+  modeButton: {
+    alignItems: "center",
+    borderRadius: "9999px",
+    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.375rem",
+    height: "2.25rem",
+    lineHeight: "1.25rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 200ms, color 200ms, box-shadow 200ms",
+    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+  },
+  modeButtonActive: {
+    backgroundColor: "var(--color-memora-canvas)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+    color: "var(--color-memora-text)",
+  },
+  icon: { height: "1rem", width: "1rem" },
+  headerEnd: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "flex-end",
+    justifySelf: { default: "auto", "@media (min-width: 768px)": "end" },
+  },
+  menuTrigger: {
+    alignItems: "center",
+    backgroundColor: { default: "#fffdfa", ":hover": "#fffcf6" },
+    borderColor: "#e7e1d8",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    gap: "0.5rem",
+    paddingBlock: "0.375rem",
+    paddingInline: "0.625rem",
+    "[data-open='true']": { backgroundColor: "#fffcf6", borderColor: "#ddd7cb" },
+  },
+  menuTriggerIconFrame: {
+    alignItems: "center",
+    backgroundColor: "#f6f3ec",
+    borderRadius: "9999px",
+    color: "#7c7265",
+    display: "flex",
+    flexShrink: 0,
+    height: "1.75rem",
+    justifyContent: "center",
+    transition: "background-color 300ms, color 300ms",
+    width: "1.75rem",
+  },
+  menuLargeIcon: { height: "18px", width: "18px" },
+  menuTriggerLabel: {
+    color: "#22211d",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+  },
+  caret: { color: "#9a948a", flexShrink: 0, height: "0.875rem", width: "0.875rem" },
+  menuContent: { width: "248px" },
+  menuItem: {
+    alignItems: "center",
+    borderRadius: "1rem",
+    color: "#544f48",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    padding: "0.75rem",
+    textAlign: "left",
+    transition: "background-color 300ms",
+    width: "100%",
+    ":hover": { backgroundColor: "#f8f4ec" },
+    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
+  },
+  menuItemIcon: {
+    alignItems: "center",
+    backgroundColor: "#f6f1e8",
+    borderRadius: "9999px",
+    color: "#90897d",
+    display: "flex",
+    flexShrink: 0,
+    height: "2.25rem",
+    justifyContent: "center",
+    width: "2.25rem",
+  },
+  menuItemCopy: { minWidth: 0 },
+  menuItemTitle: {
+    color: "#2b2925",
+    display: "block",
+    fontSize: "14px",
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  menuItemDescription: {
+    color: "#7b7469",
+    display: "block",
+    fontSize: "13px",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  saveStatus: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    lineHeight: "1.25rem",
+  },
+  warningText: { color: "var(--color-memora-warning-text)" },
+  titleInput: {
+    backgroundColor: "transparent",
+    color: "#09090b",
+    fontSize: "2.25rem",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+    lineHeight: "2.5rem",
+    marginBottom: "1rem",
+    minWidth: 0,
+    outline: "none",
+    transition: "color 200ms",
+    width: "100%",
+    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    ":focus-visible": { outline: "none" },
+  },
+  titleError: {
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  notice: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderLeftColor: "var(--color-memora-warning-border)",
+    borderLeftStyle: "solid",
+    borderLeftWidth: 1,
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  hidden: { display: "none" },
+  editorLayout: {
+    display: "grid",
+    gap: { default: "0.75rem", "@media (min-width: 1024px)": "1.25rem" },
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    minWidth: 0,
+  },
+  editor: { minWidth: 0 },
+});
 
 interface MarkdownDocumentEditorProps {
   file: TextDocumentFileLike;
@@ -65,15 +259,6 @@ const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"])
       return "Saved";
   }
 };
-
-const editorModeButtonClassName = (isActive: boolean): string =>
-  [
-    "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)]",
-    isActive
-      ? "bg-[var(--color-memora-canvas)] text-[var(--color-memora-text)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-      : "text-[var(--color-memora-text-muted)] hover:text-[var(--color-memora-text)]",
-  ].join(" ");
 
 const getDocumentTitleParts = (name: string): { title: string; extension: string } => {
   const extension = getFileExtension(name);
@@ -191,106 +376,111 @@ export function MarkdownDocumentEditor({
   };
 
   return (
-    <div className="flex flex-col gap-6" data-mode={editorMode}>
-      <header className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
-        <div className="flex items-center md:justify-self-start">
+    <div {...stylex.props(styles.root)} data-mode={editorMode}>
+      <header {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.headerStart)}>
           <button
             type="button"
-            className="memora-interactive group inline-flex items-center gap-2 px-0 py-1 text-sm font-medium text-[var(--color-memora-text-muted)] transition-colors hover:text-[var(--color-memora-text-strong)]"
+            className={`memora-interactive ${stylex.props(styles.backButton).className}`}
             onClick={onGoBack}
           >
             <ArrowLeftIcon
               size={18}
               weight="bold"
-              className="transition-transform duration-200 ease-[var(--ease-out-quart)] group-hover:-translate-x-0.5"
+              className={stylex.props(styles.backIcon).className}
             />
             <span>Go back</span>
           </button>
         </div>
 
-        <div className="inline-flex justify-self-start rounded-full bg-[var(--color-memora-surface-muted)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] md:justify-self-center">
+        <div {...stylex.props(styles.modeSwitch)}>
           <button
             type="button"
             aria-pressed={isSourceMode}
-            className={editorModeButtonClassName(isSourceMode)}
+            className={
+              stylex.props(styles.modeButton, isSourceMode && styles.modeButtonActive).className
+            }
             onClick={onRequestSource}
           >
-            <CodeIcon className="size-4" weight="bold" />
+            <CodeIcon className={stylex.props(styles.icon).className} weight="bold" />
             <span>Code</span>
           </button>
           <button
             type="button"
             aria-pressed={!isSourceMode}
-            className={editorModeButtonClassName(!isSourceMode)}
+            className={
+              stylex.props(styles.modeButton, !isSourceMode && styles.modeButtonActive).className
+            }
             onClick={onRequestWysiwyg}
           >
-            <PenIcon className="size-4" weight="bold" />
+            <PenIcon className={stylex.props(styles.icon).className} weight="bold" />
             <span>Preview</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-end md:justify-self-end">
+        <div {...stylex.props(styles.headerEnd)}>
           <AppMenu>
-            <AppMenuTrigger className="memora-interactive group gap-2 rounded-full border border-[#e7e1d8] bg-[#fffdfa] px-2.5 py-1.5 shadow-none hover:bg-[#fffcf6] hover:shadow-none data-[open=true]:border-[#ddd7cb] data-[open=true]:bg-[#fffcf6] data-[open=true]:shadow-none">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#6f695f]">
-                <DotsThreeVerticalIcon className="size-[18px]" weight="bold" />
+            <AppMenuTrigger
+              className={`memora-interactive ${stylex.props(styles.menuTrigger).className}`}
+            >
+              <span {...stylex.props(styles.menuTriggerIconFrame)}>
+                <DotsThreeVerticalIcon
+                  className={stylex.props(styles.menuLargeIcon).className}
+                  weight="bold"
+                />
               </span>
-              <span className="text-sm font-semibold text-[#22211d]">Actions</span>
+              <span {...stylex.props(styles.menuTriggerLabel)}>Actions</span>
               <CaretDownIcon
                 data-dashboard-menu-caret=""
-                className="size-3.5 shrink-0 text-[#9a948a]"
+                className={stylex.props(styles.caret).className}
                 weight="bold"
               />
             </AppMenuTrigger>
-            <AppMenuContent className="w-[248px]">
+            <AppMenuContent className={stylex.props(styles.menuContent).className}>
               <AppMenuItem
                 disabled={saveState === "saving" || isAttachingImage}
-                className="group flex w-full items-center gap-3 rounded-[1rem] px-3 py-3 text-left text-sm text-[#544f48] transition-[background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[#f8f4ec] disabled:cursor-not-allowed disabled:opacity-40"
+                className={stylex.props(styles.menuItem).className}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={onSave}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f6f1e8] text-[#90897d] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#7d7569]">
-                  <FloppyDiskIcon className="size-[18px]" />
+                <span {...stylex.props(styles.menuItemIcon)}>
+                  <FloppyDiskIcon className={stylex.props(styles.menuLargeIcon).className} />
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-semibold text-[#2b2925]">
-                    Save
-                  </span>
-                  <span className="mt-1 block text-[13px] leading-5 text-[#7b7469]">
+                <span {...stylex.props(styles.menuItemCopy)}>
+                  <span {...stylex.props(styles.menuItemTitle)}>Save</span>
+                  <span {...stylex.props(styles.menuItemDescription)}>
                     {getSaveStatusLabel(saveState)}
                   </span>
                 </span>
               </AppMenuItem>
               <AppMenuItem
                 disabled={isAttachingImage}
-                className="group flex w-full items-center gap-3 rounded-[1rem] px-3 py-3 text-left text-sm text-[#544f48] transition-[background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[#f8f4ec] disabled:cursor-not-allowed disabled:opacity-40"
+                className={stylex.props(styles.menuItem).className}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f6f1e8] text-[#90897d] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#7d7569]">
-                  <ImageIcon className="size-[18px]" />
+                <span {...stylex.props(styles.menuItemIcon)}>
+                  <ImageIcon className={stylex.props(styles.menuLargeIcon).className} />
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-semibold text-[#2b2925]">
+                <span {...stylex.props(styles.menuItemCopy)}>
+                  <span {...stylex.props(styles.menuItemTitle)}>
                     {isAttachingImage ? "Attaching image..." : "Attach image"}
                   </span>
-                  <span className="mt-1 block text-[13px] leading-5 text-[#7b7469]">
+                  <span {...stylex.props(styles.menuItemDescription)}>
                     Store images beside the current note
                   </span>
                 </span>
               </AppMenuItem>
               <AppMenuItem
                 disabled={isSourceMode}
-                className="group flex w-full items-center gap-3 rounded-[1rem] px-3 py-3 text-left text-sm text-[#544f48] transition-[background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[#f8f4ec] disabled:cursor-not-allowed disabled:opacity-40"
+                className={stylex.props(styles.menuItem).className}
                 onClick={() => wysiwygRef.current?.insertTable()}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f6f1e8] text-[#90897d] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#7d7569]">
-                  <TableIcon className="size-[18px]" />
+                <span {...stylex.props(styles.menuItemIcon)}>
+                  <TableIcon className={stylex.props(styles.menuLargeIcon).className} />
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-semibold text-[#2b2925]">
-                    Insert table
-                  </span>
-                  <span className="mt-1 block text-[13px] leading-5 text-[#7b7469]">
+                <span {...stylex.props(styles.menuItemCopy)}>
+                  <span {...stylex.props(styles.menuItemTitle)}>Insert table</span>
+                  <span {...stylex.props(styles.menuItemDescription)}>
                     Available in preview mode only
                   </span>
                 </span>
@@ -300,11 +490,9 @@ export function MarkdownDocumentEditor({
         </div>
       </header>
 
-      <div className="flex items-center gap-3 text-sm text-[var(--color-memora-text-soft)]">
+      <div {...stylex.props(styles.saveStatus)}>
         <span>{getSaveStatusLabel(saveState)}</span>
-        {saveError ? (
-          <span className="text-[var(--color-memora-warning-text)]">{saveError}</span>
-        ) : null}
+        {saveError ? <span {...stylex.props(styles.warningText)}>{saveError}</span> : null}
       </div>
 
       <div>
@@ -312,7 +500,7 @@ export function MarkdownDocumentEditor({
           type="text"
           aria-label="Document title"
           value={titleValue}
-          className="mb-4 min-w-0 w-full bg-transparent text-4xl font-semibold tracking-[-0.03em] text-zinc-950 outline-none transition placeholder:text-[var(--color-memora-text-soft)] focus-visible:ring-0"
+          className={stylex.props(styles.titleInput).className}
           placeholder="Untitled note"
           onChange={(event) => {
             setTitleValue(event.currentTarget.value);
@@ -334,22 +522,16 @@ export function MarkdownDocumentEditor({
             }
           }}
         />
-        {titleError ? (
-          <p className="mt-2 text-sm text-[var(--color-memora-warning-text)]">{titleError}</p>
-        ) : null}
+        {titleError ? <p {...stylex.props(styles.titleError)}>{titleError}</p> : null}
       </div>
 
-      {referenceNotice ? (
-        <div className="border-l border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] px-4 py-3 text-sm text-[var(--color-memora-warning-text)]">
-          {referenceNotice}
-        </div>
-      ) : null}
+      {referenceNotice ? <div {...stylex.props(styles.notice)}>{referenceNotice}</div> : null}
 
       {wysiwygSafetyNotice ? (
         <div
           role="status"
           aria-live="polite"
-          className="border-l border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)] px-4 py-3 text-sm text-[var(--color-memora-warning-text)]"
+          className={stylex.props(styles.notice).className}
           data-testid="wysiwyg-safety-notice"
         >
           {wysiwygSafetyNotice}
@@ -360,7 +542,7 @@ export function MarkdownDocumentEditor({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        className="hidden"
+        className={stylex.props(styles.hidden).className}
         onChange={(event) => {
           const image = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
@@ -372,8 +554,8 @@ export function MarkdownDocumentEditor({
         }}
       />
 
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 lg:gap-5">
-        <div className="min-w-0">
+      <div {...stylex.props(styles.editorLayout)}>
+        <div {...stylex.props(styles.editor)}>
           {isSourceMode ? (
             <SourceDocumentEditor
               ref={sourceRef}

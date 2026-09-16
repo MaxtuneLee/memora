@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { Popover } from "@base-ui/react/popover";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -20,8 +21,41 @@ interface PendingFormulaCommit {
 
 const FORMULA_UPDATE_DELAY_MS = 300;
 
-const fieldClassName =
-  "mt-3 w-full rounded-lg border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-3 py-2 font-mono text-sm leading-6 text-[var(--color-memora-text)] outline-none transition-colors placeholder:text-[var(--color-memora-text-soft)] focus:border-[var(--color-memora-olive-soft)] focus:ring-2 focus:ring-[var(--color-memora-olive-soft)]/35";
+const styles = stylex.create({
+  popup: {
+    backgroundColor: "var(--color-memora-surface)",
+    border: "1px solid var(--color-memora-border)",
+    borderRadius: 12,
+    boxShadow: "0 16px 40px -24px rgb(34 33 29 / 0.4)",
+    outline: "none",
+    padding: 12,
+    width: "min(26rem, calc(100vw - 1.5rem))",
+  },
+  arrow: { fill: "var(--color-memora-surface)", stroke: "var(--color-memora-border)" },
+  title: { color: "var(--color-memora-text-strong)", fontSize: 14, fontWeight: 600 },
+  description: { color: "var(--color-memora-text-soft)", fontSize: 12, marginTop: 2 },
+  field: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    border: "1px solid var(--color-memora-border)",
+    borderRadius: 8,
+    color: "var(--color-memora-text)",
+    fontFamily: "monospace",
+    fontSize: 14,
+    lineHeight: "24px",
+    marginTop: 12,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "color 150ms, background-color 150ms",
+    width: "100%",
+    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    ":focus": {
+      borderColor: "var(--color-memora-olive-soft)",
+      boxShadow: "0 0 0 2px rgb(145 168 91 / 0.35)",
+    },
+  },
+  multiline: { minHeight: 96, resize: "vertical" },
+});
 
 export function MathEditorPopover() {
   const [editor] = useLexicalComposerContext();
@@ -185,22 +219,22 @@ export function MathEditorPopover() {
         >
           <Popover.Popup
             aria-label="Edit formula"
-            className="w-[min(26rem,calc(100vw-1.5rem))] rounded-xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] p-3 shadow-[0_16px_40px_-24px_rgba(34,33,29,0.4)] outline-none"
+            {...stylex.props(styles.popup)}
             finalFocus={false}
             initialFocus={fieldRef}
           >
-            <Popover.Arrow className="fill-[var(--color-memora-surface)] stroke-[var(--color-memora-border)]" />
-            <Popover.Title className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
+            <Popover.Arrow className={stylex.props(styles.arrow).className} />
+            <Popover.Title className={stylex.props(styles.title).className}>
               Edit formula
             </Popover.Title>
-            <Popover.Description className="mt-0.5 text-xs text-[var(--color-memora-text-soft)]">
+            <Popover.Description className={stylex.props(styles.description).className}>
               {selectedFormula?.displayMode ? "Block formula" : "Inline formula"} · updates
               automatically
             </Popover.Description>
             {selectedFormula?.displayMode ? (
               <textarea
                 aria-label="LaTeX"
-                className={`${fieldClassName} min-h-24 resize-y`}
+                className={stylex.props(styles.field, styles.multiline).className}
                 onChange={(event) => handleDraftChange(event.target.value)}
                 ref={(element) => {
                   fieldRef.current = element;
@@ -210,7 +244,7 @@ export function MathEditorPopover() {
             ) : (
               <input
                 aria-label="LaTeX"
-                className={fieldClassName}
+                className={stylex.props(styles.field).className}
                 onChange={(event) => handleDraftChange(event.target.value)}
                 ref={(element) => {
                   fieldRef.current = element;

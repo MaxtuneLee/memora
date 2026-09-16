@@ -12,8 +12,47 @@ import { markdown } from "@codemirror/lang-markdown";
 import { StateEffect, StateField, type EditorState, type Range } from "@codemirror/state";
 import { Decoration, EditorView, hoverTooltip, type DecorationSet } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
+import * as stylex from "@stylexjs/stylex";
 
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: 16 },
+  editorSurface: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingBlock: 4,
+    paddingInline: 4,
+  },
+  diagnostic: { borderLeft: "1px solid var(--color-memora-warning-border)", paddingLeft: 12 },
+  diagnosticTitle: {
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+  },
+  diagnosticList: { display: "flex", flexDirection: "column", gap: 4, marginTop: 4 },
+  diagnosticLink: {
+    borderRadius: 4,
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.875rem",
+    outline: "none",
+    paddingBlock: 2,
+    paddingInline: 4,
+    textAlign: "left",
+    textDecorationColor: "var(--color-memora-warning-border)",
+    textDecorationLine: "underline",
+    textUnderlineOffset: 4,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "var(--color-memora-warning-surface)" },
+    ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+  },
+});
 
 interface SourceDocumentEditorProps {
   text: string;
@@ -310,8 +349,8 @@ export const SourceDocumentEditor = forwardRef<
   }, [editorView]);
 
   return (
-    <section className="flex flex-col gap-4" data-surface="source-document-editor">
-      <div className="overflow-hidden rounded-xl border border-[var(--color-memora-border-soft)] bg-[var(--color-memora-surface-soft)] px-1 py-1">
+    <section {...stylex.props(styles.root)} data-surface="source-document-editor">
+      <div {...stylex.props(styles.editorSurface)}>
         <CodeMirror
           value={text}
           height="auto"
@@ -332,19 +371,14 @@ export const SourceDocumentEditor = forwardRef<
       </div>
 
       {diagnostics.length > 0 ? (
-        <div
-          aria-label="Markdown safety issues"
-          className="border-l border-[var(--color-memora-warning-border)] pl-3"
-        >
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-memora-warning-text)]">
-            Preview changes
-          </div>
-          <ol className="mt-1 space-y-1">
+        <div aria-label="Markdown safety issues" {...stylex.props(styles.diagnostic)}>
+          <div {...stylex.props(styles.diagnosticTitle)}>Preview changes</div>
+          <ol {...stylex.props(styles.diagnosticList)}>
             {diagnostics.map((diagnostic, index) => (
               <li key={`${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`}>
                 <button
                   type="button"
-                  className="rounded px-1 py-0.5 text-left text-sm text-[var(--color-memora-warning-text)] underline decoration-[var(--color-memora-warning-border)] underline-offset-4 transition hover:bg-[var(--color-memora-warning-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)]"
+                  {...stylex.props(styles.diagnosticLink)}
                   aria-label={diagnostic.message}
                   onClick={() => revealDiagnostic(index)}
                 >

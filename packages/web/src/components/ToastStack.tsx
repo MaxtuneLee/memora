@@ -1,9 +1,24 @@
 import { Toast } from "@base-ui/react/toast";
+import * as stylex from "@stylexjs/stylex";
 import { motion } from "motion/react";
 import { useMemo, type ReactNode } from "react";
 
-import { cn } from "../lib/cn";
 import { useNativeDialogLayer } from "../lib/nativeDialogLayer";
+
+const styles = stylex.create({
+  viewport: {
+    bottom: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
+    position: "fixed",
+    right: "1.5rem",
+    width: "320px",
+    zIndex: 60,
+  },
+  expanded: { gap: "0.75rem" },
+  collapsed: { rowGap: 0, ":not(:empty) > :not(:first-child)": { marginTop: "-2rem" } },
+  limited: { pointerEvents: "none" },
+});
 
 type ToastStackProps = {
   render: (toast: ReturnType<typeof Toast.useToastManager>["toasts"][number]) => ReactNode;
@@ -32,10 +47,8 @@ export default function ToastStack({ render }: ToastStackProps) {
     <Toast.Portal container={portalContainer}>
       <Toast.Viewport
         className={(state) =>
-          cn(
-            "fixed bottom-6 right-6 z-[60] flex w-[320px] flex-col",
-            state.expanded ? "gap-3" : "-space-y-8",
-          )
+          stylex.props(styles.viewport, state.expanded ? styles.expanded : styles.collapsed)
+            .className
         }
       >
         {visibleToasts.map((toast) => (
@@ -55,7 +68,7 @@ export default function ToastStack({ render }: ToastStackProps) {
               return (
                 <motion.div
                   {...rest}
-                  className={cn(props.className, state.limited ? "pointer-events-none" : "")}
+                  className={`${props.className ?? ""} ${stylex.props(state.limited && styles.limited).className ?? ""}`}
                   style={{
                     ...props.style,
                     zIndex: "calc(100 - var(--toast-index))",

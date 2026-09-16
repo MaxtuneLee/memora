@@ -1,6 +1,42 @@
 import { useId } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: "#fff",
+    border: "1px solid #e4e4e7",
+    borderRadius: 16,
+    boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+    padding: 24,
+    width: "min(420px, 92vw)",
+  },
+  content: { display: "flex", flexDirection: "column", gap: 16 },
+  title: { color: "#18181b", fontSize: 18, fontWeight: 600, margin: 0 },
+  description: { color: "#71717a", fontSize: 14, marginTop: 4 },
+  actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
+  cancel: {
+    border: "1px solid #e4e4e7",
+    borderRadius: 8,
+    color: "#3f3f46",
+    fontSize: 14,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fafafa" },
+  },
+  confirm: {
+    borderRadius: 8,
+    color: "#fff",
+    fontSize: 14,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+  },
+  defaultConfirm: { backgroundColor: "#18181b", ":hover": { backgroundColor: "#27272a" } },
+  dangerConfirm: { backgroundColor: "#dc2626", ":hover": { backgroundColor: "#b91c1c" } },
+});
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -32,30 +68,27 @@ export function ConfirmDialog({
       onOpenChange={(open) => !open && onCancel()}
       labelledBy={titleId}
       describedBy={descriptionId}
-      panelClassName="w-[min(420px,92vw)] rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
+      panelClassName={stylex.props(styles.panel).className}
     >
-      <div className="flex flex-col gap-4">
+      <div {...stylex.props(styles.content)}>
         <div>
-          <h2 id={titleId} className="text-lg font-semibold text-zinc-900">
+          <h2 id={titleId} {...stylex.props(styles.title)}>
             {title}
           </h2>
-          <p id={descriptionId} className="mt-1 text-sm text-zinc-500">
+          <p id={descriptionId} {...stylex.props(styles.description)}>
             {description}
           </p>
         </div>
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-50"
-            onClick={onCancel}
-          >
+        <div {...stylex.props(styles.actions)}>
+          <button type="button" {...stylex.props(styles.cancel)} onClick={onCancel}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={`rounded-lg px-3 py-1.5 text-sm text-white transition ${
-              tone === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-zinc-900 hover:bg-zinc-800"
-            }`}
+            {...stylex.props(
+              styles.confirm,
+              tone === "danger" ? styles.dangerConfirm : styles.defaultConfirm,
+            )}
             onClick={onConfirm}
           >
             {confirmLabel}

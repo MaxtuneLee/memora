@@ -1,6 +1,13 @@
 import { Field } from "@base-ui/react/field";
+import * as stylex from "@stylexjs/stylex";
 
 import { Select } from "@/components/ui/Select";
+
+const styles = stylex.create({
+  root: { alignItems: "center", display: "flex", gap: 8, justifyContent: "space-between" },
+  label: { color: "#52525b", fontSize: 14 },
+  autoWidth: { width: "auto" },
+});
 
 const LANGUAGES = [
   { code: "en", name: "English" },
@@ -33,15 +40,15 @@ export function LanguageSelector({
   const options = languages.map((entry) => ({ value: entry.code, label: entry.name }));
 
   return (
-    <Field.Root className="flex items-center gap-2 justify-between">
-      <Field.Label className="text-sm text-zinc-600" render={<div />}>
+    <Field.Root className={stylex.props(styles.root).className}>
+      <Field.Label className={stylex.props(styles.label).className} render={<div />}>
         Language
       </Field.Label>
       <Select
         value={language}
         onValueChange={(value) => value && setLanguage(value)}
         options={options}
-        triggerClassName="w-auto"
+        triggerClassName={stylex.props(styles.autoWidth).className}
       />
     </Field.Root>
   );

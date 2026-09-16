@@ -4,38 +4,93 @@ import {
   SpinnerGapIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 
-import { cn } from "@/lib/cn";
 import type { DesktopFileIndexStatus } from "@/types/desktop";
 
 interface IndexStatusMeta {
   label: string;
   description: string;
-  className: string;
+  tone: "default" | "olive" | "warning";
 }
 
 const INDEX_STATUS_META: Record<DesktopFileIndexStatus, IndexStatusMeta> = {
   pending: {
     label: "Pending",
     description: "Waiting to be indexed",
-    className: "border-memora-border bg-memora-surface text-memora-text-soft",
+    tone: "default",
   },
   processing: {
     label: "Indexing",
     description: "Indexing this file",
-    className: "border-memora-olive-faint bg-memora-surface text-memora-olive",
+    tone: "olive",
   },
   indexed: {
     label: "Indexed",
     description: "Available in content search",
-    className: "border-memora-olive-faint bg-memora-surface text-memora-olive",
+    tone: "olive",
   },
   failed: {
     label: "Index failed",
     description: "Open details to review the index status",
-    className: "border-memora-warning-border bg-memora-warning-surface text-memora-warning-text",
+    tone: "warning",
   },
 };
+
+const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
+const styles = stylex.create({
+  button: {
+    alignItems: "center",
+    border: "1px solid",
+    borderRadius: 9999,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    display: "flex",
+    height: 20,
+    justifyContent: "center",
+    position: "absolute",
+    right: -4,
+    bottom: -4,
+    transition: "color 150ms, background-color 150ms",
+    width: 20,
+    zIndex: 2,
+    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+  },
+  compactButton: { height: 18, width: 18 },
+  label: {
+    alignItems: "center",
+    border: "1px solid",
+    borderRadius: 9999,
+    display: "inline-flex",
+    fontSize: 11,
+    fontWeight: 500,
+    gap: 6,
+    height: 24,
+    paddingInline: 8,
+  },
+  default: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    color: "var(--color-memora-text-soft)",
+  },
+  olive: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-olive-faint)",
+    color: "var(--color-memora-olive)",
+  },
+  warning: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderColor: "var(--color-memora-warning-border)",
+    color: "var(--color-memora-warning-text)",
+  },
+  smallIcon: { height: 10, width: 10 },
+  icon: { height: 12, width: 12 },
+  spin: {
+    animationDuration: "1s",
+    animationIterationCount: "infinite",
+    animationName: spin,
+    "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
+  },
+});
 
 export const getDesktopIndexStatusLabel = (status: DesktopFileIndexStatus): string => {
   return INDEX_STATUS_META[status].label;
@@ -49,7 +104,9 @@ const IndexStatusIcon = ({
   className?: string;
 }) => {
   if (status === "processing") {
-    return <SpinnerGapIcon className={cn(className, "animate-spin motion-reduce:animate-none")} />;
+    return (
+      <SpinnerGapIcon className={`${className ?? ""} ${stylex.props(styles.spin).className}`} />
+    );
   }
   if (status === "indexed") {
     return <CheckCircleIcon className={className} weight="fill" />;
@@ -76,11 +133,7 @@ export function DesktopIndexStatusIcon({
       type="button"
       aria-label={`View index details: ${meta.label}`}
       title={meta.description}
-      className={cn(
-        "absolute -right-1 -bottom-1 z-[2] flex items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-memora-olive-soft",
-        compact ? "size-[18px]" : "size-5",
-        meta.className,
-      )}
+      {...stylex.props(styles.button, compact && styles.compactButton, styles[meta.tone])}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.preventDefault();
@@ -89,7 +142,10 @@ export function DesktopIndexStatusIcon({
       }}
       onDoubleClick={(event) => event.stopPropagation()}
     >
-      <IndexStatusIcon status={status} className={compact ? "size-2.5" : "size-3"} />
+      <IndexStatusIcon
+        status={status}
+        className={stylex.props(compact ? styles.smallIcon : styles.icon).className}
+      />
     </button>
   );
 }
@@ -98,13 +154,8 @@ export function DesktopIndexStatusLabel({ status }: { status: DesktopFileIndexSt
   const meta = INDEX_STATUS_META[status];
 
   return (
-    <span
-      className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium",
-        meta.className,
-      )}
-    >
-      <IndexStatusIcon status={status} className="size-3" />
+    <span {...stylex.props(styles.label, styles[meta.tone])}>
+      <IndexStatusIcon status={status} className={stylex.props(styles.icon).className} />
       {meta.label}
     </span>
   );

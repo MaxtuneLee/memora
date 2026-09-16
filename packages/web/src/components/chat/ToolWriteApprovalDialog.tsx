@@ -1,7 +1,57 @@
 import { useId } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import type { WriteApprovalRequest } from "@/lib/chat/tools";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: "white",
+    border: "1px solid #e4e4e7",
+    borderRadius: 16,
+    boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+    padding: 24,
+    width: "min(460px, 94vw)",
+  },
+  content: { display: "flex", flexDirection: "column", gap: 16 },
+  title: { color: "#18181b", fontSize: 18, fontWeight: 600 },
+  description: { color: "#71717a", fontSize: 14, marginTop: 4 },
+  details: {
+    backgroundColor: "rgb(250 250 250 / 0.8)",
+    border: "1px solid #e4e4e7",
+    borderRadius: 12,
+    color: "#3f3f46",
+    fontSize: 12,
+    paddingBlock: 10,
+    paddingInline: 12,
+  },
+  detailLine: { marginTop: 4 },
+  detailLabel: { color: "#18181b", fontWeight: 500 },
+  actions: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  button: {
+    border: "1px solid #e4e4e7",
+    borderRadius: 8,
+    color: "#3f3f46",
+    fontSize: 14,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fafafa" },
+  },
+  sessionButton: { backgroundColor: "white", ":hover": { backgroundColor: "#f4f4f5" } },
+  allowButton: {
+    backgroundColor: "#18181b",
+    borderColor: "#18181b",
+    color: "white",
+    ":hover": { backgroundColor: "#27272a" },
+  },
+});
 
 interface ToolWriteApprovalDialogProps {
   request: WriteApprovalRequest | null;
@@ -32,52 +82,48 @@ export function ToolWriteApprovalDialog({
       onOpenChange={(open) => !open && onDeny()}
       labelledBy={titleId}
       describedBy={descriptionId}
-      panelClassName="w-[min(460px,94vw)] rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
+      panelClassName={stylex.props(styles.panel).className}
     >
-      <div className="flex flex-col gap-4">
+      <div {...stylex.props(styles.content)}>
         <div>
-          <h2 id={titleId} className="text-lg font-semibold text-zinc-900">
+          <h2 id={titleId} {...stylex.props(styles.title)}>
             Approve file modification?
           </h2>
-          <p id={descriptionId} className="mt-1 text-sm text-zinc-500">
+          <p id={descriptionId} {...stylex.props(styles.description)}>
             Memora wants to modify a text file. Review details before allowing.
           </p>
         </div>
 
         {request && (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs text-zinc-700">
+          <div {...stylex.props(styles.details)}>
             <p>
-              <span className="font-medium text-zinc-900">Operation:</span>{" "}
+              <span {...stylex.props(styles.detailLabel)}>Operation:</span>{" "}
               {describeOperation(request)}
             </p>
-            <p className="mt-1">
-              <span className="font-medium text-zinc-900">Path:</span> {request.path}
+            <p {...stylex.props(styles.detailLine)}>
+              <span {...stylex.props(styles.detailLabel)}>Path:</span> {request.path}
             </p>
-            <p className="mt-1">
-              <span className="font-medium text-zinc-900">Content length:</span>{" "}
+            <p {...stylex.props(styles.detailLine)}>
+              <span {...stylex.props(styles.detailLabel)}>Content length:</span>{" "}
               {request.contentLength.toLocaleString()} chars
             </p>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-50"
-            onClick={onDeny}
-          >
+        <div {...stylex.props(styles.actions)}>
+          <button type="button" {...stylex.props(styles.button)} onClick={onDeny}>
             Deny
           </button>
           <button
             type="button"
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-100"
+            {...stylex.props(styles.button, styles.sessionButton)}
             onClick={onAllowSession}
           >
             Always allow this session
           </button>
           <button
             type="button"
-            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-white transition hover:bg-zinc-800"
+            {...stylex.props(styles.button, styles.allowButton)}
             onClick={onAllowOnce}
           >
             Allow once

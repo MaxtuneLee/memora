@@ -1,9 +1,27 @@
 import { ConfirmDialog } from "@/components/desktop";
+import * as stylex from "@stylexjs/stylex";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
+
+const styles = stylex.create({
+  root: { display: "flex", height: "100%", minHeight: 0 },
+  main: { display: "flex", flex: 1, flexDirection: "column", minHeight: 0, minWidth: 0 },
+  content: { display: "flex", flex: 1, minHeight: 0, position: "relative" },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: "auto" },
+  messages: {
+    display: "flex",
+    flexDirection: "column",
+    marginInline: "auto",
+    maxWidth: 1024,
+    minHeight: "100%",
+    paddingInline: 16,
+    paddingTop: 24,
+    width: "100%",
+  },
+});
 
 export const ChatPageView = (props: {
   sessions: Parameters<typeof ChatPageHistoryShell>[0]["sessions"];
@@ -102,7 +120,7 @@ export const ChatPageView = (props: {
 
   return (
     <>
-      <div className="flex h-full min-h-0">
+      <div {...stylex.props(styles.root)}>
         <ChatPageHistoryShell
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -117,11 +135,11 @@ export const ChatPageView = (props: {
           onOpenHistoryDrawer={onOpenHistoryDrawer}
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="relative flex min-h-0 flex-1">
-            <div className="min-h-0 flex-1 overflow-y-auto">
+        <div {...stylex.props(styles.main)}>
+          <div {...stylex.props(styles.content)}>
+            <div {...stylex.props(styles.scrollArea)}>
               <div
-                className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6"
+                {...stylex.props(styles.messages)}
                 style={{ paddingBottom: composerScrollInset }}
               >
                 <ChatPageMessagesPanel

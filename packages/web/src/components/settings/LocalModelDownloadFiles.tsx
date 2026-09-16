@@ -1,7 +1,50 @@
 import { CheckIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 
-import { cn } from "@/lib/cn";
 import type { LocalModelDownloadState } from "@/lib/local-model/downloadState";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: 10, marginTop: 12 },
+  file: { display: "flex", flexDirection: "column", gap: 6 },
+  header: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: 12,
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  name: {
+    color: "var(--color-memora-text-muted)",
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  value: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    flexShrink: 0,
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 500,
+    gap: 4,
+  },
+  check: { color: "var(--color-memora-olive)", height: 12, width: 12 },
+  track: {
+    backgroundColor: "var(--color-memora-border-soft)",
+    borderRadius: 9999,
+    height: 6,
+    overflow: "hidden",
+  },
+  indicator: {
+    borderRadius: 9999,
+    height: "100%",
+    transformOrigin: "left",
+    transition: "transform 300ms",
+  },
+  complete: { backgroundColor: "var(--color-memora-olive)" },
+  downloading: { backgroundColor: "#5f8fcb" },
+});
 
 interface LocalModelDownloadFilesProps {
   state?: LocalModelDownloadState;
@@ -36,30 +79,26 @@ export default function LocalModelDownloadFiles({
   }
 
   return (
-    <div className={cn("mt-3 space-y-2.5", className)}>
+    <div className={`${stylex.props(styles.root).className} ${className ?? ""}`}>
       {files.map((fileState) => {
         const progress = getProgress(fileState.progress);
         const isComplete = progress >= 100;
 
         return (
-          <div key={fileState.file} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="min-w-0 truncate text-[var(--color-memora-text-muted)]">
-                {fileState.file}
-              </span>
-              <span className="flex shrink-0 items-center gap-1 font-medium tabular-nums text-[var(--color-memora-text-soft)]">
-                {isComplete ? (
-                  <CheckIcon className="size-3 text-[var(--color-memora-olive)]" />
-                ) : null}
+          <div key={fileState.file} {...stylex.props(styles.file)}>
+            <div {...stylex.props(styles.header)}>
+              <span {...stylex.props(styles.name)}>{fileState.file}</span>
+              <span {...stylex.props(styles.value)}>
+                {isComplete ? <CheckIcon className={stylex.props(styles.check).className} /> : null}
                 {formatBytes(fileState.total) ? `${formatBytes(fileState.total)} · ` : ""}
                 {Math.round(progress)}%
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-memora-border-soft)]">
+            <div {...stylex.props(styles.track)}>
               <div
-                className={cn(
-                  "h-full origin-left rounded-full transition-transform duration-300",
-                  isComplete ? "bg-[var(--color-memora-olive)]" : "bg-[#5f8fcb]",
+                {...stylex.props(
+                  styles.indicator,
+                  isComplete ? styles.complete : styles.downloading,
                 )}
                 style={{ transform: `scaleX(${progress / 100})` }}
               />

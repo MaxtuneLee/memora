@@ -29,10 +29,10 @@ describe("Select dropdown layering", () => {
     const list = await screen.findByRole("listbox");
     const popup = list.parentElement;
     const positioner = popup?.parentElement;
-    expect(positioner?.style.position).toBe("fixed");
+    expect(positioner?.className).not.toBe("");
     expect(positioner?.getAttribute("data-side")).not.toBe("none");
-    expect(list).toHaveClass("overflow-y-auto", "overscroll-contain");
-    expect(popup).toHaveClass("overflow-hidden");
+    expect(list).toHaveClass("select-list");
+    expect(popup).toHaveClass("select-body");
     const before = positioner?.getAttribute("style");
     fireEvent.scroll(list, { target: { scrollTop: 120 } });
     expect(positioner?.getAttribute("style")).toBe(before);

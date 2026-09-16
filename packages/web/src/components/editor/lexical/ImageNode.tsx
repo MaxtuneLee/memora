@@ -1,4 +1,5 @@
 import type { JSX, MouseEvent } from "react";
+import * as stylex from "@stylexjs/stylex";
 import type {
   EditorConfig,
   LexicalEditor,
@@ -8,6 +9,62 @@ import type {
   Spread,
 } from "lexical";
 import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
+
+const styles = stylex.create({
+  container: { marginBlock: 16 },
+  figure: {
+    backgroundColor: "#fafafa",
+    borderColor: "#e4e4e7",
+    borderRadius: 16,
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "inline-block",
+    marginBlock: 16,
+    maxWidth: "100%",
+    overflow: "hidden",
+    verticalAlign: "top",
+  },
+  image: {
+    display: "block",
+    height: "auto",
+    maxHeight: "28rem",
+    maxWidth: "100%",
+    objectFit: "contain",
+  },
+  caption: {
+    borderTop: "1px solid #e4e4e7",
+    color: "#71717a",
+    fontSize: "0.875rem",
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  link: { color: "var(--color-memora-olive)", display: "inline-block", maxWidth: "100%" },
+  source: {
+    alignItems: "flex-start",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBlock: 16,
+    maxWidth: "100%",
+  },
+  sourceCode: {
+    backgroundColor: "#fafafa",
+    borderColor: "#e4e4e7",
+    borderRadius: 8,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "#18181b",
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
+    fontSize: "0.875rem",
+    maxWidth: "100%",
+    overflowX: "auto",
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+});
+
+const containerClassName = stylex.props(styles.container).className ?? "";
 
 const escapeImageMarkdownAltText = (text: string): string => {
   return text.replace(/([\\[\]])/g, "\\$1");
@@ -74,7 +131,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
 
   createDOM(_config: EditorConfig): HTMLElement {
     const container = document.createElement("div");
-    container.className = "my-4";
+    container.className = containerClassName;
     return container;
   }
 
@@ -129,19 +186,10 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     };
 
     const figure = (
-      <figure
-        className="my-4 inline-block max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 align-top"
-        onClick={handleClick}
-      >
-        <img
-          src={this.__src}
-          alt={this.__altText}
-          className="block h-auto max-h-[28rem] max-w-full object-contain"
-        />
+      <figure {...stylex.props(styles.figure)} onClick={handleClick}>
+        <img src={this.__src} alt={this.__altText} {...stylex.props(styles.image)} />
         {this.__altText ? (
-          <figcaption className="border-t border-zinc-200 px-3 py-2 text-sm text-zinc-500">
-            {this.__altText}
-          </figcaption>
+          <figcaption {...stylex.props(styles.caption)}>{this.__altText}</figcaption>
         ) : null}
       </figure>
     );
@@ -149,7 +197,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     const imageContent = this.__href ? (
       <a
         href={this.__href}
-        className="inline-block max-w-full text-[var(--color-memora-olive)]"
+        {...stylex.props(styles.link)}
         target="_blank"
         rel="noreferrer"
         onClick={handleClick}
@@ -165,8 +213,8 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     }
 
     return (
-      <div className="my-4 flex max-w-full flex-col items-start gap-2">
-        <code className="max-w-full overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-900">
+      <div {...stylex.props(styles.source)}>
+        <code {...stylex.props(styles.sourceCode)}>
           {getImageNodeSourceText(this.__altText, this.__src, this.__href)}
         </code>
         {imageContent}

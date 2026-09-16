@@ -126,9 +126,10 @@ describe("local model settings", () => {
     const cardSource = readSource("../../src/components/settings/LocalModelDownloadCard.tsx");
     const filesSource = readSource("../../src/components/settings/LocalModelDownloadFiles.tsx");
 
-    expect(cardSource).toContain("transition-transform");
+    expect(cardSource).toContain('transitionProperty: "transform"');
+    expect(cardSource).toContain('transitionDuration: "300ms"');
     expect(cardSource).toContain("scaleX(${progress / 100})");
-    expect(filesSource).toContain("transition-transform");
+    expect(filesSource).toContain('transition: "transform 300ms"');
     expect(filesSource).toContain("scaleX(${progress / 100})");
     expect(cardSource).not.toContain("style={{ width: `${progress}%` }}");
     expect(filesSource).not.toContain("style={{ width: `${progress}%` }}");

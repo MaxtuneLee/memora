@@ -1,7 +1,14 @@
 import { useMemo } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import { DESKTOP_PADDING } from "@/types/desktop";
 import { DesktopItem } from "./DesktopItem";
+
+const styles = stylex.create({
+  list: { display: "flex", flexDirection: "column", gap: 4, padding: 12 },
+  canvas: { minHeight: "100%", position: "relative" },
+});
 
 interface DesktopSurfaceProps {
   items: DesktopItemData[];
@@ -43,7 +50,7 @@ export function DesktopSurface({
 
   const content = (
     <div
-      className={layout === "list" ? "flex flex-col gap-1 p-3" : "relative min-h-full"}
+      {...stylex.props(layout === "list" ? styles.list : styles.canvas)}
       style={layout === "list" ? undefined : { padding: DESKTOP_PADDING }}
       onContextMenu={(event) => {
         event.preventDefault();

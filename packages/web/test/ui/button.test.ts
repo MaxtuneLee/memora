@@ -39,7 +39,7 @@ test("shared controls expose the settings control variants", () => {
   expect(badgeSource).toContain('"olive"');
   expect(inputSource).toContain("function Input");
   expect(selectSource).toContain("BaseSelect.Root");
-  expect(selectSource).toContain("justify-start");
+  expect(selectSource).toContain('textAlign: "left"');
   expect(progressSource).toContain("BaseProgress.Root");
   expect(progressSource).toContain("BaseProgress.Indicator");
 });

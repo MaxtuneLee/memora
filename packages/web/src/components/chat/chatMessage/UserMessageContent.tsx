@@ -1,8 +1,60 @@
 import type { RefObject } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
 
 import type { ChatMessageData } from "./types";
+
+const styles = stylex.create({
+  editor: { display: "flex", flexDirection: "column", gap: 12 },
+  textArea: {
+    backgroundColor: "#f3efe9",
+    border: "1px solid #d9d1c5",
+    borderRadius: 16,
+    color: "#18181b",
+    display: "block",
+    fontSize: 14,
+    paddingBlock: 12,
+    paddingInline: 16,
+    resize: "vertical",
+    outline: "none",
+    width: "100%",
+    "::placeholder": { color: "#a1a1aa" },
+  },
+  actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
+  button: {
+    alignItems: "center",
+    backgroundColor: "white",
+    border: "1px solid #d9d1c5",
+    borderRadius: 12,
+    color: "#3f3f46",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 500,
+    gap: 4,
+    paddingBlock: 8,
+    paddingInline: 14,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fafafa" },
+  },
+  done: {
+    backgroundColor: "#18181b",
+    borderColor: "#18181b",
+    color: "white",
+    fontWeight: 600,
+    ":hover": { backgroundColor: "#27272a" },
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  message: {
+    backgroundColor: "#efe7db",
+    borderRadius: 16,
+    color: "#18181b",
+    maxWidth: "100%",
+    paddingBlock: 10,
+    paddingInline: 16,
+  },
+  attachments: { marginTop: 8 },
+});
 
 export function UserMessageContent({
   message,
@@ -32,29 +84,25 @@ export function UserMessageContent({
   return (
     <>
       {isEditing ? (
-        <div className="space-y-3">
+        <div {...stylex.props(styles.editor)}>
           <textarea
             ref={editInputRef}
             value={draftText}
             onChange={(event) => onDraftTextChange(event.currentTarget.value)}
             rows={3}
-            className="block w-full resize-y rounded-2xl border border-[#d9d1c5] bg-[#f3efe9] px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+            {...stylex.props(styles.textArea)}
             placeholder="Edit your message..."
             disabled={actionsDisabled}
           />
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancelEditing}
-              className="inline-flex items-center gap-1 rounded-xl border border-[#d9d1c5] bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-            >
+          <div {...stylex.props(styles.actions)}>
+            <button type="button" onClick={onCancelEditing} {...stylex.props(styles.button)}>
               Cancel
             </button>
             <button
               type="button"
               onClick={onSubmitEdit}
               disabled={!canSubmitEdit || actionsDisabled}
-              className="inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              {...stylex.props(styles.button, styles.done)}
             >
               Done
             </button>
@@ -62,13 +110,9 @@ export function UserMessageContent({
         </div>
       ) : (
         <>
-          {message.content && (
-            <div className="max-w-full rounded-2xl bg-[#efe7db] px-4 py-2.5 text-zinc-900">
-              {message.content}
-            </div>
-          )}
+          {message.content && <div {...stylex.props(styles.message)}>{message.content}</div>}
           {message.attachments && message.attachments.length > 0 && (
-            <div className={message.content ? "mt-2" : ""}>
+            <div {...stylex.props(message.content ? styles.attachments : null)}>
               <ChatImageAttachmentGallery
                 attachments={message.attachments}
                 tone="user"

@@ -1,9 +1,34 @@
 import { useAppStore } from "@/livestore/store";
+import * as stylex from "@stylexjs/stylex";
 
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { normalizeLocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 import FeatureModelSettings from "./FeatureModelSettings";
 import { SETTINGS_PANEL_CLASS_NAME } from "./settingsClassNames";
+
+const styles = stylex.create({
+  metrics: {
+    borderBottom: "1px solid var(--color-memora-border)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 20,
+    paddingBottom: 20,
+  },
+  metric: {
+    alignItems: "baseline",
+    display: "flex",
+    fontSize: 14,
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  label: { color: "var(--color-memora-text-muted)" },
+  value: {
+    color: "var(--color-memora-text-strong)",
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 600,
+  },
+});
 
 export default function SettingsModelRoutingSection() {
   const store = useAppStore();
@@ -34,16 +59,11 @@ export default function SettingsModelRoutingSection() {
   ];
   return (
     <section className={SETTINGS_PANEL_CLASS_NAME}>
-      <dl
-        className="mb-5 space-y-2 border-b border-[var(--color-memora-border)] pb-5"
-        aria-live="polite"
-      >
+      <dl {...stylex.props(styles.metrics)} aria-live="polite">
         {metrics.map((metric) => (
-          <div key={metric.label} className="flex items-baseline justify-between gap-4 text-sm">
-            <dt className="text-[var(--color-memora-text-muted)]">{metric.label}</dt>
-            <dd className="font-semibold tabular-nums text-[var(--color-memora-text-strong)]">
-              {metric.value}
-            </dd>
+          <div key={metric.label} {...stylex.props(styles.metric)}>
+            <dt {...stylex.props(styles.label)}>{metric.label}</dt>
+            <dd {...stylex.props(styles.value)}>{metric.value}</dd>
           </div>
         ))}
       </dl>

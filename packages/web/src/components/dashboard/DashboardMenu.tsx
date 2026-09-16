@@ -19,10 +19,57 @@ import type {
   ReactElement,
   ReactNode,
 } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
 
 import "./dashboardMenu.css";
+
+const styles = stylex.create({
+  trigger: {
+    alignItems: "center",
+    backgroundColor: "#fffdfa",
+    borderColor: "#e7e1d7",
+    borderRadius: 9999,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "#3c3934",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    justifyContent: "flex-start",
+    minHeight: "2.75rem",
+    outline: "none",
+    paddingBlock: "0.375rem",
+    paddingInline: "0.625rem",
+    textAlign: "left",
+    transitionDuration: "300ms",
+    transitionProperty: "background-color, border-color, box-shadow, transform, opacity",
+    transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+    ":hover": {
+      backgroundColor: "#fffcf6",
+      boxShadow: "0 8px 20px rgba(34, 33, 29, 0.05)",
+      transform: "translateY(-1px)",
+    },
+    ":focus-visible": {
+      boxShadow: "0 0 0 2px #a7af8f, 0 0 0 4px #fbfaf7",
+    },
+    "[data-open=true]": {
+      backgroundColor: "#fffcf6",
+      borderColor: "#ddd7cb",
+      boxShadow: "0 10px 24px rgba(34, 33, 29, 0.06)",
+      opacity: 0,
+      transitionDuration: "150ms",
+    },
+  },
+  item: {
+    outline: "none",
+    transition: "background-color 150ms",
+    ":focus-visible": { backgroundColor: "#faf7f0" },
+    ":hover": { backgroundColor: "#faf7f0" },
+  },
+});
 
 interface DashboardMenuProps {
   children: ReactNode;
@@ -376,16 +423,7 @@ export function DashboardMenuTrigger({
       aria-expanded={isOpen}
       aria-haspopup="menu"
       data-open={isOpen ? "true" : "false"}
-      className={cn(
-        "group inline-flex min-h-11 items-center justify-start gap-2 rounded-full border border-[#e7e1d7] bg-[#fffdfa] px-2.5 py-1.5 text-left text-sm font-semibold text-[#3c3934] outline-none transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        "hover:-translate-y-[1px] hover:bg-[#fffcf6] hover:shadow-[0_8px_20px_rgba(34,33,29,0.05)]",
-        "data-[open=true]:border-[#ddd7cb] data-[open=true]:bg-[#fffcf6] data-[open=true]:opacity-0 data-[open=true]:shadow-[0_10px_24px_rgba(34,33,29,0.06)]",
-        "data-[open=true]:duration-150",
-        "focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf7]",
-        "motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:shadow-none motion-reduce:data-[open=true]:opacity-100 motion-reduce:data-[open=true]:shadow-none",
-        "[&_[data-dashboard-menu-caret]]:transition-transform [&_[data-dashboard-menu-caret]]:duration-300 [&_[data-dashboard-menu-caret]]:ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:[&_[data-dashboard-menu-caret]]:rotate-180 motion-reduce:[&_[data-dashboard-menu-caret]]:transition-none",
-        className,
-      )}
+      className={cn("dashboard-menu-trigger", stylex.props(styles.trigger).className, className)}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       style={mergedStyle}
@@ -470,12 +508,7 @@ export function DashboardMenuContent({
   return (
     <>
       <div ref={registerMeasure} aria-hidden="true" className="dashboard-menu-measure">
-        <div
-          className={cn(
-            "dashboard-menu-panel dashboard-menu-panel--measure relative outline-none",
-            className,
-          )}
-        >
+        <div className={cn("dashboard-menu-panel dashboard-menu-panel--measure", className)}>
           <div className="dashboard-menu-body">{children}</div>
         </div>
       </div>
@@ -484,12 +517,12 @@ export function DashboardMenuContent({
         id={popoverId}
         popover="auto"
         role="menu"
-        className="dashboard-menu-popover z-10"
+        className="dashboard-menu-popover"
         onKeyDown={handleKeyDown}
         style={mergedStyle}
         {...props}
       >
-        <div className={cn("dashboard-menu-panel relative outline-none", className)}>
+        <div className={cn("dashboard-menu-panel", className)}>
           <div className="dashboard-menu-shell" />
           <div className="dashboard-menu-body">{children}</div>
         </div>
@@ -529,10 +562,7 @@ export function DashboardMenuItem({
       data-dashboard-menu-item=""
       type={type ?? "button"}
       role="menuitem"
-      className={cn(
-        "outline-none transition hover:bg-[#faf7f0] focus-visible:bg-[#faf7f0]",
-        className,
-      )}
+      className={cn(stylex.props(styles.item).className, className)}
       onClick={handleClick}
       {...props}
     >

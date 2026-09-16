@@ -98,7 +98,7 @@ export function getTranscriptionRailState(phase: TranscriptionRailPhase): Transc
 }
 
 interface TranscriptionControlsDockState {
-  alignmentClassName: "justify-center" | "justify-end";
+  alignment: "center" | "end";
   layout: boolean;
   transition:
     | {
@@ -114,10 +114,8 @@ export function getTranscriptionControlsDockState(
   dockedRight: boolean,
   prefersReducedMotion: boolean,
 ): TranscriptionControlsDockState {
-  const dockClassName = dockedRight ? "justify-end" : "justify-center";
-
   return {
-    alignmentClassName: dockClassName,
+    alignment: dockedRight ? "end" : "center",
     layout: !prefersReducedMotion,
     transition: prefersReducedMotion
       ? {

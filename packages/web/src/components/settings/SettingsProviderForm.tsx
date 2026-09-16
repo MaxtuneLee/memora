@@ -1,5 +1,6 @@
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
@@ -8,8 +9,25 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TabSelect, type TabSelectOption } from "@/components/ui/TabSelect";
-import { cn } from "@/lib/cn";
 import type { ProviderApiFormat, ProviderFormState } from "@/types/settingsDialog";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: 20 },
+  fields: { display: "grid", gap: 16 },
+  label: { display: "block", marginBottom: 8 },
+  relative: { position: "relative" },
+  apiInput: { paddingRight: 44 },
+  toggle: {
+    height: 32,
+    position: "absolute",
+    right: 6,
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 32,
+  },
+  icon: { height: 16, width: 16 },
+  actions: { display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end", paddingTop: 4 },
+});
 
 const API_FORMAT_OPTIONS: readonly TabSelectOption<ProviderApiFormat>[] = [
   { value: "chat-completions", label: "Chat completions" },
@@ -38,12 +56,12 @@ export default function SettingsProviderForm({
   actions,
 }: SettingsProviderFormProps) {
   return (
-    <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "space-y-5")}>
-      <div className="grid gap-4">
+    <div className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.root).className}`}>
+      <div {...stylex.props(styles.fields)}>
         <div>
           <label
             htmlFor="provider-name"
-            className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2 block")}
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.label).className}`}
           >
             Name
           </label>
@@ -59,7 +77,7 @@ export default function SettingsProviderForm({
         <div>
           <label
             htmlFor="provider-base-url"
-            className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2 block")}
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.label).className}`}
           >
             Base URL
           </label>
@@ -75,11 +93,11 @@ export default function SettingsProviderForm({
         <div>
           <label
             htmlFor="provider-api-key"
-            className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2 block")}
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.label).className}`}
           >
             API key
           </label>
-          <div className="relative">
+          <div {...stylex.props(styles.relative)}>
             <Input
               id="provider-api-key"
               type={showApiKey ? "text" : "password"}
@@ -89,22 +107,30 @@ export default function SettingsProviderForm({
               autoComplete="off"
               spellCheck={false}
               aria-describedby="provider-api-key-hint"
-              className="pr-11"
+              className={stylex.props(styles.apiInput).className}
             />
             <Button
               variant="icon"
               type="button"
               onClick={onToggleApiKey}
-              className={cn("absolute right-1.5 top-1/2 size-8 -translate-y-1/2")}
+              className={stylex.props(styles.toggle).className}
               aria-label={showApiKey ? "Hide API key" : "Show API key"}
             >
-              {showApiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
+              {showApiKey ? (
+                <EyeSlashIcon className={stylex.props(styles.icon).className} />
+              ) : (
+                <EyeIcon className={stylex.props(styles.icon).className} />
+              )}
             </Button>
           </div>
         </div>
 
         <div>
-          <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>API format</p>
+          <p
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.label).className}`}
+          >
+            API format
+          </p>
           <TabSelect
             value={providerForm.apiFormat}
             onValueChange={(apiFormat) => onChange({ apiFormat })}
@@ -115,7 +141,7 @@ export default function SettingsProviderForm({
       </div>
 
       {actions ?? (
-        <div className="flex flex-wrap justify-end gap-2 pt-1">
+        <div {...stylex.props(styles.actions)}>
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>

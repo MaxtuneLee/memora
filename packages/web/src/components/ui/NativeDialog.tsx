@@ -1,10 +1,25 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "../../lib/cn";
 import { registerNativeDialogLayer } from "../../lib/nativeDialogLayer";
 
 import "./nativeDialog.css";
+
+const styles = stylex.create({
+  srOnly: {
+    borderWidth: 0,
+    clip: "rect(0, 0, 0, 0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    padding: 0,
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+});
 
 interface NativeDialogProps {
   open: boolean;
@@ -260,7 +275,7 @@ export function NativeDialog({
           tabIndex={-1}
         >
           {shouldShowAriaLabel ? null : (
-            <span id={resolvedLabelledBy} className="sr-only">
+            <span id={resolvedLabelledBy} {...stylex.props(styles.srOnly)}>
               Dialog
             </span>
           )}

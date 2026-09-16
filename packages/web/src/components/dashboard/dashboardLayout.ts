@@ -5,8 +5,14 @@ export interface PrimaryWidgetVisibility {
 
 export type PrimaryWidgetKey = "todo" | "calendar";
 
-export const PRIMARY_WIDGET_GRID_CLASS =
-  "grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]";
+export const dashboardLayoutStyles = stylex.create({
+  primaryWidgetGrid: {
+    display: "grid",
+    gap: 14,
+    gridTemplateColumns: "minmax(0, 1fr)",
+    "@media (min-width: 64rem)": { gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 0.8fr)" },
+  },
+});
 
 export const getPrimaryWidgetOrder = ({
   calendar,
@@ -24,3 +30,4 @@ export const getPrimaryWidgetOrder = ({
 
   return orderedWidgets;
 };
+import * as stylex from "@stylexjs/stylex";

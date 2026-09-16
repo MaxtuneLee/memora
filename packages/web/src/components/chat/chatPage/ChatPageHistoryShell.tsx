@@ -1,6 +1,59 @@
 import { ClockCounterClockwiseIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+
+const styles = stylex.create({
+  desktopHistory: {
+    borderRight: "1px solid rgb(228 228 231 / 0.6)",
+    display: "none",
+    flexShrink: 0,
+    height: "100%",
+    width: 280,
+    "@media (min-width: 48rem)": { display: "block" },
+  },
+  mobileHeader: {
+    borderBottom: "1px solid rgb(228 228 231 / 0.6)",
+    flexShrink: 0,
+    paddingBlock: 10,
+    paddingInline: 16,
+    "@media (min-width: 48rem)": { display: "none" },
+  },
+  mobileHeaderRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    marginInline: "auto",
+    maxWidth: 672,
+  },
+  historyButton: {
+    alignItems: "center",
+    backgroundColor: "white",
+    border: "1px solid #e4e4e7",
+    borderRadius: 8,
+    color: "#3f3f46",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 500,
+    gap: 6,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fafafa" },
+  },
+  icon: { height: 14, width: 14 },
+  title: {
+    color: "#71717a",
+    fontSize: 12,
+    fontWeight: 500,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  error: { color: "#dc2626", fontSize: 12, marginInline: "auto", marginTop: 8, maxWidth: 672 },
+});
 
 interface ChatPageHistoryShellProps {
   sessions: ChatSessionSummary[];
@@ -31,7 +84,7 @@ export const ChatPageHistoryShell = ({
 }: ChatPageHistoryShellProps) => {
   return (
     <>
-      <aside className="hidden h-full w-[280px] shrink-0 border-r border-zinc-200/60 md:block">
+      <aside {...stylex.props(styles.desktopHistory)}>
         <ChatHistoryPanel
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -44,21 +97,22 @@ export const ChatPageHistoryShell = ({
         />
       </aside>
 
-      <div className="shrink-0 border-b border-zinc-200/60 px-4 py-2.5 md:hidden">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+      <div {...stylex.props(styles.mobileHeader)}>
+        <div {...stylex.props(styles.mobileHeaderRow)}>
           <button
             type="button"
             onClick={onOpenHistoryDrawer}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+            {...stylex.props(styles.historyButton)}
           >
-            <ClockCounterClockwiseIcon className="size-3.5" weight="bold" />
+            <ClockCounterClockwiseIcon
+              className={stylex.props(styles.icon).className}
+              weight="bold"
+            />
             History
           </button>
-          <p className="min-w-0 truncate text-xs font-medium text-zinc-500">{activeSessionTitle}</p>
+          <p {...stylex.props(styles.title)}>{activeSessionTitle}</p>
         </div>
-        {sessionsError && (
-          <p className="mx-auto mt-2 max-w-2xl text-xs text-red-600">{sessionsError}</p>
-        )}
+        {sessionsError && <p {...stylex.props(styles.error)}>{sessionsError}</p>}
       </div>
     </>
   );

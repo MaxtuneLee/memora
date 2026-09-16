@@ -9,6 +9,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { AnimatePresence } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
 import { ReferencePicker, type ReferencePickerOption } from "@/components/chat/ReferencePicker";
@@ -20,6 +21,198 @@ import type { ResolvedReferenceScope } from "@/lib/chat/tools";
 import type { ChatSessionReference } from "@/lib/chat/chatSessionStorage";
 import { ChatPageComposerAttachments } from "./ChatPageComposerAttachments";
 import type { ComposerNotice, ReferencePickerSource } from "./types";
+
+const styles = stylex.create({
+  root: { bottom: 0, insetInline: 0, pointerEvents: "none", position: "absolute", zIndex: 10 },
+  fade: {
+    backgroundImage: "linear-gradient(to top, #fffbf2, rgb(255 251 242 / 0.9), transparent)",
+    bottom: 0,
+    insetInline: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: 0,
+  },
+  overlay: { paddingBlock: 64, paddingBottom: 24, paddingInline: 16 },
+  composerArea: { marginInline: "auto", maxWidth: 672, pointerEvents: "auto" },
+  notice: {
+    border: "1px solid #bfdbfe",
+    borderRadius: 12,
+    color: "#1d4ed8",
+    fontSize: 12,
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  noticeError: { backgroundColor: "#fff1f2", borderColor: "#fecdd3", color: "#be123c" },
+  noticeSuccess: { backgroundColor: "#ecfdf5", borderColor: "#bbf7d0", color: "#047857" },
+  memoryNotice: {
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    border: "1px solid #bbf7d0",
+    borderRadius: 8,
+    color: "#047857",
+    display: "flex",
+    fontSize: 12,
+    gap: 12,
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  inlineActions: { alignItems: "center", display: "flex", gap: 8 },
+  memoryAction: {
+    color: "#065f46",
+    fontWeight: 600,
+    transition: "color 150ms",
+    ":hover": { color: "#064e3b" },
+  },
+  dismissAction: { color: "#059669", transition: "color 150ms", ":hover": { color: "#047857" } },
+  iconSmall: { height: 14, width: 14 },
+  referenceNotice: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: 8,
+    color: "#b45309",
+    fontSize: 12,
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  references: {
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    border: "1px solid #e4e4e7",
+    borderRadius: 12,
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "relative",
+    zIndex: 10,
+  },
+  referencesHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 8,
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  referenceTitle: { color: "#52525b", fontSize: 12, fontWeight: 500 },
+  referenceCount: { color: "#a1a1aa", marginLeft: 4 },
+  scopeText: { color: "#71717a", fontSize: 11 },
+  clearButton: {
+    color: "#71717a",
+    fontSize: 12,
+    transition: "color 150ms",
+    ":hover": { color: "#3f3f46" },
+  },
+  referenceList: { display: "flex", flexWrap: "wrap", gap: 6 },
+  referenceChip: {
+    alignItems: "center",
+    backgroundColor: "#f4f4f5",
+    border: "1px solid #e4e4e7",
+    borderRadius: 9999,
+    color: "#3f3f46",
+    display: "inline-flex",
+    fontSize: 12,
+    gap: 4,
+    maxWidth: "100%",
+    paddingBlock: 4,
+    paddingInline: 8,
+  },
+  referenceIcon: { color: "#71717a", flexShrink: 0, height: 14, width: 14 },
+  truncate: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  removeReference: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: "#a1a1aa",
+    display: "inline-flex",
+    height: 16,
+    justifyContent: "center",
+    transition: "color 150ms, background-color 150ms",
+    width: 16,
+    ":hover": { backgroundColor: "#e4e4e7", color: "#3f3f46" },
+  },
+  hidden: { display: "none" },
+  composer: {
+    backdropFilter: "blur(24px)",
+    backgroundColor: "rgb(255 255 255 / 0.9)",
+    border: "1px solid rgb(228 228 231 / 0.8)",
+    borderRadius: 12,
+    boxShadow: "0 24px 60px -28px rgb(24 24 27 / 0.35)",
+    position: "relative",
+    transition: "border-color 150ms, box-shadow 150ms",
+  },
+  composerDragging: { borderColor: "#18181b", boxShadow: "0 0 0 2px rgb(24 24 27 / 0.1)" },
+  dragOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgb(24 24 27 / 0.05)",
+    border: "1px dashed rgb(24 24 27 / 0.2)",
+    borderRadius: 12,
+    color: "#3f3f46",
+    display: "flex",
+    fontSize: 14,
+    fontWeight: 500,
+    inset: 0,
+    justifyContent: "center",
+    paddingInline: 24,
+    pointerEvents: "none",
+    position: "absolute",
+    textAlign: "center",
+    zIndex: 10,
+  },
+  attachments: { paddingBlock: 12, paddingBottom: 4, paddingInline: 12 },
+  textArea: {
+    backgroundColor: "transparent",
+    color: "#18181b",
+    fontSize: 14,
+    maxHeight: 180,
+    outline: "none",
+    overflowY: "auto",
+    paddingBottom: 8,
+    paddingInline: 16,
+    resize: "none",
+    width: "100%",
+    "::placeholder": { color: "#a1a1aa" },
+  },
+  textAreaWithImages: { paddingTop: 8 },
+  textAreaWithoutImages: { paddingTop: 14 },
+  composerFooter: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "space-between",
+    paddingBottom: 10,
+    paddingInline: 12,
+  },
+  toolGroup: { alignItems: "center", display: "flex", gap: 4 },
+  toolButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: "#a1a1aa",
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "color 150ms, background-color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: "#f4f4f5", color: "#52525b" },
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  toolButtonActive: { backgroundColor: "#18181b", color: "white" },
+  icon: { height: 16, width: 16 },
+  submitGroup: { alignItems: "center", display: "flex", gap: 8 },
+  roundButton: {
+    alignItems: "center",
+    backgroundColor: "#18181b",
+    borderRadius: 9999,
+    color: "white",
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "all 150ms",
+    width: 28,
+    ":hover": { backgroundColor: "#27272a" },
+  },
+  submitInactive: { backgroundColor: "#e4e4e7", color: "#a1a1aa" },
+  disabled: { cursor: "not-allowed", opacity: 0.5 },
+});
 
 interface ChatPageComposerPanelProps {
   composerFadeHeight: number;
@@ -135,58 +328,52 @@ export const ChatPageComposerPanel = ({
   onRemoveComposerImage,
 }: ChatPageComposerPanelProps) => {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 bg-gradient-to-t from-[#fffbf2] via-[#fffbf2]/90 to-transparent"
-        style={{ height: composerFadeHeight }}
-      />
-      <div ref={composerOverlayRef} className="px-4 pb-6 pt-16">
-        <div className="pointer-events-auto mx-auto max-w-2xl">
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.fade)} style={{ height: composerFadeHeight }} />
+      <div ref={composerOverlayRef} {...stylex.props(styles.overlay)}>
+        <div {...stylex.props(styles.composerArea)}>
           <AnimatePresence>
             {isStreaming && status.type !== "idle" && status.type !== "generating" && (
               <StatusBar status={status} />
             )}
           </AnimatePresence>
           {memoryUpdatedNotice && (
-            <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div {...stylex.props(styles.memoryNotice)}>
               <span>Memory updated. Review or delete it in Settings &gt; Memory.</span>
-              <div className="flex items-center gap-2">
+              <div {...stylex.props(styles.inlineActions)}>
                 <button
                   type="button"
                   onClick={() => onOpenSettings("memory")}
-                  className="font-semibold text-emerald-800 transition hover:text-emerald-900"
+                  {...stylex.props(styles.memoryAction)}
                 >
                   Open settings
                 </button>
                 <button
                   type="button"
                   onClick={onDismissMemoryNotice}
-                  className="text-emerald-600 transition hover:text-emerald-800"
+                  {...stylex.props(styles.dismissAction)}
                   aria-label="Dismiss memory update notice"
                 >
-                  <XIcon className="size-3.5" />
+                  <XIcon className={stylex.props(styles.iconSmall).className} />
                 </button>
               </div>
             </div>
           )}
           {composerNotice && (
             <div
-              className={`mb-2 rounded-xl border px-3 py-2 text-xs ${
+              {...stylex.props(
+                styles.notice,
                 composerNotice.type === "error"
-                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  ? styles.noticeError
                   : composerNotice.type === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-blue-200 bg-blue-50 text-blue-700"
-              }`}
+                    ? styles.noticeSuccess
+                    : null,
+              )}
             >
               {composerNotice.text}
             </div>
           )}
-          {referenceNotice && (
-            <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              {referenceNotice}
-            </p>
-          )}
+          {referenceNotice && <p {...stylex.props(styles.referenceNotice)}>{referenceNotice}</p>}
           <ChatPageComposerAttachments
             remainingImageSlots={remainingImageSlots}
             sessionsReady={sessionsReady}
@@ -199,15 +386,15 @@ export const ChatPageComposerPanel = ({
             onSelectLibraryImage={onSelectLibraryImage}
           />
           {activeReferences.length > 0 && (
-            <div className="relative z-10 mb-2 rounded-xl border border-zinc-200 bg-white/80 px-3 py-2">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-zinc-600">
+            <div {...stylex.props(styles.references)}>
+              <div {...stylex.props(styles.referencesHeader)}>
+                <p {...stylex.props(styles.referenceTitle)}>
                   References
-                  <span className="ml-1 text-zinc-400">({activeReferences.length})</span>
+                  <span {...stylex.props(styles.referenceCount)}>({activeReferences.length})</span>
                 </p>
-                <div className="flex items-center gap-2">
+                <div {...stylex.props(styles.inlineActions)}>
                   {resolvedReferenceScope.isActive && (
-                    <span className="text-[11px] text-zinc-500">
+                    <span {...stylex.props(styles.scopeText)}>
                       Scoped files: {resolvedReferenceScope.fileIds.length}
                       {resolvedReferenceScope.truncated
                         ? ` / ${resolvedReferenceScope.totalResolvedFiles}`
@@ -217,31 +404,31 @@ export const ChatPageComposerPanel = ({
                   <button
                     type="button"
                     onClick={onClearReferences}
-                    className="text-xs text-zinc-500 transition hover:text-zinc-700"
+                    {...stylex.props(styles.clearButton)}
                   >
                     Clear all
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div {...stylex.props(styles.referenceList)}>
                 {activeReferences.map((reference) => (
                   <span
                     key={`${reference.type}:${reference.id}`}
-                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-zinc-200 bg-zinc-100 px-2 py-1 text-xs text-zinc-700"
+                    {...stylex.props(styles.referenceChip)}
                   >
                     {reference.type === "folder" ? (
-                      <FolderSimpleIcon className="size-3.5 shrink-0 text-zinc-500" />
+                      <FolderSimpleIcon className={stylex.props(styles.referenceIcon).className} />
                     ) : (
-                      <FileTextIcon className="size-3.5 shrink-0 text-zinc-500" />
+                      <FileTextIcon className={stylex.props(styles.referenceIcon).className} />
                     )}
-                    <span className="truncate">{reference.name}</span>
+                    <span {...stylex.props(styles.truncate)}>{reference.name}</span>
                     <button
                       type="button"
                       onClick={() => onRemoveReference(reference)}
-                      className="inline-flex size-4 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
+                      {...stylex.props(styles.removeReference)}
                       aria-label={`Remove reference ${reference.name}`}
                     >
-                      <XIcon className="size-3" />
+                      <XIcon className={stylex.props(styles.iconSmall).className} />
                     </button>
                   </span>
                 ))}
@@ -261,28 +448,22 @@ export const ChatPageComposerPanel = ({
             type="file"
             accept="image/*"
             multiple
-            className="hidden"
+            {...stylex.props(styles.hidden)}
             onChange={onImageInputChange}
           />
           <form onSubmit={onSubmit}>
             <div
-              className={`group relative rounded-xl border bg-white/90 shadow-[0_24px_60px_-28px_rgba(24,24,27,0.35)] backdrop-blur-xl transition-colors focus-within:border-zinc-300 focus-within:shadow-[0_28px_70px_-28px_rgba(24,24,27,0.42)] ${
-                composerDragActive
-                  ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                  : "border-zinc-200/80"
-              }`}
+              {...stylex.props(styles.composer, composerDragActive && styles.composerDragging)}
               onDragEnter={onDragEnter}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
             >
               {composerDragActive && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border border-dashed border-zinc-900/20 bg-zinc-900/5 px-6 text-center text-sm font-medium text-zinc-700">
-                  Drop images here to attach them
-                </div>
+                <div {...stylex.props(styles.dragOverlay)}>Drop images here to attach them</div>
               )}
               {composerImages.length > 0 && (
-                <div className="px-3 pb-1 pt-3">
+                <div {...stylex.props(styles.attachments)}>
                   <ChatImageAttachmentGallery
                     attachments={composerImages}
                     tone="composer"
@@ -300,56 +481,57 @@ export const ChatPageComposerPanel = ({
                 placeholder="Message Memora..."
                 disabled={isPreparingTurn}
                 rows={1}
-                className={`max-h-[180px] w-full resize-none overflow-y-auto bg-transparent px-4 pb-2 text-sm text-zinc-900 outline-none [field-sizing:content] placeholder:text-zinc-400 ${
-                  composerImages.length > 0 ? "pt-2" : "pt-3.5"
-                }`}
+                {...stylex.props(
+                  styles.textArea,
+                  composerImages.length > 0
+                    ? styles.textAreaWithImages
+                    : styles.textAreaWithoutImages,
+                )}
               />
-              <div className="flex items-center justify-between px-3 pb-2.5">
-                <div className="flex items-center gap-1">
+              <div {...stylex.props(styles.composerFooter)}>
+                <div {...stylex.props(styles.toolGroup)}>
                   <button
                     type="button"
                     onClick={onCreateSession}
                     disabled={!sessionsReady || isPreparingTurn}
-                    className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...stylex.props(styles.toolButton)}
                     title="New session"
                   >
-                    <PlusIcon className="size-4" weight="bold" />
+                    <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
                   </button>
                   <button
                     type="button"
                     onClick={onImageButtonClick}
                     disabled={!sessionsReady || isPreparingTurn}
-                    className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
-                      imagePickerOpen || composerImages.length > 0
-                        ? "bg-zinc-900 text-white"
-                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                    {...stylex.props(
+                      styles.toolButton,
+                      (imagePickerOpen || composerImages.length > 0) && styles.toolButtonActive,
+                    )}
                     title="Attach images"
                   >
-                    <ImageIcon className="size-4" weight="bold" />
+                    <ImageIcon className={stylex.props(styles.icon).className} weight="bold" />
                   </button>
                   <button
                     type="button"
                     onClick={onReferenceButtonClick}
                     disabled={!sessionsReady || isPreparingTurn}
-                    className={`flex size-7 items-center justify-center rounded-lg transition-colors ${
-                      referencePickerOpen
-                        ? "bg-zinc-900 text-white"
-                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                    {...stylex.props(
+                      styles.toolButton,
+                      referencePickerOpen && styles.toolButtonActive,
+                    )}
                     title="Reference files or folders"
                   >
-                    <FileTextIcon className="size-4" weight="bold" />
+                    <FileTextIcon className={stylex.props(styles.icon).className} weight="bold" />
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenSettings("ai-provider")}
-                    className="flex size-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+                    {...stylex.props(styles.toolButton)}
                   >
-                    <SlidersHorizontalIcon className="size-4" />
+                    <SlidersHorizontalIcon className={stylex.props(styles.icon).className} />
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div {...stylex.props(styles.submitGroup)}>
                   <ChatContextUsage
                     composerImageCount={composerImages.length}
                     composerText={composerTextValue}
@@ -357,24 +539,26 @@ export const ChatPageComposerPanel = ({
                     model={selectedModelInfo}
                   />
                   {isStreaming ? (
-                    <button
-                      type="button"
-                      onClick={onAbort}
-                      className="flex size-7 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800"
-                    >
-                      <StopIcon className="size-3.5" weight="fill" />
+                    <button type="button" onClick={onAbort} {...stylex.props(styles.roundButton)}>
+                      <StopIcon
+                        className={stylex.props(styles.iconSmall).className}
+                        weight="fill"
+                      />
                     </button>
                   ) : (
                     <button
                       type="submit"
                       disabled={!canSubmitMessage}
-                      className={`flex size-7 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                        canSubmitMessage
-                          ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                          : "bg-zinc-200 text-zinc-400"
-                      }`}
+                      {...stylex.props(
+                        styles.roundButton,
+                        !canSubmitMessage && styles.submitInactive,
+                        !canSubmitMessage && styles.disabled,
+                      )}
                     >
-                      <ArrowUpIcon className="size-3.5" weight="bold" />
+                      <ArrowUpIcon
+                        className={stylex.props(styles.iconSmall).className}
+                        weight="bold"
+                      />
                     </button>
                   )}
                 </div>

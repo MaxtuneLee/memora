@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useAppStore } from "@/livestore/store";
 import { Toast } from "@base-ui/react/toast";
 import { useLocation, useNavigate } from "react-router";
@@ -15,6 +16,77 @@ import {
 import type { FileType, RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search";
 import ToastStack from "@/components/ToastStack";
+
+const styles = stylex.create({
+  root: {
+    height: "100%",
+    width: "100%",
+  },
+  fileInput: {
+    display: "none",
+  },
+  toast: {
+    alignItems: "flex-start",
+    backgroundColor: "white",
+    borderColor: "#e4e4e7",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+    display: "flex",
+    gap: "0.75rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+    transitionDuration: "150ms",
+    transitionProperty: "color, background-color, border-color, opacity, box-shadow, transform",
+  },
+  statusDot: {
+    borderRadius: "9999px",
+    display: "block",
+    flexShrink: 0,
+    height: "0.5rem",
+    marginTop: "0.25rem",
+    width: "0.5rem",
+  },
+  statusSuccess: {
+    backgroundColor: "#10b981",
+  },
+  statusError: {
+    backgroundColor: "#f43f5e",
+  },
+  statusDefault: {
+    backgroundColor: "#a1a1aa",
+  },
+  toastBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  toastTitle: {
+    color: "#18181b",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+  },
+  toastDescription: {
+    color: "#71717a",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.125rem",
+  },
+  toastClose: {
+    color: {
+      default: "#a1a1aa",
+      ":hover": "#3f3f46",
+    },
+    flexShrink: 0,
+    transitionDuration: "150ms",
+    transitionProperty: "color",
+  },
+  closeIcon: {
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+  },
+});
 
 export const Component = () => {
   const store = useAppStore();
@@ -222,19 +294,19 @@ export const Component = () => {
     });
   }, [location.pathname, location.search, location.state, navigate]);
 
-  const toastIconColor = (type?: string) => {
+  const toastIconStyle = (type?: string) => {
     switch (type) {
       case "success":
-        return "bg-emerald-500";
+        return styles.statusSuccess;
       case "error":
-        return "bg-rose-500";
+        return styles.statusError;
       default:
-        return "bg-zinc-400";
+        return styles.statusDefault;
     }
   };
 
   return (
-    <div className="h-full w-full">
+    <div {...stylex.props(styles.root)}>
       <Desktop
         externalIntent={externalIntent}
         onExternalIntentHandled={handleExternalIntentHandled}
@@ -247,7 +319,7 @@ export const Component = () => {
         ref={audioInputRef}
         type="file"
         accept="audio/*,video/*,image/*,text/*,application/pdf,.md,.pdf,.doc,.docx"
-        className="hidden"
+        {...stylex.props(styles.fileInput)}
         onChange={handleInputChange}
       />
 
@@ -263,25 +335,20 @@ export const Component = () => {
 
       <ToastStack
         render={(toast) => (
-          <Toast.Content className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-lg transition">
-            <span
-              className={`mt-1 block size-2 shrink-0 rounded-full ${toastIconColor(toast.type as string)}`}
-            />
-            <div className="min-w-0 flex-1">
-              <Toast.Title className="text-sm font-medium text-zinc-900">
+          <Toast.Content {...stylex.props(styles.toast)}>
+            <span {...stylex.props(styles.statusDot, toastIconStyle(toast.type as string))} />
+            <div {...stylex.props(styles.toastBody)}>
+              <Toast.Title {...stylex.props(styles.toastTitle)}>
                 {toast.title as string}
               </Toast.Title>
               {toast.description && (
-                <Toast.Description className="mt-0.5 text-xs text-zinc-500">
+                <Toast.Description {...stylex.props(styles.toastDescription)}>
                   {toast.description as string}
                 </Toast.Description>
               )}
             </div>
-            <Toast.Close
-              className="shrink-0 text-zinc-400 transition hover:text-zinc-700"
-              onClick={() => close(toast.id)}
-            >
-              <span className="text-xs">&#10005;</span>
+            <Toast.Close {...stylex.props(styles.toastClose)} onClick={() => close(toast.id)}>
+              <span {...stylex.props(styles.closeIcon)}>&#10005;</span>
             </Toast.Close>
           </Toast.Content>
         )}

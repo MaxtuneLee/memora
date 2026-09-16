@@ -1,4 +1,5 @@
 import { ArrowUpRightIcon, GithubLogoIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   SETTINGS_PANEL_CLASS_NAME,
@@ -7,6 +8,28 @@ import {
 } from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+
+const styles = stylex.create({
+  stack: { display: "flex", flexDirection: "column", gap: 16 },
+  panelStack: { display: "flex", flexDirection: "column", gap: 16 },
+  title: { color: "var(--color-memora-text-strong)", fontSize: "0.875rem", fontWeight: 600 },
+  bodyMargin: { marginTop: 8 },
+  logo: { width: 112 },
+  description: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: 1.5,
+    maxWidth: "42rem",
+  },
+  version: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem" },
+  githubIcon: { height: 16, width: 16 },
+  externalIcon: { height: 14, width: 14 },
+  facts: {
+    display: "grid",
+    gap: 12,
+    "@media (min-width: 768px)": { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+  },
+});
 
 const APP_DESCRIPTION = "Local-first agent lives in your browser.";
 const SUPPORT_URL = "https://github.com/maxtunelee/memora/issues";
@@ -22,8 +45,12 @@ const formatBuildChannel = (channel: string): string => {
 function FactItem({ label, description }: { label: string; description: string }) {
   return (
     <div className={SETTINGS_ROW_CLASS_NAME}>
-      <h3 className="text-sm font-semibold text-[var(--color-memora-text-strong)]">{label}</h3>
-      <p className={cn(SETTINGS_SECTION_BODY_CLASS_NAME, "mt-2")}>{description}</p>
+      <h3 {...stylex.props(styles.title)}>{label}</h3>
+      <p
+        className={cn(SETTINGS_SECTION_BODY_CLASS_NAME, stylex.props(styles.bodyMargin).className)}
+      >
+        {description}
+      </p>
     </div>
   );
 }
@@ -32,29 +59,29 @@ export default function SettingsAboutSection() {
   const buildChannel = formatBuildChannel(import.meta.env.MODE);
 
   return (
-    <div className="space-y-4">
+    <div {...stylex.props(styles.stack)}>
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <div className="space-y-4">
-          <img src="/memora-with-title.png" alt="Memora" className="w-28" />
-          <p className="max-w-2xl text-sm leading-6 text-[var(--color-memora-text-muted)]">
+        <div {...stylex.props(styles.panelStack)}>
+          <img src="/memora-with-title.png" alt="Memora" {...stylex.props(styles.logo)} />
+          <p {...stylex.props(styles.description)}>
             {APP_DESCRIPTION} Memora keeps files, settings, and workspace state in browser storage.
           </p>
-          <p className="text-xs text-[var(--color-memora-text-soft)]">
+          <p {...stylex.props(styles.version)}>
             Version {__APP_VERSION__} · Build {buildChannel}
           </p>
           <Button
             variant="primary"
             render={<a href={SUPPORT_URL} target="_blank" rel="noreferrer" />}
           >
-            <GithubLogoIcon className="size-4" weight="fill" />
+            <GithubLogoIcon {...stylex.props(styles.githubIcon)} weight="fill" />
             <span>Open GitHub issues</span>
-            <ArrowUpRightIcon className="size-3.5" />
+            <ArrowUpRightIcon {...stylex.props(styles.externalIcon)} />
           </Button>
         </div>
       </section>
 
       <section className={SETTINGS_PANEL_CLASS_NAME}>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div {...stylex.props(styles.facts)}>
           <FactItem
             label="Storage and control"
             description="Workspace state lives locally first, with persistence controls available in settings when the browser supports them."

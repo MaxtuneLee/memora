@@ -11,10 +11,10 @@ import {
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { Button } from "@base-ui/react/button";
+import * as stylex from "@stylexjs/stylex";
 import { useAppStore } from "@/livestore/store";
 import { Link, useLocation } from "react-router";
 
-import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
 import { getFileIcon } from "@/lib/library/fileIcon";
@@ -32,6 +32,238 @@ const PRIMARY_NAV_HIGHLIGHT_TRANSITION = {
   damping: 36,
   mass: 0.72,
 } as const;
+
+const styles = stylex.create({
+  sidebar: {
+    backdropFilter: "blur(24px)",
+    backgroundColor: "rgb(247 242 233 / 0.8)",
+    borderRight: "1px solid rgb(228 228 231 / 0.7)",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    width: 260,
+  },
+  header: {
+    alignItems: "center",
+    display: "flex",
+    flex: "none",
+    height: 48,
+    justifyContent: "space-between",
+    paddingInline: 16,
+  },
+  brand: {
+    alignItems: "center",
+    color: "#18181b",
+    display: "flex",
+    fontWeight: 600,
+    gap: 8,
+    userSelect: "none",
+  },
+  brandIcon: { borderRadius: 6, height: 24, width: 24 },
+  collapseButton: {
+    alignItems: "center",
+    borderRadius: 6,
+    color: "#a1a1aa",
+    display: "flex",
+    height: 24,
+    justifyContent: "center",
+    opacity: 0,
+    outline: "none",
+    transition: "all 150ms",
+    width: 24,
+    ":hover": { backgroundColor: "rgb(255 255 255 / 0.7)", color: "#18181b" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+  },
+  icon: { flexShrink: 0, height: 16, width: 16 },
+  searchArea: { marginBottom: 16, paddingInline: 12 },
+  searchButton: {
+    alignItems: "center",
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    border: "1px solid rgb(228 228 231 / 0.8)",
+    borderRadius: 9999,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    color: "#a1a1aa",
+    display: "flex",
+    fontSize: 14,
+    gap: 8,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "colors 150ms",
+    userSelect: "none",
+    width: "100%",
+    ":hover": { borderColor: "#d4d4d8", color: "#52525b" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+  },
+  searchButtonOpen: { backgroundColor: "#f8f3df", borderColor: "#aebe79", color: "#55672e" },
+  shortcut: {
+    border: "1px solid #e4e4e7",
+    borderRadius: 4,
+    color: "#d4d4d8",
+    fontSize: 10,
+    fontWeight: 500,
+    marginLeft: "auto",
+    minWidth: 20,
+    paddingInline: 4,
+    textAlign: "center",
+  },
+  content: { flex: 1, overflowX: "hidden", overflowY: "auto" },
+  section: { marginBottom: 20, paddingInline: 12 },
+  sectionHeading: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingInline: 10,
+  },
+  sectionTitle: {
+    color: "#a1a1aa",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+    userSelect: "none",
+  },
+  list: { display: "flex", flexDirection: "column", gap: 2 },
+  navItem: {
+    alignItems: "center",
+    borderRadius: 12,
+    color: "#71717a",
+    display: "flex",
+    fontSize: 14,
+    fontWeight: 500,
+    gap: 10,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 10,
+    position: "relative",
+    textDecoration: "none",
+    transition: "color 150ms, background-color 150ms",
+    userSelect: "none",
+    ":hover": { backgroundColor: "rgb(255 255 255 / 0.6)", color: "#18181b" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa, 0 0 0 3px #f7f2e9" },
+  },
+  navItemActive: { color: "#18181b" },
+  navHighlight: {
+    backgroundColor: "rgb(255 255 255 / 0.72)",
+    border: "1px solid #e7e1d8",
+    borderRadius: 12,
+    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    inset: 0,
+    pointerEvents: "none",
+    position: "absolute",
+  },
+  navIcon: {
+    color: "#a1a1aa",
+    flexShrink: 0,
+    height: 16,
+    position: "relative",
+    width: 16,
+    zIndex: 10,
+  },
+  navIconActive: { color: "#18181b" },
+  navLabel: {
+    overflow: "hidden",
+    position: "relative",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    zIndex: 10,
+  },
+  recentItem: {
+    alignItems: "center",
+    borderRadius: 12,
+    color: "#71717a",
+    display: "flex",
+    fontSize: 14,
+    gap: 12,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 10,
+    textDecoration: "none",
+    transition: "color 150ms, background-color 150ms",
+    ":hover": { backgroundColor: "rgb(255 255 255 / 0.35)", color: "#18181b" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa, 0 0 0 3px #f7f2e9" },
+  },
+  recentItemActive: { backgroundColor: "rgb(255 255 255 / 0.55)", color: "#18181b" },
+  audioIcon: { color: "#8cbf67" },
+  videoIcon: { color: "#6d8fd4" },
+  imageIcon: { color: "#d0a267" },
+  neutralIcon: { color: "#a1a1aa" },
+  fileName: {
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: "20px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  emptyFiles: { color: "#a1a1aa", fontSize: 14, paddingBlock: 8, paddingInline: 10 },
+  footer: { borderTop: "1px solid rgb(228 228 231 / 0.6)", flex: "none", padding: 24 },
+  storageButton: {
+    color: "#71717a",
+    outline: "none",
+    textAlign: "left",
+    transition: "color 150ms",
+    width: "100%",
+    ":hover": { color: "#3f3f46" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa, 0 0 0 3px #f7f2e9" },
+  },
+  storageButtonActive: { color: "#18181b" },
+  storageHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  storageLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+  },
+  storagePercent: { fontSize: 10, fontWeight: 700 },
+  storageTrack: {
+    backgroundColor: "#ece7dc",
+    borderRadius: 9999,
+    height: 8,
+    marginTop: 20,
+    overflow: "hidden",
+    width: "100%",
+  },
+  storageFill: {
+    backgroundColor: "#b9b3aa",
+    borderRadius: 9999,
+    height: "100%",
+    transition: "width 200ms",
+  },
+  storageSummary: { color: "#a1a1aa", fontSize: 10, lineHeight: 1, marginTop: 16 },
+  settingsButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    color: "#71717a",
+    display: "flex",
+    fontSize: 14,
+    fontWeight: 500,
+    gap: 12,
+    marginTop: 24,
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "color 150ms, background-color 150ms",
+    width: "100%",
+    ":hover": { backgroundColor: "rgb(255 255 255 / 0.35)", color: "#18181b" },
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa, 0 0 0 3px #f7f2e9" },
+  },
+  settingsButtonOpen: { backgroundColor: "rgb(255 255 255 / 0.5)", color: "#18181b" },
+  settingsIcon: {
+    color: "#a1a1aa",
+    flexShrink: 0,
+    height: 16,
+    transition: "color 150ms",
+    width: 16,
+  },
+  settingsIconOpen: { color: "#18181b" },
+});
 
 interface PrimaryNavItem {
   icon: React.ElementType;
@@ -99,29 +331,20 @@ interface NavItemProps {
 
 function NavItem({ icon: Icon, label, to, isActive, reducedMotion }: NavItemProps) {
   return (
-    <Link
-      to={to}
-      className={cn(
-        "group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
-        isActive ? "text-zinc-900" : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
-      )}
-    >
+    <Link to={to} {...stylex.props(styles.navItem, isActive && styles.navItemActive)}>
       {isActive ? (
         <motion.div
           layoutId="sidebar-active-item"
-          className="pointer-events-none absolute inset-0 rounded-xl border border-[#e7e1d8] bg-[rgba(255,255,255,0.72)] shadow-sm"
+          {...stylex.props(styles.navHighlight)}
           transition={reducedMotion ? { duration: 0.12 } : PRIMARY_NAV_HIGHLIGHT_TRANSITION}
         />
       ) : null}
 
       <Icon
         weight={isActive ? "fill" : "regular"}
-        className={cn(
-          "relative z-10 size-4 shrink-0 transition-colors",
-          isActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600",
-        )}
+        className={stylex.props(styles.navIcon, isActive && styles.navIconActive).className}
       />
-      <span className="relative z-10 truncate">{label}</span>
+      <span {...stylex.props(styles.navLabel)}>{label}</span>
     </Link>
   );
 }
@@ -134,16 +357,14 @@ interface SidebarSectionProps {
 
 function SidebarSection({ title, children, action }: SidebarSectionProps) {
   return (
-    <div className="mb-5 px-3">
+    <div {...stylex.props(styles.section)}>
       {title && (
-        <div className="mb-2 flex items-center justify-between px-2.5">
-          <h3 className="text-[10px] font-bold tracking-[0.18em] text-zinc-400 uppercase select-none">
-            {title}
-          </h3>
+        <div {...stylex.props(styles.sectionHeading)}>
+          <h3 {...stylex.props(styles.sectionTitle)}>{title}</h3>
           {action}
         </div>
       )}
-      <div className="space-y-0.5">{children}</div>
+      <div {...stylex.props(styles.list)}>{children}</div>
     </div>
   );
 }
@@ -184,45 +405,40 @@ export function Sidebar() {
   const isStorageActive = isSettingsOpen && activeSection === "data-storage";
 
   return (
-    <aside className="flex h-full w-[260px] flex-col border-r border-zinc-200/70 bg-[#f7f2e9]/80 backdrop-blur-xl">
-      <div className="flex h-12 flex-none items-center justify-between px-4">
-        <div className="flex items-center gap-2 font-semibold text-zinc-900 select-none">
-          <img src="/memora-icon.svg" alt="Memora" className="size-6 rounded-md" />
+    <aside {...stylex.props(styles.sidebar)}>
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.brand)}>
+          <img src="/memora-icon.svg" alt="Memora" {...stylex.props(styles.brandIcon)} />
           <span>Memora</span>
         </div>
         <Button
           aria-label="Toggle sidebar"
-          className="flex size-6 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all hover:bg-white/70 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-400 outline-none"
+          className={stylex.props(styles.collapseButton).className}
         >
-          <SidebarIcon className="size-4" />
+          <SidebarIcon className={stylex.props(styles.icon).className} />
         </Button>
       </div>
 
-      <div className="mb-4 px-3">
+      <div {...stylex.props(styles.searchArea)}>
         <Button
           aria-label="Open global search"
           aria-expanded={isSearchOpen}
           aria-haspopup="dialog"
           onClick={(event) => openSearch(event.currentTarget)}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 outline-none select-none",
-            isSearchOpen
-              ? "border-[#aebe79] bg-[#f8f3df] text-[#55672e]"
-              : "border-zinc-200/80 bg-white/80 text-zinc-400 hover:border-zinc-300 hover:text-zinc-600",
-          )}
+          className={
+            stylex.props(styles.searchButton, isSearchOpen && styles.searchButtonOpen).className
+          }
         >
-          <MagnifyingGlassIcon className="size-4" />
+          <MagnifyingGlassIcon className={stylex.props(styles.icon).className} />
           <span>Search...</span>
-          <kbd className="ml-auto min-w-[20px] rounded border border-zinc-200 px-1 text-[10px] font-medium text-zinc-300 text-center">
-            ⌘K
-          </kbd>
+          <kbd {...stylex.props(styles.shortcut)}>⌘K</kbd>
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
+      <div {...stylex.props(styles.content)}>
         <SidebarSection>
           <LayoutGroup id="sidebar-primary-navigation">
-            <div className="space-y-0.5">
+            <div {...stylex.props(styles.list)}>
               {PRIMARY_NAV_ITEMS.map((item) => (
                 <NavItem
                   key={item.to}
@@ -239,7 +455,7 @@ export function Sidebar() {
 
         <SidebarSection title="Recent Files">
           {recentFiles.length > 0 ? (
-            <div className="space-y-0.5">
+            <div {...stylex.props(styles.list)}>
               {recentFiles.map((file) => {
                 const href = getFileHref(file);
                 const Icon = getFileIcon(file);
@@ -249,76 +465,67 @@ export function Sidebar() {
                   <Link
                     key={file.id}
                     to={href}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
-                      isActive
-                        ? "bg-white/55 text-zinc-900"
-                        : "text-zinc-500 hover:bg-white/35 hover:text-zinc-900",
-                    )}
+                    {...stylex.props(styles.recentItem, isActive && styles.recentItemActive)}
                   >
                     <Icon
                       weight="fill"
-                      className={cn(
-                        "size-4 shrink-0",
-                        file.type === "audio"
-                          ? "text-[#8cbf67]"
-                          : file.type === "video"
-                            ? "text-[#6d8fd4]"
-                            : file.type === "image"
-                              ? "text-[#d0a267]"
-                              : "text-zinc-400",
-                      )}
+                      className={
+                        stylex.props(
+                          styles.icon,
+                          file.type === "audio"
+                            ? styles.audioIcon
+                            : file.type === "video"
+                              ? styles.videoIcon
+                              : file.type === "image"
+                                ? styles.imageIcon
+                                : styles.neutralIcon,
+                        ).className
+                      }
                     />
-                    <span className="truncate text-[13px] leading-5 font-medium">{file.name}</span>
+                    <span {...stylex.props(styles.fileName)}>{file.name}</span>
                   </Link>
                 );
               })}
             </div>
           ) : (
-            <div className="px-2.5 py-2 text-sm text-zinc-400">Recent files will show up here.</div>
+            <div {...stylex.props(styles.emptyFiles)}>Recent files will show up here.</div>
           )}
         </SidebarSection>
       </div>
 
-      <div className="flex-none border-t border-zinc-200/60 px-6 py-6">
+      <div {...stylex.props(styles.footer)}>
         <button
           type="button"
           onClick={() => openSettings("data-storage")}
-          className={cn(
-            "w-full text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
-            isStorageActive ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-700",
-          )}
+          {...stylex.props(styles.storageButton, isStorageActive && styles.storageButtonActive)}
         >
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-[10px] font-bold tracking-[0.18em] uppercase">Storage</span>
-            <span className="text-[10px] font-bold">{Math.round(storageUsagePercent)}%</span>
+          <div {...stylex.props(styles.storageHeader)}>
+            <span {...stylex.props(styles.storageLabel)}>Storage</span>
+            <span {...stylex.props(styles.storagePercent)}>{Math.round(storageUsagePercent)}%</span>
           </div>
 
-          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-[#ece7dc]">
+          <div {...stylex.props(styles.storageTrack)}>
             <div
-              className="h-full rounded-full bg-[#b9b3aa] transition-[width] duration-200"
+              {...stylex.props(styles.storageFill)}
               style={{ width: `${storageUsagePercent}%` }}
             />
           </div>
 
-          <p className="mt-4 text-[10px] leading-none text-zinc-400">{storageSummary}</p>
+          <p {...stylex.props(styles.storageSummary)}>{storageSummary}</p>
         </button>
 
         <Button
           onClick={() => openSettings("general")}
-          className={cn(
-            "group mt-6 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1",
-            isSettingsOpen
-              ? "bg-white/50 text-zinc-900"
-              : "text-zinc-500 hover:bg-white/35 hover:text-zinc-900",
-          )}
+          className={
+            stylex.props(styles.settingsButton, isSettingsOpen && styles.settingsButtonOpen)
+              .className
+          }
         >
           <GearIcon
             weight={isSettingsOpen ? "fill" : "regular"}
-            className={cn(
-              "size-4 shrink-0 transition-colors",
-              isSettingsOpen ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600",
-            )}
+            className={
+              stylex.props(styles.settingsIcon, isSettingsOpen && styles.settingsIconOpen).className
+            }
           />
           <span>Settings</span>
         </Button>

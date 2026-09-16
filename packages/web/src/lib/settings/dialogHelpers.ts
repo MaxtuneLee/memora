@@ -194,11 +194,11 @@ export const formatMemoryTimestamp = (timestamp: number): string => {
 export const toastIconColor = (type?: string): string => {
   switch (type) {
     case "success":
-      return "bg-emerald-500";
+      return "#10b981";
     case "error":
-      return "bg-rose-500";
+      return "#f43f5e";
     default:
-      return "bg-zinc-400";
+      return "#a1a1aa";
   }
 };
 

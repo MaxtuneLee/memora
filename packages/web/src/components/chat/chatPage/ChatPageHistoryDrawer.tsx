@@ -1,6 +1,28 @@
 import { AnimatePresence, motion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+
+const styles = stylex.create({
+  root: {
+    display: "none",
+    inset: 0,
+    position: "fixed",
+    zIndex: 50,
+    "@media (max-width: 47.999rem)": { display: "block" },
+  },
+  backdrop: { backgroundColor: "rgb(24 24 27 / 0.3)", inset: 0, position: "absolute" },
+  drawer: {
+    borderRight: "1px solid rgb(228 228 231 / 0.7)",
+    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
+    height: "100%",
+    left: 0,
+    maxWidth: 320,
+    position: "absolute",
+    insetBlock: 0,
+    width: "86vw",
+  },
+});
 
 interface ChatPageHistoryDrawerProps {
   isOpen: boolean;
@@ -31,7 +53,7 @@ export const ChatPageHistoryDrawer = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 md:hidden"
+          {...stylex.props(styles.root)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -39,7 +61,7 @@ export const ChatPageHistoryDrawer = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute inset-0 bg-zinc-950/30"
+            {...stylex.props(styles.backdrop)}
             aria-label="Close history panel"
           />
           <motion.div
@@ -47,7 +69,7 @@ export const ChatPageHistoryDrawer = ({
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "tween", duration: 0.22 }}
-            className="absolute inset-y-0 left-0 h-full w-[86vw] max-w-[320px] border-r border-zinc-200/70 shadow-xl"
+            {...stylex.props(styles.drawer)}
           >
             <ChatHistoryPanel
               sessions={sessions}

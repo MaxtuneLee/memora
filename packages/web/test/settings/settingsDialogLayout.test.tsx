@@ -22,18 +22,16 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
   expect(dialogSource).toContain("aria-expanded={isMobileNavigationOpen}");
   expect(dialogSource).not.toContain(">Settings<");
   expect(dialogSource).toContain('fontFamily: "var(--font-serif)"');
-  expect(dialogSource).toContain("h-[min(88vh,720px)]");
-  expect(dialogSource).toContain("space-y-0.5");
-  expect(dialogSource).toContain(
-    "group relative flex w-full items-center justify-start gap-2.5",
-  );
+  expect(dialogSource).toContain('height: "min(88vh, 720px)"');
+  expect(dialogSource).toContain('navStack: { display: "flex", flexDirection: "column", gap: 2 }');
+  expect(dialogSource).toContain('justifyContent: "flex-start"');
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-desktop"');
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-mobile"');
   expect(dialogSource).toContain('layoutId="settings-active-item"');
   expect(dialogSource).toContain('layoutId="settings-mobile-active-item"');
-  expect(dialogSource).toContain("text-zinc-900");
+  expect(dialogSource).toContain('navActive: { color: "#18181b" }');
   expect(dialogSource).toContain("useReducedMotion");
-  expect(classNamesSource).toContain("[font-family:var(--font-serif)]");
-  expect(indexCss).toContain("@layer pptx-viewer, theme, base, components, utilities;");
+  expect(classNamesSource).toContain('fontFamily: "var(--font-serif)"');
+  expect(indexCss).toContain('@import "./styles/tokens.css";');
   expect(pptxViewerCss).toContain('@import "pptx-react-viewer/styles" layer(pptx-viewer);');
 });

@@ -23,23 +23,23 @@ const SKIP_DIRS = new Set(["/.opfs-tools-temp-dir", "/livestore-main@4", "/lives
 const SKIP_DIR_PREFIXES = ["/livestore-devtools_"];
 
 export const STORAGE_CONTENT_CATEGORY_CONFIG = [
-  { id: "recordings", label: "Recordings", color: "bg-[#b07a63]" },
-  { id: "transcripts", label: "Transcripts", color: "bg-[#c39a5b]" },
-  { id: "text", label: "Text files", color: "bg-[#6f7d63]" },
-  { id: "images", label: "Images", color: "bg-[#9b8d7a]" },
-  { id: "videos", label: "Videos", color: "bg-[#7c6f64]" },
+  { id: "recordings", label: "Recordings", color: "#b07a63" },
+  { id: "transcripts", label: "Transcripts", color: "#c39a5b" },
+  { id: "text", label: "Text files", color: "#6f7d63" },
+  { id: "images", label: "Images", color: "#9b8d7a" },
+  { id: "videos", label: "Videos", color: "#7c6f64" },
 ] as const;
 
 const STORAGE_BREAKDOWN_SEGMENT_CONFIG = [
-  { id: "user-content", label: "User content", color: "bg-zinc-900" },
-  { id: "internal-data", label: "Internal data", color: "bg-zinc-500" },
-  { id: "browser-cache", label: "Browser cache", color: "bg-[#c39a5b]" },
-  { id: "service-workers", label: "Service workers", color: "bg-[#879a4f]" },
-  { id: "other", label: "Other", color: "bg-[#8c7b6a]" },
+  { id: "user-content", label: "User content", color: "#18181b" },
+  { id: "internal-data", label: "Internal data", color: "#71717a" },
+  { id: "browser-cache", label: "Browser cache", color: "#c39a5b" },
+  { id: "service-workers", label: "Service workers", color: "#879a4f" },
+  { id: "other", label: "Other", color: "#8c7b6a" },
   {
     id: "unclassified-storage",
     label: "Unclassified storage",
-    color: "bg-[#a39584]",
+    color: "#a39584",
   },
 ] as const;
 

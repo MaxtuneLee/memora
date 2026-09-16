@@ -1,7 +1,148 @@
 import { memo, useMemo } from "react";
 import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
-import { cn } from "@/lib/cn";
+import * as stylex from "@stylexjs/stylex";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+
+const styles = stylex.create({
+  root: {
+    backgroundColor: "rgb(247 242 233 / 0.85)",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+  },
+  header: { borderBottom: "1px solid rgb(228 228 231 / 0.6)", flexShrink: 0, padding: 12 },
+  headingRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: 8,
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headingCopy: { minWidth: 0 },
+  heading: {
+    color: "#18181b",
+    fontSize: 14,
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  activeTitle: {
+    color: "#71717a",
+    fontSize: 12,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  iconButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: "#71717a",
+    display: "inline-flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "color 150ms, background-color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: "rgb(228 228 231 / 0.7)", color: "#27272a" },
+  },
+  icon: { height: 14, width: 14 },
+  newSession: {
+    alignItems: "center",
+    backgroundColor: "white",
+    border: "1px solid #e4e4e7",
+    borderRadius: 8,
+    color: "#3f3f46",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 500,
+    gap: 6,
+    justifyContent: "center",
+    paddingBlock: 8,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    width: "100%",
+    ":hover": { backgroundColor: "#fafafa" },
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: "auto", paddingBlock: 12, paddingInline: 8 },
+  empty: {
+    backgroundColor: "rgb(255 255 255 / 0.6)",
+    border: "1px dashed rgb(228 228 231 / 0.7)",
+    borderRadius: 12,
+    color: "#71717a",
+    fontSize: 12,
+    paddingBlock: 16,
+    paddingInline: 12,
+    textAlign: "center",
+  },
+  groups: { display: "flex", flexDirection: "column", gap: 12 },
+  groupHeading: {
+    backdropFilter: "blur(8px)",
+    backgroundColor: "rgb(247 242 233 / 0.95)",
+    color: "#71717a",
+    fontSize: 12,
+    fontWeight: 600,
+    paddingBlock: 6,
+    paddingInline: 8,
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+  sessions: { display: "flex", flexDirection: "column", gap: 4 },
+  session: {
+    alignItems: "flex-start",
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    border: "1px solid #e4e4e7",
+    borderRadius: 12,
+    color: "#3f3f46",
+    display: "flex",
+    gap: 4,
+    padding: 8,
+    transition: "background-color 150ms, border-color 150ms",
+  },
+  sessionActive: { backgroundColor: "#18181b", borderColor: "#18181b", color: "white" },
+  disabled: { cursor: "not-allowed", opacity: 0.6 },
+  select: {
+    backgroundColor: "transparent",
+    borderRadius: 8,
+    flex: 1,
+    minWidth: 0,
+    paddingBlock: 2,
+    paddingInline: 4,
+    textAlign: "left",
+  },
+  sessionTitle: {
+    fontSize: 14,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  preview: {
+    color: "#71717a",
+    fontSize: 12,
+    marginTop: 4,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  previewActive: { color: "#d4d4d8" },
+  delete: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: "#a1a1aa",
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 28,
+    justifyContent: "center",
+    marginTop: 2,
+    transition: "all 150ms",
+    width: 28,
+    ":hover": { backgroundColor: "#f4f4f5", color: "#dc2626" },
+  },
+  deleteActive: { color: "#d4d4d8", ":hover": { backgroundColor: "#27272a", color: "#fca5a5" } },
+  deleting: { cursor: "not-allowed", opacity: 0.4 },
+});
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -70,21 +211,21 @@ function ChatHistoryPanelComponent({
     sessions.find((session) => session.id === activeSessionId)?.title ?? "History";
 
   return (
-    <div className="flex h-full flex-col bg-[#f7f2e9]/85">
-      <div className="shrink-0 border-b border-zinc-200/60 px-3 py-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-zinc-900">Chat History</h2>
-            <p className="truncate text-xs text-zinc-500">{activeTitle}</p>
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.headingRow)}>
+          <div {...stylex.props(styles.headingCopy)}>
+            <h2 {...stylex.props(styles.heading)}>Chat History</h2>
+            <p {...stylex.props(styles.activeTitle)}>{activeTitle}</p>
           </div>
           {onCloseMobileDrawer && (
             <button
               type="button"
               onClick={onCloseMobileDrawer}
-              className="inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-200/70 hover:text-zinc-800"
+              {...stylex.props(styles.iconButton)}
               aria-label="Close history panel"
             >
-              <XIcon className="size-4" />
+              <XIcon className={stylex.props(styles.icon).className} />
             </button>
           )}
         </div>
@@ -95,26 +236,22 @@ function ChatHistoryPanelComponent({
             onCloseMobileDrawer?.();
           }}
           disabled={!isReady}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          {...stylex.props(styles.newSession)}
         >
-          <PlusIcon className="size-3.5" weight="bold" />
+          <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
           New session
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+      <div {...stylex.props(styles.scrollArea)}>
         {groups.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-200/70 bg-white/60 px-3 py-4 text-center text-xs text-zinc-500">
-            No saved sessions yet.
-          </div>
+          <div {...stylex.props(styles.empty)}>No saved sessions yet.</div>
         ) : (
-          <div className="space-y-3">
+          <div {...stylex.props(styles.groups)}>
             {groups.map((group) => (
               <section key={group.id}>
-                <div className="sticky top-0 z-10 bg-[#f7f2e9]/95 px-2 py-1.5 text-xs font-semibold text-zinc-500 backdrop-blur-sm">
-                  {group.label}
-                </div>
-                <div className="space-y-1">
+                <div {...stylex.props(styles.groupHeading)}>{group.label}</div>
+                <div {...stylex.props(styles.sessions)}>
                   {group.sessions.map((session) => {
                     const isActive = session.id === activeSessionId;
                     const selectDisabled = isStreaming && !isActive;
@@ -122,12 +259,10 @@ function ChatHistoryPanelComponent({
                     return (
                       <div
                         key={session.id}
-                        className={cn(
-                          "flex items-start gap-1 rounded-xl border px-2 py-2 transition-colors",
-                          isActive
-                            ? "border-zinc-900 bg-zinc-900 text-white"
-                            : "border-zinc-200 bg-white/80 text-zinc-700",
-                          selectDisabled && "cursor-not-allowed opacity-60",
+                        {...stylex.props(
+                          styles.session,
+                          isActive && styles.sessionActive,
+                          selectDisabled && styles.disabled,
                         )}
                       >
                         <button
@@ -137,19 +272,12 @@ function ChatHistoryPanelComponent({
                             onCloseMobileDrawer?.();
                           }}
                           disabled={selectDisabled}
-                          className={cn(
-                            "min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left bg-transparent",
-                          )}
+                          {...stylex.props(styles.select)}
                         >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{session.title}</p>
+                          <div {...stylex.props(styles.headingCopy)}>
+                            <p {...stylex.props(styles.sessionTitle)}>{session.title}</p>
                           </div>
-                          <p
-                            className={cn(
-                              "mt-1 truncate text-xs",
-                              isActive ? "text-zinc-300" : "text-zinc-500",
-                            )}
-                          >
+                          <p {...stylex.props(styles.preview, isActive && styles.previewActive)}>
                             {session.preview || "No messages yet"}
                           </p>
                         </button>
@@ -158,15 +286,13 @@ function ChatHistoryPanelComponent({
                           onClick={() => onDeleteSession(session.id)}
                           disabled={deleteDisabled}
                           aria-label={`Delete session ${session.title}`}
-                          className={cn(
-                            "mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition",
-                            isActive
-                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-red-300"
-                              : "text-zinc-400 hover:bg-zinc-100 hover:text-red-600",
-                            deleteDisabled && "cursor-not-allowed opacity-40",
+                          {...stylex.props(
+                            styles.delete,
+                            isActive && styles.deleteActive,
+                            deleteDisabled && styles.deleting,
                           )}
                         >
-                          <TrashIcon className="size-3.5" />
+                          <TrashIcon className={stylex.props(styles.icon).className} />
                         </button>
                       </div>
                     );

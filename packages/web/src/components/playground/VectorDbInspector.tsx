@@ -6,13 +6,355 @@ import {
   HashIcon,
   SpinnerGapIcon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { VectorDbIndexInspection } from "@/lib/vector-db";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 
-const SECONDARY_BUTTON_CLASS_NAME =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-memora-border bg-memora-surface px-4 text-sm font-medium text-memora-text transition-colors hover:bg-memora-surface-soft disabled:cursor-not-allowed disabled:opacity-45";
+const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
+
+const styles = stylex.create({
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--color-memora-surface)",
+      ":hover": "var(--color-memora-surface-soft)",
+    },
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text)",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    height: "2.5rem",
+    justifyContent: "center",
+    lineHeight: "1.25rem",
+    paddingInline: "1rem",
+    transition: "background-color 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.45 },
+  },
+  centeredButton: { marginInline: "auto", marginTop: "1.25rem" },
+  icon: { height: "1rem", width: "1rem" },
+  spin: { animation: `${spin} 1s linear infinite` },
+  stat: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  statLabel: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "1rem",
+  },
+  statValue: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "2rem",
+    marginTop: "0.25rem",
+  },
+  statDetail: {
+    color: "var(--color-memora-text-soft)",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.125rem",
+  },
+  empty: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "24px",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "360px",
+    paddingBlock: "3.5rem",
+    paddingInline: "1.5rem",
+    textAlign: "center",
+  },
+  emptyContent: { maxWidth: "28rem" },
+  emptyIconFrame: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "1rem",
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    height: "2.75rem",
+    justifyContent: "center",
+    marginInline: "auto",
+    width: "2.75rem",
+  },
+  mediumIcon: { height: "1.25rem", width: "1.25rem" },
+  emptyTitle: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "2rem",
+    marginTop: "1.25rem",
+  },
+  emptyText: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.75rem",
+  },
+  error: {
+    backgroundColor: "var(--color-memora-warning-surface)",
+    borderRadius: "0.75rem",
+    color: "var(--color-memora-warning-text)",
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.75rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    textAlign: "left",
+  },
+  root: { display: "flex", flexDirection: "column", gap: "1.5rem" },
+  panel: {
+    backgroundColor: "var(--color-memora-surface)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "26px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: { default: "1.25rem", "@media (min-width: 640px)": "1.5rem" },
+  },
+  panelHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    justifyContent: "space-between",
+  },
+  headingGroup: { alignItems: "flex-start", display: "flex", gap: "0.75rem" },
+  headingIconFrame: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-olive-faint)",
+    borderRadius: "0.5rem",
+    color: "var(--color-memora-olive)",
+    display: "flex",
+    flexShrink: 0,
+    height: "2rem",
+    justifyContent: "center",
+    marginTop: "0.125rem",
+    width: "2rem",
+  },
+  heading: {
+    color: "var(--color-memora-text-strong)",
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.25rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "1.75rem",
+  },
+  description: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.25rem",
+    maxWidth: "42rem",
+  },
+  stats: {
+    display: "grid",
+    gap: "0.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 640px)": "repeat(2, minmax(0, 1fr))",
+      "@media (min-width: 1024px)": "repeat(4, minmax(0, 1fr))",
+    },
+    marginTop: "1.5rem",
+  },
+  metadata: {
+    borderTopColor: "var(--color-memora-border)",
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    columnGap: "1.25rem",
+    rowGap: "0.25rem",
+    lineHeight: "1rem",
+    marginTop: "1rem",
+    paddingTop: "1rem",
+  },
+  mono: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" },
+  columns: {
+    display: "grid",
+    gap: "1.5rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 1280px)": "minmax(280px, 0.65fr) minmax(0, 1.35fr)",
+    },
+  },
+  columnPanel: { minWidth: 0 },
+  sectionHeader: {
+    alignItems: "baseline",
+    borderBottomColor: "var(--color-memora-border)",
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    paddingBottom: "1rem",
+  },
+  passageHeader: { alignItems: "flex-start", flexWrap: "wrap" },
+  minWidth: { minWidth: 0 },
+  sectionDescription: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  count: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem", lineHeight: "1rem" },
+  documentList: { display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" },
+  documentButton: {
+    backgroundColor: {
+      default: "var(--color-memora-canvas)",
+      ":hover": "var(--color-memora-surface-soft)",
+    },
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    paddingBlock: "0.75rem",
+    paddingInline: "0.875rem",
+    textAlign: "left",
+    transition: "background-color 150ms, border-color 150ms",
+    width: "100%",
+    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+  },
+  selectedDocument: {
+    backgroundColor: "color-mix(in srgb, var(--color-memora-olive-faint) 35%, transparent)",
+    borderColor: "var(--color-memora-olive-soft)",
+  },
+  documentTop: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  documentId: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  chunkBadge: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: "9999px",
+    color: "var(--color-memora-text-muted)",
+    flexShrink: 0,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.5rem",
+  },
+  documentMeta: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "0.5rem",
+    lineHeight: "1rem",
+    marginTop: "0.5rem",
+  },
+  emptyList: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "1.25rem",
+  },
+  dateBadge: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    borderColor: "var(--color-memora-border)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  chunks: { display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" },
+  chunk: {
+    backgroundColor: "var(--color-memora-canvas)",
+    borderColor: "var(--color-memora-border-soft)",
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    paddingBlock: "0.875rem",
+    paddingInline: "1rem",
+  },
+  chunkMeta: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    columnGap: "0.75rem",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    rowGap: "0.25rem",
+  },
+  chunkIndex: {
+    alignItems: "center",
+    color: "var(--color-memora-text-muted)",
+    display: "inline-flex",
+    fontWeight: 500,
+    gap: "0.25rem",
+  },
+  smallIcon: { height: "0.875rem", width: "0.875rem" },
+  chunkText: {
+    color: "var(--color-memora-text)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+    maxHeight: "6rem",
+    overflow: "hidden",
+    whiteSpace: "pre-wrap",
+  },
+  chunkFooter: {
+    alignItems: "center",
+    color: "var(--color-memora-text-soft)",
+    display: "flex",
+    fontSize: "11px",
+    gap: "0.5rem",
+    lineHeight: "1rem",
+    marginTop: "0.75rem",
+  },
+  noSelection: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "260px",
+    paddingInline: "1.5rem",
+    textAlign: "center",
+  },
+  noSelectionText: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    maxWidth: "24rem",
+  },
+});
 
 const formatDate = (timestamp: number): string => {
   if (!Number.isFinite(timestamp)) return "Unknown date";
@@ -40,12 +382,10 @@ interface StatProps {
 
 function Stat({ label, value, detail }: StatProps) {
   return (
-    <div className="rounded-2xl border border-memora-border-soft bg-memora-canvas px-4 py-3">
-      <p className="text-xs font-medium text-memora-text-muted">{label}</p>
-      <p className="mt-1 font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-        {value}
-      </p>
-      {detail ? <p className="mt-0.5 text-xs text-memora-text-soft">{detail}</p> : null}
+    <div {...stylex.props(styles.stat)}>
+      <p {...stylex.props(styles.statLabel)}>{label}</p>
+      <p {...stylex.props(styles.statValue)}>{value}</p>
+      {detail ? <p {...stylex.props(styles.statDetail)}>{detail}</p> : null}
     </div>
   );
 }
@@ -60,34 +400,30 @@ function EmptyInspector({
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex min-h-[360px] items-center justify-center rounded-[24px] border border-dashed border-memora-border-soft bg-memora-surface-soft px-6 py-14 text-center">
-      <div className="max-w-md">
-        <span className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-memora-surface-muted text-memora-text-muted">
+    <div {...stylex.props(styles.empty)}>
+      <div {...stylex.props(styles.emptyContent)}>
+        <span {...stylex.props(styles.emptyIconFrame)}>
           {isLoading ? (
-            <SpinnerGapIcon className="size-5 animate-spin" />
+            <SpinnerGapIcon className={stylex.props(styles.mediumIcon, styles.spin).className} />
           ) : (
-            <DatabaseIcon className="size-5" />
+            <DatabaseIcon className={stylex.props(styles.mediumIcon).className} />
           )}
         </span>
-        <h2 className="mt-5 font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
+        <h2 {...stylex.props(styles.emptyTitle)}>
           {isLoading ? "Reading the local index" : "No index is open"}
         </h2>
-        <p className="mt-3 text-sm leading-6 text-memora-text-muted">
+        <p {...stylex.props(styles.emptyText)}>
           {error
             ? "Index a file first, then refresh this inspector to read the same local SQLite database."
             : "The inspector will show documents and passages after the local vector index has been initialized."}
         </p>
-        {error ? (
-          <p className="mt-3 rounded-xl bg-memora-warning-surface px-3 py-2 text-left text-xs leading-5 text-memora-warning-text">
-            {error}
-          </p>
-        ) : null}
+        {error ? <p {...stylex.props(styles.error)}>{error}</p> : null}
         <Button
           onClick={onRefresh}
           disabled={isLoading}
-          className={`${SECONDARY_BUTTON_CLASS_NAME} mx-auto mt-5`}
+          className={stylex.props(styles.secondaryButton, styles.centeredButton).className}
         >
-          <ArrowClockwiseIcon className="size-4" />
+          <ArrowClockwiseIcon className={stylex.props(styles.icon).className} />
           Refresh index
         </Button>
       </div>
@@ -144,18 +480,16 @@ export default function VectorDbInspector() {
   const { health, documents, chunks } = inspection;
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-memora-olive-faint text-memora-olive">
-              <DatabaseIcon className="size-4" />
+    <div {...stylex.props(styles.root)}>
+      <section {...stylex.props(styles.panel)}>
+        <div {...stylex.props(styles.panelHeader)}>
+          <div {...stylex.props(styles.headingGroup)}>
+            <span {...stylex.props(styles.headingIconFrame)}>
+              <DatabaseIcon className={stylex.props(styles.icon).className} />
             </span>
             <div>
-              <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
-                Vector database inspector
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-memora-text-muted">
+              <h2 {...stylex.props(styles.heading)}>Vector database inspector</h2>
+              <p {...stylex.props(styles.description)}>
                 A read-only view of the documents and passages currently stored in the local
                 sqlite-vec index.
               </p>
@@ -164,14 +498,16 @@ export default function VectorDbInspector() {
           <Button
             onClick={() => void refresh(selectedDocumentId ?? undefined)}
             disabled={isLoading}
-            className={SECONDARY_BUTTON_CLASS_NAME}
+            className={stylex.props(styles.secondaryButton).className}
           >
-            <ArrowClockwiseIcon className={isLoading ? "size-4 animate-spin" : "size-4"} />
+            <ArrowClockwiseIcon
+              className={stylex.props(styles.icon, isLoading && styles.spin).className}
+            />
             Refresh
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div {...stylex.props(styles.stats)}>
           <Stat label="Indexed documents" value={health.documentCount.toLocaleString()} />
           <Stat label="Stored chunks" value={health.chunkCount.toLocaleString()} />
           <Stat
@@ -186,30 +522,28 @@ export default function VectorDbInspector() {
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-memora-border pt-4 text-xs text-memora-text-soft">
-          <span className="font-mono">index {health.indexId}</span>
+        <div {...stylex.props(styles.metadata)}>
+          <span {...stylex.props(styles.mono)}>index {health.indexId}</span>
           <span>SQLite {health.sqliteVersion}</span>
           <span>chunk size {health.config.chunkSize.toLocaleString()} chars</span>
           <span>{health.config.pooling} pooling</span>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(280px,0.65fr)_minmax(0,1.35fr)]">
-        <section className="min-w-0 rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-          <div className="flex items-baseline justify-between gap-3 border-b border-memora-border pb-4">
+      <div {...stylex.props(styles.columns)}>
+        <section {...stylex.props(styles.panel, styles.columnPanel)}>
+          <div {...stylex.props(styles.sectionHeader)}>
             <div>
-              <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
-                Indexed documents
-              </h2>
-              <p className="mt-1 text-sm text-memora-text-muted">
+              <h2 {...stylex.props(styles.heading)}>Indexed documents</h2>
+              <p {...stylex.props(styles.sectionDescription)}>
                 Select a document to inspect its stored passages.
               </p>
             </div>
-            <span className="text-xs text-memora-text-soft">{documents.length}</span>
+            <span {...stylex.props(styles.count)}>{documents.length}</span>
           </div>
 
           {documents.length ? (
-            <div className="mt-4 space-y-2">
+            <div {...stylex.props(styles.documentList)}>
               {documents.map((document) => {
                 const isSelected = document.documentId === selectedDocumentId;
                 return (
@@ -217,18 +551,19 @@ export default function VectorDbInspector() {
                     key={document.documentId}
                     type="button"
                     onClick={() => selectDocument(document.documentId)}
-                    className={`w-full rounded-2xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft ${isSelected ? "border-memora-olive-soft bg-memora-olive-faint/35" : "border-memora-border-soft bg-memora-canvas hover:bg-memora-surface-soft"}`}
+                    className={
+                      stylex.props(styles.documentButton, isSelected && styles.selectedDocument)
+                        .className
+                    }
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="min-w-0 truncate text-sm font-medium text-memora-text">
-                        {document.documentId}
-                      </span>
-                      <span className="shrink-0 rounded-full bg-memora-surface-muted px-2 py-0.5 text-xs text-memora-text-muted">
-                        {document.chunkCount} chunks
-                      </span>
+                    <div {...stylex.props(styles.documentTop)}>
+                      <span {...stylex.props(styles.documentId)}>{document.documentId}</span>
+                      <span {...stylex.props(styles.chunkBadge)}>{document.chunkCount} chunks</span>
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-memora-text-soft">
-                      <span className="font-mono">{shortenHash(document.contentHash)}</span>
+                    <div {...stylex.props(styles.documentMeta)}>
+                      <span {...stylex.props(styles.mono)}>
+                        {shortenHash(document.contentHash)}
+                      </span>
                       <span>·</span>
                       <span>{formatDate(document.indexedAt)}</span>
                     </div>
@@ -237,41 +572,36 @@ export default function VectorDbInspector() {
               })}
             </div>
           ) : (
-            <p className="mt-5 text-sm text-memora-text-muted">
-              The index has no completed documents.
-            </p>
+            <p {...stylex.props(styles.emptyList)}>The index has no completed documents.</p>
           )}
         </section>
 
-        <section className="min-w-0 rounded-[26px] border border-memora-border bg-memora-surface p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-memora-border pb-4">
-            <div className="min-w-0">
-              <h2 className="font-serif text-xl font-medium tracking-tight text-memora-text-strong">
+        <section {...stylex.props(styles.panel, styles.columnPanel)}>
+          <div {...stylex.props(styles.sectionHeader, styles.passageHeader)}>
+            <div {...stylex.props(styles.minWidth)}>
+              <h2 {...stylex.props(styles.heading)}>
                 {selectedDocument ? selectedDocument.documentId : "Stored passages"}
               </h2>
-              <p className="mt-1 text-sm text-memora-text-muted">
+              <p {...stylex.props(styles.sectionDescription)}>
                 {selectedDocument
                   ? `${chunks.length} of ${selectedDocument.chunkCount} chunks · ${selectedDocument.tokenCount.toLocaleString()} tokens`
                   : "Choose a document on the left to see what was embedded."}
               </p>
             </div>
             {selectedDocument ? (
-              <span className="rounded-full border border-memora-border bg-memora-surface-soft px-2.5 py-1 text-xs text-memora-text-muted">
+              <span {...stylex.props(styles.dateBadge)}>
                 {formatDate(selectedDocument.indexedAt)}
               </span>
             ) : null}
           </div>
 
           {chunks.length ? (
-            <div className="mt-4 space-y-3">
+            <div {...stylex.props(styles.chunks)}>
               {chunks.map((chunk) => (
-                <article
-                  key={chunk.chunkId}
-                  className="rounded-2xl border border-memora-border-soft bg-memora-canvas px-4 py-3.5"
-                >
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-memora-text-soft">
-                    <span className="inline-flex items-center gap-1 font-medium text-memora-text-muted">
-                      <HashIcon className="size-3.5" />
+                <article key={chunk.chunkId} className={stylex.props(styles.chunk).className}>
+                  <div {...stylex.props(styles.chunkMeta)}>
+                    <span {...stylex.props(styles.chunkIndex)}>
+                      <HashIcon className={stylex.props(styles.smallIcon).className} />
                       {chunk.chunkIndex + 1}
                     </span>
                     <span>{chunk.tokenCount ?? 0} tokens</span>
@@ -282,21 +612,21 @@ export default function VectorDbInspector() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 max-h-24 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-memora-text">
-                    {chunk.content}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 text-[11px] text-memora-text-soft">
-                    <FileTextIcon className="size-3.5" />
-                    <span className="font-mono">{shortenHash(chunk.chunkId)}</span>
+                  <p {...stylex.props(styles.chunkText)}>{chunk.content}</p>
+                  <div {...stylex.props(styles.chunkFooter)}>
+                    <FileTextIcon className={stylex.props(styles.smallIcon).className} />
+                    <span {...stylex.props(styles.mono)}>{shortenHash(chunk.chunkId)}</span>
                     <span>·</span>
-                    <span className="font-mono">content {shortenHash(chunk.contentHash)}</span>
+                    <span {...stylex.props(styles.mono)}>
+                      content {shortenHash(chunk.contentHash)}
+                    </span>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <div className="flex min-h-[260px] items-center justify-center px-6 text-center">
-              <p className="max-w-sm text-sm leading-6 text-memora-text-muted">
+            <div {...stylex.props(styles.noSelection)}>
+              <p {...stylex.props(styles.noSelectionText)}>
                 Select a document to inspect the exact text passages that were written alongside
                 their vectors.
               </p>

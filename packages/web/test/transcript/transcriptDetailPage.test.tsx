@@ -131,5 +131,5 @@ test("keeps the detail page as a split-view workbench with a dedicated preview s
   expect(pageSource).toContain("RecordingPreviewSurface");
   expect(pageSource).toContain('data-surface="transcript-detail-workbench"');
   expect(pageSource).toContain("setShowTranscript(true)");
-  expect(pageSource).toContain("xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]");
+  expect(pageSource).toContain('gridTemplateColumns: "minmax(0, 1.05fr) minmax(22rem, 0.95fr)"');
 });

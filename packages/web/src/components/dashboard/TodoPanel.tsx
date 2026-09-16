@@ -1,9 +1,9 @@
 import { CheckIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import type { ReactElement } from "react";
 
-import { cn } from "@/lib/cn";
 import type { FileMeta } from "@/types/library";
 
 import {
@@ -32,12 +32,168 @@ const COMPOSER_COLLAPSED_HEIGHT = 0;
 const COMPOSER_EXPANDED_HEIGHT = 52;
 const COMPOSER_EXPANDED_MARGIN_BOTTOM = 20;
 
+const styles = stylex.create({
+  emptySection: {
+    backgroundColor: "#fcfaf5",
+    border: "1px dashed #e8e1d5",
+    borderRadius: 16,
+    color: "#857d72",
+    fontSize: 14,
+    lineHeight: "24px",
+    padding: 12,
+  },
+  taskRow: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "18px minmax(0, 1fr)",
+    paddingBlock: 8,
+  },
+  visuallyHidden: {
+    clipPath: "inset(50%)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    padding: 0,
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+  checkbox: {
+    alignItems: "center",
+    backgroundColor: "#fffdfa",
+    border: "1px solid #d3ccbf",
+    borderRadius: 6,
+    color: "transparent",
+    display: "flex",
+    height: 18,
+    justifyContent: "center",
+    marginTop: 2,
+    flexShrink: 0,
+    transition: "all 150ms",
+    width: 18,
+  },
+  checkboxDone: { backgroundColor: "#7b875a", borderColor: "#7b875a", color: "#fffdfa" },
+  checkIcon: { height: 14, width: 14 },
+  taskText: {
+    color: "#1d1c1a",
+    fontSize: 14,
+    lineHeight: "24px",
+    minWidth: 0,
+    whiteSpace: "pre-wrap",
+  },
+  taskTextDone: {
+    color: "#a59f95",
+    textDecoration: "line-through",
+    textDecorationColor: "#c8c2b8",
+  },
+  panel: {
+    backgroundColor: "white",
+    border: "1px solid #e9e5dc",
+    borderRadius: 27,
+    padding: 20,
+    "@media (min-width: 48rem)": { padding: 24 },
+  },
+  panelHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: 16,
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  title: { color: "#1d1c1a", fontSize: 17, fontWeight: 700 },
+  addButton: {
+    alignItems: "center",
+    backgroundColor: "#fbf8f1",
+    border: "1px solid #e5ddd1",
+    borderRadius: 9999,
+    color: "#6f6b62",
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 36,
+    justifyContent: "center",
+    transition: "color 150ms, background-color 150ms",
+    width: 36,
+    ":hover": { backgroundColor: "#f4efe5", color: "#302e2a" },
+  },
+  icon: { height: 16, width: 16 },
+  errorPanel: {
+    backgroundColor: "#fdf6f1",
+    border: "1px solid #eadfd6",
+    borderRadius: 16,
+    padding: 16,
+  },
+  errorText: { color: "#7b4f39", fontSize: 14, fontWeight: 600 },
+  retryButton: {
+    alignItems: "center",
+    backgroundColor: "#fff9f4",
+    border: "1px solid #e7d7ca",
+    borderRadius: 9999,
+    color: "#6b4e3f",
+    display: "inline-flex",
+    fontSize: 14,
+    fontWeight: 600,
+    marginTop: 12,
+    minHeight: 40,
+    paddingInline: 16,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: "#fff4ec" },
+  },
+  composer: { overflow: "hidden" },
+  composerPadding: { padding: 4 },
+  composerInput: {
+    backgroundColor: "#fffdfa",
+    border: "1px solid #e1d9cd",
+    borderRadius: 9999,
+    color: "#1d1c1a",
+    fontSize: 14,
+    height: 44,
+    outline: "none",
+    paddingInline: 16,
+    transition: "border-color 150ms, box-shadow 150ms",
+    width: "100%",
+    "::placeholder": { color: "#aaa297" },
+    ":focus": { borderColor: "#a7af8f", boxShadow: "0 0 0 2px #dfe5cb" },
+  },
+  inlineError: {
+    backgroundColor: "#fdf6f1",
+    border: "1px solid #eadfd6",
+    borderRadius: 16,
+    color: "#7b4f39",
+    fontSize: 14,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  loading: {
+    backgroundColor: "#fcfaf5",
+    border: "1px dashed #e8e1d5",
+    borderRadius: 16,
+    color: "#857d72",
+    fontSize: 14,
+    paddingBlock: 24,
+    paddingInline: 16,
+  },
+  taskSections: { display: "flex", flexDirection: "column", gap: 16 },
+  taskSection: { display: "flex", flexDirection: "column", gap: 8 },
+  doneSection: { borderTop: "1px solid #eee7db", paddingTop: 16 },
+  sectionHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    color: "#8f897d",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+  },
+  count: { color: "#9b9487", fontSize: 12 },
+  taskList: { display: "flex", flexDirection: "column", gap: 4 },
+});
+
 const EmptyTodoSection = ({ copy }: { copy: string }): ReactElement => {
-  return (
-    <p className="rounded-2xl border border-dashed border-[#e8e1d5] bg-[#fcfaf5] px-3 py-3 text-sm leading-6 text-[#857d72]">
-      {copy}
-    </p>
-  );
+  return <p {...stylex.props(styles.emptySection)}>{copy}</p>;
 };
 
 const TodoTaskRow = ({
@@ -65,22 +221,15 @@ const TodoTaskRow = ({
             }
       }
       whileHover={reducedMotion ? undefined : { x: 2 }}
-      className="grid grid-cols-[18px_minmax(0,1fr)] gap-3 py-2"
+      {...stylex.props(styles.taskRow)}
     >
       <input
         type="checkbox"
         checked={task.done}
         onChange={() => onToggle(task.id)}
-        className="peer sr-only"
+        {...stylex.props(styles.visuallyHidden)}
       />
-      <motion.span
-        className={cn(
-          "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition",
-          task.done
-            ? "border-[#7b875a] bg-[#7b875a] text-[#fffdfa]"
-            : "border-[#d3ccbf] bg-[#fffdfa] text-transparent",
-        )}
-      >
+      <motion.span {...stylex.props(styles.checkbox, task.done && styles.checkboxDone)}>
         <motion.span
           animate={
             reducedMotion
@@ -91,17 +240,10 @@ const TodoTaskRow = ({
           }
           transition={reducedMotion ? undefined : { duration: 0.18, ease: PANEL_EASE }}
         >
-          <CheckIcon className="size-3.5" weight="bold" />
+          <CheckIcon className={stylex.props(styles.checkIcon).className} weight="bold" />
         </motion.span>
       </motion.span>
-      <span
-        className={cn(
-          "min-w-0 text-sm leading-6 whitespace-pre-wrap",
-          task.done ? "text-[#a59f95] line-through decoration-[#c8c2b8]" : "text-memora-text",
-        )}
-      >
-        {task.text}
-      </span>
+      <span {...stylex.props(styles.taskText, task.done && styles.taskTextDone)}>{task.text}</span>
     </motion.label>
   );
 };
@@ -256,10 +398,10 @@ export function TodoPanel({
   );
 
   return (
-    <div className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6">
-      <div className="mb-4 flex items-start justify-between gap-4">
+    <div {...stylex.props(styles.panel)}>
+      <div {...stylex.props(styles.panelHeader)}>
         <div>
-          <h2 className="text-[17px] font-bold text-memora-text">Today Tasks</h2>
+          <h2 {...stylex.props(styles.title)}>Today Tasks</h2>
         </div>
         <motion.button
           type="button"
@@ -272,7 +414,7 @@ export function TodoPanel({
 
             setIsComposerOpen(true);
           }}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e5ddd1] bg-[#fbf8f1] text-[#6f6b62] transition hover:bg-[#f4efe5] hover:text-[#302e2a]"
+          {...stylex.props(styles.addButton)}
           aria-label={isComposerOpen ? "Close task input" : "Add task"}
           whileHover={reducedMotion ? undefined : { y: -1, scale: 1.04 }}
           whileTap={reducedMotion ? undefined : { scale: 0.94 }}
@@ -290,9 +432,9 @@ export function TodoPanel({
             transition={{ duration: 0.24, ease: PANEL_EASE }}
           >
             {isComposerOpen ? (
-              <XIcon className="size-4" weight="bold" />
+              <XIcon className={stylex.props(styles.icon).className} weight="bold" />
             ) : (
-              <PlusIcon className="size-4" weight="bold" />
+              <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
             )}
           </motion.span>
         </motion.button>
@@ -303,13 +445,13 @@ export function TodoPanel({
           initial={reducedMotion ? false : { opacity: 0 }}
           animate={reducedMotion ? undefined : { opacity: 1 }}
           transition={{ duration: 0.26, ease: PANEL_EASE }}
-          className="rounded-2xl border border-[#eadfd6] bg-[#fdf6f1] px-4 py-4"
+          {...stylex.props(styles.errorPanel)}
         >
-          <p className="text-sm font-semibold text-[#7b4f39]">{errorMessage}</p>
+          <p {...stylex.props(styles.errorText)}>{errorMessage}</p>
           <button
             type="button"
             onClick={() => setRetryNonce((current) => current + 1)}
-            className="mt-3 inline-flex min-h-10 items-center rounded-full border border-[#e7d7ca] bg-[#fff9f4] px-4 text-sm font-semibold text-[#6b4e3f] transition hover:bg-[#fff4ec]"
+            {...stylex.props(styles.retryButton)}
           >
             Try again
           </button>
@@ -345,9 +487,9 @@ export function TodoPanel({
                       }
                 }
                 transition={{ duration: 0.28, ease: PANEL_EASE }}
-                className="overflow-hidden"
+                {...stylex.props(styles.composer)}
               >
-                <div className="p-1">
+                <div {...stylex.props(styles.composerPadding)}>
                   <input
                     ref={composerInputRef}
                     value={draft}
@@ -364,7 +506,7 @@ export function TodoPanel({
                       }
                     }}
                     placeholder="Add a task for today..."
-                    className="h-11 w-full rounded-full border border-[#e1d9cd] bg-[#fffdfa] px-4 text-sm text-memora-text outline-none transition placeholder:text-[#aaa297] focus:border-[#a7af8f] focus:ring-2 focus:ring-[#dfe5cb]"
+                    {...stylex.props(styles.composerInput)}
                   />
                 </div>
               </motion.div>
@@ -379,7 +521,7 @@ export function TodoPanel({
                 animate={reducedMotion ? undefined : { opacity: 1 }}
                 exit={reducedMotion ? undefined : { opacity: 0 }}
                 transition={{ duration: 0.22, ease: PANEL_EASE }}
-                className="rounded-2xl border border-[#eadfd6] bg-[#fdf6f1] px-4 py-3 text-sm text-[#7b4f39]"
+                {...stylex.props(styles.inlineError)}
               >
                 {errorMessage}
               </motion.p>
@@ -391,35 +533,33 @@ export function TodoPanel({
               initial={reducedMotion ? false : { opacity: 0 }}
               animate={reducedMotion ? undefined : { opacity: 1 }}
               transition={{ duration: 0.3, ease: PANEL_EASE }}
-              className="rounded-2xl border border-dashed border-[#e8e1d5] bg-[#fcfaf5] px-4 py-6 text-sm text-[#857d72]"
+              {...stylex.props(styles.loading)}
             >
               Loading your task note...
             </motion.p>
           ) : (
             <motion.div
               layout={!reducedMotion}
-              className="space-y-4"
+              {...stylex.props(styles.taskSections)}
               transition={
                 reducedMotion ? undefined : { layout: { duration: 0.32, ease: PANEL_EASE } }
               }
             >
-              <motion.section layout={!reducedMotion} className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-[11px] font-bold tracking-[0.14em] text-[#8f897d] uppercase">
-                    Open
-                  </h3>
+              <motion.section layout={!reducedMotion} {...stylex.props(styles.taskSection)}>
+                <div {...stylex.props(styles.sectionHeader)}>
+                  <h3 {...stylex.props(styles.sectionTitle)}>Open</h3>
                   <motion.span
                     key={`open-count-${groupedTasks.open.length}`}
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={reducedMotion ? undefined : { opacity: 1 }}
                     transition={{ duration: 0.2, ease: PANEL_EASE }}
-                    className="text-xs text-[#9b9487]"
+                    {...stylex.props(styles.count)}
                   >
                     {groupedTasks.open.length}
                   </motion.span>
                 </div>
                 {groupedTasks.open.length > 0 ? (
-                  <motion.div layout={!reducedMotion} className="space-y-1">
+                  <motion.div layout={!reducedMotion} {...stylex.props(styles.taskList)}>
                     <AnimatePresence initial={false} mode="popLayout">
                       {groupedTasks.open.map((task) => (
                         <TodoTaskRow
@@ -438,24 +578,22 @@ export function TodoPanel({
 
               <motion.section
                 layout={!reducedMotion}
-                className="space-y-2 border-t border-[#eee7db] pt-4"
+                {...stylex.props(styles.taskSection, styles.doneSection)}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-[11px] font-bold tracking-[0.14em] text-[#8f897d] uppercase">
-                    Done
-                  </h3>
+                <div {...stylex.props(styles.sectionHeader)}>
+                  <h3 {...stylex.props(styles.sectionTitle)}>Done</h3>
                   <motion.span
                     key={`done-count-${groupedTasks.done.length}`}
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={reducedMotion ? undefined : { opacity: 1 }}
                     transition={{ duration: 0.2, ease: PANEL_EASE }}
-                    className="text-xs text-[#9b9487]"
+                    {...stylex.props(styles.count)}
                   >
                     {groupedTasks.done.length}
                   </motion.span>
                 </div>
                 {groupedTasks.done.length > 0 ? (
-                  <motion.div layout={!reducedMotion} className="space-y-1">
+                  <motion.div layout={!reducedMotion} {...stylex.props(styles.taskList)}>
                     <AnimatePresence initial={false} mode="popLayout">
                       {groupedTasks.done.map((task) => (
                         <TodoTaskRow

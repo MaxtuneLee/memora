@@ -1,5 +1,6 @@
 import { CheckCircleIcon, MicrophoneIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { Button } from "@base-ui/react/button";
+import * as stylex from "@stylexjs/stylex";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import {
   IDLE_START_BUTTON_RIPPLES,
@@ -8,7 +9,148 @@ import {
   type TranscriptionControlsMode,
   getTranscriptionControlsDockState,
 } from "@/components/transcript/transcriptionControlMotion";
-import { cn } from "@/lib/cn";
+
+const styles = stylex.create({
+  controls: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    paddingInline: "0.5rem",
+    pointerEvents: "none",
+    width: "100%",
+  },
+  group: {
+    alignItems: "center",
+    display: "flex",
+    flexShrink: 0,
+    gap: "0.5rem",
+    pointerEvents: "auto",
+  },
+  alignCenter: { justifyContent: "center" },
+  alignEnd: { justifyContent: "flex-end" },
+  primaryFrame: { isolation: "isolate", position: "relative" },
+  rippleFrame: { inset: "-0.45rem", pointerEvents: "none", position: "absolute", zIndex: -10 },
+  ripple: {
+    backgroundColor: "rgb(248 113 113 / 0.16)",
+    borderColor: "rgb(248 113 113 / 0.55)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 2,
+    inset: 0,
+    position: "absolute",
+  },
+  primaryButton: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.5rem",
+    justifyContent: "center",
+    lineHeight: "1.25rem",
+    whiteSpace: "nowrap",
+  },
+  recordingButton: {
+    backgroundColor: { default: "white", ":hover": "#fafafa" },
+    borderColor: "#e4e4e7",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    color: "#3f3f46",
+    fontWeight: 500,
+    outline: "none",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.875rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color",
+    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+  },
+  savingButton: {
+    backgroundColor: "white",
+    borderColor: "#e4e4e7",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    color: "#3f3f46",
+    fontWeight: 500,
+    paddingBlock: "0.625rem",
+    paddingInline: "1rem",
+  },
+  savedButton: {
+    color: "#059669",
+    fontWeight: 500,
+    paddingBlock: "0.625rem",
+    paddingInline: "1rem",
+  },
+  idleButton: {
+    backgroundColor: { default: "#ef4444", ":hover": "#dc2626", ":disabled": "#fecaca" },
+    borderColor: "rgb(239 68 68 / 0.3)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    color: { default: "white", ":disabled": "#b91c1c" },
+    cursor: { default: "pointer", ":disabled": "not-allowed" },
+    fontWeight: 600,
+    letterSpacing: "0.01em",
+    paddingBlock: "0.75rem",
+    paddingInline: "1.25rem",
+    position: "relative",
+    transitionDuration: "200ms",
+    transitionProperty: "background-color, transform",
+    userSelect: "none",
+    ":active": { transform: "scale(0.985)" },
+    ":focus-visible": { boxShadow: "0 0 0 2px white, 0 0 0 4px #ef4444" },
+  },
+  label: { alignItems: "center", display: "flex", gap: "0.5rem", whiteSpace: "nowrap" },
+  saveButton: {
+    alignItems: "center",
+    backgroundColor: { default: "#059669", ":hover": "#047857" },
+    borderRadius: "9999px",
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    color: "white",
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.875rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color",
+    ":focus-visible": { boxShadow: "0 0 0 2px white, 0 0 0 4px #059669" },
+  },
+  icon: { height: "1rem", width: "1rem" },
+  iconFrame: {
+    alignItems: "center",
+    display: "flex",
+    height: "1rem",
+    justifyContent: "center",
+    width: "1rem",
+  },
+  spinner: {
+    borderColor: "#d4d4d8",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderTopColor: "#3f3f46",
+    borderWidth: 2,
+    height: "1rem",
+    width: "1rem",
+  },
+  invisible: { visibility: "hidden" },
+  unselectable: { userSelect: "none" },
+  visuallyHidden: {
+    borderWidth: 0,
+    clip: "rect(0, 0, 0, 0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    padding: 0,
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+});
 
 interface TranscriptionControlsProps {
   controlMode: TranscriptionControlsMode;
@@ -44,39 +186,33 @@ export const TranscriptionControls = ({
     duration: prefersReducedMotion ? 0.1 : SAVE_SECONDARY_HANDOFF_MS / 1000,
     ease: TRANSCRIPTION_CONTROLS_EASE,
   };
-  const primaryButtonClassName = getPrimaryButtonClassName(controlMode);
+  const alignmentStyle = dockState.alignment === "end" ? styles.alignEnd : styles.alignCenter;
 
   return (
     <motion.div
       layout={dockState.layout}
       transition={dockState.transition}
-      className={cn(
-        "pointer-events-none flex w-full items-center gap-3 px-2",
-        dockState.alignmentClassName,
-      )}
+      {...stylex.props(styles.controls, alignmentStyle)}
     >
       <LayoutGroup id="transcription-controls">
         <motion.div
           layout={dockState.layout}
           transition={dockState.transition}
-          className={cn(
-            "pointer-events-auto flex shrink-0 items-center gap-2",
-            dockState.alignmentClassName,
-          )}
+          {...stylex.props(styles.group, alignmentStyle)}
         >
           <motion.div
             layout
             layoutId={PRIMARY_CONTROL_LAYOUT_ID}
             transition={dockState.transition}
-            className="relative isolate"
+            {...stylex.props(styles.primaryFrame)}
           >
             {controlMode === "idle" && (
-              <div className="pointer-events-none absolute inset-[-0.45rem] -z-10">
+              <div {...stylex.props(styles.rippleFrame)}>
                 {IDLE_START_BUTTON_RIPPLES.map((ripple, index) => (
                   <motion.span
                     key={index}
                     aria-hidden="true"
-                    className="absolute inset-0 rounded-full border-2 border-red-400/55 bg-red-400/16"
+                    {...stylex.props(styles.ripple)}
                     animate={
                       prefersReducedMotion
                         ? { opacity: 0.28, scale: 1.04 }
@@ -105,13 +241,10 @@ export const TranscriptionControls = ({
                 onStart,
                 paused,
               })}
-              className={primaryButtonClassName}
+              {...stylex.props(styles.primaryButton, getPrimaryButtonStyle(controlMode))}
               disabled={controlMode === "idle" ? !isReady : false}
             >
-              <motion.span
-                layoutId={PRIMARY_LABEL_LAYOUT_ID}
-                className="flex items-center gap-2 whitespace-nowrap"
-              >
+              <motion.span layoutId={PRIMARY_LABEL_LAYOUT_ID} {...stylex.props(styles.label)}>
                 {renderPrimaryContent({
                   controlMode,
                   paused,
@@ -139,11 +272,8 @@ export const TranscriptionControls = ({
                   transition: secondaryControlExitTransition,
                 }}
               >
-                <Button
-                  onClick={onFinalize}
-                  className="flex items-center gap-2 rounded-full bg-emerald-600 px-3.5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
-                >
-                  <CheckCircleIcon className="size-4" weight="fill" />
+                <Button onClick={onFinalize} {...stylex.props(styles.saveButton)}>
+                  <CheckCircleIcon {...stylex.props(styles.icon)} weight="fill" />
                   <span>Save Recording</span>
                 </Button>
               </motion.div>
@@ -182,17 +312,17 @@ function getPrimaryButtonHandler({
   }
 }
 
-function getPrimaryButtonClassName(controlMode: TranscriptionControlsMode): string {
+function getPrimaryButtonStyle(controlMode: TranscriptionControlsMode) {
   switch (controlMode) {
     case "recording":
-      return "flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400 outline-none";
+      return styles.recordingButton;
     case "saving":
-      return "flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm";
+      return styles.savingButton;
     case "saved":
-      return "flex items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium text-emerald-600";
+      return styles.savedButton;
     case "idle":
     default:
-      return "select-none cursor-pointer relative flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/30 bg-red-500 px-5 py-3 text-sm font-semibold tracking-[0.01em] text-white shadow-sm transition-colors duration-200 hover:bg-red-600 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-red-200 disabled:text-red-700";
+      return styles.idleButton;
   }
 }
 
@@ -210,9 +340,9 @@ function renderPrimaryContent({
       return (
         <>
           {paused ? (
-            <PlayIcon className="size-4" weight="fill" />
+            <PlayIcon {...stylex.props(styles.icon)} weight="fill" />
           ) : (
-            <PauseIcon className="size-4" weight="fill" />
+            <PauseIcon {...stylex.props(styles.icon)} weight="fill" />
           )}
           <span>{paused ? "Resume" : "Pause"}</span>
         </>
@@ -220,10 +350,10 @@ function renderPrimaryContent({
     case "saving":
       return (
         <>
-          <span className="flex size-4 items-center justify-center">
+          <span {...stylex.props(styles.iconFrame)}>
             <motion.span
               aria-hidden="true"
-              className="size-4 rounded-full border-2 border-zinc-300 border-t-zinc-700"
+              {...stylex.props(styles.spinner)}
               animate={prefersReducedMotion ? undefined : { rotate: 360 }}
               transition={{
                 duration: 0.85,
@@ -232,17 +362,17 @@ function renderPrimaryContent({
               }}
             />
           </span>
-          <span aria-hidden="true" className="invisible select-none">
+          <span aria-hidden="true" {...stylex.props(styles.invisible, styles.unselectable)}>
             {SAVED_STATUS_LABEL}
           </span>
-          <span className="sr-only">Saving recording</span>
+          <span {...stylex.props(styles.visuallyHidden)}>Saving recording</span>
         </>
       );
     case "saved":
       return (
         <>
-          <span className="flex size-4 items-center justify-center">
-            <CheckCircleIcon className="size-4" weight="fill" />
+          <span {...stylex.props(styles.iconFrame)}>
+            <CheckCircleIcon {...stylex.props(styles.icon)} weight="fill" />
           </span>
           <span>{SAVED_STATUS_LABEL}</span>
         </>
@@ -251,7 +381,7 @@ function renderPrimaryContent({
     default:
       return (
         <>
-          <MicrophoneIcon className="size-4" weight="fill" />
+          <MicrophoneIcon {...stylex.props(styles.icon)} weight="fill" />
           <span>Start Recording</span>
         </>
       );

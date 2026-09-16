@@ -1,4 +1,76 @@
 import { useCallback, useState, type CSSProperties, type PointerEvent } from "react";
+import * as stylex from "@stylexjs/stylex";
+
+const styles = stylex.create({
+  aside: {
+    alignSelf: "flex-start",
+    display: "none",
+    flexShrink: 0,
+    position: "sticky",
+    top: 24,
+    width: 176,
+    "@media (min-width: 1024px)": { display: "block" },
+  },
+  list: {
+    display: "flex",
+    flexDirection: "column",
+    marginLeft: "auto",
+    position: "relative",
+    width: "100%",
+  },
+  item: { pointerEvents: "none", position: "relative", width: "100%" },
+  marker: {
+    height: 2,
+    position: "absolute",
+    right: 0,
+    top: "50%",
+    width: "var(--outline-marker-width)",
+  },
+  frame: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderRadius: 2,
+    height: 28,
+    position: "absolute",
+    right: 0,
+    top: "50%",
+    width: 144,
+  },
+  title: {
+    color: "var(--color-memora-text)",
+    display: "block",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "28px",
+    overflow: "hidden",
+    position: "absolute",
+    right: 8,
+    textAlign: "right",
+    textOverflow: "ellipsis",
+    top: "50%",
+    whiteSpace: "nowrap",
+    width: 128,
+    zIndex: 10,
+  },
+  interaction: {
+    borderRadius: 2,
+    cursor: "pointer",
+    inset: 0,
+    outline: "none",
+    position: "absolute",
+    ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+  },
+  srOnly: {
+    borderWidth: 0,
+    clip: "rect(0, 0, 0, 0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    padding: 0,
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+});
 
 export interface MarkdownHeading {
   id: string;
@@ -151,14 +223,8 @@ export function DocumentOutlineIndicator({
 
   const hoveredHeading = headings.find((heading) => heading.id === hoveredHeadingId) ?? null;
   return (
-    <aside
-      className="sticky top-6 hidden w-44 shrink-0 self-start lg:block"
-      aria-label="Document outline"
-    >
-      <div
-        className="relative ml-auto flex w-full flex-col"
-        data-surface="document-outline-indicator"
-      >
+    <aside {...stylex.props(styles.aside)} aria-label="Document outline">
+      <div {...stylex.props(styles.list)} data-surface="document-outline-indicator">
         {headings.map((heading, index) => {
           const isActive = heading.id === activeHeadingId;
           const isHovered = heading.id === hoveredHeadingId;
@@ -169,7 +235,7 @@ export function DocumentOutlineIndicator({
               data-active={isActive}
               data-outline-heading-id={heading.id}
               aria-hidden="true"
-              className="outline-item pointer-events-none relative w-full"
+              className={`outline-item ${stylex.props(styles.item).className}`}
               style={
                 {
                   marginBottom:
@@ -181,9 +247,9 @@ export function DocumentOutlineIndicator({
                 } as CSSProperties
               }
             >
-              <span className="outline-marker absolute top-1/2 right-0 h-[2px] w-[var(--outline-marker-width)]" />
-              <span className="outline-frame absolute top-1/2 right-0 h-7 w-36 rounded-sm bg-[var(--color-memora-surface-muted)]" />
-              <span className="outline-title absolute top-1/2 right-2 z-10 block w-32 truncate text-right text-xs leading-7 font-medium text-[var(--color-memora-text)]">
+              <span className={`outline-marker ${stylex.props(styles.marker).className}`} />
+              <span className={`outline-frame ${stylex.props(styles.frame).className}`} />
+              <span className={`outline-title ${stylex.props(styles.title).className}`}>
                 {heading.title}
               </span>
             </div>
@@ -192,13 +258,13 @@ export function DocumentOutlineIndicator({
         <button
           type="button"
           aria-label={hoveredHeading ? `Go to ${hoveredHeading.title}` : "Browse document outline"}
-          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)]"
+          {...stylex.props(styles.interaction)}
           onPointerMove={handlePointerMove}
           onPointerLeave={() => setHoveredHeadingId(null)}
           onClick={handleClick}
         />
       </div>
-      <nav className="sr-only" aria-label="All document headings">
+      <nav {...stylex.props(styles.srOnly)} aria-label="All document headings">
         <ol>
           {headings.map((heading) => (
             <li key={heading.id}>

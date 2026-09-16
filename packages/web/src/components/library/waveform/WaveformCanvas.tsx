@@ -1,6 +1,12 @@
 import { memo, useCallback, useEffect, useRef } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { drawRoundedRect, interpolateColor, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
+
+const styles = stylex.create({
+  root: { cursor: "pointer", position: "relative", userSelect: "none" },
+  canvas: { inset: 0, position: "absolute" },
+});
 
 interface WaveformCanvasProps {
   peaks: number[];
@@ -265,14 +271,14 @@ export const WaveformCanvas = memo(function WaveformCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative cursor-pointer select-none ${className}`}
+      className={`${stylex.props(styles.root).className} ${className}`}
       style={{ height }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <canvas ref={canvasRef} className="absolute inset-0" />
+      <canvas ref={canvasRef} {...stylex.props(styles.canvas)} />
     </div>
   );
 });

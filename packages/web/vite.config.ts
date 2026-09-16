@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import stylex from "@stylexjs/unplugin";
 import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
@@ -38,10 +39,22 @@ const config = {
             title: "Memora DB Devtools",
           }),
         ]),
-    tailwindcss(),
     routeBuilderPlugin({
       pagePattern: "./src/pages/**/*.{tsx,sync.tsx}",
       outputPath: "./src/generated-routes.ts",
+    }),
+    stylex.vite({
+      dev: process.env.NODE_ENV === "development",
+      // Vite+ currently emits the app stylesheet after StyleX's static extraction
+      // hook, which drops the generated rules from the final asset. Injecting
+      // rules at module evaluation keeps the compiled StyleX output available in
+      // both Vite's development server and the production bundle.
+      runtimeInjection: true,
+      unstable_moduleResolution: {
+        rootDir: path.dirname(fileURLToPath(import.meta.url)),
+        type: "commonJS",
+      },
+      useCSSLayers: true,
     }),
     react({
       babel: {

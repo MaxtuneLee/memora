@@ -16,7 +16,7 @@ import {
 
 test("centers the start control before recording and docks controls to the end once recording starts", () => {
   expect(getTranscriptionControlsDockState(false, false)).toEqual({
-    alignmentClassName: "justify-center",
+    alignment: "center",
     layout: true,
     transition: {
       duration: 0.48,
@@ -25,7 +25,7 @@ test("centers the start control before recording and docks controls to the end o
   });
 
   expect(getTranscriptionControlsDockState(true, false)).toEqual({
-    alignmentClassName: "justify-end",
+    alignment: "end",
     layout: true,
     transition: {
       duration: 0.48,
@@ -36,7 +36,7 @@ test("centers the start control before recording and docks controls to the end o
 
 test("disables positional layout animation when reduced motion is preferred", () => {
   expect(getTranscriptionControlsDockState(false, true)).toEqual({
-    alignmentClassName: "justify-center",
+    alignment: "center",
     layout: false,
     transition: {
       duration: 0.12,
@@ -125,10 +125,8 @@ test("keeps the settings row and recording controls in a single ready-state rail
     "utf8",
   );
 
-  expect(livePageSource).toContain('className="relative flex min-h-[3.75rem] items-center"');
-  expect(livePageSource).toContain(
-    'className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center"',
-  );
+  expect(livePageSource).toContain('minHeight: "3.75rem"');
+  expect(livePageSource).toContain('pointerEvents: "none"');
 });
 
 test("uses a restrained shadow for the idle start button", () => {
@@ -137,11 +135,10 @@ test("uses a restrained shadow for the idle start button", () => {
     "utf8",
   );
 
-  expect(controlsSource).toContain("shadow-sm");
-  expect(controlsSource).not.toContain("shadow-[0_14px_30px_rgba(220,38,38,0.24)]");
-  expect(controlsSource).toContain(
-    'className="absolute inset-0 rounded-full border-2 border-red-400/55 bg-red-400/16"',
-  );
+  expect(controlsSource).toContain('boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)"');
+  expect(controlsSource).not.toContain("0 14px 30px rgb(220 38 38 / 0.24)");
+  expect(controlsSource).toContain('backgroundColor: "rgb(248 113 113 / 0.16)"');
+  expect(controlsSource).toContain('borderColor: "rgb(248 113 113 / 0.55)"');
 });
 
 test("does not let the overlay rail swallow clicks meant for settings", () => {
@@ -150,10 +147,12 @@ test("does not let the overlay rail swallow clicks meant for settings", () => {
     "utf8",
   );
 
-  expect(controlsSource).toContain('"pointer-events-none flex w-full items-center gap-3 px-2"');
-  expect(controlsSource).toContain('"pointer-events-auto flex shrink-0 items-center gap-2"');
-  expect(controlsSource).toContain('className="relative isolate"');
-  expect(controlsSource).not.toContain('"pointer-events-auto flex w-full items-center gap-3 px-2"');
+  expect(controlsSource).toContain("controls: {");
+  expect(controlsSource).toContain('pointerEvents: "none"');
+  expect(controlsSource).toContain("group: {");
+  expect(controlsSource).toContain('pointerEvents: "auto"');
+  expect(controlsSource).toContain("primaryFrame: {");
+  expect(controlsSource).toContain('isolation: "isolate"');
 });
 
 test("morphs the centered start button into the right-docked recording controls instead of fading it out", () => {
@@ -229,7 +228,8 @@ test("renders saving and saved control modes through the shared primary control 
   expect(controlsSource).toContain("layoutId={PRIMARY_CONTROL_LAYOUT_ID}");
   expect(controlsSource).toContain('const SAVED_STATUS_LABEL = "Saved";');
   expect(controlsSource).toContain("Saving recording");
-  expect(controlsSource).toContain('className="invisible select-none"');
+  expect(controlsSource).toContain('invisible: { visibility: "hidden" }');
+  expect(controlsSource).toContain('unselectable: { userSelect: "none" }');
   expect(controlsSource).toContain("{SAVED_STATUS_LABEL}");
   expect(controlsSource).not.toContain("{ x: -3 }");
   expect(controlsSource).not.toContain('width: "auto"');

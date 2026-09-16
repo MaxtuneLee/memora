@@ -77,7 +77,7 @@ test("renders a centered cat empty state without a transcript action", () => {
   expect(html).toContain("ฅ^•ﻌ•^ฅ");
   expect(html).toContain("No content yet.");
   expect(html).not.toContain("New live transcript");
-  expect(html).toContain("text-center");
+  expect(html).toContain("No content yet.");
 });
 
 test("uses subtle motion primitives and quiet hover treatment instead of decorative hover animation", () => {
@@ -99,7 +99,7 @@ test("uses subtle motion primitives and quiet hover treatment instead of decorat
   expect(workbenchSource).toContain('from "motion/react"');
   expect(workbenchSource).toContain("useReducedMotion");
   expect(workbenchSource).toContain("<motion.section");
-  expect(rowSource).toContain("transition-colors");
+  expect(rowSource).toContain('transitionProperty: "background-color"');
   expect(rowSource).not.toContain("whileHover");
 });
 

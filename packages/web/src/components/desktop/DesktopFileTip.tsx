@@ -1,6 +1,35 @@
 import { Tooltip } from "@base-ui/react/tooltip";
+import * as stylex from "@stylexjs/stylex";
+
 import { formatBytes } from "@/lib/format";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
+
+const styles = stylex.create({
+  positioner: { zIndex: 20 },
+  popup: {
+    backdropFilter: "blur(4px)",
+    backgroundColor: "rgb(255 255 255 / 0.95)",
+    borderColor: "#e4e4e7",
+    borderRadius: 8,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    fontSize: "0.75rem",
+    maxWidth: 240,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  title: {
+    color: "#27272a",
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  details: { color: "#71717a", display: "flex", flexDirection: "column", gap: 2, marginTop: 6 },
+  detailLabel: { color: "#52525b" },
+  folder: { color: "#71717a", marginTop: 4 },
+});
 
 type TippableItem = DesktopFileItem | DesktopFolderItem;
 
@@ -35,31 +64,36 @@ export function DesktopFileTip({ item, children }: DesktopFileTipProps) {
     <Tooltip.Root>
       <Tooltip.Trigger render={children} delay={500} closeDelay={0} />
       <Tooltip.Portal>
-        <Tooltip.Positioner sideOffset={8} side="top" align="center" className="z-20">
-          <Tooltip.Popup className="max-w-[240px] rounded-lg border border-zinc-200 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
-            <p className="font-medium text-zinc-800 truncate">{item.name}</p>
+        <Tooltip.Positioner
+          sideOffset={8}
+          side="top"
+          align="center"
+          {...stylex.props(styles.positioner)}
+        >
+          <Tooltip.Popup {...stylex.props(styles.popup)}>
+            <p {...stylex.props(styles.title)}>{item.name}</p>
             {isFile && (
-              <div className="mt-1.5 space-y-0.5 text-zinc-500">
+              <div {...stylex.props(styles.details)}>
                 <p>
-                  <span className="text-zinc-600">Type:</span> {item.fileMeta.type}
+                  <span {...stylex.props(styles.detailLabel)}>Type:</span> {item.fileMeta.type}
                 </p>
                 <p>
-                  <span className="text-zinc-600">Size:</span>{" "}
+                  <span {...stylex.props(styles.detailLabel)}>Size:</span>{" "}
                   {formatBytes(item.fileMeta.sizeBytes)}
                 </p>
                 {item.fileMeta.durationSec && (
                   <p>
-                    <span className="text-zinc-600">Duration:</span>{" "}
+                    <span {...stylex.props(styles.detailLabel)}>Duration:</span>{" "}
                     {formatDuration(item.fileMeta.durationSec)}
                   </p>
                 )}
                 <p>
-                  <span className="text-zinc-600">Modified:</span>{" "}
+                  <span {...stylex.props(styles.detailLabel)}>Modified:</span>{" "}
                   {formatDate(item.fileMeta.updatedAt)}
                 </p>
               </div>
             )}
-            {!isFile && <p className="mt-1 text-zinc-500">Folder</p>}
+            {!isFile && <p {...stylex.props(styles.folder)}>Folder</p>}
           </Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>

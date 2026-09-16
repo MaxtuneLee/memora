@@ -9,6 +9,41 @@ import type {
 import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
 import type { JSX, KeyboardEvent, MouseEvent } from "react";
 import katex from "katex";
+import * as stylex from "@stylexjs/stylex";
+
+const styles = stylex.create({
+  displayDom: { marginBlock: 16, overflowX: "auto", paddingBlock: 8, textAlign: "center" },
+  inlineDom: { display: "inline-block", verticalAlign: "baseline" },
+  sourceBlock: { display: "flex", flexDirection: "column", gap: 8, marginBlock: 16 },
+  code: {
+    backgroundColor: "#fafafa",
+    border: "1px solid #e4e4e7",
+    borderRadius: 12,
+    color: "#18181b",
+    display: "block",
+    fontFamily: "monospace",
+    fontSize: 14,
+    paddingBlock: 12,
+    paddingInline: 16,
+    textAlign: "left",
+    whiteSpace: "pre-wrap",
+  },
+  text: { color: "var(--color-memora-text)" },
+  inlineSource: {
+    backgroundColor: "#fafafa",
+    borderRadius: 6,
+    color: "#18181b",
+    display: "inline-block",
+    fontFamily: "monospace",
+    fontSize: "0.92em",
+    paddingBlock: 2,
+    paddingInline: 6,
+    verticalAlign: "baseline",
+    whiteSpace: "pre-wrap",
+  },
+});
+const displayDomClassName = stylex.props(styles.displayDom).className ?? "";
+const inlineDomClassName = stylex.props(styles.inlineDom).className ?? "";
 
 export type InlineMathDelimiter = "$" | "$$";
 
@@ -90,9 +125,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
 
   createDOM(_config: EditorConfig): HTMLElement {
     const element = document.createElement(this.__displayMode ? "div" : "span");
-    element.className = this.__displayMode
-      ? "my-4 overflow-x-auto py-2 text-center"
-      : "inline-block align-baseline";
+    element.className = this.__displayMode ? displayDomClassName : inlineDomClassName;
     return element;
   }
 
@@ -101,9 +134,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
       return true;
     }
 
-    dom.className = this.__displayMode
-      ? "my-4 overflow-x-auto py-2 text-center"
-      : "inline-block align-baseline";
+    dom.className = this.__displayMode ? displayDomClassName : inlineDomClassName;
     return false;
   }
 
@@ -194,19 +225,14 @@ export class MathNode extends DecoratorNode<JSX.Element> {
         <div
           aria-haspopup="dialog"
           aria-label="Edit formula"
-          className="my-4 flex flex-col gap-2"
+          {...stylex.props(styles.sourceBlock)}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           role="button"
           tabIndex={0}
         >
-          <code className="block whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left font-mono text-sm text-zinc-900">
-            {getMathSourceText(this.__formula)}
-          </code>
-          <span
-            className="text-[var(--color-memora-text)]"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <code {...stylex.props(styles.code)}>{getMathSourceText(this.__formula)}</code>
+          <span {...stylex.props(styles.text)} dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       );
     }
@@ -216,7 +242,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
         <span
           aria-haspopup="dialog"
           aria-label="Edit formula"
-          className="inline-block whitespace-pre-wrap rounded-md bg-zinc-50 px-1.5 py-0.5 font-mono text-[0.92em] text-zinc-900 align-baseline"
+          {...stylex.props(styles.inlineSource)}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           role="button"
@@ -227,14 +253,11 @@ export class MathNode extends DecoratorNode<JSX.Element> {
       );
     }
 
-    const className = this.__displayMode
-      ? "text-[var(--color-memora-text)]"
-      : "text-[var(--color-memora-text)]";
     return (
       <span
         aria-haspopup="dialog"
         aria-label="Edit formula"
-        className={className}
+        {...stylex.props(styles.text)}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         role="button"

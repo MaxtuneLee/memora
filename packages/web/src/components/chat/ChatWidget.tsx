@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { WidgetDebugPanel } from "@/components/chat/chatWidget/WidgetDebugPanel";
 import { WidgetPlaceholder } from "@/components/chat/chatWidget/WidgetPlaceholder";
@@ -10,10 +11,39 @@ import {
 } from "@/components/chat/chatWidget/constants";
 import { useWidgetIframe } from "@/components/chat/chatWidget/useWidgetIframe";
 import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime";
-import { cn } from "@/lib/cn";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+
+const styles = stylex.create({
+  root: {
+    backgroundColor: "rgb(250 250 250 / 0.7)",
+    border: "1px solid rgb(228 228 231 / 0.8)",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  header: { borderBottom: "1px solid rgb(228 228 231 / 0.8)", paddingBlock: 8, paddingInline: 12 },
+  label: { color: "#71717a", fontFamily: "monospace", fontSize: 11, margin: 0 },
+  iframeWrap: { padding: 12 },
+  hidden: { display: "none" },
+  iframe: { backgroundColor: "transparent", border: 0, display: "block", width: "100%" },
+  loading: {
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    borderTop: "1px solid rgb(228 228 231 / 0.8)",
+    color: "#71717a",
+    fontSize: 12,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  error: {
+    backgroundColor: "#fef2f2",
+    borderTop: "1px solid #fecaca",
+    color: "#b91c1c",
+    fontSize: 12,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+});
 
 interface ChatWidgetProps {
   widget: ChatWidgetData;
@@ -86,9 +116,9 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const showLoadingState = widget.phase !== "ready" && hasVisibleWidgetDom;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/70">
-      <div className="border-b border-zinc-200/80 px-3 py-2">
-        <p className="font-mono text-[11px] text-zinc-500">{getWidgetLabel(widget)}</p>
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
+        <p {...stylex.props(styles.label)}>{getWidgetLabel(widget)}</p>
       </div>
       {!hasVisibleWidgetDom && (
         <WidgetPlaceholder
@@ -97,27 +127,19 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
           widgetCodeLength={widget.widgetCode.length}
         />
       )}
-      <div className={cn("px-3 py-3", !hasVisibleWidgetDom && "hidden")}>
+      <div {...stylex.props(styles.iframeWrap, !hasVisibleWidgetDom && styles.hidden)}>
         <iframe
           ref={iframeRef}
           title={getWidgetLabel(widget)}
           srcDoc={WIDGET_IFRAME_SRC_DOC}
-          className="block w-full border-0 bg-transparent"
+          {...stylex.props(styles.iframe)}
           style={{ height: `${iframeHeight}px` }}
           scrolling="no"
           onLoad={bindIframeDocument}
         />
       </div>
-      {showLoadingState && (
-        <div className="border-t border-zinc-200/80 bg-white/80 px-3 py-2 text-xs text-zinc-500">
-          {activeLoadingMessage}
-        </div>
-      )}
-      {visibleError && (
-        <div className="border-t border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {visibleError}
-        </div>
-      )}
+      {showLoadingState && <div {...stylex.props(styles.loading)}>{activeLoadingMessage}</div>}
+      {visibleError && <div {...stylex.props(styles.error)}>{visibleError}</div>}
       {IS_DEV && (
         <WidgetDebugPanel
           widget={widget}

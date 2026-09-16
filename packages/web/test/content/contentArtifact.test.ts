@@ -115,7 +115,8 @@ describe("content artifacts", () => {
     expect(desktopViewerSource).toContain("onSlideCountChange: setSlideCount");
     expect(desktopViewerSource).toContain('aria-label="Previous slide"');
     expect(desktopViewerSource).toContain('aria-label="Next slide"');
-    expect(desktopViewerSource).toContain('className="flex min-h-0 flex-1 overflow-hidden"');
+    expect(desktopViewerSource).toContain("canvas: {");
+    expect(desktopViewerSource).toContain('overflow: "hidden"');
   });
 
   test("splits Playground PPTX Markdown into slide-aware index segments", () => {

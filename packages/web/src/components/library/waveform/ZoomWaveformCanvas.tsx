@@ -1,6 +1,12 @@
 import { memo, useEffect, useRef } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { drawRoundedRect, formatTimeMarker, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
+
+const styles = stylex.create({
+  root: { position: "relative" },
+  canvas: { inset: 0, position: "absolute" },
+});
 
 interface ZoomWaveformCanvasProps {
   peaks: number[];
@@ -317,8 +323,12 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
   ]);
 
   return (
-    <div ref={containerRef} className={`relative ${className}`} style={{ height }}>
-      <canvas ref={canvasRef} className="absolute inset-0" />
+    <div
+      ref={containerRef}
+      className={`${stylex.props(styles.root).className} ${className}`}
+      style={{ height }}
+    >
+      <canvas ref={canvasRef} {...stylex.props(styles.canvas)} />
     </div>
   );
 });

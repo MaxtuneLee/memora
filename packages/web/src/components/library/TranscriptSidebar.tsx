@@ -1,6 +1,133 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import type { RecordingWord } from "@/types/library";
 import { formatDuration } from "@/lib/format";
+
+const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
+const styles = stylex.create({
+  word: {
+    borderRadius: 6,
+    cursor: "pointer",
+    display: "inline-block",
+    paddingBlock: 2,
+    paddingInline: 2,
+    transition:
+      "color 200ms var(--ease-out-quart), background-color 200ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
+  },
+  activeWord: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    color: "var(--color-memora-text-strong)",
+    fontWeight: 500,
+  },
+  pastWord: {
+    color: "var(--color-memora-text)",
+    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
+  },
+  futureWord: {
+    color: "var(--color-memora-text-soft)",
+    ":hover": {
+      backgroundColor: "var(--color-memora-surface-soft)",
+      color: "var(--color-memora-text-muted)",
+    },
+  },
+  centered: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    height: "100%",
+    justifyContent: "center",
+    paddingInline: 24,
+  },
+  spinner: {
+    animationDuration: "1s",
+    animationIterationCount: "infinite",
+    animationName: spin,
+    border: "2px solid var(--color-memora-border)",
+    borderRadius: 9999,
+    borderTopColor: "var(--color-memora-olive)",
+    height: 24,
+    width: 24,
+  },
+  textCenter: { textAlign: "center" },
+  title: { color: "var(--color-memora-text)", fontSize: 14, fontWeight: 500, margin: 0 },
+  detail: { color: "var(--color-memora-text-soft)", fontSize: 12, marginTop: 4 },
+  progress: {
+    backgroundColor: "var(--color-memora-border)",
+    borderRadius: 9999,
+    height: 4,
+    marginInline: "auto",
+    marginTop: 12,
+    overflow: "hidden",
+    width: 128,
+  },
+  progressFill: {
+    backgroundColor: "var(--color-memora-olive)",
+    borderRadius: 9999,
+    height: "100%",
+    transition: "width 300ms",
+  },
+  empty: {
+    alignItems: "center",
+    display: "flex",
+    height: "100%",
+    justifyContent: "center",
+    paddingInline: 24,
+  },
+  reading: {
+    height: "100%",
+    overflowY: "auto",
+    paddingBlock: 24,
+    paddingInline: 20,
+    "@media (min-width: 768px)": { paddingBlock: 32, paddingInline: 24 },
+  },
+  plainText: {
+    color: "var(--color-memora-text-muted)",
+    fontSize: 14,
+    lineHeight: 2,
+    margin: 0,
+    width: "100%",
+  },
+  transcript: {
+    height: "100%",
+    overflowY: "auto",
+    paddingBlockEnd: 0,
+    paddingInline: 16,
+    "@media (min-width: 768px)": { paddingInline: 20 },
+  },
+  header: {
+    backgroundColor: "var(--color-memora-surface-soft)",
+    marginBottom: 0,
+    paddingBlockEnd: 16,
+    paddingBlockStart: 12,
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+  headerRow: { alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between" },
+  headerText: { minWidth: 0 },
+  hint: {
+    alignItems: "center",
+    color: "var(--color-memora-text-muted)",
+    display: "flex",
+    fontSize: 12,
+    gap: 8,
+    margin: 0,
+  },
+  dot: {
+    backgroundColor: "var(--color-memora-olive-soft)",
+    borderRadius: 9999,
+    height: 6,
+    width: 6,
+  },
+  timestamp: {
+    color: "var(--color-memora-text-soft)",
+    flexShrink: 0,
+    fontSize: 12,
+    fontVariantNumeric: "tabular-nums",
+  },
+  content: { color: "var(--color-memora-text)", fontSize: 16, lineHeight: 1.95, width: "100%" },
+});
 
 interface TranscriptSidebarProps {
   words: RecordingWord[];
@@ -50,13 +177,10 @@ const SidebarChunk = memo(
               key={`${word.timestamp[0]}-${i}`}
               ref={isActive ? activeWordRef : undefined}
               onClick={() => onSeek(word.timestamp[0])}
-              className={`inline-block cursor-pointer rounded-md px-0.5 py-0.5 transition-[color,background-color,opacity] duration-200 ease-[var(--ease-out-quart)] ${
-                isActive
-                  ? "bg-[var(--color-memora-surface-muted)] font-medium text-[var(--color-memora-text-strong)]"
-                  : isPast
-                    ? "text-[var(--color-memora-text)] hover:bg-[var(--color-memora-surface-soft)]"
-                    : "text-[var(--color-memora-text-soft)] hover:bg-[var(--color-memora-surface-soft)] hover:text-[var(--color-memora-text-muted)]"
-              }`}
+              {...stylex.props(
+                styles.word,
+                isActive ? styles.activeWord : isPast ? styles.pastWord : styles.futureWord,
+              )}
             >
               {word.text}
             </span>
@@ -157,19 +281,19 @@ export const TranscriptSidebar = ({
 
   if (isTranscribing) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 px-6">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-memora-border)] border-t-[var(--color-memora-olive)]" />
-        <div className="text-center">
-          <p className="text-sm font-medium text-[var(--color-memora-text)]">Transcribing...</p>
-          <p className="mt-1 text-xs text-[var(--color-memora-text-soft)]">
+      <div {...stylex.props(styles.centered)}>
+        <div {...stylex.props(styles.spinner)} />
+        <div {...stylex.props(styles.textCenter)}>
+          <p {...stylex.props(styles.title)}>Transcribing...</p>
+          <p {...stylex.props(styles.detail)}>
             {transcriptionStatus === "loading-model" && "Loading AI model..."}
             {transcriptionStatus === "decoding" && "Decoding audio..."}
             {transcriptionStatus === "transcribing" && "Processing speech..."}
             {transcriptionStatus === "saving" && "Saving transcript..."}
           </p>
-          <div className="mx-auto mt-3 h-1 w-32 overflow-hidden rounded-full bg-[var(--color-memora-border)]">
+          <div {...stylex.props(styles.progress)}>
             <div
-              className="h-full rounded-full bg-[var(--color-memora-olive)] transition-all duration-300"
+              {...stylex.props(styles.progressFill)}
               style={{ width: `${transcriptionProgress}%` }}
             />
           </div>
@@ -180,10 +304,10 @@ export const TranscriptSidebar = ({
 
   if (words.length === 0 && !text) {
     return (
-      <div className="flex h-full items-center justify-center px-6">
-        <div className="text-center">
-          <p className="text-sm font-medium text-[var(--color-memora-text)]">No transcript yet</p>
-          <p className="mt-1 text-xs text-[var(--color-memora-text-soft)]">
+      <div {...stylex.props(styles.empty)}>
+        <div {...stylex.props(styles.textCenter)}>
+          <p {...stylex.props(styles.title)}>No transcript yet</p>
+          <p {...stylex.props(styles.detail)}>
             Generate one or add a manual draft to review it here.
           </p>
         </div>
@@ -193,11 +317,8 @@ export const TranscriptSidebar = ({
 
   if (words.length === 0 && text) {
     return (
-      <div
-        ref={scrollRef}
-        className="memora-scrollbar h-full overflow-y-auto px-5 py-6 md:px-6 md:py-8"
-      >
-        <p className="w-full text-sm leading-8 text-[var(--color-memora-text-muted)]">{text}</p>
+      <div ref={scrollRef} className={`memora-scrollbar ${stylex.props(styles.reading).className}`}>
+        <p {...stylex.props(styles.plainText)}>{text}</p>
       </div>
     );
   }
@@ -209,23 +330,23 @@ export const TranscriptSidebar = ({
     <div
       ref={scrollRef}
       data-surface="transcript-reading-pane"
-      className="memora-scrollbar h-full overflow-y-auto px-4 pb-0 md:px-5"
+      className={`memora-scrollbar ${stylex.props(styles.transcript).className}`}
     >
-      <div className="sticky top-0 z-10 mb-0 bg-[var(--color-memora-surface-soft)] pt-3 pb-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-xs text-[var(--color-memora-text-muted)]">
-              <span className="memora-hint-dot inline-flex size-1.5 rounded-full bg-[var(--color-memora-olive-soft)]" />
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.headerRow)}>
+          <div {...stylex.props(styles.headerText)}>
+            <p {...stylex.props(styles.hint)}>
+              <span className={`memora-hint-dot ${stylex.props(styles.dot).className}`} />
               Tap any word to jump through the recording.
             </p>
           </div>
-          <div className="shrink-0 text-xs tabular-nums text-[var(--color-memora-text-soft)]">
+          <div {...stylex.props(styles.timestamp)}>
             {activeWord ? formatDuration(activeWord.timestamp[0]) : "0:00"}
           </div>
         </div>
       </div>
 
-      <div className="w-full text-base leading-[1.95] text-[var(--color-memora-text)]">
+      <div {...stylex.props(styles.content)}>
         {chunks.map((chunk, chunkIdx) => (
           <SidebarChunk
             key={chunkIdx}

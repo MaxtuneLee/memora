@@ -1,6 +1,8 @@
 import { DndContext, pointerWithin } from "@dnd-kit/core";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import { useAppStore } from "@/livestore/store";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -44,6 +46,39 @@ import {
   mapFolderRowsToDesktopItems,
   sortDesktopItems,
 } from "@/components/desktop/desktop/utils";
+
+const styles = stylex.create({
+  canvas: {
+    backgroundImage: "linear-gradient(to bottom right, #fafafa, rgb(244 244 245 / 0.5), #f4f4f5)",
+    height: "100%",
+    overflow: "auto",
+    position: "relative",
+    width: "100%",
+  },
+  grid: { inset: 0, opacity: 0.03, pointerEvents: "none", position: "absolute" },
+  dropOverlay: {
+    alignItems: "center",
+    backdropFilter: "blur(2px)",
+    backgroundColor: "rgb(239 246 255 / 0.6)",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: 50,
+  },
+  dropCard: {
+    backgroundColor: "rgb(255 255 255 / 0.8)",
+    borderColor: "#60a5fa",
+    borderRadius: 16,
+    borderStyle: "dashed",
+    borderWidth: 2,
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    paddingBlock: 24,
+    paddingInline: 32,
+  },
+  dropLabel: { color: "#2563eb", fontSize: "0.875rem", fontWeight: 500 },
+});
 
 interface DesktopProps {
   externalIntent?: PendingDesktopIntent | null;
@@ -431,7 +466,7 @@ export function Desktop({
       >
         <DesktopDropZone
           ref={containerRef}
-          className="relative h-full w-full overflow-auto bg-gradient-to-br from-zinc-50 via-zinc-100/50 to-zinc-100"
+          {...stylex.props(styles.canvas)}
           onClick={handleDesktopClick}
           onContextMenu={handleDesktopContextMenu}
           onDragEnter={handleNativeDragEnter}
@@ -440,7 +475,7 @@ export function Desktop({
           onDrop={(event) => handleNativeDrop(event, null)}
         >
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.03]"
+            {...stylex.props(styles.grid)}
             style={{
               backgroundImage: `
                 linear-gradient(to right, currentColor 1px, transparent 1px),
@@ -527,9 +562,9 @@ export function Desktop({
           />
 
           {nativeDragOver && (
-            <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-blue-50/60 backdrop-blur-[2px]">
-              <div className="rounded-2xl border-2 border-dashed border-blue-400 bg-white/80 px-8 py-6 shadow-lg">
-                <p className="text-sm font-medium text-blue-600">Drop files here to upload</p>
+            <div {...stylex.props(styles.dropOverlay)}>
+              <div {...stylex.props(styles.dropCard)}>
+                <p {...stylex.props(styles.dropLabel)}>Drop files here to upload</p>
               </div>
             </div>
           )}
