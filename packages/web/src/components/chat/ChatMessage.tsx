@@ -223,7 +223,7 @@ function ChatMessageComponent({
             state={displayedAssistantAvatarState}
             animated={shouldAnimateAssistantAvatar}
             decorative
-            className={stylex.props(styles.avatar).className}
+            style={styles.avatar}
           />
         </button>
       )}

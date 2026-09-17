@@ -45,16 +45,26 @@ const config = {
     }),
     stylex.vite({
       dev: process.env.NODE_ENV === "development",
-      // Vite+ currently emits the app stylesheet after StyleX's static extraction
-      // hook, which drops the generated rules from the final asset. Injecting
-      // rules at module evaluation keeps the compiled StyleX output available in
-      // both Vite's development server and the production bundle.
-      runtimeInjection: true,
+      runtimeInjection: false,
+      // The plugin's default target picker only matches unhashed "index.css"/
+      // "style.css" filenames, so it never matches Vite's hashed output and
+      // silently falls back to the first CSS asset in the bundle - which isn't
+      // necessarily the stylesheet every page loads. Match the hashed entry
+      // stylesheet explicitly instead.
+      cssInjectionTarget: (fileName: string) => /(^|\/)index(-[\w]+)?\.css$/.test(fileName),
       unstable_moduleResolution: {
         rootDir: path.dirname(fileURLToPath(import.meta.url)),
         type: "commonJS",
       },
-      useCSSLayers: true,
+      // Cross-stylesheet @layer order is load-order dependent: in dev,
+      // StyleX's own stylesheet loads before index.css and locks in
+      // `priority1..10` first, so index.css's later `@layer reset, priority1,
+      // ...` declaration can only append `reset` at the end (highest
+      // priority) - the global reset then wins over StyleX everywhere in dev.
+      // Unlayered output sidesteps this: StyleX's class selectors (0,1,0)
+      // beat the reset's unlayered element selectors (0,0,1) on plain
+      // specificity, independent of stylesheet load order.
+      useCSSLayers: false,
     }),
     react({
       babel: {

@@ -138,11 +138,7 @@ export default function MascotShowcase() {
 
         <div {...stylex.props(styles.interactive)}>
           <div {...stylex.props(styles.heroFrame)}>
-            <MemoraMascot
-              state={activeState}
-              className={stylex.props(styles.heroMascot).className}
-              decorative
-            />
+            <MemoraMascot state={activeState} style={styles.heroMascot} decorative />
           </div>
 
           <div {...stylex.props(styles.stateControls)}>
@@ -179,11 +175,7 @@ export default function MascotShowcase() {
           {STATES.map((state) => (
             <div key={state} className={stylex.props(styles.stateCard).className}>
               <div {...stylex.props(styles.stateFrame)}>
-                <MemoraMascot
-                  state={state}
-                  className={stylex.props(styles.stateMascot).className}
-                  decorative
-                />
+                <MemoraMascot state={state} style={styles.stateMascot} decorative />
               </div>
               <span {...stylex.props(styles.stateLabel)}>{state}</span>
             </div>

@@ -54,16 +54,18 @@ import type { MemoraMascotState } from "./memoraMascot/types";
 
 export type { MemoraMascotState } from "./memoraMascot/types";
 
+export type MascotStyle = stylex.StyleXStyles;
+
 interface MemoraMascotProps {
   state: MemoraMascotState;
-  className?: string;
+  style?: MascotStyle;
   animated?: boolean;
   decorative?: boolean;
 }
 
 export default function MemoraMascot({
   state,
-  className,
+  style,
   animated = true,
   decorative = false,
 }: MemoraMascotProps) {
@@ -81,7 +83,7 @@ export default function MemoraMascot({
 
   return (
     <div
-      className={`${stylex.props(styles.root).className} ${className ?? ""}`}
+      className={stylex.props(styles.root, style).className}
       aria-hidden={decorative ? true : undefined}
       aria-label={decorative ? undefined : `Memora assistant is ${state}`}
       role={decorative ? undefined : "img"}

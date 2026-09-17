@@ -185,7 +185,7 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
           state="thinking"
           decorative
           animated={!shouldReduceMotion}
-          className={stylex.props(styles.mascot).className}
+          style={styles.mascot}
         />
 
         <div {...stylex.props(styles.copy)}>

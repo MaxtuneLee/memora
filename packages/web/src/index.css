@@ -47,6 +47,10 @@
   --shadow-md-soft: 0 4px 6px -1px rgb(0 0 0 / 5%);
 }
 
+/* Unlayered on purpose: StyleX also emits unlayered class selectors (see
+   `useCSSLayers: false` in vite.config.ts), and its 0,1,0 class selectors
+   beat this reset's 0,0,1 element selectors on plain specificity - a
+   guarantee that doesn't depend on which stylesheet loads first. */
 *,
 *::before,
 *::after {

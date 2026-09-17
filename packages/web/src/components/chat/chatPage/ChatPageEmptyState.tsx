@@ -83,7 +83,7 @@ export const ChatPageEmptyState = ({
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.hero)}>
         {sessionsError && <p {...stylex.props(styles.error)}>{sessionsError}</p>}
-        <Persona state="idle" className={stylex.props(styles.persona).className} />
+        <Persona state="idle" style={styles.persona} />
         <h1 {...stylex.props(styles.title)}>{greetingTitle}</h1>
         {!isConfigured && (
           <button type="button" onClick={onOpenSettings} {...stylex.props(styles.configure)}>
