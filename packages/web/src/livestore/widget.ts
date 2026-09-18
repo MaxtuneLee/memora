@@ -24,6 +24,7 @@ type WidgetDefinitionCreatedEvent = {
   kind: WidgetKind;
   builtinKey?: BuiltinWidgetKey;
   name: string;
+  widgetCode?: string;
   dataSourceName: DataSourceName;
   dataSourceParams?: string;
   createdAt: Date;
@@ -73,6 +74,7 @@ export const widgetDefinitionTable = State.SQLite.table({
     kind: State.SQLite.text({ default: "generated", schema: WidgetKindSchema }),
     builtinKey: State.SQLite.text({ nullable: true, schema: BuiltinWidgetKeySchema }),
     name: State.SQLite.text({ default: "" }),
+    widgetCode: State.SQLite.text({ default: "" }),
     dataSourceName: State.SQLite.text({ default: "recentFiles", schema: DataSourceNameSchema }),
     dataSourceParams: State.SQLite.text({ default: "{}" }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
@@ -108,6 +110,7 @@ export const widgetEvents = {
       kind: WidgetKindSchema,
       builtinKey: Schema.optional(BuiltinWidgetKeySchema),
       name: Schema.String,
+      widgetCode: Schema.optional(Schema.String),
       dataSourceName: DataSourceNameSchema,
       dataSourceParams: Schema.optional(Schema.String),
       createdAt: Schema.Date,
@@ -171,6 +174,7 @@ export const widgetMaterializers = {
       kind: event.kind,
       builtinKey: event.builtinKey ?? null,
       name: event.name,
+      widgetCode: event.widgetCode ?? "",
       dataSourceName: event.dataSourceName,
       dataSourceParams: event.dataSourceParams ?? "{}",
       createdAt: event.createdAt,

@@ -1,5 +1,6 @@
 import { ConfirmDialog } from "@/components/desktop";
 import * as stylex from "@stylexjs/stylex";
+import { SavedWidgetDefinitionsPanel } from "@/components/chat/SavedWidgetDefinitionsPanel";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
@@ -171,6 +172,7 @@ export const ChatPageView = (props: {
                 />
               </div>
             </div>
+            <SavedWidgetDefinitionsPanel />
 
             <ChatPageComposerPanel {...composerPanelProps} />
           </div>

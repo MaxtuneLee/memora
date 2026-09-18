@@ -15,6 +15,7 @@ export interface CreateWidgetDefinitionInput {
   id: string;
   kind: WidgetKind;
   name: string;
+  widgetCode?: string;
   builtinKey?: BuiltinWidgetKey;
   dataSourceName: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
@@ -33,6 +34,7 @@ export const createWidgetDefinition = ({
       kind: input.kind,
       builtinKey: input.builtinKey,
       name: input.name,
+      widgetCode: input.widgetCode,
       dataSourceName: input.dataSourceName,
       dataSourceParams: JSON.stringify(input.dataSourceParams ?? {}),
       createdAt: new Date(),
