@@ -4,6 +4,7 @@ import {
   activeWidgetDefinitionsQuery$,
   activeWidgetInstancesQuery$,
   listResolvedWidgetInstances,
+  resolveWidgetInstanceParams,
 } from "@/lib/widgets/widgetQueries";
 
 const buildInstance = (overrides: Record<string, unknown> = {}) => ({
@@ -66,4 +67,17 @@ test("resolves a null definition when an instance's definition is missing or sof
   expect(resolved).toEqual([
     { instance: expect.objectContaining({ id: "inst-1" }), definition: null },
   ]);
+});
+
+test("resolves instance params over the definition's catalog binding, so the same definition can be placed twice with different data", () => {
+  const definition = buildDefinition({ dataSourceParams: JSON.stringify({ limit: 5 }) });
+
+  const withNoOverride = resolveWidgetInstanceParams(definition, buildInstance({ params: "{}" }));
+  expect(withNoOverride).toEqual({ limit: 5 });
+
+  const withOverride = resolveWidgetInstanceParams(
+    definition,
+    buildInstance({ params: JSON.stringify({ limit: 10 }) }),
+  );
+  expect(withOverride).toEqual({ limit: 10 });
 });

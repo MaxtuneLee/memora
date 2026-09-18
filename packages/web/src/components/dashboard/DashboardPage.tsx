@@ -14,6 +14,11 @@ import { useNavigate } from "react-router";
 
 import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
 import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
+import {
+  AddWidgetDialog,
+  type PlaceWidgetInput,
+} from "@/components/dashboard/homeGrid/AddWidgetDialog";
+import { GeneratedWidgetTile } from "@/components/dashboard/homeGrid/GeneratedWidgetTile";
 import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
 import { RecentWidget } from "@/components/dashboard/RecentWidget";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
@@ -24,8 +29,15 @@ import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 import { listChatSessions, type ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
-import { deleteWidgetInstance, reorderWidgetInstances } from "@/lib/widgets/widgetInstances";
-import { activeWidgetDefinitionsQuery$, activeWidgetInstancesQuery$ } from "@/lib/widgets/widgetQueries";
+import {
+  createWidgetInstance,
+  deleteWidgetInstance,
+  reorderWidgetInstances,
+} from "@/lib/widgets/widgetInstances";
+import {
+  activeWidgetDefinitionsQuery$,
+  activeWidgetInstancesQuery$,
+} from "@/lib/widgets/widgetQueries";
 import { seedHomeGrid } from "@/lib/widgets/seedHomeGrid";
 import { fileEvents } from "@/livestore/file";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
@@ -148,7 +160,9 @@ export const Component = (): ReactElement => {
   const reducedMotion = useReducedMotion() ?? false;
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
-  const widgetInstanceRows = store.useQuery(activeWidgetInstancesQuery$) as readonly widgetInstance[];
+  const widgetInstanceRows = store.useQuery(
+    activeWidgetInstancesQuery$,
+  ) as readonly widgetInstance[];
   const widgetDefinitionRows = store.useQuery(
     activeWidgetDefinitionsQuery$,
   ) as readonly widgetDefinition[];
@@ -158,6 +172,7 @@ export const Component = (): ReactElement => {
   );
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
+  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   useEffect(() => {
     seedHomeGrid({ store });
@@ -214,7 +229,9 @@ export const Component = (): ReactElement => {
   }, [chatSessions.length, chatSessionsLoaded, files.length, recentActivityCount]);
 
   const homeGridTiles = useMemo(() => {
-    const definitionsById = new Map(widgetDefinitionRows.map((definition) => [definition.id, definition]));
+    const definitionsById = new Map(
+      widgetDefinitionRows.map((definition) => [definition.id, definition]),
+    );
     return widgetInstanceRows.map((instance) => ({
       instance,
       definition: definitionsById.get(instance.definitionId) ?? null,
@@ -222,15 +239,17 @@ export const Component = (): ReactElement => {
   }, [widgetDefinitionRows, widgetInstanceRows]);
 
   const renderHomeGridWidget = useCallback(
-    (definition: widgetDefinition): ReactNode => {
+    (definition: widgetDefinition, instance: widgetInstance): ReactNode => {
+      if (definition.kind === "generated") {
+        return <GeneratedWidgetTile store={store} definition={definition} instance={instance} />;
+      }
+
       if (definition.kind !== "builtin") {
         return null;
       }
 
       if (definition.builtinKey === "calendar") {
-        return (
-          <CalendarWidget activityTimestamps={recentItems.map((item) => item.updatedAt)} />
-        );
+        return <CalendarWidget activityTimestamps={recentItems.map((item) => item.updatedAt)} />;
       }
 
       if (definition.builtinKey === "todo") {
@@ -258,6 +277,21 @@ export const Component = (): ReactElement => {
       deleteWidgetInstance({ store, id: instanceId });
     },
     [store],
+  );
+
+  const handlePlaceWidget = useCallback(
+    (input: PlaceWidgetInput) => {
+      createWidgetInstance({
+        store,
+        input: {
+          id: crypto.randomUUID(),
+          definitionId: input.definitionId,
+          sortOrder: widgetInstanceRows.length,
+          params: input.params,
+        },
+      });
+    },
+    [store, widgetInstanceRows.length],
   );
 
   const heroAnimations = reducedMotion
@@ -374,11 +408,18 @@ export const Component = (): ReactElement => {
                 renderWidget={renderHomeGridWidget}
                 onReorder={handleReorderWidgets}
                 onRemove={handleRemoveWidget}
+                onAddWidget={() => setIsAddWidgetOpen(true)}
               />
             </motion.div>
           </div>
         </div>
       </motion.div>
+      <AddWidgetDialog
+        open={isAddWidgetOpen}
+        definitions={[...widgetDefinitionRows]}
+        onOpenChange={setIsAddWidgetOpen}
+        onPlace={handlePlaceWidget}
+      />
     </div>
   );
 };

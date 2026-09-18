@@ -1,3 +1,4 @@
+import type { Queryable } from "@livestore/livestore";
 import { file as opfsFile } from "@memora/fs";
 
 import { activeFilesQuery$ } from "@/lib/library/queries";
@@ -39,6 +40,14 @@ export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
 
 export const getDataSourceCatalogEntry = (name: string): DataSourceCatalogEntry | undefined => {
   return DATA_SOURCE_CATALOG.find((entry) => entry.name === name);
+};
+
+// ponytail: only sources backed by a livestore query re-resolve on data change; storageStats and
+// chatSessionCount read external browser/OPFS state and only refresh on mount. Add a query here if
+// those need live updates too.
+export const DATA_SOURCE_LIVE_QUERIES: Partial<Record<DataSourceName, Queryable<any>>> = {
+  recentFiles: desktopFilesQuery$,
+  todoProgress: activeFilesQuery$,
 };
 
 export interface RecentFilesData {

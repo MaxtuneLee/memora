@@ -6,6 +6,8 @@ import {
   type widgetDefinition,
   type widgetInstance,
 } from "@/livestore/widget";
+import { parseWidgetDefinitionDataSourceParams } from "./widgetDefinitions";
+import { parseWidgetInstanceParams } from "./widgetInstances";
 import type { WidgetQueryableStore } from "./widgetStore";
 
 export const activeWidgetDefinitionsQuery$ = queryDb(
@@ -35,3 +37,14 @@ export const listResolvedWidgetInstances = (
     definition: definitionsById.get(instance.definitionId) ?? null,
   }));
 };
+
+// An Instance's own params override its Definition's catalog binding, so the same Definition
+// can be placed more than once with different resolved data (e.g. two "recent files" tiles with
+// different limits).
+export const resolveWidgetInstanceParams = (
+  definition: Pick<widgetDefinition, "dataSourceParams">,
+  instance: Pick<widgetInstance, "params">,
+): Record<string, unknown> => ({
+  ...parseWidgetDefinitionDataSourceParams(definition),
+  ...parseWidgetInstanceParams(instance),
+});
