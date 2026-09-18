@@ -1,9 +1,17 @@
 import type { FileMeta } from "@/types/library";
 
-const EDITABLE_TEXT_MIME_TYPES = new Set(["application/markdown", "text/markdown", "text/plain"]);
+const EDITABLE_TEXT_MIME_TYPES = new Set([
+  "application/markdown",
+  "text/markdown",
+  "text/plain",
+  "text/html",
+]);
 
 const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown"]);
 const PLAIN_TEXT_EXTENSIONS = new Set([".txt"]);
+// widget.html (a generated Widget Definition's source) is plain text underneath and should be
+// openable in the text editor from the Desktop, same as any other note.
+const MARKUP_EXTENSIONS = new Set([".html"]);
 const INVALID_PATH_SEPARATOR_PATTERN = /[\\/]/g;
 const CONTROL_CHARACTER_PATTERN = /\p{Cc}/gu;
 const WHITESPACE_PATTERN = /\s+/g;
@@ -24,7 +32,11 @@ export const getFileExtension = (name: string): string => {
 
 export const hasEditableTextExtension = (name: string): boolean => {
   const extension = getFileExtension(name);
-  return MARKDOWN_EXTENSIONS.has(extension) || PLAIN_TEXT_EXTENSIONS.has(extension);
+  return (
+    MARKDOWN_EXTENSIONS.has(extension) ||
+    PLAIN_TEXT_EXTENSIONS.has(extension) ||
+    MARKUP_EXTENSIONS.has(extension)
+  );
 };
 
 export const inferPreferredEditableTextExtension = (mimeType: string): ".md" | ".txt" => {

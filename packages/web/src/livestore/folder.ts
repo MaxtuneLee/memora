@@ -1,11 +1,17 @@
 import { Events, Schema, State } from "@livestore/livestore";
 
+export const RESERVED_FOLDER_KINDS = ["widgets", "widgetDefinition"] as const;
+export type ReservedFolderKind = (typeof RESERVED_FOLDER_KINDS)[number];
+
+const ReservedFolderKindSchema = Schema.Literal(...RESERVED_FOLDER_KINDS);
+
 type FolderCreatedEvent = {
   id: string;
   name: string;
   parentId?: string | null;
   positionX?: number | null;
   positionY?: number | null;
+  reservedKind?: ReservedFolderKind;
   createdAt: Date;
 };
 
@@ -39,6 +45,7 @@ export const folderTable = State.SQLite.table({
     id: State.SQLite.text({ primaryKey: true }),
     name: State.SQLite.text({ default: "" }),
     parentId: State.SQLite.text({ nullable: true }),
+    reservedKind: State.SQLite.text({ nullable: true, schema: ReservedFolderKindSchema }),
     positionX: State.SQLite.integer({ nullable: true }),
     positionY: State.SQLite.integer({ nullable: true }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
@@ -63,6 +70,10 @@ export const folderEvents = {
       parentId: Schema.optional(Schema.NullOr(Schema.String)),
       positionX: Schema.optional(Schema.NullOr(Schema.Number)),
       positionY: Schema.optional(Schema.NullOr(Schema.Number)),
+      // Plain optional (not NullOr): a folder's reservedKind is only ever set at create time,
+      // never explicitly cleared, and this keeps the combined LiveStore schema's inferred types
+      // printable — see the TS2742 note in ADR 0007.
+      reservedKind: Schema.optional(ReservedFolderKindSchema),
       createdAt: Schema.Date,
     }),
   }),
@@ -106,6 +117,7 @@ export const folderMaterializers = {
       id: event.id,
       name: event.name,
       parentId: event.parentId ?? null,
+      reservedKind: event.reservedKind ?? null,
       positionX: event.positionX ?? null,
       positionY: event.positionY ?? null,
       createdAt: event.createdAt,

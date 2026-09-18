@@ -30,11 +30,27 @@ export const resetTodoDocumentStateForTests = (): void => {
   cachedTodoDocumentSnapshot = null;
 };
 
-export const findTodoDocument = (files: FileMeta[]): FileMeta | null => {
+// Looks inside the Todo Widget Definition folder first (the current home for the Today Tasks
+// document); falls back to a name-based search across every file for legacy data that has not
+// been migrated into that folder yet.
+export const findTodoDocument = (
+  files: FileMeta[],
+  todoFolderId?: string | null,
+): FileMeta | null => {
+  const isTodoDocument = (file: FileMeta) =>
+    file.type === "document" && file.name === TODO_DOCUMENT_NAME;
+
+  if (todoFolderId) {
+    const inFolder = files
+      .filter((file) => isTodoDocument(file) && file.parentId === todoFolderId)
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+    if (inFolder[0]) {
+      return inFolder[0];
+    }
+  }
+
   const matches = files
-    .filter((file) => {
-      return file.type === "document" && file.name === TODO_DOCUMENT_NAME;
-    })
+    .filter(isTodoDocument)
     .sort((left, right) => right.updatedAt - left.updatedAt);
 
   return matches[0] ?? null;
@@ -78,8 +94,10 @@ const loadTodoDocument = async (file: FileMeta): Promise<TodoDocumentSnapshot> =
 
 const createTodoDocument = async ({
   store,
+  todoFolderId,
 }: {
   store: TodoStoreLike;
+  todoFolderId?: string | null;
 }): Promise<TodoDocumentSnapshot> => {
   const markdown = serializeTodoMarkdown([]);
   const result = await saveFileToOpfs({
@@ -87,6 +105,7 @@ const createTodoDocument = async ({
     name: TODO_DOCUMENT_NAME,
     type: "document",
     mimeType: TODO_DOCUMENT_MIME_TYPE,
+    parentId: todoFolderId ?? null,
   });
 
   store.commit(
@@ -115,11 +134,13 @@ const createTodoDocument = async ({
 export const ensureTodoDocument = async ({
   files,
   store,
+  todoFolderId,
 }: {
   files: FileMeta[];
   store: TodoStoreLike;
+  todoFolderId?: string | null;
 }): Promise<TodoDocumentSnapshot> => {
-  const existing = findTodoDocument(files);
+  const existing = findTodoDocument(files, todoFolderId);
   if (existing) {
     const snapshot = await loadTodoDocument(existing);
     cachedTodoDocumentSnapshot = snapshot;
@@ -134,7 +155,7 @@ export const ensureTodoDocument = async ({
     return pendingTodoDocumentCreation;
   }
 
-  const creation = createTodoDocument({ store });
+  const creation = createTodoDocument({ store, todoFolderId });
   const pendingCreation = creation.finally(() => {
     if (pendingTodoDocumentCreation === pendingCreation) {
       pendingTodoDocumentCreation = null;

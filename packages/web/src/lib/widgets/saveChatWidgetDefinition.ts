@@ -1,5 +1,16 @@
+import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import type { DataSourceName } from "@/livestore/widget";
+
 import { createWidgetDefinition, type WidgetDefinitionStoreLike } from "./widgetDefinitions";
+import {
+  createWidgetDefinitionFolder,
+  ensureWidgetsRootFolder,
+  widgetFoldersQuery$,
+  type WidgetFolderStoreLike,
+} from "./widgetFolders";
+import { buildWidgetManifest } from "./widgetManifest";
+import { createWidgetManifestFile, createWidgetSourceFile } from "./widgetManifestFile";
+import type { WidgetQueryableStore } from "./widgetStore";
 
 export interface SaveChatWidgetDefinitionInput {
   id: string;
@@ -13,13 +24,16 @@ export type SaveChatWidgetDefinitionResult =
   | { ok: true }
   | { ok: false; reason: "missing-data-source" | "missing-widget-code" };
 
-export const saveChatWidgetDefinition = ({
+export interface SaveChatWidgetDefinitionStore
+  extends WidgetDefinitionStoreLike, WidgetFolderStoreLike, WidgetQueryableStore {}
+
+export const saveChatWidgetDefinition = async ({
   store,
   input,
 }: {
-  store: WidgetDefinitionStoreLike;
+  store: SaveChatWidgetDefinitionStore;
   input: SaveChatWidgetDefinitionInput;
-}): SaveChatWidgetDefinitionResult => {
+}): Promise<SaveChatWidgetDefinitionResult> => {
   if (!input.dataSourceName) {
     return { ok: false, reason: "missing-data-source" };
   }
@@ -28,15 +42,43 @@ export const saveChatWidgetDefinition = ({
     return { ok: false, reason: "missing-widget-code" };
   }
 
+  const folders = store.query(widgetFoldersQuery$) as readonly LiveStoreFolder[];
+  const { folder: rootFolder } = ensureWidgetsRootFolder({ store, folders });
+  const { folder: definitionFolder } = createWidgetDefinitionFolder({
+    store,
+    folders,
+    rootId: rootFolder.id,
+    name: input.name || "Untitled widget",
+  });
+  const folderId = definitionFolder.id;
+
+  const sourceFile = await createWidgetSourceFile({
+    store,
+    folderId,
+    code: input.widgetCode,
+  });
+
+  await createWidgetManifestFile({
+    store,
+    folderId,
+    manifest: buildWidgetManifest({
+      kind: "generated",
+      name: input.name,
+      dataSourceName: input.dataSourceName,
+      dataSourceParams: input.dataSourceParams,
+    }),
+  });
+
   createWidgetDefinition({
     store,
     input: {
       id: input.id,
       kind: "generated",
       name: input.name,
-      widgetCode: input.widgetCode,
       dataSourceName: input.dataSourceName,
       dataSourceParams: input.dataSourceParams,
+      folderId,
+      sourceFileId: sourceFile.id,
     },
   });
 

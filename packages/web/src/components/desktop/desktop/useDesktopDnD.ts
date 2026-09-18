@@ -16,9 +16,11 @@ import { DESKTOP_ROOT_ID } from "./types";
 export const useDesktopDnD = ({
   items,
   store,
+  onRejectedMove,
 }: {
   items: Map<string, DesktopItemType>;
   store: { commit: (...events: unknown[]) => void };
+  onRejectedMove?: (message: string) => void;
 }) => {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
@@ -36,6 +38,16 @@ export const useDesktopDnD = ({
 
       const movedItem = items.get(active.id as string);
       if (!movedItem || movedItem.type === "widget") {
+        return;
+      }
+
+      // The Widgets root can't be moved at all, and a Widget Definition folder can't be moved
+      // out of Widgets — since Widgets only ever holds definition folders directly, that leaves
+      // no valid move target for either, so both are rejected outright.
+      if (movedItem.type === "folder" && movedItem.reservedKind) {
+        const message = "This folder is reserved for Widget Definitions and can't be moved.";
+        console.warn("Rejected move:", message);
+        onRejectedMove?.(message);
         return;
       }
 
@@ -188,7 +200,7 @@ export const useDesktopDnD = ({
         );
       }
     },
-    [items, store],
+    [items, onRejectedMove, store],
   );
 
   const sensors = useSensors(

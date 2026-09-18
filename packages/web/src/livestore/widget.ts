@@ -27,6 +27,8 @@ type WidgetDefinitionCreatedEvent = {
   widgetCode?: string;
   dataSourceName: DataSourceName;
   dataSourceParams?: string;
+  folderId?: string;
+  sourceFileId?: string;
   createdAt: Date;
 };
 
@@ -35,6 +37,8 @@ type WidgetDefinitionUpdatedEvent = {
   name?: string;
   dataSourceName?: DataSourceName;
   dataSourceParams?: string;
+  folderId?: string;
+  sourceFileId?: string;
   updatedAt: Date;
 };
 
@@ -77,6 +81,8 @@ export const widgetDefinitionTable = State.SQLite.table({
     widgetCode: State.SQLite.text({ default: "" }),
     dataSourceName: State.SQLite.text({ default: "recentFiles", schema: DataSourceNameSchema }),
     dataSourceParams: State.SQLite.text({ default: "{}" }),
+    folderId: State.SQLite.text({ nullable: true }),
+    sourceFileId: State.SQLite.text({ nullable: true }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     updatedAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     deletedAt: State.SQLite.integer({
@@ -113,6 +119,8 @@ export const widgetEvents = {
       widgetCode: Schema.optional(Schema.String),
       dataSourceName: DataSourceNameSchema,
       dataSourceParams: Schema.optional(Schema.String),
+      folderId: Schema.optional(Schema.String),
+      sourceFileId: Schema.optional(Schema.String),
       createdAt: Schema.Date,
     }),
   }),
@@ -123,6 +131,10 @@ export const widgetEvents = {
       name: Schema.optional(Schema.String),
       dataSourceName: Schema.optional(DataSourceNameSchema),
       dataSourceParams: Schema.optional(Schema.String),
+      // Plain optional, like the same fields on widgetDefinitionCreated: only ever set once
+      // (renamed-folder sync, or the legacy folderId backfill), never explicitly cleared.
+      folderId: Schema.optional(Schema.String),
+      sourceFileId: Schema.optional(Schema.String),
       updatedAt: Schema.Date,
     }),
   }),
@@ -177,6 +189,8 @@ export const widgetMaterializers = {
       widgetCode: event.widgetCode ?? "",
       dataSourceName: event.dataSourceName,
       dataSourceParams: event.dataSourceParams ?? "{}",
+      folderId: event.folderId ?? null,
+      sourceFileId: event.sourceFileId ?? null,
       createdAt: event.createdAt,
       updatedAt: event.createdAt,
     }),
@@ -188,6 +202,8 @@ export const widgetMaterializers = {
         ...(event.dataSourceParams !== undefined
           ? { dataSourceParams: event.dataSourceParams }
           : {}),
+        ...(event.folderId !== undefined ? { folderId: event.folderId } : {}),
+        ...(event.sourceFileId !== undefined ? { sourceFileId: event.sourceFileId } : {}),
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),

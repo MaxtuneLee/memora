@@ -9,6 +9,7 @@ import {
 } from "@/components/dashboard/todoMarkdown";
 import {
   ensureTodoDocument,
+  findTodoDocument,
   resetTodoDocumentStateForTests,
   saveTodoDocument,
 } from "@/components/dashboard/todoDocument";
@@ -134,7 +135,7 @@ test("creates the backing todo markdown document when it does not exist", async 
 });
 
 test("coalesces concurrent creation requests for the todo document", async () => {
-  let resolveCreate: ((value: { id: string; meta: FileMeta }) => void) | null = null;
+  let resolveCreate!: (value: { id: string; meta: FileMeta }) => void;
   const createdMeta = createFileMeta({
     id: "created-once",
     storagePath: "/files/created-once/created-once.md",
@@ -159,7 +160,7 @@ test("coalesces concurrent creation requests for the todo document", async () =>
 
   expect(testState.saveFileToOpfs).toHaveBeenCalledTimes(1);
 
-  resolveCreate?.({
+  resolveCreate({
     id: createdMeta.id,
     meta: createdMeta,
   });
@@ -197,6 +198,49 @@ test("reuses the newly created todo document before the files query catches up",
   expect(firstResult).toEqual(secondResult);
   expect(secondResult.file).toEqual(createdMeta);
   expect(store.commit).toHaveBeenCalledTimes(1);
+});
+
+test("prefers the todo document inside the Todo definition folder over a stale root document", async () => {
+  const rootLegacy = createFileMeta({
+    id: "root-legacy",
+    parentId: null,
+    updatedAt: 50,
+  });
+  const inFolder = createFileMeta({
+    id: "in-folder",
+    parentId: "todo-folder",
+    updatedAt: 10,
+  });
+
+  expect(findTodoDocument([rootLegacy, inFolder], "todo-folder")).toEqual(inFolder);
+  expect(findTodoDocument([rootLegacy], "todo-folder")).toEqual(rootLegacy);
+  expect(findTodoDocument([rootLegacy, inFolder])).toEqual(rootLegacy);
+});
+
+test("creates a new todo document inside the Todo definition folder when given a folder id", async () => {
+  const createdMeta = createFileMeta({
+    id: "created-in-folder",
+    parentId: "todo-folder",
+    storagePath: "/files/created-in-folder/created-in-folder.md",
+    metaPath: "/files/created-in-folder/created-in-folder.meta.json",
+  });
+  testState.saveFileToOpfs.mockResolvedValue({
+    id: createdMeta.id,
+    meta: createdMeta,
+  });
+  const store = {
+    commit: vi.fn(),
+  };
+
+  await ensureTodoDocument({
+    files: [],
+    store,
+    todoFolderId: "todo-folder",
+  });
+
+  expect(testState.saveFileToOpfs).toHaveBeenCalledWith(
+    expect.objectContaining({ parentId: "todo-folder" }),
+  );
 });
 
 test("reuses the most recently updated active todo file when one already exists", async () => {

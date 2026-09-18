@@ -175,7 +175,9 @@ export const Component = (): ReactElement => {
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   useEffect(() => {
-    seedHomeGrid({ store });
+    void seedHomeGrid({ store }).catch((error) => {
+      console.error("Failed to seed the Home Grid:", error);
+    });
   }, [store]);
 
   useEffect(() => {
@@ -257,7 +259,7 @@ export const Component = (): ReactElement => {
       }
 
       if (definition.builtinKey === "todo") {
-        return <TodoPanel files={files} store={store} />;
+        return <TodoPanel files={files} store={store} todoFolderId={definition.folderId ?? null} />;
       }
 
       if (definition.builtinKey === "recent") {
