@@ -88,7 +88,9 @@ interface SaveWidgetDefinitionDialogProps {
   widgetCode: string;
   widgetName: string;
   onOpenChange: (open: boolean) => void;
-  onSave: (input: SaveChatWidgetDefinitionInput) => SaveChatWidgetDefinitionResult;
+  onSave: (
+    input: SaveChatWidgetDefinitionInput,
+  ) => SaveChatWidgetDefinitionResult | Promise<SaveChatWidgetDefinitionResult>;
 }
 
 export function SaveWidgetDefinitionDialog({
@@ -104,16 +106,18 @@ export function SaveWidgetDefinitionDialog({
   const [dataSourceName, setDataSourceName] = useState<DataSourceName | "">("");
   const [recentFilesLimit, setRecentFilesLimit] = useState("5");
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const selectedDataSource = dataSourceName ? getDataSourceCatalogEntry(dataSourceName) : undefined;
 
   const handleClose = useCallback(() => {
     setDataSourceName("");
     setRecentFilesLimit("5");
     setError(null);
+    setIsSaving(false);
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!dataSourceName) {
       setError("Choose a data source before saving this definition.");
       return;
@@ -125,24 +129,33 @@ export function SaveWidgetDefinitionDialog({
       return;
     }
 
-    const result = onSave({
-      id: crypto.randomUUID(),
-      name: widgetName || "Untitled widget",
-      widgetCode,
-      dataSourceName,
-      ...(dataSourceName === "recentFiles" ? { dataSourceParams: { limit } } : {}),
-    });
+    setIsSaving(true);
+    setError(null);
 
-    if (!result.ok) {
-      setError(
-        result.reason === "missing-widget-code"
-          ? "This preview has no widget source to save."
-          : "Choose a data source before saving this definition.",
-      );
-      return;
+    try {
+      const result = await onSave({
+        id: crypto.randomUUID(),
+        name: widgetName || "Untitled widget",
+        widgetCode,
+        dataSourceName,
+        ...(dataSourceName === "recentFiles" ? { dataSourceParams: { limit } } : {}),
+      });
+
+      if (!result.ok) {
+        setError(
+          result.reason === "missing-widget-code"
+            ? "This preview has no widget source to save."
+            : "Choose a data source before saving this definition.",
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      handleClose();
+    } catch {
+      setError("Couldn't save this widget definition. Try again.");
+      setIsSaving(false);
     }
-
-    handleClose();
   }, [dataSourceName, handleClose, onSave, recentFilesLimit, widgetCode, widgetName]);
 
   return (
@@ -217,12 +230,18 @@ export function SaveWidgetDefinitionDialog({
           <button
             type="button"
             onClick={handleClose}
+            disabled={isSaving}
             {...stylex.props(styles.button, styles.cancel)}
           >
             Cancel
           </button>
-          <button type="button" onClick={handleSave} {...stylex.props(styles.button, styles.save)}>
-            Save definition
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={isSaving}
+            {...stylex.props(styles.button, styles.save)}
+          >
+            {isSaving ? "Saving…" : "Save definition"}
           </button>
         </div>
       </div>

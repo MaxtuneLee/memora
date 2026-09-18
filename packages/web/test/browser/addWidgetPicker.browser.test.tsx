@@ -18,6 +18,8 @@ const SAVED_DEFINITION: widgetDefinition = {
   widgetCode: "<div>Recent research</div>",
   dataSourceName: "recentFiles",
   dataSourceParams: JSON.stringify({ limit: 5 }),
+  folderId: null,
+  sourceFileId: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
   deletedAt: null,
@@ -107,9 +109,7 @@ describe("Home Grid add-widget picker", () => {
     root = createRoot(container);
     root.render(<AddWidgetHarness />);
 
-    await expect
-      .element(page.getByText("No widgets on your Home Grid yet."))
-      .toBeVisible();
+    await expect.element(page.getByText("No widgets on your Home Grid yet.")).toBeVisible();
 
     await placeDefinitionWithLimit("8");
 

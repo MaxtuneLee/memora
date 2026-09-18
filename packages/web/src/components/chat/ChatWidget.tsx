@@ -160,6 +160,8 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     },
     [store],
   );
+  // handleSaveDefinition resolves asynchronously (it writes widget.html/widget.json to OPFS
+  // before committing the Definition); SaveWidgetDefinitionDialog awaits it.
 
   return (
     <>

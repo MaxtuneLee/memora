@@ -251,9 +251,11 @@ const TodoTaskRow = ({
 export function TodoPanel({
   files,
   store,
+  todoFolderId = null,
 }: {
   files: FileMeta[];
   store: TodoPanelStore;
+  todoFolderId?: string | null;
 }): ReactElement {
   const [draft, setDraft] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -271,8 +273,8 @@ export function TodoPanel({
   filesRef.current = files;
 
   const todoFileId = useMemo(() => {
-    return findTodoDocument(files)?.id ?? null;
-  }, [files]);
+    return findTodoDocument(files, todoFolderId)?.id ?? null;
+  }, [files, todoFolderId]);
   const groupedTasks = useMemo(() => splitTodoTasks(tasks), [tasks]);
 
   useEffect(() => {
@@ -294,6 +296,7 @@ export function TodoPanel({
         const snapshot = await ensureTodoDocument({
           files: filesRef.current,
           store,
+          todoFolderId,
         });
 
         if (cancelled) {
@@ -321,7 +324,7 @@ export function TodoPanel({
     return () => {
       cancelled = true;
     };
-  }, [retryNonce, store, todoFileId]);
+  }, [retryNonce, store, todoFileId, todoFolderId]);
 
   const queuePersist = useCallback(
     (nextTasks: TodoTask[], rollbackSnapshot: TodoDocumentSnapshot) => {

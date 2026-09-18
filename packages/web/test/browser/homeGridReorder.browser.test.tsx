@@ -17,6 +17,8 @@ const makeDefinition = (key: WidgetKey): widgetDefinition => ({
   widgetCode: "",
   dataSourceName: "recentFiles",
   dataSourceParams: "{}",
+  folderId: null,
+  sourceFileId: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
   deletedAt: null,

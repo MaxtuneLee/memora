@@ -31,6 +31,7 @@ export interface setting {
   assistantStyle?: string;
   customInstructions?: string;
   homeGridSeeded?: boolean;
+  widgetFoldersSeeded?: boolean;
 }
 
 export const defaultSettings: setting = {
@@ -66,6 +67,7 @@ export const defaultSettings: setting = {
   assistantStyle: "",
   customInstructions: "",
   homeGridSeeded: false,
+  widgetFoldersSeeded: false,
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
@@ -105,6 +107,7 @@ export const settingsStoredValueSchema = Schema.Struct({
   assistantStyle: Schema.optional(Schema.String),
   customInstructions: Schema.optional(Schema.String),
   homeGridSeeded: Schema.optional(Schema.Boolean),
+  widgetFoldersSeeded: Schema.optional(Schema.Boolean),
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {
