@@ -12,6 +12,35 @@ import type { WidgetQueryableStore } from "./widgetStore";
 
 export { DATA_SOURCE_NAMES, type DataSourceName };
 
+export interface DataSourceCatalogEntry {
+  name: DataSourceName;
+  label: string;
+  description: string;
+}
+
+export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
+  {
+    name: "recentFiles",
+    label: "Recent files",
+    description: "Recently updated items in your library.",
+  },
+  {
+    name: "todoProgress",
+    label: "To-do progress",
+    description: "Completed and open tasks in your to-do document.",
+  },
+  { name: "storageStats", label: "Storage", description: "Local storage usage and availability." },
+  {
+    name: "chatSessionCount",
+    label: "Chat sessions",
+    description: "The number of saved conversations.",
+  },
+];
+
+export const getDataSourceCatalogEntry = (name: string): DataSourceCatalogEntry | undefined => {
+  return DATA_SOURCE_CATALOG.find((entry) => entry.name === name);
+};
+
 export interface RecentFilesData {
   files: Array<{ id: string; name: string; type: string; updatedAt: number }>;
 }

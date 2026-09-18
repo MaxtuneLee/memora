@@ -7,7 +7,7 @@ import {
 } from "@/livestore/widget";
 import { parseJsonRecord } from "./widgetJson";
 
-interface WidgetDefinitionStoreLike {
+export interface WidgetDefinitionStoreLike {
   commit: (...events: unknown[]) => void;
 }
 

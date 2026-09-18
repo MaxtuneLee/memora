@@ -1,9 +1,5 @@
 import type { DataSourceName } from "@/livestore/widget";
-import { createWidgetDefinition } from "./widgetDefinitions";
-
-interface WidgetDefinitionStoreLike {
-  commit: (...events: unknown[]) => void;
-}
+import { createWidgetDefinition, type WidgetDefinitionStoreLike } from "./widgetDefinitions";
 
 export interface SaveChatWidgetDefinitionInput {
   id: string;

@@ -1,35 +1,13 @@
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState, type JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import type { DataSourceName } from "@/livestore/widget";
+import { DATA_SOURCE_CATALOG, getDataSourceCatalogEntry } from "@/lib/widgets/dataSourceCatalog";
 import type {
   SaveChatWidgetDefinitionInput,
   SaveChatWidgetDefinitionResult,
 } from "@/lib/widgets/saveChatWidgetDefinition";
-
-const DATA_SOURCE_OPTIONS: Array<{
-  name: DataSourceName;
-  label: string;
-  description: string;
-}> = [
-  {
-    name: "recentFiles",
-    label: "Recent files",
-    description: "Recently updated items in your library.",
-  },
-  {
-    name: "todoProgress",
-    label: "To-do progress",
-    description: "Completed and open tasks in your to-do document.",
-  },
-  { name: "storageStats", label: "Storage", description: "Local storage usage and availability." },
-  {
-    name: "chatSessionCount",
-    label: "Chat sessions",
-    description: "The number of saved conversations.",
-  },
-];
 
 const styles = stylex.create({
   panel: {
@@ -119,14 +97,14 @@ export function SaveWidgetDefinitionDialog({
   widgetName,
   onOpenChange,
   onSave,
-}: SaveWidgetDefinitionDialogProps) {
+}: SaveWidgetDefinitionDialogProps): JSX.Element {
   const titleId = useId();
   const descriptionId = useId();
   const dataSourceRef = useRef<HTMLSelectElement>(null);
   const [dataSourceName, setDataSourceName] = useState<DataSourceName | "">("");
   const [recentFilesLimit, setRecentFilesLimit] = useState("5");
   const [error, setError] = useState<string | null>(null);
-  const selectedDataSource = DATA_SOURCE_OPTIONS.find((option) => option.name === dataSourceName);
+  const selectedDataSource = dataSourceName ? getDataSourceCatalogEntry(dataSourceName) : undefined;
 
   const handleClose = useCallback(() => {
     setDataSourceName("");
@@ -137,7 +115,7 @@ export function SaveWidgetDefinitionDialog({
 
   const handleSave = useCallback(() => {
     if (!dataSourceName) {
-      setError("Choose a data source before saving this Definition.");
+      setError("Choose a data source before saving this definition.");
       return;
     }
 
@@ -159,7 +137,7 @@ export function SaveWidgetDefinitionDialog({
       setError(
         result.reason === "missing-widget-code"
           ? "This preview has no widget source to save."
-          : "Choose a data source before saving this Definition.",
+          : "Choose a data source before saving this definition.",
       );
       return;
     }
@@ -183,7 +161,7 @@ export function SaveWidgetDefinitionDialog({
       <div {...stylex.props(styles.content)}>
         <div>
           <h2 id={titleId} {...stylex.props(styles.heading)}>
-            Save widget Definition
+            Save widget definition
           </h2>
           <p id={descriptionId} {...stylex.props(styles.description)}>
             Bind this preview to a catalog data source before saving it for later use.
@@ -198,13 +176,13 @@ export function SaveWidgetDefinitionDialog({
             id="widget-data-source"
             value={dataSourceName}
             onChange={(event) => {
-              setDataSourceName(event.target.value as DataSourceName | "");
+              setDataSourceName(getDataSourceCatalogEntry(event.target.value)?.name ?? "");
               setError(null);
             }}
             {...stylex.props(styles.select)}
           >
             <option value="">Choose a data source</option>
-            {DATA_SOURCE_OPTIONS.map((option) => (
+            {DATA_SOURCE_CATALOG.map((option) => (
               <option key={option.name} value={option.name}>
                 {option.label}
               </option>
@@ -244,7 +222,7 @@ export function SaveWidgetDefinitionDialog({
             Cancel
           </button>
           <button type="button" onClick={handleSave} {...stylex.props(styles.button, styles.save)}>
-            Save Definition
+            Save definition
           </button>
         </div>
       </div>

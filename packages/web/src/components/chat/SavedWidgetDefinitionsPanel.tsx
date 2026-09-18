@@ -1,15 +1,10 @@
+import { type JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { useAppStore } from "@/livestore/store";
 import type { DataSourceName, widgetDefinition } from "@/livestore/widget";
+import { getDataSourceCatalogEntry } from "@/lib/widgets/dataSourceCatalog";
 import { activeWidgetDefinitionsQuery$ } from "@/lib/widgets/widgetQueries";
-
-const DATA_SOURCE_LABELS: Record<DataSourceName, string> = {
-  recentFiles: "Recent files",
-  todoProgress: "To-do progress",
-  storageStats: "Storage",
-  chatSessionCount: "Chat sessions",
-};
 
 const styles = stylex.create({
   root: {
@@ -59,7 +54,7 @@ const styles = stylex.create({
 });
 
 const getDataSourceLabel = (dataSourceName: DataSourceName): string => {
-  return DATA_SOURCE_LABELS[dataSourceName];
+  return getDataSourceCatalogEntry(dataSourceName)?.label ?? dataSourceName;
 };
 
 const sortByUpdatedAt = (definitions: readonly widgetDefinition[]): widgetDefinition[] => {
@@ -68,17 +63,17 @@ const sortByUpdatedAt = (definitions: readonly widgetDefinition[]): widgetDefini
     .toSorted((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());
 };
 
-export function SavedWidgetDefinitionsPanel() {
+export function SavedWidgetDefinitionsPanel(): JSX.Element {
   const store = useAppStore();
   const definitions = store.useQuery(activeWidgetDefinitionsQuery$) as widgetDefinition[];
   const sortedDefinitions = sortByUpdatedAt(definitions);
 
   return (
-    <aside {...stylex.props(styles.root)} aria-label="Saved widget Definitions">
-      <h2 {...stylex.props(styles.heading)}>Saved Definitions</h2>
+    <aside {...stylex.props(styles.root)} aria-label="Saved widget definitions">
+      <h2 {...stylex.props(styles.heading)}>Saved definitions</h2>
       {sortedDefinitions.length === 0 ? (
         <p {...stylex.props(styles.empty)}>
-          Save a chat preview to keep a reusable Definition here.
+          Save a chat preview to keep a reusable definition here.
         </p>
       ) : (
         <ul {...stylex.props(styles.list)}>
