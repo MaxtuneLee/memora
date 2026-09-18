@@ -173,3 +173,5 @@ packages/.DS_Store
 .DS_Store
 .turbo/
 .codex/
+.vitest-attachments/
+__screenshots__/

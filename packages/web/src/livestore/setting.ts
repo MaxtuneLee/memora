@@ -30,6 +30,7 @@ export interface setting {
   primaryUseCase?: string;
   assistantStyle?: string;
   customInstructions?: string;
+  homeGridSeeded?: boolean;
 }
 
 export const defaultSettings: setting = {
@@ -64,6 +65,7 @@ export const defaultSettings: setting = {
   primaryUseCase: "",
   assistantStyle: "",
   customInstructions: "",
+  homeGridSeeded: false,
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
@@ -102,6 +104,7 @@ export const settingsStoredValueSchema = Schema.Struct({
   primaryUseCase: Schema.optional(Schema.String),
   assistantStyle: Schema.optional(Schema.String),
   customInstructions: Schema.optional(Schema.String),
+  homeGridSeeded: Schema.optional(Schema.Boolean),
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {

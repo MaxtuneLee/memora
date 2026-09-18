@@ -1,91 +1,25 @@
-# Memora datasets and evaluation
+# Memora
 
-This context describes how Memora names reusable evaluation data and the process that consumes it. A dataset remains the same logical resource regardless of where it is published or stored.
+Local-first personal knowledge and productivity app: capture (recordings, files, chat) and surface it back through a Desktop file browser and a Dashboard.
 
 ## Language
 
-**Dataset**:
-A named collection of examples that share a feature schema and may contain configurations and splits. Its identity is independent of its source and local storage state.
-_Avoid_: Benchmark, data package
+**Dashboard**:
+The `/` route (`DashboardPage.tsx`). The app's landing surface; hosts the Home Grid.
+_Avoid_: Home (used in conversation, but the route and component are named Dashboard)
 
-**Dataset source**:
-An external origin from which a dataset can be obtained, such as Hugging Face Hub.
-_Avoid_: Dataset, cache
+**Home Grid**:
+The fixed-slot grid of Widget Instances on the Dashboard. Reorder-only for v1 (no free resize/drag-to-arbitrary-position).
 
-**Dataset revision**:
-An immutable published state of a dataset. A moving source reference such as a branch or tag is resolved to a dataset revision before installation or evaluation.
-_Avoid_: Version, latest
+**Widget Definition**:
+A saved, reusable widget template: a folder containing a render component and a data binding (its Catalog Entry reference). Generated definitions are created and saved from Chat; built-in definitions (calendar, todo, recent) ship with the app. Stored as a real folder in the Desktop filesystem, under a reserved Widgets folder.
+_Avoid_: Widget (ambiguous on its own — always say Definition or Instance)
 
-**Dataset manifest**:
-A serializable description of one dataset revision, including its configurations, splits, feature schemas, downloadable content, sizes, and integrity information. Every dataset source is resolved into this common description.
-_Avoid_: Dataset card, file listing
+**Widget Instance**:
+A specific placement of a Widget Definition on the Home Grid: position, size, and any instance-specific config (e.g. which folder it points at). One Definition can back multiple Instances.
 
-**Dataset configuration**:
-A named variant of a dataset that selects a coherent subset or representation, such as one FLEURS language or all languages.
-_Avoid_: Variant, flavor, subset
+**Widget kind**:
+Distinguishes how a Widget Definition executes. `builtin`: trusted first-party React component with direct data access, no sandbox (calendar, todo, recent). `generated`: chat-authored render component, isolated in an iframe, receives data only through the bridge — never queries data itself.
 
-**Split**:
-A named partition within a dataset configuration, such as train, validation, or test. Split names are defined by the dataset and are not limited to a fixed list.
-_Avoid_: Partition, group
-
-**Example**:
-One schema-conforming record in a split. An example may reference media whose bytes are read or decoded only when requested.
-_Avoid_: Row, sample, item
-
-**Installed dataset**:
-A complete, verified local copy of selected content from one dataset revision that is available without its dataset source.
-_Avoid_: Cache, download
-
-**Media reference**:
-A serializable value that identifies encoded media belonging to an example and carries known media metadata without loading or decoding its bytes.
-_Avoid_: Blob, decoded media
-
-**Feature schema**:
-A serializable description of the values an example may contain, including logical types such as class labels and media in addition to their physical storage types.
-_Avoid_: TypeScript type, Parquet schema
-
-**Evaluation**:
-A model-independent process that consumes examples, obtains predictions through an injected model adapter, and produces measurements and results.
-_Avoid_: Dataset, inference
-
-**Model adapter**:
-The boundary through which an evaluation obtains predictions without depending on a specific model implementation or application.
-_Avoid_: Model, runtime
-
-**Model identity**:
-A serializable description of the model, adapter, revision, runtime, and inference settings that can affect predictions in an evaluation run.
-_Avoid_: Model name, display name
-
-**Metric**:
-A versioned definition that turns accepted example results into a named measurement for an evaluation run.
-_Avoid_: Result, score field
-
-**Normalization profile**:
-A versioned set of rules that converts predictions and references into the representation consumed by a metric.
-_Avoid_: Preprocessing, cleanup
-
-**Evaluation run**:
-One execution of an evaluation against a fixed dataset revision, model identity, and evaluation configuration.
-_Avoid_: Job, session, benchmark
-
-**Example result**:
-The accepted outcome for one example in an evaluation run, including its prediction or error and the measurements needed for aggregation. Retries are attempts to produce this single result, not additional results.
-_Avoid_: Model event, checkpoint
-
-## Language — Chat personalization
-
-**Personalization**:
-The Settings section where a user sets how Memora addresses and responds to them: name, use case, tone, and Custom instructions.
-_Avoid_: Memory (the section's former name — still used for the assistant's long-term memory store, which now lives inside Personalization alongside these settings)
-
-**Personality**:
-The fixed, deterministically built text combining the user's name and preferred tone that Memora includes in every conversation's system prompt. Rebuilt automatically whenever Personalization settings change; never authored by a model.
-_Avoid_: Soul Document, personality profile (an earlier AI-generated version of this text, no longer produced)
-
-**Custom instructions**:
-User-authored directives set only in Personalization, included in every conversation. Written directly by the user, unlike a Notice.
-_Avoid_: Instructions, notice
-
-**Notice**:
-A lasting communication preference the assistant infers from conversation and stores automatically, included in every conversation until deleted. Inferred by the model, unlike Custom instructions.
-_Avoid_: Stable user preference, memory item
+**Data source catalog / Catalog entry**:
+The fixed, host-owned registry of named, queryable data sources (e.g. `recentFiles`, `todoProgress`, `storageStats`) that a Widget Definition's data binding can reference. Chat picks a Catalog Entry by name when generating a widget; it cannot author arbitrary queries. New kinds of dynamic data are added by extending this catalog, not by giving generated code its own query access.

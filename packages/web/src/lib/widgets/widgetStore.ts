@@ -1,3 +1,3 @@
 export interface WidgetQueryableStore {
-  query: (query: unknown) => unknown;
+  query(query: unknown): unknown;
 }

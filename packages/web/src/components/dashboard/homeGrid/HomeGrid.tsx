@@ -1,0 +1,105 @@
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import * as stylex from "@stylexjs/stylex";
+import { useCallback } from "react";
+import type { ReactElement, ReactNode } from "react";
+
+import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
+import type { ResolvedWidgetInstance } from "@/lib/widgets/widgetQueries";
+
+import { HomeGridTile } from "./HomeGridTile";
+
+const styles = stylex.create({
+  grid: {
+    display: "grid",
+    gap: 20,
+    gridAutoRows: "23rem",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+  },
+  empty: {
+    backgroundColor: "#fffdf8",
+    border: "1px dashed #e9e5dc",
+    borderRadius: 28,
+    color: "#716c64",
+    fontSize: 14,
+    paddingBlock: 32,
+    paddingInline: 24,
+    textAlign: "center",
+  },
+});
+
+const arrayMove = <T,>(list: T[], from: number, to: number): T[] => {
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+};
+
+export function HomeGrid({
+  tiles,
+  renderWidget,
+  onReorder,
+  onRemove,
+}: {
+  tiles: ResolvedWidgetInstance[];
+  renderWidget: (definition: widgetDefinition, instance: widgetInstance) => ReactNode;
+  onReorder: (orderedIds: string[]) => void;
+  onRemove: (instanceId: string) => void;
+}): ReactElement {
+  const placedTiles = tiles.filter(
+    (tile): tile is { instance: widgetInstance; definition: widgetDefinition } =>
+      tile.definition !== null,
+  );
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) {
+        return;
+      }
+
+      const orderedIds = placedTiles.map((tile) => tile.instance.id);
+      const fromIndex = orderedIds.indexOf(active.id as string);
+      const toIndex = orderedIds.indexOf(over.id as string);
+      if (fromIndex === -1 || toIndex === -1) {
+        return;
+      }
+
+      onReorder(arrayMove(orderedIds, fromIndex, toIndex));
+    },
+    [onReorder, placedTiles],
+  );
+
+  if (placedTiles.length === 0) {
+    return <div {...stylex.props(styles.empty)}>No widgets on your Home Grid yet.</div>;
+  }
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <div {...stylex.props(styles.grid)}>
+        {placedTiles.map(({ instance, definition }) => (
+          <HomeGridTile
+            key={instance.id}
+            id={instance.id}
+            title={definition.name}
+            onRemove={() => onRemove(instance.id)}
+          >
+            {renderWidget(definition, instance)}
+          </HomeGridTile>
+        ))}
+      </div>
+    </DndContext>
+  );
+}
