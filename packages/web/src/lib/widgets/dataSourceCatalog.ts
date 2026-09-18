@@ -42,9 +42,11 @@ export const getDataSourceCatalogEntry = (name: string): DataSourceCatalogEntry 
   return DATA_SOURCE_CATALOG.find((entry) => entry.name === name);
 };
 
-// ponytail: only sources backed by a livestore query re-resolve on data change; storageStats and
-// chatSessionCount read external browser/OPFS state and only refresh on mount. Add a query here if
-// those need live updates too.
+// Sources backed by a livestore query re-resolve on data change; storageStats and chatSessionCount
+// read external browser/OPFS state with no change event to subscribe to, so useDataSourceValue
+// polls those instead (see DATA_SOURCE_POLL_INTERVAL_MS).
+// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- Queryable's TResult varies per
+// entry; `any` here matches how the library itself types heterogeneous query maps.
 export const DATA_SOURCE_LIVE_QUERIES: Partial<Record<DataSourceName, Queryable<any>>> = {
   recentFiles: desktopFilesQuery$,
   todoProgress: activeFilesQuery$,

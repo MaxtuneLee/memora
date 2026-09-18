@@ -215,6 +215,10 @@ export const Component = (): ReactElement => {
     return recentItems.filter((item) => item.updatedAt > 0).length;
   }, [recentItems]);
 
+  const savedWidgetDefinitions = useMemo(() => {
+    return widgetDefinitionRows.filter((definition) => definition.kind === "generated");
+  }, [widgetDefinitionRows]);
+
   const welcomeCopy = useMemo(() => {
     if (!chatSessionsLoaded) {
       return DEFAULT_WELCOME_COPY;
@@ -416,7 +420,7 @@ export const Component = (): ReactElement => {
       </motion.div>
       <AddWidgetDialog
         open={isAddWidgetOpen}
-        definitions={[...widgetDefinitionRows]}
+        definitions={savedWidgetDefinitions}
         onOpenChange={setIsAddWidgetOpen}
         onPlace={handlePlaceWidget}
       />

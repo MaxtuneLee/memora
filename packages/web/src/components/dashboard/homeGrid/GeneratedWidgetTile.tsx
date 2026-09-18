@@ -1,21 +1,18 @@
-import type { ReactApi } from "@livestore/react";
 import type { JSX } from "react";
 
 import { useDataSourceValue } from "@/hooks/widgets/useDataSourceValue";
 import { resolveWidgetInstanceParams } from "@/lib/widgets/widgetQueries";
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
-import type { WidgetQueryableStore } from "@/lib/widgets/widgetStore";
+import type { ReactiveWidgetStore } from "@/lib/widgets/widgetStore";
 
 import { GeneratedWidgetFrame } from "./GeneratedWidgetFrame";
-
-interface GeneratedWidgetStore extends WidgetQueryableStore, Pick<ReactApi, "useQuery"> {}
 
 export function GeneratedWidgetTile({
   store,
   definition,
   instance,
 }: {
-  store: GeneratedWidgetStore;
+  store: ReactiveWidgetStore;
   definition: widgetDefinition;
   instance: widgetInstance;
 }): JSX.Element {
