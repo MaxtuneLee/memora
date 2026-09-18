@@ -9,6 +9,7 @@
     "deploy": "void deploy --project memora",
     "lint": "vp lint .",
     "test": "vp test test",
+    "test:browser": "vp test --config vite.browser.config.ts --run",
     "preview": "vp preview",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/memora-icon.svg"
   },
@@ -98,6 +99,7 @@
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/devtools": "^0.1.9",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/browser-playwright": "4.1.10",
     "@webgpu/types": "^0.1.69",
     "babel-plugin-react-compiler": "^1.0.0",
     "jsdom": "^25.0.1",
@@ -108,6 +110,7 @@
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-static-copy": "^3.1.4",
     "vite-plus": "catalog:",
+    "vitest": "^4.1.10",
     "void": "^0.10.12"
   }
 }

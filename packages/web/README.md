@@ -23,6 +23,12 @@ Memora 的主前端应用，基于 React 19、Vite、React Router 和 StyleX。
 
 - 运行 lint：`pnpm --filter @memora/web lint`
 
+## Tests
+
+- 单元测试：`pnpm --filter @memora/web test`
+- 真浏览器测试（Playwright + Chromium）：`pnpm --filter @memora/web test:browser`
+- 首次在没有本机 Chrome 或 Playwright Chromium 的环境运行时，执行 `pnpm --filter @memora/web exec playwright install chromium` 安装浏览器。
+
 ## Routing
 
 - 路由入口只放在 `src/pages`

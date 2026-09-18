@@ -6,6 +6,7 @@ import stylex from "@stylexjs/unplugin";
 import { routeBuilderPlugin } from "vite-plugin-route-builder";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { configDefaults } from "vitest/config";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
 import { voidPlugin } from "void";
 import path from "node:path";
@@ -234,6 +235,7 @@ const config = {
   test: {
     environment: "node",
     environmentMatchGlobs: [["test/editor/**/*.test.tsx", "jsdom"]],
+    exclude: [...configDefaults.exclude, "test/browser/**"],
     setupFiles: "./test/setup.ts",
   },
   experimental: {
