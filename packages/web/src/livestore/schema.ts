@@ -18,6 +18,12 @@ import { settingEvents, settingsTable } from "./setting";
 import { legacyModelRoutingEvents, legacyModelRoutingMaterializers } from "./legacyModelRouting";
 import { localModelUsageEvents, localModelUsageMaterializers } from "./localModelUsage";
 import { uiEvents, uiTable } from "./ui";
+import {
+  widgetEvents,
+  widgetMaterializers,
+  widgetDefinitionTable,
+  widgetInstanceTable,
+} from "./widget";
 
 const tables = {
   files: fileTable,
@@ -27,6 +33,8 @@ const tables = {
   providerCredentials: providerCredentialTable,
   settings: settingsTable,
   uiState: uiTable,
+  widgetDefinitions: widgetDefinitionTable,
+  widgetInstances: widgetInstanceTable,
 };
 
 const events = {
@@ -40,6 +48,7 @@ const events = {
   ...legacyModelRoutingEvents,
   ...localModelUsageEvents,
   ...uiEvents,
+  ...widgetEvents,
 };
 
 const materializers = State.SQLite.materializers(events, {
@@ -50,6 +59,7 @@ const materializers = State.SQLite.materializers(events, {
   ...providerCredentialMaterializers,
   ...legacyModelRoutingMaterializers,
   ...localModelUsageMaterializers,
+  ...widgetMaterializers,
 });
 
 const state = State.SQLite.makeState({ tables, materializers });
