@@ -14,6 +14,7 @@ export const DATA_SOURCE_NAMES = [
   "todoProgress",
   "storageStats",
   "chatSessionCount",
+  "widgetData",
 ] as const;
 export type DataSourceName = (typeof DATA_SOURCE_NAMES)[number];
 

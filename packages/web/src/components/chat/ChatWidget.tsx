@@ -18,7 +18,8 @@ import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/sh
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
-import { useDataSourceValue } from "@/hooks/widgets/useDataSourceValue";
+import { useDataSourceValue, type DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
+import { usePreviewWidgetData } from "@/hooks/widgets/usePreviewWidgetData";
 
 const styles = stylex.create({
   root: {
@@ -94,11 +95,18 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   }, [widget.widgetCode]);
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const dataState = useDataSourceValue(
+  // "widgetData" has no Definition/folder yet in preview (the widget hasn't been saved) — it
+  // reads back the in-memory writes from usePreviewWidgetData instead of the catalog (ADR 0008).
+  const isWidgetDataBound = widget.dataSourceName === "widgetData";
+  const previewWidgetData = usePreviewWidgetData(widget.dataFiles);
+  const catalogDataState = useDataSourceValue(
     store,
-    widget.dataSourceName ?? null,
+    isWidgetDataBound ? null : (widget.dataSourceName ?? null),
     widget.dataSourceParams ?? {},
   );
+  const dataState: DataSourceValueState | null = isWidgetDataBound
+    ? { status: "ready", value: previewWidgetData.value }
+    : catalogDataState;
   const {
     iframeRef,
     iframeDocumentRef,
@@ -121,6 +129,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     onSendPrompt,
     syncIframeHeight,
     dataState,
+    onWriteData: previewWidgetData.write,
   });
   const debugState = useSyncExternalStore(
     subscribeShowWidgetDebug,
@@ -222,6 +231,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
         widgetName={widget.title}
         defaultDataSourceName={widget.dataSourceName}
         defaultDataSourceParams={widget.dataSourceParams}
+        dataFiles={widget.dataFiles}
         onOpenChange={setIsSaveDialogOpen}
         onSave={handleSaveDefinition}
       />

@@ -41,10 +41,30 @@ export const listResolvedWidgetInstances = (
 // An Instance's own params override its Definition's catalog binding, so the same Definition
 // can be placed more than once with different resolved data (e.g. two "recent files" tiles with
 // different limits).
+//
+// The "widgetData" catalog entry (ADR 0008) has no author-facing params — it always reflects its
+// own Definition's data/ folder — so its folderId is injected here rather than authored anywhere.
+//
+// dataSourceName/folderId are typed as plain string/string|null here rather than
+// Pick<widgetDefinition, "dataSourceName" | "folderId"> — this only ever does a `=== "widgetData"`
+// comparison, so the wider type costs nothing at the one real call site (GeneratedWidgetTile,
+// which passes a full widgetDefinition) while staying compatible with lighter test fixtures that
+// don't need the full DataSourceName literal union.
 export const resolveWidgetInstanceParams = (
-  definition: Pick<widgetDefinition, "dataSourceParams">,
+  definition: Pick<widgetDefinition, "dataSourceParams"> & {
+    dataSourceName?: string;
+    folderId?: string | null;
+  },
   instance: Pick<widgetInstance, "params">,
-): Record<string, unknown> => ({
-  ...parseWidgetDefinitionDataSourceParams(definition),
-  ...parseWidgetInstanceParams(instance),
-});
+): Record<string, unknown> => {
+  const params = {
+    ...parseWidgetDefinitionDataSourceParams(definition),
+    ...parseWidgetInstanceParams(instance),
+  };
+
+  if (definition.dataSourceName === "widgetData" && definition.folderId) {
+    return { ...params, folderId: definition.folderId };
+  }
+
+  return params;
+};

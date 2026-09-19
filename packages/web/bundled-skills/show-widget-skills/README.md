@@ -235,9 +235,27 @@ binding — the widget never authors its own query, only picks a catalog entry b
 | `todoProgress`     | none                        | `{ total: number, completed: number }`                 |
 | `storageStats`     | none                        | `{ usedBytes, quotaBytes, isPersistent, isSupported }` |
 | `chatSessionCount` | none                        | `{ count: number }`                                    |
+| `widgetData`       | none                        | `{ [fileName]: parsed JSON or raw text }`              |
 
 Example: a widget over the 8 most recent files sets `data_source: "recentFiles"` and
 `data_source_params: { limit: 8 }`, then reads `onData((data) => { data.files.forEach(...) })`.
+
+## Persisting the widget's own data
+
+A widget that needs to remember something between reloads (a habit tracker's checked days, a
+reading list's entries) can write it back through the host: set `data_files` on `show_widget` to
+the file names it will write (e.g. `["state.json"]`), then call `writeData(name, content)` from
+`widget_code`. `writeData` returns a promise that rejects with a message if `name` wasn't
+declared, the content is too large, or the widget's total data storage is full — there is no
+direct file or storage access, every write is host-validated (see ADR 0008).
+
+To read the data back, set `data_source: "widgetData"` — its resolved payload is
+`{ [fileName]: content }` for every file the widget has written, JSON-parsed when the content is
+valid JSON. `onData`/`getData` deliver it exactly like any other catalog entry, including a
+refresh with no reload after `writeData` resolves or the file is edited externally.
+
+In Chat's preview (before the widget is saved), `writeData` keeps its writes in memory instead of
+on disk — the widget's own code does not need to know which mode it is running in.
 
 ## Local runtime contract
 
@@ -257,9 +275,10 @@ Example: a widget over the 8 most recent files sets `data_source: "recentFiles"`
 - `show_widget.widget_code` must be a fragment in this order: `<style>...</style>`, then HTML, then `<script>...</script>`.
 - The runtime executes scripts only after the full `<script>` block arrives.
 - If your script needs a listener that isn't scoped to an element inside `container` (window resize, keydown, visibilitychange, message, etc.), bind it on `window`, not `document`, and return a cleanup function from the script's top-level call that removes it. The script can re-execute in the same iframe without a page reload, and `window` is never reset between runs — an unremoved listener duplicates on every re-run.
-- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`.
+- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`, `writeData`.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
+- Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above.
 - If `data_source` was set on `show_widget`, use `onData(callback)` to run `callback` with the resolved payload — immediately if it already arrived, and again on every later update. `getData()` returns the latest payload synchronously (or `undefined` before the first one arrives). Without a `data_source`, these are never called.
 - A widget that binds a `data_source` and is later saved to the Home Grid renders through a
   separate, sandboxed runtime with no direct object access — `getData`/`onData` there work

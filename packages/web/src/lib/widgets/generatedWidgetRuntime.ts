@@ -7,6 +7,9 @@ export const GENERATED_WIDGET_DATA_MESSAGE = "memora:generated-widget-data";
 export const GENERATED_WIDGET_RESIZE_MESSAGE = "memora:generated-widget-resize";
 export const GENERATED_WIDGET_SEND_PROMPT_MESSAGE = "memora:generated-widget-send-prompt";
 export const GENERATED_WIDGET_OPEN_LINK_MESSAGE = "memora:generated-widget-open-link";
+export const GENERATED_WIDGET_WRITE_DATA_MESSAGE = "memora:generated-widget-write-data";
+export const GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE =
+  "memora:generated-widget-write-data-result";
 
 // Same allowlist the show-widget-skills docs teach the agent (see README.md's "CDN allowlist"
 // bullet). There is no browser-level CSP backing that claim, so this filter — applied when
@@ -64,6 +67,46 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
   const listeners = [];
   let latestData = null;
 
+  // Rate-limits writeData per file name to one in-flight postMessage at a time: a call while one
+  // is already pending replaces the queued content (last write wins) instead of piling up
+  // requests, per ADR 0008.
+  const writeState = new Map();
+  const pendingWriteRequests = new Map();
+  let writeRequestSeq = 0;
+
+  const sendWriteRequest = (name, content) => {
+    const requestId = String(++writeRequestSeq);
+    return new Promise((resolve, reject) => {
+      pendingWriteRequests.set(requestId, { resolve, reject });
+      window.parent.postMessage(
+        { type: "${GENERATED_WIDGET_WRITE_DATA_MESSAGE}", requestId, name, content },
+        "*",
+      );
+    });
+  };
+
+  const flushQueuedWrite = (name) => {
+    const state = writeState.get(name);
+    if (!state) {
+      return;
+    }
+    const queued = state.next;
+    state.next = null;
+    if (!queued) {
+      state.inFlight = false;
+      return;
+    }
+    sendWriteRequest(name, queued.content)
+      .then((result) => {
+        queued.resolve(result);
+        flushQueuedWrite(name);
+      })
+      .catch((error) => {
+        queued.reject(error);
+        flushQueuedWrite(name);
+      });
+  };
+
   window.MEMORA_HOME_WIDGET = {
     container,
     getData: () => latestData,
@@ -85,6 +128,30 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
         "*",
       );
     },
+    writeData: (name, content) => {
+      const key = String(name ?? "");
+      const value = String(content ?? "");
+      let state = writeState.get(key);
+      if (!state) {
+        state = { inFlight: false, next: null };
+        writeState.set(key, state);
+      }
+      if (state.inFlight) {
+        return new Promise((resolve, reject) => {
+          state.next = { content: value, resolve, reject };
+        });
+      }
+      state.inFlight = true;
+      return sendWriteRequest(key, value)
+        .then((result) => {
+          flushQueuedWrite(key);
+          return result;
+        })
+        .catch((error) => {
+          flushQueuedWrite(key);
+          throw error;
+        });
+    },
   };
 
   // Same bare-identifier surface Chat's runtime exposes (see chatWidget/useWidgetRuntime.ts) —
@@ -94,6 +161,7 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
   const onData = window.MEMORA_HOME_WIDGET.onData;
   const sendPrompt = window.MEMORA_HOME_WIDGET.sendPrompt;
   const openLink = window.MEMORA_HOME_WIDGET.openLink;
+  const writeData = window.MEMORA_HOME_WIDGET.writeData;
 
   const notifyResize = () => {
     const height = Math.max(1, document.documentElement.scrollHeight, document.body.scrollHeight);
@@ -101,7 +169,25 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
   };
 
   window.addEventListener("message", (event) => {
-    if (!event.data || event.data.type !== "${GENERATED_WIDGET_DATA_MESSAGE}") {
+    if (!event.data) {
+      return;
+    }
+
+    if (event.data.type === "${GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE}") {
+      const pending = pendingWriteRequests.get(event.data.requestId);
+      if (!pending) {
+        return;
+      }
+      pendingWriteRequests.delete(event.data.requestId);
+      if (event.data.ok) {
+        pending.resolve(undefined);
+      } else {
+        pending.reject(new Error(event.data.error || "Write failed."));
+      }
+      return;
+    }
+
+    if (event.data.type !== "${GENERATED_WIDGET_DATA_MESSAGE}") {
       return;
     }
     latestData = event.data.payload;

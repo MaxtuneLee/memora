@@ -36,3 +36,6 @@ Use this skill before calling `show_widget`.
 - To make the widget data-backed, set `data_source` to a data source catalog entry name (and
   `data_source_params` for entries that take params) — see README.md's "Data source catalog" for
   the full list, payload shapes, and the `onData`/`getData` bindings that deliver the result.
+- To let the widget persist its own state, set `data_files` to the file names it will write and
+  call `writeData(name, content)` from `widget_code` — see README.md's "Persisting the widget's
+  own data".

@@ -9,6 +9,8 @@ import { parseTodoMarkdown } from "@/components/dashboard/todoMarkdown";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
 import { DATA_SOURCE_NAMES, type DataSourceName } from "@/livestore/widget";
 import type { file as LiveStoreFile } from "@/livestore/file";
+import type { folder as LiveStoreFolder } from "@/livestore/folder";
+import { findWidgetDataFolder, widgetFoldersQuery$ } from "./widgetFolders";
 import type { WidgetQueryableStore } from "./widgetStore";
 
 export { DATA_SOURCE_NAMES, type DataSourceName };
@@ -59,6 +61,12 @@ export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
     name: "chatSessionCount",
     label: "Chat sessions",
     description: "The number of saved conversations.",
+  },
+  {
+    name: "widgetData",
+    label: "Widget's own data",
+    description:
+      "The widget's own files written with writeData(name, content), keyed by file name.",
   },
 ];
 
@@ -123,6 +131,9 @@ export const validateDataSourceParamValues = (
 export const DATA_SOURCE_LIVE_QUERIES: Partial<Record<DataSourceName, Queryable<any>>> = {
   recentFiles: desktopFilesQuery$,
   todoProgress: activeFilesQuery$,
+  // Re-resolves on every file-table change (not just this Definition's data/ folder) — coarse,
+  // but simplest, and file writes are rare enough that the extra re-resolutions are cheap.
+  widgetData: activeFilesQuery$,
 };
 
 export interface RecentFilesData {
@@ -210,11 +221,48 @@ const resolveChatSessionCount: DataSourceResolver = async () => {
   return data;
 };
 
+// Reads back whatever the Definition has written to its own data/ folder via writeData (see ADR
+// 0008), keyed by file name — JSON-parsed when the content is valid JSON, raw text otherwise.
+// Needs folderId injected into params by the caller (resolveWidgetInstanceParams does this for
+// definitions bound to this source); with no folderId there is nothing to read yet.
+const resolveWidgetData: DataSourceResolver = async (store, params) => {
+  const folderId = (params as { folderId?: unknown } | null)?.folderId;
+  if (typeof folderId !== "string" || !folderId) {
+    return {};
+  }
+
+  const folders = store.query(widgetFoldersQuery$) as readonly LiveStoreFolder[];
+  const dataFolder = findWidgetDataFolder(folders, folderId);
+  if (!dataFolder) {
+    return {};
+  }
+
+  const files = store.query(activeFilesQuery$) as readonly LiveStoreFile[];
+  const dataFiles = files.filter((file) => file.parentId === dataFolder.id && !file.deletedAt);
+
+  const result: Record<string, unknown> = {};
+  for (const file of dataFiles) {
+    const meta = mapLiveStoreFileToMeta(file);
+    try {
+      const text = await opfsFile(meta.storagePath).text();
+      try {
+        result[file.name] = JSON.parse(text);
+      } catch {
+        result[file.name] = text;
+      }
+    } catch {
+      // Skip a file that can't be read rather than failing the whole resolution.
+    }
+  }
+  return result;
+};
+
 const dataSourceResolvers: Record<DataSourceName, DataSourceResolver> = {
   recentFiles: resolveRecentFiles,
   todoProgress: resolveTodoProgress,
   storageStats: resolveStorageStats,
   chatSessionCount: resolveChatSessionCount,
+  widgetData: resolveWidgetData,
 };
 
 export const resolveDataSource = async (

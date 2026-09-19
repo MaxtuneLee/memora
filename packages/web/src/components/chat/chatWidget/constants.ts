@@ -17,6 +17,7 @@ export interface WidgetIframeWindow extends Window {
     sendPrompt: (text: string) => Promise<void>;
     getData: () => unknown;
     onData: (callback: (data: unknown) => void) => void;
+    writeData: (name: string, content: string) => Promise<void>;
   };
   [WIDGET_CLEANUP_KEY]?: (() => void) | null;
   [WIDGET_ERROR_KEY]?: string | null;

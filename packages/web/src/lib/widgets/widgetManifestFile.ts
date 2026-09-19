@@ -1,4 +1,4 @@
-import { write as opfsWrite } from "@memora/fs";
+import { file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { saveFileToOpfs } from "@/lib/library/fileStorage";
@@ -31,7 +31,7 @@ export const findWidgetSourceFile = (
 ): LiveStoreFile | null =>
   files.find((file) => file.parentId === folderId && file.name === WIDGET_SOURCE_FILE_NAME) ?? null;
 
-const commitFileCreated = (store: WidgetFileStoreLike, meta: FileMeta): void => {
+export const commitFileCreated = (store: WidgetFileStoreLike, meta: FileMeta): void => {
   store.commit(
     fileEvents.fileCreated({
       id: meta.id,
@@ -95,23 +95,23 @@ export const createWidgetSourceFile = async ({
   return result.meta;
 };
 
-// Rewrites an existing widget.json in place (create + update of a Definition both keep the
-// manifest in sync with the table, which stays authoritative for the binding).
-export const rewriteWidgetManifestFile = async ({
+// Overwrites an existing file's content in place, keeping its meta sidecar and the fileUpdated
+// event's sizeBytes in sync. Shared by widget.json rewrites and data/ file writes (see ADR 0008)
+// — both are "replace this Definition-owned file's content without changing its identity".
+export const overwriteFileContentInOpfs = async ({
   store,
-  manifestFile,
-  manifest,
+  file,
+  content,
 }: {
   store: WidgetFileStoreLike;
-  manifestFile: LiveStoreFile;
-  manifest: WidgetManifest;
+  file: LiveStoreFile;
+  content: string;
 }): Promise<void> => {
-  const meta = mapLiveStoreFileToMeta(manifestFile);
-  const json = serializeWidgetManifest(manifest);
+  const meta = mapLiveStoreFileToMeta(file);
   const updatedAt = Date.now();
-  const nextMeta: FileMeta = { ...meta, sizeBytes: new Blob([json]).size, updatedAt };
+  const nextMeta: FileMeta = { ...meta, sizeBytes: new Blob([content]).size, updatedAt };
 
-  await opfsWrite(meta.storagePath, json, { overwrite: true });
+  await opfsWrite(meta.storagePath, content, { overwrite: true });
   await opfsWrite(meta.metaPath, JSON.stringify(nextMeta), { overwrite: true });
 
   store.commit(
@@ -121,4 +121,37 @@ export const rewriteWidgetManifestFile = async ({
       updatedAt: new Date(updatedAt),
     }),
   );
+};
+
+// Rewrites an existing widget.json in place (create + update of a Definition both keep the
+// manifest in sync with the table, which stays authoritative for the binding).
+export const rewriteWidgetManifestFile = ({
+  store,
+  manifestFile,
+  manifest,
+}: {
+  store: WidgetFileStoreLike;
+  manifestFile: LiveStoreFile;
+  manifest: WidgetManifest;
+}): Promise<void> =>
+  overwriteFileContentInOpfs({
+    store,
+    file: manifestFile,
+    content: serializeWidgetManifest(manifest),
+  });
+
+// Reads and parses an existing widget.json. Returns null on any read/parse failure so callers
+// (write validation, manifest-preserving renames) can treat a missing/corrupt manifest as "no
+// declaration" rather than throwing.
+export const readWidgetManifestFile = async (
+  manifestFile: LiveStoreFile,
+): Promise<WidgetManifest | null> => {
+  try {
+    const meta = mapLiveStoreFileToMeta(manifestFile);
+    const text = await opfsFile(meta.storagePath).text();
+    const parsed: unknown = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? (parsed as WidgetManifest) : null;
+  } catch {
+    return null;
+  }
 };

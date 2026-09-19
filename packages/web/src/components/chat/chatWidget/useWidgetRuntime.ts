@@ -5,6 +5,7 @@ import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
+import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
 import {
   WIDGET_BRIDGE_KEY,
@@ -25,6 +26,7 @@ export const useWidgetRuntime = ({
   onSendPrompt,
   syncIframeHeight,
   dataState,
+  onWriteData,
 }: {
   widget: ChatWidgetData;
   parsedCode: ParsedShowWidgetCode;
@@ -39,6 +41,9 @@ export const useWidgetRuntime = ({
   // when it has no binding. Kept in refs (not the bridge object literal) so a data update never
   // forces the widget script to re-run — only the bridge's onData listeners are notified.
   dataState?: DataSourceValueState | null;
+  // Host-mediated write channel (ADR 0008); preview keeps writes in memory (see
+  // usePreviewWidgetData). Omitting this refuses every write.
+  onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
 }) => {
   const scriptElementsRef = useRef<HTMLScriptElement[]>([]);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -230,6 +235,15 @@ export const useWidgetRuntime = ({
             callback(latestDataRef.current);
           }
         },
+        writeData: async (name, content) => {
+          if (!onWriteData) {
+            throw new Error("This widget cannot write data.");
+          }
+          const result = await onWriteData(String(name ?? ""), String(content ?? ""));
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        },
       };
       iframeWindow[WIDGET_CLEANUP_KEY] = null;
       iframeWindow[WIDGET_ERROR_KEY] = null;
@@ -280,6 +294,7 @@ export const useWidgetRuntime = ({
   const openLink = bridge.openLink;
   const getData = bridge.getData;
   const onData = bridge.onData;
+  const writeData = bridge.writeData;
 
   try {
     const cleanup = (() => {
@@ -351,6 +366,7 @@ ${script.content}
     iframeDocumentRef,
     iframeReady,
     onSendPrompt,
+    onWriteData,
     parsedCode,
     syncIframeHeight,
     teardownWidgetScript,

@@ -5,6 +5,8 @@ import {
   GENERATED_WIDGET_OPEN_LINK_MESSAGE,
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
+  GENERATED_WIDGET_WRITE_DATA_MESSAGE,
+  GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE,
   buildGeneratedWidgetSrcDoc,
   escapeClosingScriptTag,
 } from "@/lib/widgets/generatedWidgetRuntime";
@@ -73,6 +75,14 @@ test("drops a non-https script src even on an allowlisted host", () => {
   );
 
   expect(srcDoc).not.toContain("<script src=");
+});
+
+test("exposes writeData as a postMessage hand-off, matching the host-mediated write channel", () => {
+  const srcDoc = buildGeneratedWidgetSrcDoc("<div>widget</div>");
+
+  expect(srcDoc).toContain("writeData:");
+  expect(srcDoc).toContain(GENERATED_WIDGET_WRITE_DATA_MESSAGE);
+  expect(srcDoc).toContain(GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE);
 });
 
 test("only emits the external script tags, not their (empty) content, into the executed user script", () => {

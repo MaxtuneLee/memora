@@ -18,6 +18,8 @@ export interface SaveChatWidgetDefinitionInput {
   widgetCode: string;
   dataSourceName?: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
+  // File names this Definition may write via writeData once saved (see ADR 0008).
+  dataFiles?: string[];
 }
 
 export type SaveChatWidgetDefinitionResult =
@@ -66,6 +68,7 @@ export const saveChatWidgetDefinition = async ({
       name: input.name,
       dataSourceName: input.dataSourceName,
       dataSourceParams: input.dataSourceParams,
+      dataFiles: input.dataFiles,
     }),
   });
 

@@ -63,3 +63,39 @@ test("normalizeChatWidget drops an unrecognized persisted data source name", () 
 
   expect(widget?.dataSourceName).toBeUndefined();
 });
+
+test("sanitizeShowWidgetArguments keeps declared data_files", () => {
+  const result = sanitizeShowWidgetArguments({
+    title: "Habit tracker",
+    widget_code: "<div></div>",
+    data_source: "widgetData",
+    data_files: ["state.json"],
+  });
+
+  expect(result.data_source).toBe("widgetData");
+  expect(result.data_files).toEqual(["state.json"]);
+});
+
+test("sanitizeShowWidgetArguments drops non-string entries from data_files", () => {
+  const result = sanitizeShowWidgetArguments({
+    title: "Untitled",
+    widget_code: "<div></div>",
+    data_files: ["state.json", 42, "  ", "notes.txt"],
+  });
+
+  expect(result.data_files).toEqual(["state.json", "notes.txt"]);
+});
+
+test("normalizeChatWidget round-trips declared data_files", () => {
+  const widget = normalizeChatWidget({
+    toolCallId: "call-1",
+    title: "Habit tracker",
+    loadingMessages: [],
+    widgetCode: "<div></div>",
+    phase: "ready",
+    dataSourceName: "widgetData",
+    dataFiles: ["state.json"],
+  });
+
+  expect(widget?.dataFiles).toEqual(["state.json"]);
+});

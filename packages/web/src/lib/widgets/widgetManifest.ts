@@ -11,6 +11,10 @@ export interface WidgetManifest {
   name: string;
   dataSourceName: DataSourceName;
   dataSourceParams: Record<string, unknown>;
+  // File names this Definition is allowed to write under its own data/ folder via writeData
+  // (see ADR 0008). Undefined/empty means the Definition has declared no data files, so every
+  // writeData call is refused.
+  dataFiles?: readonly string[];
 }
 
 export const buildWidgetManifest = (input: {
@@ -19,12 +23,14 @@ export const buildWidgetManifest = (input: {
   name: string;
   dataSourceName: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
+  dataFiles?: readonly string[];
 }): WidgetManifest => ({
   kind: input.kind,
   ...(input.builtinKey ? { builtinKey: input.builtinKey } : {}),
   name: input.name,
   dataSourceName: input.dataSourceName,
   dataSourceParams: input.dataSourceParams ?? {},
+  ...(input.dataFiles && input.dataFiles.length > 0 ? { dataFiles: input.dataFiles } : {}),
 });
 
 export const serializeWidgetManifest = (manifest: WidgetManifest): string =>

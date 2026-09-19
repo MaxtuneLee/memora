@@ -86,6 +86,9 @@ interface SaveWidgetDefinitionDialogProps {
   widgetName: string;
   defaultDataSourceName?: DataSourceName;
   defaultDataSourceParams?: Record<string, unknown>;
+  // The file names the agent declared via show_widget's data_files (ADR 0008) — carried straight
+  // into widget.json on save with no dedicated UI, same as the source code itself.
+  dataFiles?: string[];
   onOpenChange: (open: boolean) => void;
   onSave: (
     input: SaveChatWidgetDefinitionInput,
@@ -98,6 +101,7 @@ export function SaveWidgetDefinitionDialog({
   widgetName,
   defaultDataSourceName,
   defaultDataSourceParams,
+  dataFiles,
   onOpenChange,
   onSave,
 }: SaveWidgetDefinitionDialogProps): JSX.Element {
@@ -157,6 +161,7 @@ export function SaveWidgetDefinitionDialog({
         widgetCode,
         dataSourceName,
         dataSourceParams: parseDataSourceParamValues(selectedDataSource, paramValues),
+        dataFiles,
       });
 
       if (!result.ok) {
@@ -175,6 +180,7 @@ export function SaveWidgetDefinitionDialog({
       setIsSaving(false);
     }
   }, [
+    dataFiles,
     dataSourceName,
     handleClose,
     onSave,

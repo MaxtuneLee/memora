@@ -7,8 +7,11 @@ import {
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_RESIZE_MESSAGE,
   GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
+  GENERATED_WIDGET_WRITE_DATA_MESSAGE,
+  GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE,
   buildGeneratedWidgetSrcDoc,
 } from "@/lib/widgets/generatedWidgetRuntime";
+import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
 export function GeneratedWidgetFrame({
   widgetCode,
@@ -17,6 +20,7 @@ export function GeneratedWidgetFrame({
   title,
   onSendPrompt,
   onOpenLink,
+  onWriteData,
 }: {
   widgetCode: string;
   data: unknown;
@@ -28,6 +32,9 @@ export function GeneratedWidgetFrame({
   // decides what "send to chat" and "open this link" actually do.
   onSendPrompt?: (text: string) => void;
   onOpenLink?: (url: string) => void;
+  // Host-mediated write channel (ADR 0008): the host decides which Definition's data/ folder
+  // (if any) this widget instance may write into. Omitting this prop refuses every write.
+  onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
 }): JSX.Element {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
@@ -59,12 +66,32 @@ export function GeneratedWidgetFrame({
         if (typeof url === "string" && url.trim()) {
           onOpenLink?.(url);
         }
+      } else if (event.data?.type === GENERATED_WIDGET_WRITE_DATA_MESSAGE) {
+        const { requestId, name, content } = event.data;
+        if (typeof requestId !== "string") {
+          return;
+        }
+        const respond = (result: WriteWidgetDataResult) => {
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE, requestId, ...result },
+            "*",
+          );
+        };
+        if (!onWriteData) {
+          respond({ ok: false, error: "This widget cannot write data." });
+          return;
+        }
+        onWriteData(String(name ?? ""), String(content ?? ""))
+          .then(respond)
+          .catch((error: unknown) => {
+            respond({ ok: false, error: error instanceof Error ? error.message : "Write failed." });
+          });
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onSendPrompt, onOpenLink]);
+  }, [onSendPrompt, onOpenLink, onWriteData]);
 
   useEffect(() => {
     if (!ready || !dataReady) {

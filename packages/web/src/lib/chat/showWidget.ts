@@ -41,6 +41,10 @@ export interface ShowWidgetArguments {
   widget_code: string;
   data_source?: DataSourceName;
   data_source_params?: Record<string, unknown>;
+  // File names the widget intends to write with writeData(name, content) (see ADR 0008). Carried
+  // through to the save dialog and, on save, into widget.json — writes to any other name are
+  // refused by the host once saved.
+  data_files?: string[];
 }
 
 export type ChatWidgetPhase = "streaming" | "ready" | "error";
@@ -54,6 +58,7 @@ export interface ChatWidget {
   errorMessage?: string;
   dataSourceName?: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
+  dataFiles?: string[];
 }
 
 export interface ShowWidgetSkillTurnState {
@@ -150,6 +155,10 @@ export const sanitizeShowWidgetArguments = (
     result.data_source_params = paramsRecord;
   }
 
+  if (value.data_files !== undefined) {
+    result.data_files = toStringArray(value.data_files);
+  }
+
   return result;
 };
 
@@ -194,6 +203,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     ? candidate.dataSourceName
     : undefined;
   const dataSourceParams = toParamsRecord(candidate.dataSourceParams);
+  const dataFiles = toStringArray(candidate.dataFiles);
 
   if (
     !toolCallId ||
@@ -211,6 +221,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     ...(errorMessage ? { errorMessage } : {}),
     ...(dataSourceName ? { dataSourceName } : {}),
     ...(dataSourceParams ? { dataSourceParams } : {}),
+    ...(dataFiles.length > 0 ? { dataFiles } : {}),
   };
 };
 

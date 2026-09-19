@@ -31,6 +31,7 @@ import {
   stringifyDataSourceParamValues,
   validateDataSourceParamValues,
 } from "@/lib/widgets/dataSourceCatalog";
+import { widgetFoldersQuery$ } from "@/lib/widgets/widgetFolders";
 
 const buildFileRow = (overrides: Record<string, unknown> = {}) => ({
   id: "file-1",
@@ -241,4 +242,83 @@ test("storageStats never touches the store's query surface", async () => {
   await resolveDataSource("storageStats", store);
 
   expect(store.query).not.toHaveBeenCalled();
+});
+
+test("widgetData resolves to an empty object with no folderId in params", async () => {
+  const store = { query: vi.fn(() => []) };
+
+  const data = await resolveDataSource("widgetData", store, {});
+
+  expect(data).toEqual({});
+  expect(store.query).not.toHaveBeenCalled();
+});
+
+test("widgetData resolves to an empty object when the definition has no data folder yet", async () => {
+  const store = { query: vi.fn((query: unknown) => (query === widgetFoldersQuery$ ? [] : [])) };
+
+  const data = await resolveDataSource("widgetData", store, { folderId: "def-folder-1" });
+
+  expect(data).toEqual({});
+});
+
+test("widgetData reads back every file under the definition's data folder, keyed by name", async () => {
+  const dataFolder = {
+    id: "data-folder-1",
+    name: "data",
+    parentId: "def-folder-1",
+    deletedAt: null,
+  };
+  const stateFile = buildFileRow({
+    id: "state-file",
+    name: "state.json",
+    parentId: "data-folder-1",
+    storagePath: "/files/state-file/state-file.json",
+  });
+  const noteFile = buildFileRow({
+    id: "note-file",
+    name: "note.txt",
+    parentId: "data-folder-1",
+    storagePath: "/files/note-file/note-file.txt",
+  });
+  testState.fileTextByPath.set(stateFile.storagePath as string, JSON.stringify({ streak: 3 }));
+  testState.fileTextByPath.set(noteFile.storagePath as string, "not json");
+  const store = {
+    query: vi.fn((query: unknown) => {
+      if (query === widgetFoldersQuery$) return [dataFolder];
+      if (query === activeFilesQuery$) return [stateFile, noteFile];
+      return [];
+    }),
+  };
+
+  const data = await resolveDataSource("widgetData", store, { folderId: "def-folder-1" });
+
+  expect(data).toEqual({ "state.json": { streak: 3 }, "note.txt": "not json" });
+});
+
+test("widgetData ignores files outside the definition's own data folder", async () => {
+  const dataFolder = {
+    id: "data-folder-1",
+    name: "data",
+    parentId: "def-folder-1",
+    deletedAt: null,
+  };
+  const otherFile = buildFileRow({ id: "other", name: "other.json", parentId: "elsewhere" });
+  const store = {
+    query: vi.fn((query: unknown) => {
+      if (query === widgetFoldersQuery$) return [dataFolder];
+      if (query === activeFilesQuery$) return [otherFile];
+      return [];
+    }),
+  };
+
+  const data = await resolveDataSource("widgetData", store, { folderId: "def-folder-1" });
+
+  expect(data).toEqual({});
+});
+
+test("widgetData is listed in the catalog with no author-facing params", () => {
+  const entry = getDataSourceCatalogEntry("widgetData");
+
+  expect(entry?.label).toBeTruthy();
+  expect(entry?.params).toBeUndefined();
 });

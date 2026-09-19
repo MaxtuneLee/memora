@@ -11,7 +11,11 @@ import {
 import { collectFolderDescendants } from "@/lib/tree/folderTree";
 import { parseJsonRecord } from "./widgetJson";
 import { buildWidgetManifest } from "./widgetManifest";
-import { findWidgetManifestFile, rewriteWidgetManifestFile } from "./widgetManifestFile";
+import {
+  findWidgetManifestFile,
+  readWidgetManifestFile,
+  rewriteWidgetManifestFile,
+} from "./widgetManifestFile";
 
 export interface WidgetDefinitionStoreLike {
   commit: (...events: unknown[]) => void;
@@ -93,19 +97,15 @@ export const updateWidgetDefinition = ({
     }),
   );
 
-  if (
-    input.name === undefined ||
-    !definition ||
-    !definition.folderId ||
-    definition.name === input.name
-  ) {
+  const name = input.name;
+  if (name === undefined || !definition || !definition.folderId || definition.name === name) {
     return;
   }
 
   store.commit(
     folderEvents.folderUpdated({
       id: definition.folderId,
-      name: input.name,
+      name,
       updatedAt,
     }),
   );
@@ -115,19 +115,27 @@ export const updateWidgetDefinition = ({
     return;
   }
 
-  void rewriteWidgetManifestFile({
-    store,
-    manifestFile,
-    manifest: buildWidgetManifest({
-      kind: definition.kind,
-      builtinKey: definition.builtinKey,
-      name: input.name,
-      dataSourceName: input.dataSourceName ?? definition.dataSourceName,
-      dataSourceParams: input.dataSourceParams ?? parseWidgetDefinitionDataSourceParams(definition),
-    }),
-  }).catch((error: unknown) => {
-    console.error("Failed to rewrite widget.json after rename:", error);
-  });
+  // dataFiles (ADR 0008) lives only in widget.json, not on the table — read the old manifest
+  // first so a rename doesn't wipe out the Definition's data-file declaration.
+  void readWidgetManifestFile(manifestFile)
+    .then((previousManifest) =>
+      rewriteWidgetManifestFile({
+        store,
+        manifestFile,
+        manifest: buildWidgetManifest({
+          kind: definition.kind,
+          builtinKey: definition.builtinKey,
+          name,
+          dataSourceName: input.dataSourceName ?? definition.dataSourceName,
+          dataSourceParams:
+            input.dataSourceParams ?? parseWidgetDefinitionDataSourceParams(definition),
+          dataFiles: previousManifest?.dataFiles,
+        }),
+      }),
+    )
+    .catch((error: unknown) => {
+      console.error("Failed to rewrite widget.json after rename:", error);
+    });
 };
 
 export interface DeleteWidgetDefinitionInput {

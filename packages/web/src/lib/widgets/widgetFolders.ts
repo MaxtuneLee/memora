@@ -3,6 +3,7 @@ import { queryDb } from "@livestore/livestore";
 import { folderEvents, folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 
 export const WIDGETS_ROOT_FOLDER_NAME = "Widgets";
+export const WIDGET_DATA_FOLDER_NAME = "data";
 
 export const widgetFoldersQuery$ = queryDb(() => folderTable.orderBy("updatedAt", "desc"), {
   label: "widgets:folders",
@@ -132,6 +133,48 @@ export const createWidgetDefinitionFolder = ({
       name: uniqueName,
       parentId: rootId,
       reservedKind: "widgetDefinition",
+      createdAt,
+    }),
+  );
+
+  return { folder };
+};
+
+// The "data" folder is a plain (unreserved) child of a Definition folder — it shows up on the
+// Desktop like any other folder, per ADR 0008. Its name is fixed, so there is at most one per
+// Definition; found by parentId + name rather than a reservedKind.
+export const findWidgetDataFolder = (
+  folders: readonly LiveStoreFolder[],
+  definitionFolderId: string,
+): LiveStoreFolder | null =>
+  folders.find(
+    (folder) =>
+      folder.parentId === definitionFolderId &&
+      folder.name === WIDGET_DATA_FOLDER_NAME &&
+      !folder.deletedAt,
+  ) ?? null;
+
+export const createWidgetDataFolder = ({
+  store,
+  definitionFolderId,
+}: {
+  store: WidgetFolderStoreLike;
+  definitionFolderId: string;
+}): { folder: LiveStoreFolder } => {
+  const createdAt = new Date();
+  const folder = buildFolderRow({
+    id: crypto.randomUUID(),
+    name: WIDGET_DATA_FOLDER_NAME,
+    parentId: definitionFolderId,
+    reservedKind: null,
+    createdAt,
+  });
+
+  store.commit(
+    folderEvents.folderCreated({
+      id: folder.id,
+      name: folder.name,
+      parentId: definitionFolderId,
       createdAt,
     }),
   );
