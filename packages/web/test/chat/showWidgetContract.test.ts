@@ -125,3 +125,43 @@ test("widget skill docs document every data source catalog entry and the onData/
   expect(readmeSource).toContain("getData");
   expect(skillSource).toContain("data_source");
 });
+
+test("widget skill docs teach how to use every catalog entry's payload, not just its shape", () => {
+  const readmeSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/README.md", import.meta.url),
+    "utf8",
+  );
+
+  const catalogSection = readmeSource.slice(
+    readmeSource.indexOf("## Data source catalog"),
+    readmeSource.indexOf("## Persisting the widget's own data"),
+  );
+
+  for (const entry of DATA_SOURCE_CATALOG) {
+    // Each entry's payload shape appears in the table; its usage guidance must also name the
+    // entry a second time — once for "what it is", once for "how to render it".
+    const mentions = catalogSection.split(entry.name).length - 1;
+    expect(mentions).toBeGreaterThanOrEqual(2);
+  }
+});
+
+test("widget skill docs point to widget_data.md before writing onData for widgetData, and it teaches arrival-order handling and bans browser storage", () => {
+  const readmeSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/README.md", import.meta.url),
+    "utf8",
+  );
+  const skillSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const widgetDataSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/sections/widget_data.md", import.meta.url),
+    "utf8",
+  );
+
+  expect(readmeSource).toContain("sections/widget_data.md");
+  expect(skillSource).toContain("sections/widget_data.md");
+  expect(widgetDataSource).toContain("arrival order, not call order");
+  expect(widgetDataSource).toContain("localStorage");
+  expect(widgetDataSource).toContain("sessionStorage");
+});

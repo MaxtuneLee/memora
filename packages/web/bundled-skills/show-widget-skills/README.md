@@ -237,6 +237,23 @@ binding — the widget never authors its own query, only picks a catalog entry b
 | `chatSessionCount` | none                        | `{ count: number }`                                    |
 | `widgetData`       | none                        | `{ [fileName]: parsed JSON or raw text }`              |
 
+How to use each one:
+
+- **`recentFiles`** — a list or timeline of what the user has been working on. Set `limit` to how
+  many rows the widget has room for; iterate `data.files` and format `updatedAt` (epoch
+  milliseconds) as relative time ("2h ago").
+- **`todoProgress`** — a progress bar or ring over the to-do list. Render
+  `data.completed / data.total` as a percentage; guard `data.total === 0` (nothing on the list
+  yet) before dividing, and show an empty state instead of `NaN%`.
+- **`storageStats`** — a storage gauge. Render `data.usedBytes / data.quotaBytes` as a percentage.
+  If `data.isSupported` is `false`, show a "not available" state, not a 0% gauge — the browser
+  doesn't expose the Storage API here, it isn't that usage is zero.
+- **`chatSessionCount`** — a single stat tile ("12 conversations"). Just `data.count`, nothing to
+  iterate.
+- **`widgetData`** — the widget's own persisted state, written with `writeData`. See "Persisting
+  the widget's own data" below before using it — reading it back has ordering pitfalls the other
+  sources don't have.
+
 Example: a widget over the 8 most recent files sets `data_source: "recentFiles"` and
 `data_source_params: { limit: 8 }`, then reads `onData((data) => { data.files.forEach(...) })`.
 
@@ -256,6 +273,11 @@ refresh with no reload after `writeData` resolves or the file is edited external
 
 In Chat's preview (before the widget is saved), `writeData` keeps its writes in memory instead of
 on disk — the widget's own code does not need to know which mode it is running in.
+
+**Before writing any `onData`/`getData` logic against `widgetData`, read `sections/widget_data.md`**
+— a write and its own readback arrive as two separate, out-of-order messages, and getting that
+wrong makes saved data look lost. It also covers why browser storage cannot substitute for
+`writeData`.
 
 ## Local runtime contract
 
@@ -278,7 +300,7 @@ on disk — the widget's own code does not need to know which mode it is running
 - In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`, `writeData`.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
-- Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above.
+- Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above and, before writing the `onData` handler, `sections/widget_data.md`.
 - If `data_source` was set on `show_widget`, use `onData(callback)` to run `callback` with the resolved payload — immediately if it already arrived, and again on every later update. `getData()` returns the latest payload synchronously (or `undefined` before the first one arrives). Without a `data_source`, these are never called.
 - A widget that binds a `data_source` and is later saved to the Home Grid renders through a
   separate, sandboxed runtime with no direct object access — `getData`/`onData` there work

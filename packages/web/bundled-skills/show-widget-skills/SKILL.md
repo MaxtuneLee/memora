@@ -26,6 +26,7 @@ Use this skill before calling `show_widget`.
 
 - If the request is art with clear interactivity, also read `guidelines/art_interactive.md`.
 - If the request is a chart with clear interactivity, also read `guidelines/chart_interactive.md`.
+- If the widget declares `data_files`/calls `writeData`, or binds `data_source: "widgetData"`, also read `sections/widget_data.md`.
 
 ## Tool contract
 
@@ -38,4 +39,4 @@ Use this skill before calling `show_widget`.
   the full list, payload shapes, and the `onData`/`getData` bindings that deliver the result.
 - To let the widget persist its own state, set `data_files` to the file names it will write and
   call `writeData(name, content)` from `widget_code` — see README.md's "Persisting the widget's
-  own data".
+  own data" and `sections/widget_data.md` for the `onData` timing rules.
