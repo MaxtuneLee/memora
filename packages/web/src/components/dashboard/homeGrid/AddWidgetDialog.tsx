@@ -2,7 +2,14 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type JSX } fr
 import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
-import { getDataSourceCatalogEntry } from "@/lib/widgets/dataSourceCatalog";
+import { DataSourceParamsFields } from "@/components/widgets/DataSourceParamsFields";
+import {
+  getDataSourceCatalogEntry,
+  parseDataSourceParamValues,
+  stringifyDataSourceParamValues,
+  validateDataSourceParamValues,
+} from "@/lib/widgets/dataSourceCatalog";
+import { parseWidgetDefinitionDataSourceParams } from "@/lib/widgets/widgetDefinitions";
 import type { widgetDefinition } from "@/livestore/widget";
 
 const styles = stylex.create({
@@ -58,17 +65,6 @@ const styles = stylex.create({
     lineHeight: 1.45,
     margin: 0,
   },
-  input: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    border: "1px solid var(--color-memora-border)",
-    borderRadius: 10,
-    color: "var(--color-memora-text)",
-    fontSize: 14,
-    minHeight: 40,
-    paddingBlock: 8,
-    paddingInline: 10,
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
-  },
   error: {
     backgroundColor: "var(--color-memora-warning-surface)",
     border: "1px solid var(--color-memora-warning-border)",
@@ -116,9 +112,8 @@ export function AddWidgetDialog({
   const titleId = useId();
   const descriptionId = useId();
   const firstDefinitionButtonRef = useRef<HTMLButtonElement>(null);
-  const limitInputRef = useRef<HTMLInputElement>(null);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<string | null>(null);
-  const [recentFilesLimit, setRecentFilesLimit] = useState("5");
+  const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const selectedDefinition = useMemo(
@@ -140,12 +135,10 @@ export function AddWidgetDialog({
   const handleSelectDefinition = useCallback((definition: widgetDefinition) => {
     setSelectedDefinitionId(definition.id);
     setError(null);
-    if (definition.dataSourceName === "recentFiles") {
-      const params = JSON.parse(definition.dataSourceParams || "{}") as { limit?: unknown };
-      setRecentFilesLimit(
-        typeof params.limit === "number" && params.limit > 0 ? String(params.limit) : "5",
-      );
-    }
+    const entry = getDataSourceCatalogEntry(definition.dataSourceName);
+    setParamValues(
+      stringifyDataSourceParamValues(entry, parseWidgetDefinitionDataSourceParams(definition)),
+    );
   }, []);
 
   const handleBack = useCallback(() => {
@@ -162,19 +155,18 @@ export function AddWidgetDialog({
       return;
     }
 
-    const params: Record<string, unknown> = {};
-    if (selectedDefinition.dataSourceName === "recentFiles") {
-      const limit = Number(recentFilesLimit);
-      if (!Number.isInteger(limit) || limit < 1) {
-        setError("Enter a whole number of files to show.");
-        return;
-      }
-      params.limit = limit;
+    const validationError = validateDataSourceParamValues(selectedDataSource, paramValues);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
-    onPlace({ definitionId: selectedDefinition.id, params });
+    onPlace({
+      definitionId: selectedDefinition.id,
+      params: parseDataSourceParamValues(selectedDataSource, paramValues),
+    });
     handleClose();
-  }, [handleClose, onPlace, recentFilesLimit, selectedDefinition]);
+  }, [handleClose, onPlace, paramValues, selectedDataSource, selectedDefinition]);
 
   return (
     <NativeDialog
@@ -186,7 +178,7 @@ export function AddWidgetDialog({
       }}
       labelledBy={titleId}
       describedBy={descriptionId}
-      initialFocusRef={selectedDefinition ? limitInputRef : firstDefinitionButtonRef}
+      initialFocusRef={selectedDefinition ? undefined : firstDefinitionButtonRef}
       panelClassName={stylex.props(styles.panel).className}
     >
       <div {...stylex.props(styles.content)}>
@@ -250,27 +242,15 @@ export function AddWidgetDialog({
               <span {...stylex.props(styles.label)}>Data source</span>
               <p {...stylex.props(styles.sourceDescription)}>{selectedDataSource?.description}</p>
             </div>
-            {selectedDefinition.dataSourceName === "recentFiles" && (
-              <div {...stylex.props(styles.field)}>
-                <label htmlFor="place-recent-files-limit" {...stylex.props(styles.label)}>
-                  Files to show
-                </label>
-                <input
-                  ref={limitInputRef}
-                  id="place-recent-files-limit"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="numeric"
-                  value={recentFilesLimit}
-                  onChange={(event) => {
-                    setRecentFilesLimit(event.target.value);
-                    setError(null);
-                  }}
-                  {...stylex.props(styles.input)}
-                />
-              </div>
-            )}
+            <DataSourceParamsFields
+              entry={selectedDataSource}
+              values={paramValues}
+              idPrefix="place-widget-param"
+              onChange={(key, value) => {
+                setParamValues((current) => ({ ...current, [key]: value }));
+                setError(null);
+              }}
+            />
             {error && <p {...stylex.props(styles.error)}>{error}</p>}
             <div {...stylex.props(styles.actions)}>
               <button

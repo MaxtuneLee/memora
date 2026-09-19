@@ -26,13 +26,17 @@ export function GeneratedWidgetTile({
   store,
   definition,
   instance,
+  onSendPrompt,
+  onOpenLink,
 }: {
   store: ReactiveWidgetStore;
   definition: widgetDefinition;
   instance: widgetInstance;
+  onSendPrompt?: (text: string) => void;
+  onOpenLink?: (url: string) => void;
 }): JSX.Element {
   const params = resolveWidgetInstanceParams(definition, instance);
-  const data = useDataSourceValue(store, definition.dataSourceName, params);
+  const dataState = useDataSourceValue(store, definition.dataSourceName, params);
   const source = useWidgetSourceCode(store, definition.sourceFileId);
 
   if (source.status === "loading") {
@@ -43,5 +47,14 @@ export function GeneratedWidgetTile({
     return <div {...stylex.props(styles.status)}>This widget’s source couldn’t be loaded.</div>;
   }
 
-  return <GeneratedWidgetFrame widgetCode={source.code} data={data} title={definition.name} />;
+  return (
+    <GeneratedWidgetFrame
+      widgetCode={source.code}
+      data={dataState?.status === "ready" ? dataState.value : undefined}
+      dataReady={dataState?.status === "ready"}
+      title={definition.name}
+      onSendPrompt={onSendPrompt}
+      onOpenLink={onOpenLink}
+    />
+  );
 }

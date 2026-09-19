@@ -65,6 +65,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No nested scrolling — auto-fit height.
 - Scripts execute after streaming — load libraries via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` (UMD globals), then use the global in a plain `<script>` that follows.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
+- **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
 
 ### CSS Variables
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/chat/chatSessionStorage";
 import { generateChatSessionTitle } from "@/lib/chat/chatSessionTitleGenerator";
 import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
+import { consumePendingHomeGridPrompt } from "@/lib/widgets/homeGridPrompt";
 import {
   buildSessionSignature,
   loadGreetingName,
@@ -312,6 +313,20 @@ export const Component = () => {
   useEffect(() => {
     showWidgetSkillTracker.resetTurn();
   }, [activeSessionId, showWidgetSkillTracker]);
+
+  useEffect(() => {
+    if (!sessionsReady || !activeSessionId) {
+      return;
+    }
+    // A Home Grid widget's sendPrompt() left this here (see lib/widgets/homeGridPrompt.ts) before
+    // navigating to /chat, since a sandboxed iframe outside this page can't call handleWidgetPrompt
+    // directly. Consuming it clears it, so a session switch right after landing won't resend it.
+    const pendingPrompt = consumePendingHomeGridPrompt();
+    if (pendingPrompt) {
+      void turnActions.handleWidgetPrompt(pendingPrompt);
+    }
+    // oxlint-disable-next-line react/exhaustive-deps
+  }, [sessionsReady, activeSessionId]);
 
   useEffect(() => {
     if (!sessionsReady || !activeSessionId || isStreaming || turnActions.isPreparingTurn) {

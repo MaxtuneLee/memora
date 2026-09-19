@@ -15,6 +15,8 @@ export interface WidgetIframeWindow extends Window {
     container: HTMLDivElement;
     openLink: (url: string) => void;
     sendPrompt: (text: string) => Promise<void>;
+    getData: () => unknown;
+    onData: (callback: (data: unknown) => void) => void;
   };
   [WIDGET_CLEANUP_KEY]?: (() => void) | null;
   [WIDGET_ERROR_KEY]?: string | null;

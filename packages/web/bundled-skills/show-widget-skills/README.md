@@ -75,6 +75,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No nested scrolling — auto-fit height.
 - Scripts execute after streaming — load libraries via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` (UMD globals), then use the global in a plain `<script>` that follows.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
+- **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
 
 ### CSS Variables
 
@@ -186,6 +187,7 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No nested scrolling — auto-fit height.
 - Scripts execute after streaming — load libraries via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` (UMD globals), then use the global in a plain `<script>` that follows.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
+- **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
 
 ### CSS Variables
 
@@ -220,6 +222,23 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - All core design system rules still apply
 - Use `sendPrompt()` for any action that benefits from memora thinking
 
+## Data source catalog
+
+To make a widget data-backed instead of static, set `data_source` (and, if the entry takes
+params, `data_source_params`) on `show_widget`. The preview then receives live data through the
+`onData`/`getData` bindings below, and saving the widget onto the Home Grid pre-fills the same
+binding — the widget never authors its own query, only picks a catalog entry by name.
+
+| `data_source`      | Params                      | Resolved payload shape                                 |
+| ------------------ | --------------------------- | ------------------------------------------------------ |
+| `recentFiles`      | `limit` (number, default 5) | `{ files: Array<{ id, name, type, updatedAt }> }`      |
+| `todoProgress`     | none                        | `{ total: number, completed: number }`                 |
+| `storageStats`     | none                        | `{ usedBytes, quotaBytes, isPersistent, isSupported }` |
+| `chatSessionCount` | none                        | `{ count: number }`                                    |
+
+Example: a widget over the 8 most recent files sets `data_source: "recentFiles"` and
+`data_source_params: { limit: 8 }`, then reads `onData((data) => { data.files.forEach(...) })`.
+
 ## Local runtime contract
 
 - Use this skill before calling `show_widget`.
@@ -237,6 +256,12 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - When calling `show_widget`, set `i_have_seen_read_me` to `true` only if you have read this file in the current turn.
 - `show_widget.widget_code` must be a fragment in this order: `<style>...</style>`, then HTML, then `<script>...</script>`.
 - The runtime executes scripts only after the full `<script>` block arrives.
-- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`.
+- If your script needs a listener that isn't scoped to an element inside `container` (window resize, keydown, visibilitychange, message, etc.), bind it on `window`, not `document`, and return a cleanup function from the script's top-level call that removes it. The script can re-execute in the same iframe without a page reload, and `window` is never reset between runs — an unremoved listener duplicates on every re-run.
+- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
+- If `data_source` was set on `show_widget`, use `onData(callback)` to run `callback` with the resolved payload — immediately if it already arrived, and again on every later update. `getData()` returns the latest payload synchronously (or `undefined` before the first one arrives). Without a `data_source`, these are never called.
+- A widget that binds a `data_source` and is later saved to the Home Grid renders through a
+  separate, sandboxed runtime with no direct object access — `getData`/`onData` there work
+  identically, but `Chart`, `sendPrompt`, and `openLink` route through a stricter, message-based
+  bridge (see ADR 0006). Widgets that only use the bindings above behave the same in both places.

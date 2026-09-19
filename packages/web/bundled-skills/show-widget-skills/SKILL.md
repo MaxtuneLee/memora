@@ -33,3 +33,6 @@ Use this skill before calling `show_widget`.
 - Set `i_have_seen_read_me` to `true` only after reading `README.md` in the current turn.
 - `widget_code` must stream in this order: `<style>...</style>`, then HTML, then `<script>...</script>`.
 - The runtime defers script execution until the full script block is available.
+- To make the widget data-backed, set `data_source` to a data source catalog entry name (and
+  `data_source_params` for entries that take params) — see README.md's "Data source catalog" for
+  the full list, payload shapes, and the `onData`/`getData` bindings that deliver the result.

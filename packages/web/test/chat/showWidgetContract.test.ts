@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "vite-plus/test";
 
+import { DATA_SOURCE_CATALOG } from "@/lib/widgets/dataSourceCatalog";
+
 test("interactive widget guidance includes svg layout rules", () => {
   const showWidgetSource = readFileSync(
     new URL("../../src/lib/chat/showWidget.ts", import.meta.url),
@@ -103,4 +105,23 @@ test("widget skill docs teach narrow-column width budgeting", () => {
   expect(svgSetupSource).toContain("567px wide");
   expect(svgSetupSource).toContain("Width budgeting is mandatory.");
   expect(svgSetupSource).toContain("Long explanatory text does not belong in SVG.");
+});
+
+test("widget skill docs document every data source catalog entry and the onData/getData bindings", () => {
+  const readmeSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/README.md", import.meta.url),
+    "utf8",
+  );
+  const skillSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/SKILL.md", import.meta.url),
+    "utf8",
+  );
+
+  for (const entry of DATA_SOURCE_CATALOG) {
+    expect(readmeSource).toContain(entry.name);
+  }
+  expect(readmeSource).toContain("data_source_params");
+  expect(readmeSource).toContain("onData");
+  expect(readmeSource).toContain("getData");
+  expect(skillSource).toContain("data_source");
 });

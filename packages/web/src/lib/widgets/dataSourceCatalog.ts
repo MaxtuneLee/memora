@@ -13,10 +13,24 @@ import type { WidgetQueryableStore } from "./widgetStore";
 
 export { DATA_SOURCE_NAMES, type DataSourceName };
 
+const DEFAULT_RECENT_FILES_LIMIT = 5;
+
+// A single field type today (whole-number counts); add "text"/"boolean" here if a future
+// catalog entry needs them, and extend DataSourceParamsFields to render the new type.
+export interface DataSourceParamField {
+  key: string;
+  label: string;
+  type: "number";
+  min?: number;
+  step?: number;
+  defaultValue: number;
+}
+
 export interface DataSourceCatalogEntry {
   name: DataSourceName;
   label: string;
   description: string;
+  params?: readonly DataSourceParamField[];
 }
 
 export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
@@ -24,6 +38,16 @@ export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
     name: "recentFiles",
     label: "Recent files",
     description: "Recently updated items in your library.",
+    params: [
+      {
+        key: "limit",
+        label: "Files to show",
+        type: "number",
+        min: 1,
+        step: 1,
+        defaultValue: DEFAULT_RECENT_FILES_LIMIT,
+      },
+    ],
   },
   {
     name: "todoProgress",
@@ -40,6 +64,55 @@ export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
 
 export const getDataSourceCatalogEntry = (name: string): DataSourceCatalogEntry | undefined => {
   return DATA_SOURCE_CATALOG.find((entry) => entry.name === name);
+};
+
+// The three functions below let both the save dialog and the add dialog render, edit, and
+// validate a catalog entry's params from its schema alone, instead of hand-rolling a field per
+// data source. Form state is kept as strings (native input values); these convert at the edges.
+export const getDefaultDataSourceParams = (
+  entry: DataSourceCatalogEntry | undefined,
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const field of entry?.params ?? []) {
+    result[field.key] = field.defaultValue;
+  }
+  return result;
+};
+
+export const stringifyDataSourceParamValues = (
+  entry: DataSourceCatalogEntry | undefined,
+  values: Record<string, unknown>,
+): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const field of entry?.params ?? []) {
+    const raw = values[field.key];
+    result[field.key] = typeof raw === "number" ? String(raw) : String(field.defaultValue);
+  }
+  return result;
+};
+
+export const parseDataSourceParamValues = (
+  entry: DataSourceCatalogEntry | undefined,
+  stringValues: Record<string, string>,
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const field of entry?.params ?? []) {
+    result[field.key] = Number(stringValues[field.key]);
+  }
+  return result;
+};
+
+export const validateDataSourceParamValues = (
+  entry: DataSourceCatalogEntry | undefined,
+  stringValues: Record<string, string>,
+): string | null => {
+  for (const field of entry?.params ?? []) {
+    const value = Number(stringValues[field.key]);
+    if (!Number.isInteger(value) || (field.min !== undefined && value < field.min)) {
+      return `Enter a whole number for ${field.label.toLowerCase()}.`;
+    }
+  }
+  return null;
 };
 
 // Sources backed by a livestore query re-resolve on data change; storageStats and chatSessionCount
@@ -71,8 +144,6 @@ export interface StorageStatsData {
 export interface ChatSessionCountData {
   count: number;
 }
-
-const DEFAULT_RECENT_FILES_LIMIT = 5;
 
 type DataSourceResolver = (store: WidgetQueryableStore, params: unknown) => unknown;
 

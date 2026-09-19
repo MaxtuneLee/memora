@@ -1,9 +1,17 @@
-import { useCallback, useId, useRef, useState, type JSX } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import { DataSourceParamsFields } from "@/components/widgets/DataSourceParamsFields";
 import type { DataSourceName } from "@/livestore/widget";
-import { DATA_SOURCE_CATALOG, getDataSourceCatalogEntry } from "@/lib/widgets/dataSourceCatalog";
+import {
+  DATA_SOURCE_CATALOG,
+  getDataSourceCatalogEntry,
+  getDefaultDataSourceParams,
+  parseDataSourceParamValues,
+  stringifyDataSourceParamValues,
+  validateDataSourceParamValues,
+} from "@/lib/widgets/dataSourceCatalog";
 import type {
   SaveChatWidgetDefinitionInput,
   SaveChatWidgetDefinitionResult,
@@ -46,17 +54,6 @@ const styles = stylex.create({
     lineHeight: 1.45,
     margin: 0,
   },
-  input: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    border: "1px solid var(--color-memora-border)",
-    borderRadius: 10,
-    color: "var(--color-memora-text)",
-    fontSize: 14,
-    minHeight: 40,
-    paddingBlock: 8,
-    paddingInline: 10,
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
-  },
   error: {
     backgroundColor: "var(--color-memora-warning-surface)",
     border: "1px solid var(--color-memora-warning-border)",
@@ -87,6 +84,8 @@ interface SaveWidgetDefinitionDialogProps {
   open: boolean;
   widgetCode: string;
   widgetName: string;
+  defaultDataSourceName?: DataSourceName;
+  defaultDataSourceParams?: Record<string, unknown>;
   onOpenChange: (open: boolean) => void;
   onSave: (
     input: SaveChatWidgetDefinitionInput,
@@ -97,6 +96,8 @@ export function SaveWidgetDefinitionDialog({
   open,
   widgetCode,
   widgetName,
+  defaultDataSourceName,
+  defaultDataSourceParams,
   onOpenChange,
   onSave,
 }: SaveWidgetDefinitionDialogProps): JSX.Element {
@@ -104,14 +105,31 @@ export function SaveWidgetDefinitionDialog({
   const descriptionId = useId();
   const dataSourceRef = useRef<HTMLSelectElement>(null);
   const [dataSourceName, setDataSourceName] = useState<DataSourceName | "">("");
-  const [recentFilesLimit, setRecentFilesLimit] = useState("5");
+  const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const selectedDataSource = dataSourceName ? getDataSourceCatalogEntry(dataSourceName) : undefined;
 
+  // The agent's chosen catalog binding (data_source/data_source_params on show_widget) pre-fills
+  // this dialog; the user can still change either before saving.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const entry = defaultDataSourceName
+      ? getDataSourceCatalogEntry(defaultDataSourceName)
+      : undefined;
+    setDataSourceName(defaultDataSourceName ?? "");
+    setParamValues(
+      stringifyDataSourceParamValues(
+        entry,
+        defaultDataSourceParams ?? getDefaultDataSourceParams(entry),
+      ),
+    );
+    setError(null);
+  }, [open, defaultDataSourceName, defaultDataSourceParams]);
+
   const handleClose = useCallback(() => {
-    setDataSourceName("");
-    setRecentFilesLimit("5");
     setError(null);
     setIsSaving(false);
     onOpenChange(false);
@@ -123,9 +141,9 @@ export function SaveWidgetDefinitionDialog({
       return;
     }
 
-    const limit = Number(recentFilesLimit);
-    if (dataSourceName === "recentFiles" && (!Number.isInteger(limit) || limit < 1)) {
-      setError("Enter a whole number of files to show.");
+    const validationError = validateDataSourceParamValues(selectedDataSource, paramValues);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -138,7 +156,7 @@ export function SaveWidgetDefinitionDialog({
         name: widgetName || "Untitled widget",
         widgetCode,
         dataSourceName,
-        ...(dataSourceName === "recentFiles" ? { dataSourceParams: { limit } } : {}),
+        dataSourceParams: parseDataSourceParamValues(selectedDataSource, paramValues),
       });
 
       if (!result.ok) {
@@ -156,7 +174,15 @@ export function SaveWidgetDefinitionDialog({
       setError("Couldn't save this widget definition. Try again.");
       setIsSaving(false);
     }
-  }, [dataSourceName, handleClose, onSave, recentFilesLimit, widgetCode, widgetName]);
+  }, [
+    dataSourceName,
+    handleClose,
+    onSave,
+    paramValues,
+    selectedDataSource,
+    widgetCode,
+    widgetName,
+  ]);
 
   return (
     <NativeDialog
@@ -189,7 +215,13 @@ export function SaveWidgetDefinitionDialog({
             id="widget-data-source"
             value={dataSourceName}
             onChange={(event) => {
-              setDataSourceName(getDataSourceCatalogEntry(event.target.value)?.name ?? "");
+              const nextEntry = getDataSourceCatalogEntry(event.target.value);
+              setDataSourceName(nextEntry?.name ?? "");
+              if (nextEntry?.name !== defaultDataSourceName) {
+                setParamValues(
+                  stringifyDataSourceParamValues(nextEntry, getDefaultDataSourceParams(nextEntry)),
+                );
+              }
               setError(null);
             }}
             {...stylex.props(styles.select)}
@@ -205,26 +237,15 @@ export function SaveWidgetDefinitionDialog({
             <p {...stylex.props(styles.sourceDescription)}>{selectedDataSource.description}</p>
           )}
         </div>
-        {dataSourceName === "recentFiles" && (
-          <div {...stylex.props(styles.field)}>
-            <label htmlFor="recent-files-limit" {...stylex.props(styles.label)}>
-              Files to show
-            </label>
-            <input
-              id="recent-files-limit"
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              value={recentFilesLimit}
-              onChange={(event) => {
-                setRecentFilesLimit(event.target.value);
-                setError(null);
-              }}
-              {...stylex.props(styles.input)}
-            />
-          </div>
-        )}
+        <DataSourceParamsFields
+          entry={selectedDataSource}
+          values={paramValues}
+          idPrefix="save-widget-param"
+          onChange={(key, value) => {
+            setParamValues((current) => ({ ...current, [key]: value }));
+            setError(null);
+          }}
+        />
         {error && <p {...stylex.props(styles.error)}>{error}</p>}
         <div {...stylex.props(styles.actions)}>
           <button

@@ -22,7 +22,15 @@ vi.mock("@/lib/chat/chatSessionStorage", () => ({ listChatSessions: testState.li
 
 import { desktopFilesQuery$ } from "@/lib/desktop/queries";
 import { activeFilesQuery$ } from "@/lib/library/queries";
-import { resolveDataSource } from "@/lib/widgets/dataSourceCatalog";
+import {
+  DATA_SOURCE_CATALOG,
+  getDataSourceCatalogEntry,
+  getDefaultDataSourceParams,
+  parseDataSourceParamValues,
+  resolveDataSource,
+  stringifyDataSourceParamValues,
+  validateDataSourceParamValues,
+} from "@/lib/widgets/dataSourceCatalog";
 
 const buildFileRow = (overrides: Record<string, unknown> = {}) => ({
   id: "file-1",
@@ -174,6 +182,51 @@ test("storageStats reports unsupported when the Storage API is unavailable", asy
     isPersistent: false,
     isSupported: false,
   });
+});
+
+test("only recentFiles declares a param schema in the catalog", () => {
+  const entry = getDataSourceCatalogEntry("recentFiles");
+
+  expect(entry?.params).toEqual([
+    { key: "limit", label: "Files to show", type: "number", min: 1, step: 1, defaultValue: 5 },
+  ]);
+  for (const other of DATA_SOURCE_CATALOG.filter((candidate) => candidate.name !== "recentFiles")) {
+    expect(other.params).toBeUndefined();
+  }
+});
+
+test("getDefaultDataSourceParams builds a value map from the schema's defaults", () => {
+  expect(getDefaultDataSourceParams(getDataSourceCatalogEntry("recentFiles"))).toEqual({
+    limit: 5,
+  });
+  expect(getDefaultDataSourceParams(getDataSourceCatalogEntry("todoProgress"))).toEqual({});
+});
+
+test("stringifyDataSourceParamValues round-trips through parseDataSourceParamValues", () => {
+  const entry = getDataSourceCatalogEntry("recentFiles");
+  const strings = stringifyDataSourceParamValues(entry, { limit: 8 });
+
+  expect(strings).toEqual({ limit: "8" });
+  expect(parseDataSourceParamValues(entry, strings)).toEqual({ limit: 8 });
+});
+
+test("stringifyDataSourceParamValues falls back to the field default for a non-numeric value", () => {
+  const entry = getDataSourceCatalogEntry("recentFiles");
+
+  expect(stringifyDataSourceParamValues(entry, { limit: "not-a-number" })).toEqual({ limit: "5" });
+});
+
+test("validateDataSourceParamValues rejects non-integers and values below the minimum", () => {
+  const entry = getDataSourceCatalogEntry("recentFiles");
+
+  expect(validateDataSourceParamValues(entry, { limit: "3" })).toBeNull();
+  expect(validateDataSourceParamValues(entry, { limit: "0" })).toMatch(/whole number/);
+  expect(validateDataSourceParamValues(entry, { limit: "2.5" })).toMatch(/whole number/);
+  expect(validateDataSourceParamValues(entry, { limit: "abc" })).toMatch(/whole number/);
+});
+
+test("validateDataSourceParamValues passes entries with no params", () => {
+  expect(validateDataSourceParamValues(getDataSourceCatalogEntry("todoProgress"), {})).toBeNull();
 });
 
 test("storageStats never touches the store's query surface", async () => {

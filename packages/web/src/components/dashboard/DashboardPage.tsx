@@ -20,6 +20,7 @@ import {
 } from "@/components/dashboard/homeGrid/AddWidgetDialog";
 import { GeneratedWidgetTile } from "@/components/dashboard/homeGrid/GeneratedWidgetTile";
 import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { RecentWidget } from "@/components/dashboard/RecentWidget";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
@@ -39,6 +40,7 @@ import {
   activeWidgetInstancesQuery$,
 } from "@/lib/widgets/widgetQueries";
 import { seedHomeGrid } from "@/lib/widgets/seedHomeGrid";
+import { setPendingHomeGridPrompt } from "@/lib/widgets/homeGridPrompt";
 import { fileEvents } from "@/livestore/file";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
@@ -173,6 +175,26 @@ export const Component = (): ReactElement => {
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+  const [pendingWidgetLinkUrl, setPendingWidgetLinkUrl] = useState<string | null>(null);
+
+  const handleWidgetSendPrompt = useCallback(
+    (text: string) => {
+      setPendingHomeGridPrompt(text);
+      void navigate("/chat");
+    },
+    [navigate],
+  );
+
+  const handleWidgetOpenLink = useCallback((url: string) => {
+    setPendingWidgetLinkUrl(url);
+  }, []);
+
+  const handleConfirmWidgetLink = useCallback(() => {
+    if (pendingWidgetLinkUrl) {
+      window.open(pendingWidgetLinkUrl, "_blank", "noopener,noreferrer");
+    }
+    setPendingWidgetLinkUrl(null);
+  }, [pendingWidgetLinkUrl]);
 
   useEffect(() => {
     void seedHomeGrid({ store }).catch((error) => {
@@ -247,7 +269,15 @@ export const Component = (): ReactElement => {
   const renderHomeGridWidget = useCallback(
     (definition: widgetDefinition, instance: widgetInstance): ReactNode => {
       if (definition.kind === "generated") {
-        return <GeneratedWidgetTile store={store} definition={definition} instance={instance} />;
+        return (
+          <GeneratedWidgetTile
+            store={store}
+            definition={definition}
+            instance={instance}
+            onSendPrompt={handleWidgetSendPrompt}
+            onOpenLink={handleWidgetOpenLink}
+          />
+        );
       }
 
       if (definition.kind !== "builtin") {
@@ -268,7 +298,7 @@ export const Component = (): ReactElement => {
 
       return null;
     },
-    [files, recentItems, store],
+    [files, handleWidgetOpenLink, handleWidgetSendPrompt, recentItems, store],
   );
 
   const handleReorderWidgets = useCallback(
@@ -425,6 +455,14 @@ export const Component = (): ReactElement => {
         definitions={savedWidgetDefinitions}
         onOpenChange={setIsAddWidgetOpen}
         onPlace={handlePlaceWidget}
+      />
+      <ConfirmDialog
+        isOpen={pendingWidgetLinkUrl !== null}
+        title="Open this link?"
+        description={pendingWidgetLinkUrl ?? ""}
+        confirmLabel="Open link"
+        onConfirm={handleConfirmWidgetLink}
+        onCancel={() => setPendingWidgetLinkUrl(null)}
       />
     </div>
   );

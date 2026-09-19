@@ -18,6 +18,7 @@ import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/sh
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
+import { useDataSourceValue } from "@/hooks/widgets/useDataSourceValue";
 
 const styles = stylex.create({
   root: {
@@ -93,6 +94,11 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   }, [widget.widgetCode]);
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const dataState = useDataSourceValue(
+    store,
+    widget.dataSourceName ?? null,
+    widget.dataSourceParams ?? {},
+  );
   const {
     iframeRef,
     iframeDocumentRef,
@@ -114,6 +120,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     hasRuntimeDom,
     onSendPrompt,
     syncIframeHeight,
+    dataState,
   });
   const debugState = useSyncExternalStore(
     subscribeShowWidgetDebug,
@@ -213,6 +220,8 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
         open={isSaveDialogOpen}
         widgetCode={widget.widgetCode}
         widgetName={widget.title}
+        defaultDataSourceName={widget.dataSourceName}
+        defaultDataSourceParams={widget.dataSourceParams}
         onOpenChange={setIsSaveDialogOpen}
         onSave={handleSaveDefinition}
       />
