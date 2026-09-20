@@ -49,6 +49,18 @@ const styles = stylex.create({
   dragging: { opacity: 0.4 },
   dropTarget: { boxShadow: "0 0 0 2px #a7af8f", borderRadius: 27 },
   content: { flex: 1, minHeight: 0, overflow: "auto" },
+  // Sits over the widget's own content while editing so drag/remove gestures land on the
+  // tile instead of being swallowed by buttons, inputs, or links inside the widget.
+  contentMask: {
+    backgroundColor: "rgba(255, 253, 248, 0.4)",
+    inset: 0,
+    opacity: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    transition: "opacity 160ms ease-out",
+    zIndex: 10,
+  },
+  contentMaskVisible: { opacity: 1, pointerEvents: "auto" },
   removeBadge: {
     alignItems: "center",
     backgroundColor: "#fffdf8",
@@ -202,6 +214,10 @@ export function HomeGridTile({
         </button>
       )}
       <div {...stylex.props(styles.content)}>{children}</div>
+      <div
+        aria-hidden="true"
+        {...stylex.props(styles.contentMask, isEditing && styles.contentMaskVisible)}
+      />
     </div>
   );
 }
