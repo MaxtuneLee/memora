@@ -13,16 +13,15 @@ import * as stylex from "@stylexjs/stylex";
 import type { ComponentType, ReactElement, ReactNode } from "react";
 import { useNavigate } from "react-router";
 
-import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
 import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
 import {
-  AddWidgetDialog,
+  AddWidgetDrawer,
   type PlaceWidgetInput,
-} from "@/components/dashboard/homeGrid/AddWidgetDialog";
+} from "@/components/dashboard/homeGrid/AddWidgetDrawer";
+import { renderBuiltinWidget } from "@/components/dashboard/homeGrid/builtinWidgetPreview";
 import { GeneratedWidgetTile } from "@/components/dashboard/homeGrid/GeneratedWidgetTile";
 import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
-import { RecentWidget } from "@/components/dashboard/RecentWidget";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import ToastStack from "@/components/ToastStack";
@@ -32,6 +31,7 @@ import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 import { listChatSessions, type ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { deleteWidgetDefinition, updateWidgetDefinition } from "@/lib/widgets/widgetDefinitions";
 import {
   createWidgetInstance,
   deleteWidgetInstance,
@@ -49,7 +49,6 @@ import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
 import type { SearchNavigationState } from "@/types/search";
 
-import { TodoPanel } from "./TodoPanel";
 import { DEFAULT_WELCOME_COPY, getWelcomeCopy } from "./welcomeCopy";
 
 type IconWeight = "regular" | "fill" | "duotone" | "bold";
@@ -202,6 +201,7 @@ export const Component = (): ReactElement => {
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
   const [pendingWidgetLinkUrl, setPendingWidgetLinkUrl] = useState<string | null>(null);
+  const [pendingDeleteDefinitionId, setPendingDeleteDefinitionId] = useState<string | null>(null);
 
   const handleWidgetSendPrompt = useCallback(
     (text: string) => {
@@ -265,9 +265,9 @@ export const Component = (): ReactElement => {
     return recentItems.filter((item) => item.updatedAt > 0).length;
   }, [recentItems]);
 
-  const savedWidgetDefinitions = useMemo(() => {
-    return widgetDefinitionRows.filter((definition) => definition.kind === "generated");
-  }, [widgetDefinitionRows]);
+  const placedDefinitionIds = useMemo(() => {
+    return new Set(widgetInstanceRows.map((instance) => instance.definitionId));
+  }, [widgetInstanceRows]);
 
   const welcomeCopy = useMemo(() => {
     if (!chatSessionsLoaded) {
@@ -310,19 +310,7 @@ export const Component = (): ReactElement => {
         return null;
       }
 
-      if (definition.builtinKey === "calendar") {
-        return <CalendarWidget activityTimestamps={recentItems.map((item) => item.updatedAt)} />;
-      }
-
-      if (definition.builtinKey === "todo") {
-        return <TodoPanel files={files} store={store} todoFolderId={definition.folderId ?? null} />;
-      }
-
-      if (definition.builtinKey === "recent") {
-        return <RecentWidget items={recentItems} />;
-      }
-
-      return null;
+      return renderBuiltinWidget({ definition, store, files, recentItems });
     },
     [files, handleWidgetOpenLink, handleWidgetSendPrompt, recentItems, store],
   );
@@ -370,6 +358,42 @@ export const Component = (): ReactElement => {
     },
     [store, widgetInstanceRows.length],
   );
+
+  const handleRenameDefinition = useCallback(
+    (id: string, name: string) => {
+      const definition = widgetDefinitionRows.find((row) => row.id === id);
+      updateWidgetDefinition({ store, input: { id, name }, definition, files: fileRows });
+    },
+    [fileRows, store, widgetDefinitionRows],
+  );
+
+  const handleDeleteDefinition = useCallback((id: string) => {
+    setPendingDeleteDefinitionId(id);
+  }, []);
+
+  const handleConfirmDeleteDefinition = useCallback(() => {
+    if (!pendingDeleteDefinitionId) {
+      return;
+    }
+
+    const definition = widgetDefinitionRows.find((row) => row.id === pendingDeleteDefinitionId);
+    deleteWidgetDefinition({
+      store,
+      id: pendingDeleteDefinitionId,
+      folderId: definition?.folderId ?? null,
+      folders: folderRows,
+      files: fileRows,
+      instances: widgetInstanceRows,
+    });
+    setPendingDeleteDefinitionId(null);
+  }, [
+    fileRows,
+    folderRows,
+    pendingDeleteDefinitionId,
+    store,
+    widgetDefinitionRows,
+    widgetInstanceRows,
+  ]);
 
   const heroAnimations = reducedMotion
     ? {}
@@ -492,11 +516,17 @@ export const Component = (): ReactElement => {
           </div>
         </div>
       </motion.div>
-      <AddWidgetDialog
+      <AddWidgetDrawer
         open={isAddWidgetOpen}
-        definitions={savedWidgetDefinitions}
+        definitions={widgetDefinitionRows}
+        placedDefinitionIds={placedDefinitionIds}
+        store={store}
+        files={files}
+        recentItems={recentItems}
         onOpenChange={setIsAddWidgetOpen}
         onPlace={handlePlaceWidget}
+        onRename={handleRenameDefinition}
+        onDelete={handleDeleteDefinition}
       />
       <ConfirmDialog
         isOpen={pendingWidgetLinkUrl !== null}
@@ -505,6 +535,15 @@ export const Component = (): ReactElement => {
         confirmLabel="Open link"
         onConfirm={handleConfirmWidgetLink}
         onCancel={() => setPendingWidgetLinkUrl(null)}
+      />
+      <ConfirmDialog
+        isOpen={pendingDeleteDefinitionId !== null}
+        title="Delete this widget?"
+        description="This removes the saved definition and any places it's currently on your Home Grid. This action cannot be undone."
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={handleConfirmDeleteDefinition}
+        onCancel={() => setPendingDeleteDefinitionId(null)}
       />
       <ToastStack
         render={(toast) => (

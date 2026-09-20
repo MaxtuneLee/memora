@@ -1,3 +1,4 @@
+import { Toast } from "@base-ui/react/toast";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
@@ -95,6 +96,8 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   }, [widget.widgetCode]);
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
+  const { add: addToast } = Toast.useToastManager();
   // "widgetData" has no Definition/folder yet in preview (the widget hasn't been saved) — it
   // reads back the in-memory writes from usePreviewWidgetData instead of the catalog (ADR 0008).
   const isWidgetDataBound = widget.dataSourceName === "widgetData";
@@ -171,13 +174,24 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const canSave =
     widget.phase === "ready" && hasVisibleWidgetDom && widget.widgetCode.trim().length > 0;
   const handleSaveDefinition = useCallback(
-    (input: Parameters<typeof saveChatWidgetDefinition>[0]["input"]) => {
-      return saveChatWidgetDefinition({ store, input });
+    async (input: Parameters<typeof saveChatWidgetDefinition>[0]["input"]) => {
+      const result = await saveChatWidgetDefinition({
+        store,
+        input: { ...input, existingDefinitionId: savedDefinitionId ?? undefined },
+      });
+      if (result.ok) {
+        const wasUpdate = savedDefinitionId !== null;
+        setSavedDefinitionId(result.id);
+        addToast({ title: wasUpdate ? "Widget updated" : "Widget saved to your definitions" });
+      }
+      return result;
     },
-    [store],
+    [addToast, savedDefinitionId, store],
   );
   // handleSaveDefinition resolves asynchronously (it writes widget.html/widget.json to OPFS
-  // before committing the Definition); SaveWidgetDefinitionDialog awaits it.
+  // before committing the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same
+  // preview (savedDefinitionId already set) updates that Definition instead of creating a
+  // duplicate — see saveChatWidgetDefinition's existingDefinitionId.
 
   return (
     <>
@@ -191,7 +205,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
               {...stylex.props(styles.saveButton)}
             >
               <FloppyDiskIcon {...stylex.props(styles.saveIcon)} />
-              Save
+              {savedDefinitionId ? "Update" : "Save"}
             </button>
           )}
         </div>

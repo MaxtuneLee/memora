@@ -1,7 +1,13 @@
+import { desktopFilesQuery$ } from "@/lib/desktop/queries";
+import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
-import type { DataSourceName } from "@/livestore/widget";
+import type { DataSourceName, widgetDefinition } from "@/livestore/widget";
 
-import { createWidgetDefinition, type WidgetDefinitionStoreLike } from "./widgetDefinitions";
+import {
+  createWidgetDefinition,
+  updateWidgetDefinition,
+  type WidgetDefinitionStoreLike,
+} from "./widgetDefinitions";
 import {
   createWidgetDefinitionFolder,
   ensureWidgetsRootFolder,
@@ -10,6 +16,7 @@ import {
 } from "./widgetFolders";
 import { buildWidgetManifest } from "./widgetManifest";
 import { createWidgetManifestFile, createWidgetSourceFile } from "./widgetManifestFile";
+import { activeWidgetDefinitionsQuery$ } from "./widgetQueries";
 import type { WidgetQueryableStore } from "./widgetStore";
 
 export interface SaveChatWidgetDefinitionInput {
@@ -20,10 +27,14 @@ export interface SaveChatWidgetDefinitionInput {
   dataSourceParams?: Record<string, unknown>;
   // File names this Definition may write via writeData once saved (see ADR 0008).
   dataFiles?: string[];
+  // The id of a Definition this same chat widget preview already saved earlier — set by the
+  // caller (ChatWidget tracks it per toolCallId) so re-clicking Save updates that Definition's
+  // binding instead of creating a duplicate for every click.
+  existingDefinitionId?: string;
 }
 
 export type SaveChatWidgetDefinitionResult =
-  | { ok: true }
+  | { ok: true; id: string }
   | { ok: false; reason: "missing-data-source" | "missing-widget-code" };
 
 export interface SaveChatWidgetDefinitionStore
@@ -42,6 +53,26 @@ export const saveChatWidgetDefinition = async ({
 
   if (!input.widgetCode.trim()) {
     return { ok: false, reason: "missing-widget-code" };
+  }
+
+  if (input.existingDefinitionId) {
+    const definitions = store.query(activeWidgetDefinitionsQuery$) as readonly widgetDefinition[];
+    const existing = definitions.find((definition) => definition.id === input.existingDefinitionId);
+    if (existing) {
+      const files = store.query(desktopFilesQuery$) as readonly LiveStoreFile[];
+      updateWidgetDefinition({
+        store,
+        input: {
+          id: existing.id,
+          name: input.name,
+          dataSourceName: input.dataSourceName,
+          dataSourceParams: input.dataSourceParams,
+        },
+        definition: existing,
+        files,
+      });
+      return { ok: true, id: existing.id };
+    }
   }
 
   const folders = store.query(widgetFoldersQuery$) as readonly LiveStoreFolder[];
@@ -85,5 +116,5 @@ export const saveChatWidgetDefinition = async ({
     },
   });
 
-  return { ok: true };
+  return { ok: true, id: input.id };
 };

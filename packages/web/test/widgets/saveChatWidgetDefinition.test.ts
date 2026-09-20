@@ -1,8 +1,11 @@
 import { expect, test, vi } from "vite-plus/test";
 
+import { desktopFilesQuery$ } from "@/lib/desktop/queries";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
 import { widgetFoldersQuery$ } from "@/lib/widgets/widgetFolders";
+import { activeWidgetDefinitionsQuery$ } from "@/lib/widgets/widgetQueries";
 import type { SaveFileInput, SaveFileResult } from "@/lib/library/fileStorage";
+import type { widgetDefinition } from "@/livestore/widget";
 import type { FileMeta } from "@/types/library";
 
 const testState = vi.hoisted(() => {
@@ -48,9 +51,18 @@ interface FolderRow {
   purgedAt: Date | null;
 }
 
-const makeStore = (folders: FolderRow[] = []) => ({
+const makeStore = (
+  folders: FolderRow[] = [],
+  definitions: widgetDefinition[] = [],
+  files: unknown[] = [],
+) => ({
   commit: vi.fn(),
-  query: vi.fn((query: unknown) => (query === widgetFoldersQuery$ ? folders : [])),
+  query: vi.fn((query: unknown) => {
+    if (query === widgetFoldersQuery$) return folders;
+    if (query === activeWidgetDefinitionsQuery$) return definitions;
+    if (query === desktopFilesQuery$) return files;
+    return [];
+  }),
 });
 
 const stubSaveFileToOpfs = () => {
@@ -79,7 +91,7 @@ test("saving a generated widget creates its Widgets folder, widget.html, widget.
     },
   });
 
-  expect(result).toEqual({ ok: true });
+  expect(result).toEqual({ ok: true, id: "widget-definition-1" });
 
   const commits = store.commit.mock.calls.map((call) => call[0]);
 
@@ -150,7 +162,7 @@ test("reuses an existing Widgets root and appends a numeric suffix on a folder n
     },
   });
 
-  expect(result).toEqual({ ok: true });
+  expect(result).toEqual({ ok: true, id: "widget-definition-2" });
 
   const commits = store.commit.mock.calls.map((call) => call[0]);
   expect(
@@ -197,4 +209,49 @@ test("rejects a chat widget definition without renderable widget source", async 
 
   expect(result).toEqual({ ok: false, reason: "missing-widget-code" });
   expect(store.commit).not.toHaveBeenCalled();
+});
+
+test("updates an existing definition in place instead of duplicating it when existingDefinitionId is set", async () => {
+  const existing: widgetDefinition = {
+    id: "widget-definition-1",
+    kind: "generated",
+    builtinKey: null,
+    name: "Recent research",
+    widgetCode: "<div>Recent research</div>",
+    dataSourceName: "recentFiles",
+    dataSourceParams: JSON.stringify({ limit: 3 }),
+    folderId: "folder-1",
+    sourceFileId: "html-1",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    deletedAt: null,
+  };
+  const store = makeStore([], [existing]);
+
+  const result = await saveChatWidgetDefinition({
+    store,
+    input: {
+      id: "ignored-new-id",
+      existingDefinitionId: "widget-definition-1",
+      name: "Recent research",
+      widgetCode: "<div>Recent research</div>",
+      dataSourceName: "recentFiles",
+      dataSourceParams: { limit: 8 },
+    },
+  });
+
+  expect(result).toEqual({ ok: true, id: "widget-definition-1" });
+
+  // No v1.FolderCreated/v1.FileCreated commits — the update path never creates a second
+  // Widgets folder or a duplicate widget.html/widget.json for the same chat preview.
+  const commits = store.commit.mock.calls.map((call) => call[0]);
+  expect(commits).toHaveLength(1);
+  expect(commits[0]).toMatchObject({
+    name: "v1.WidgetDefinitionUpdated",
+    args: {
+      id: "widget-definition-1",
+      dataSourceName: "recentFiles",
+      dataSourceParams: JSON.stringify({ limit: 8 }),
+    },
+  });
 });
