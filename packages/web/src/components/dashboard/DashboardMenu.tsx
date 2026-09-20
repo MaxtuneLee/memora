@@ -23,38 +23,12 @@ import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
 
+import { DashboardToolbarButton } from "./DashboardToolbarButton";
+
 import "./dashboardMenu.css";
 
 const styles = stylex.create({
   trigger: {
-    alignItems: "center",
-    backgroundColor: "#fffdfa",
-    borderColor: "#e7e1d7",
-    borderRadius: 9999,
-    borderStyle: "solid",
-    borderWidth: 1,
-    color: "#3c3934",
-    display: "inline-flex",
-    fontSize: "0.875rem",
-    fontWeight: 600,
-    gap: "0.5rem",
-    justifyContent: "flex-start",
-    minHeight: "2.75rem",
-    outline: "none",
-    paddingBlock: "0.375rem",
-    paddingInline: "0.625rem",
-    textAlign: "left",
-    transitionDuration: "300ms",
-    transitionProperty: "background-color, border-color, box-shadow, transform, opacity",
-    transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-    ":hover": {
-      backgroundColor: "#fffcf6",
-      boxShadow: "0 8px 20px rgba(34, 33, 29, 0.05)",
-      transform: "translateY(-1px)",
-    },
-    ":focus-visible": {
-      boxShadow: "0 0 0 2px #a7af8f, 0 0 0 4px #fbfaf7",
-    },
     "[data-open=true]": {
       backgroundColor: "#fffcf6",
       borderColor: "#ddd7cb",
@@ -416,9 +390,8 @@ export function DashboardMenuTrigger({
   } as AnchorStyle;
 
   return (
-    <button
+    <DashboardToolbarButton
       ref={registerTrigger}
-      type="button"
       aria-controls={popoverId}
       aria-expanded={isOpen}
       aria-haspopup="menu"
@@ -430,7 +403,7 @@ export function DashboardMenuTrigger({
       {...props}
     >
       {children}
-    </button>
+    </DashboardToolbarButton>
   );
 }
 

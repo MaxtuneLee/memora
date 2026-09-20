@@ -3,17 +3,21 @@ import { Toast } from "@base-ui/react/toast";
 import {
   CaretDownIcon,
   ChatCircleDotsIcon,
+  CheckIcon,
   FileTextIcon,
   MicrophoneIcon,
+  PaintBrushBroadIcon,
+  PlusIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
-import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import type { ComponentType, ReactElement, ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
+import { DashboardToolbarButton } from "@/components/dashboard/DashboardToolbarButton";
 import {
   AddWidgetDrawer,
   type PlaceWidgetInput,
@@ -21,6 +25,11 @@ import {
 import { renderBuiltinWidget } from "@/components/dashboard/homeGrid/builtinWidgetPreview";
 import { GeneratedWidgetTile } from "@/components/dashboard/homeGrid/GeneratedWidgetTile";
 import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
+import { getHomeGridTileViewTransitionName } from "@/components/dashboard/homeGrid/HomeGridTile";
+import {
+  runHomeGridViewTransition,
+  type SharedViewTransitionElement,
+} from "@/components/dashboard/homeGrid/homeGridViewTransition";
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
@@ -35,6 +44,7 @@ import { deleteWidgetDefinition, updateWidgetDefinition } from "@/lib/widgets/wi
 import {
   createWidgetInstance,
   deleteWidgetInstance,
+  nextWidgetInstanceSortOrder,
   reorderWidgetInstances,
   restoreWidgetInstance,
 } from "@/lib/widgets/widgetInstances";
@@ -55,6 +65,29 @@ type IconWeight = "regular" | "fill" | "duotone" | "bold";
 
 const DASHBOARD_FONT_FAMILY = '"Inter", ui-sans-serif, sans-serif';
 const CALENDAR_MOTION_EASE = [0.22, 1, 0.36, 1] as const;
+const ACTION_SPLIT_EASE = [0.23, 1, 0.32, 1] as const;
+const ACTION_LAYOUT_EASE = [0.77, 0, 0.175, 1] as const;
+const ACTION_MORPH_DURATION = 1;
+const ACTION_MORPH_GAP = 10;
+// Collapsed width of the Add widget pill, matched to the button's 2.75rem min-height. Square is
+// what lets the maxed border-radius resolve to a full circle: the browser clamps radius to half
+// the shorter side, so a narrower nub would render as a lozenge with straight vertical edges.
+// Must stay under the toggle's own width so the parked nub sits entirely within its silhouette;
+// the matching negative margin is what puts it there.
+const ACTION_MORPH_TUCK = 44;
+// Fraction of the morph the label takes. On the way in it runs first, so on the way out it runs
+// last: the retract is the same timeline played backwards.
+const ACTION_MORPH_LABEL_RATIO = 0.3;
+const ACTION_REDUCED_MOTION_DURATION = 0.16;
+
+// Retract is the extrude played backwards: same targets, same curve, no exit-only timing. Anything
+// that runs on one direction but not the other shows up as a stutter at the seam.
+const ACTION_PILL_TUCKED = { marginRight: -ACTION_MORPH_TUCK, width: ACTION_MORPH_TUCK };
+const ACTION_PILL_OPEN = { marginRight: ACTION_MORPH_GAP, width: "auto" };
+const ACTION_LABEL_HIDDEN = { filter: "blur(8px)", opacity: 0 };
+const ACTION_LABEL_SHOWN = { filter: "blur(0px)", opacity: 1 };
+
+const MotionToolbarButton = motion.create(DashboardToolbarButton);
 
 const styles = stylex.create({
   icon: { height: 16, width: 16 },
@@ -100,12 +133,28 @@ const styles = stylex.create({
   welcomeHeader: { borderBottom: "1px solid #e9e5dc", paddingBottom: 16 },
   widgetsArea: { marginTop: 24 },
   menuRow: {
+    alignItems: "center",
     display: "flex",
     flexWrap: "wrap",
     gap: 10,
     justifyContent: "flex-end",
     marginBottom: 24,
   },
+  actionMorph: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "flex-end",
+    overflow: "visible",
+    position: "relative",
+  },
+  actionFilterDefinition: { height: 0, position: "absolute", width: 0 },
+  // The gap between the pill and the toggle lives on the pill's own margin, not on actionMorph, so
+  // it can go negative and carry the pill underneath the toggle.
+  actionMotionPill: { flexShrink: 0, overflow: "hidden", whiteSpace: "nowrap" },
+  // Lifts the toggle into its own stacking level so the retracting pill passes beneath it.
+  actionToggle: { position: "relative", zIndex: 1 },
+  actionButtonContent: { alignItems: "center", display: "flex", gap: "0.5rem" },
+  menuMotionItem: { display: "flex" },
   triggerIconShell: {
     alignItems: "center",
     backgroundColor: "#f6f3ec",
@@ -115,6 +164,10 @@ const styles = stylex.create({
     height: 28,
     justifyContent: "center",
     width: 28,
+  },
+  primaryTriggerIconShell: {
+    backgroundColor: "rgba(255, 253, 248, 0.14)",
+    color: "#fffdf8",
   },
   triggerCaret: { color: "#9a948a", height: 14, width: 14 },
   menuContentNarrow: { width: 224 },
@@ -200,8 +253,44 @@ export const Component = (): ReactElement => {
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+  const [isHomeGridEditing, setIsHomeGridEditing] = useState(false);
+  const [isHomeGridActionMorphing, setIsHomeGridActionMorphing] = useState(false);
   const [pendingWidgetLinkUrl, setPendingWidgetLinkUrl] = useState<string | null>(null);
   const [pendingDeleteDefinitionId, setPendingDeleteDefinitionId] = useState<string | null>(null);
+  // Placing/removing a widget instance round-trips through the LiveStore worker before
+  // `widgetInstanceRows` reflects it, so its timing does not align with the browser's snapshot
+  // window. These optimistic overrides update the grid inside the transition callback; each is
+  // reconciled away once the store's own query confirms the change.
+  const [optimisticInstances, setOptimisticInstances] = useState<
+    { instance: widgetInstance; definition: widgetDefinition }[]
+  >([]);
+  const [optimisticallyRemovedIds, setOptimisticallyRemovedIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const editToggleRef = useRef<HTMLButtonElement | null>(null);
+  const previousHomeGridEditingRef = useRef(isHomeGridEditing);
+
+  useEffect(() => {
+    setOptimisticInstances((current) => {
+      const stillPending = current.filter(
+        (optimistic) => !widgetInstanceRows.some((row) => row.id === optimistic.instance.id),
+      );
+      return stillPending.length === current.length ? current : stillPending;
+    });
+    setOptimisticallyRemovedIds((current) => {
+      const stillRelevant = new Set(
+        [...current].filter((id) => widgetInstanceRows.some((row) => row.id === id)),
+      );
+      return stillRelevant.size === current.size ? current : stillRelevant;
+    });
+  }, [widgetInstanceRows]);
+
+  const runOptimisticViewTransition = useCallback(
+    (update: () => void, sharedElement?: SharedViewTransitionElement, afterUpdate?: () => void) => {
+      runHomeGridViewTransition({ update, afterUpdate, reducedMotion, sharedElement });
+    },
+    [reducedMotion],
+  );
 
   const handleWidgetSendPrompt = useCallback(
     (text: string) => {
@@ -286,11 +375,53 @@ export const Component = (): ReactElement => {
     const definitionsById = new Map(
       widgetDefinitionRows.map((definition) => [definition.id, definition]),
     );
-    return widgetInstanceRows.map((instance) => ({
-      instance,
-      definition: definitionsById.get(instance.definitionId) ?? null,
-    }));
-  }, [widgetDefinitionRows, widgetInstanceRows]);
+    const persisted = widgetInstanceRows
+      .filter((instance) => !optimisticallyRemovedIds.has(instance.id))
+      .map((instance) => ({
+        instance,
+        definition: definitionsById.get(instance.definitionId) ?? null,
+      }));
+    const pending = optimisticInstances.filter(
+      (optimistic) => !widgetInstanceRows.some((row) => row.id === optimistic.instance.id),
+    );
+    return [...persisted, ...pending].sort((a, b) => a.instance.sortOrder - b.instance.sortOrder);
+  }, [widgetDefinitionRows, widgetInstanceRows, optimisticInstances, optimisticallyRemovedIds]);
+
+  const hasHomeGridTiles = homeGridTiles.some((tile) => tile.definition !== null);
+
+  const isToggleShowingDone = isHomeGridEditing;
+
+  useEffect(() => {
+    if (!hasHomeGridTiles) {
+      setIsHomeGridEditing(false);
+    }
+  }, [hasHomeGridTiles]);
+
+  useEffect(() => {
+    if (previousHomeGridEditingRef.current === isHomeGridEditing) {
+      return;
+    }
+
+    previousHomeGridEditingRef.current = isHomeGridEditing;
+    // The toggle drives the metaball filter, not Motion's animation callbacks: those only report
+    // on targets defined in `animate`, so the retract ran without any goo. Keying off the toggle
+    // covers both directions. reducedMotion is handled where the filter is applied, so it stays
+    // out of the deps and this can never early-return with the filter stuck on.
+    setIsHomeGridActionMorphing(true);
+    const morphTimer = window.setTimeout(() => {
+      setIsHomeGridActionMorphing(false);
+    }, ACTION_MORPH_DURATION * 1000);
+    // Long-pressing a tile can enter edit mode without the toggle being focused; move focus
+    // there so the way out is reachable. A no-op when the toggle was clicked.
+    const frame = requestAnimationFrame(() => {
+      editToggleRef.current?.focus();
+    });
+
+    return () => {
+      window.clearTimeout(morphTimer);
+      cancelAnimationFrame(frame);
+    };
+  }, [isHomeGridEditing]);
 
   const renderHomeGridWidget = useCallback(
     (definition: widgetDefinition, instance: widgetInstance): ReactNode => {
@@ -328,35 +459,78 @@ export const Component = (): ReactElement => {
       const title = removedTile?.definition?.name ?? "Widget";
       const toastId = crypto.randomUUID();
 
+      runOptimisticViewTransition(() => {
+        setOptimisticallyRemovedIds((current) => new Set(current).add(instanceId));
+      });
       deleteWidgetInstance({ store, id: instanceId });
+
       addToast({
         id: toastId,
         title: `${title} removed`,
         actionProps: {
           children: "Undo",
           onClick: () => {
+            runOptimisticViewTransition(() => {
+              setOptimisticallyRemovedIds((current) => {
+                const next = new Set(current);
+                next.delete(instanceId);
+                return next;
+              });
+            });
             restoreWidgetInstance({ store, id: instanceId });
             closeToast(toastId);
           },
         },
       });
     },
-    [addToast, closeToast, homeGridTiles, store],
+    [addToast, closeToast, homeGridTiles, runOptimisticViewTransition, store],
   );
 
   const handlePlaceWidget = useCallback(
-    (input: PlaceWidgetInput) => {
-      createWidgetInstance({
-        store,
-        input: {
-          id: crypto.randomUUID(),
-          definitionId: input.definitionId,
-          sortOrder: widgetInstanceRows.length,
-          params: input.params,
+    (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => {
+      const sortOrder = nextWidgetInstanceSortOrder(widgetInstanceRows);
+      const definition = widgetDefinitionRows.find((row) => row.id === input.definitionId);
+
+      runOptimisticViewTransition(
+        () => {
+          if (definition) {
+            const optimisticInstance: widgetInstance = {
+              id: input.id,
+              definitionId: input.definitionId,
+              sortOrder,
+              params: JSON.stringify(input.params),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deletedAt: null,
+            };
+            setOptimisticInstances((current) => [
+              ...current,
+              { instance: optimisticInstance, definition },
+            ]);
+          }
+          // Closing the drawer exposes the destination slot while the preview travels to it.
+          setIsAddWidgetOpen(false);
         },
-      });
+        sourceElement
+          ? {
+              element: sourceElement,
+              name: getHomeGridTileViewTransitionName(input.id),
+            }
+          : undefined,
+        () => {
+          createWidgetInstance({
+            store,
+            input: {
+              id: input.id,
+              definitionId: input.definitionId,
+              sortOrder,
+              params: input.params,
+            },
+          });
+        },
+      );
     },
-    [store, widgetInstanceRows.length],
+    [runOptimisticViewTransition, store, widgetDefinitionRows, widgetInstanceRows],
   );
 
   const handleRenameDefinition = useCallback(
@@ -456,51 +630,206 @@ export const Component = (): ReactElement => {
 
           <div {...stylex.props(styles.widgetsArea)}>
             <div {...stylex.props(styles.menuRow)}>
-              <AppMenu>
-                <AppMenuTrigger>
-                  <span {...stylex.props(styles.triggerIconShell)}>
-                    <UploadSimpleIcon
-                      className={stylex.props(styles.menuIcon).className}
-                      weight="regular"
-                    />
-                  </span>
-                  <span>New file</span>
-                  <CaretDownIcon
-                    data-dashboard-menu-caret=""
-                    className={stylex.props(styles.triggerCaret).className}
-                    weight="bold"
-                  />
-                </AppMenuTrigger>
-                <AppMenuContent className={stylex.props(styles.menuContentNarrow).className}>
-                  <MenuActionItem
-                    title="New note"
-                    note="Start a blank markdown note"
-                    icon={FileTextIcon}
-                    onSelect={() => {
-                      void handleCreateNote();
-                    }}
-                  />
-                  <MenuActionItem
-                    title="Start recording"
-                    note="Capture a thought quickly"
-                    icon={MicrophoneIcon}
-                    onSelect={() => navigate("/transcript/live")}
-                  />
-                  <MenuActionItem
-                    title="Upload file"
-                    note="Bring in notes or PDFs"
-                    icon={UploadSimpleIcon}
-                    onSelect={handleUpload}
-                  />
-                  <MenuActionItem
-                    title="New chat"
-                    note="Open a fresh thread"
-                    icon={ChatCircleDotsIcon}
-                    iconWeight="fill"
-                    onSelect={() => navigate("/chat")}
-                  />
-                </AppMenuContent>
-              </AppMenu>
+              <LayoutGroup id="dashboard-home-actions">
+                <motion.div
+                  layout={reducedMotion ? false : "position"}
+                  transition={{
+                    layout: {
+                      duration: ACTION_MORPH_DURATION,
+                      ease: ACTION_LAYOUT_EASE,
+                    },
+                  }}
+                  {...stylex.props(styles.menuMotionItem)}
+                >
+                  <AppMenu>
+                    <AppMenuTrigger>
+                      <span {...stylex.props(styles.triggerIconShell)}>
+                        <UploadSimpleIcon
+                          className={stylex.props(styles.menuIcon).className}
+                          weight="regular"
+                        />
+                      </span>
+                      <span>New file</span>
+                      <CaretDownIcon
+                        data-dashboard-menu-caret=""
+                        className={stylex.props(styles.triggerCaret).className}
+                        weight="bold"
+                      />
+                    </AppMenuTrigger>
+                    <AppMenuContent className={stylex.props(styles.menuContentNarrow).className}>
+                      <MenuActionItem
+                        title="New note"
+                        note="Start a blank markdown note"
+                        icon={FileTextIcon}
+                        onSelect={() => {
+                          void handleCreateNote();
+                        }}
+                      />
+                      <MenuActionItem
+                        title="Start recording"
+                        note="Capture a thought quickly"
+                        icon={MicrophoneIcon}
+                        onSelect={() => navigate("/transcript/live")}
+                      />
+                      <MenuActionItem
+                        title="Upload file"
+                        note="Bring in notes or PDFs"
+                        icon={UploadSimpleIcon}
+                        onSelect={handleUpload}
+                      />
+                      <MenuActionItem
+                        title="New chat"
+                        note="Open a fresh thread"
+                        icon={ChatCircleDotsIcon}
+                        iconWeight="fill"
+                        onSelect={() => navigate("/chat")}
+                      />
+                    </AppMenuContent>
+                  </AppMenu>
+                </motion.div>
+                {hasHomeGridTiles && (
+                  <div
+                    {...stylex.props(styles.actionMorph)}
+                    style={
+                      isHomeGridActionMorphing && !reducedMotion
+                        ? { filter: "url(#home-grid-action-metaball)" }
+                        : undefined
+                    }
+                  >
+                    <svg
+                      aria-hidden="true"
+                      focusable="false"
+                      {...stylex.props(styles.actionFilterDefinition)}
+                    >
+                      <defs>
+                        <filter
+                          id="home-grid-action-metaball"
+                          x="-50%"
+                          y="-50%"
+                          width="200%"
+                          height="200%"
+                          colorInterpolationFilters="sRGB"
+                        >
+                          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                          <feColorMatrix
+                            in="blur"
+                            mode="matrix"
+                            values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7"
+                            result="goo"
+                          />
+                          <feBlend in="SourceGraphic" in2="goo" />
+                        </filter>
+                      </defs>
+                    </svg>
+                    {/* Add widget really travels under the toggle rather than being clipped at its
+                        edge: it collapses to a nub narrower than the toggle, and a negative margin
+                        equal to that nub parks it exactly on the toggle's left edge, where the
+                        toggle's own stacking level hides it before it unmounts. The pill never
+                        fades, because the metaball threshold (18a - 7) drops anything under ~0.4
+                        alpha and would kill the bridge right as the two overlap. The label fades
+                        well before the pill is narrow enough to let it spill past the toggle. */}
+                    <AnimatePresence initial={false}>
+                      {isHomeGridEditing && (
+                        <MotionToolbarButton
+                          key="home-grid-add-widget-action"
+                          className={stylex.props(styles.actionMotionPill).className}
+                          initial={reducedMotion ? { opacity: 0 } : ACTION_PILL_TUCKED}
+                          animate={reducedMotion ? { opacity: 1 } : ACTION_PILL_OPEN}
+                          exit={reducedMotion ? { opacity: 0 } : ACTION_PILL_TUCKED}
+                          transition={{
+                            duration: reducedMotion
+                              ? ACTION_REDUCED_MOTION_DURATION
+                              : ACTION_MORPH_DURATION,
+                            ease: ACTION_SPLIT_EASE,
+                          }}
+                          onClick={() => setIsAddWidgetOpen(true)}
+                        >
+                          <motion.span
+                            initial={reducedMotion ? { opacity: 0 } : ACTION_LABEL_HIDDEN}
+                            animate={reducedMotion ? { opacity: 1 } : ACTION_LABEL_SHOWN}
+                            exit={reducedMotion ? { opacity: 0 } : ACTION_LABEL_HIDDEN}
+                            transition={{
+                              duration: reducedMotion
+                                ? ACTION_REDUCED_MOTION_DURATION
+                                : ACTION_MORPH_DURATION * ACTION_MORPH_LABEL_RATIO,
+                              ease: ACTION_SPLIT_EASE,
+                            }}
+                            {...stylex.props(styles.actionButtonContent, styles.actionMotionPill)}
+                          >
+                            <span {...stylex.props(styles.triggerIconShell)}>
+                              <PlusIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="regular"
+                              />
+                            </span>
+                            <span>Add widget</span>
+                          </motion.span>
+                        </MotionToolbarButton>
+                      )}
+                    </AnimatePresence>
+                    <DashboardToolbarButton
+                      ref={editToggleRef}
+                      className={stylex.props(styles.actionToggle).className}
+                      tone="primary"
+                      onClick={() => setIsHomeGridEditing(!isHomeGridEditing)}
+                    >
+                      {/* Done blurs in when edit mode starts; Edit renders at its final state as
+                          soon as edit mode ends. No AnimatePresence: the button is not a positioned
+                          ancestor, so an exiting label would be placed against the container. */}
+                      <motion.span
+                        key={isToggleShowingDone ? "done" : "edit"}
+                        initial={
+                          !isToggleShowingDone
+                            ? false
+                            : reducedMotion
+                              ? { opacity: 0 }
+                              : { opacity: 0, filter: "blur(6px)" }
+                        }
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        transition={{
+                          duration: reducedMotion
+                            ? ACTION_REDUCED_MOTION_DURATION
+                            : ACTION_MORPH_DURATION,
+                          ease: ACTION_SPLIT_EASE,
+                        }}
+                        {...stylex.props(styles.actionButtonContent)}
+                      >
+                        {isToggleShowingDone ? (
+                          <>
+                            <span
+                              {...stylex.props(
+                                styles.triggerIconShell,
+                                styles.primaryTriggerIconShell,
+                              )}
+                            >
+                              <CheckIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="bold"
+                              />
+                            </span>
+                            <span>Done</span>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              {...stylex.props(
+                                styles.triggerIconShell,
+                                styles.primaryTriggerIconShell,
+                              )}
+                            >
+                              <PaintBrushBroadIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="regular"
+                              />
+                            </span>
+                            <span>Edit</span>
+                          </>
+                        )}
+                      </motion.span>
+                    </DashboardToolbarButton>
+                  </div>
+                )}
+              </LayoutGroup>
             </div>
 
             <motion.div {...getSectionMotion(0.08)}>
@@ -510,6 +839,9 @@ export const Component = (): ReactElement => {
                 onReorder={handleReorderWidgets}
                 onRemove={handleRemoveWidget}
                 onAddWidget={() => setIsAddWidgetOpen(true)}
+                isEditing={isHomeGridEditing}
+                onEditingChange={setIsHomeGridEditing}
+                showToolbar={false}
                 reducedMotion={reducedMotion}
               />
             </motion.div>

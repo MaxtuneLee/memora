@@ -1,5 +1,5 @@
 import { PencilSimpleIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import * as stylex from "@stylexjs/stylex";
@@ -171,9 +171,18 @@ const styles = stylex.create({
 });
 
 export interface PlaceWidgetInput {
+  id: string;
   definitionId: string;
   params: Record<string, unknown>;
 }
+
+const placeFromPreview = (
+  previewRef: { current: HTMLElement | null },
+  onPlace: (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => void,
+  input: Omit<PlaceWidgetInput, "id">,
+): void => {
+  onPlace({ ...input, id: crypto.randomUUID() }, previewRef.current);
+};
 
 const BUILTIN_ORDER: Record<BuiltinWidgetKey, number> = { calendar: 0, todo: 1, recent: 2 };
 
@@ -204,21 +213,28 @@ function BuiltinDefinitionCard({
   files: FileMeta[];
   recentItems: RecentItem[];
   isPlaced: boolean;
-  onPlace: (input: PlaceWidgetInput) => void;
+  onPlace: (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => void;
 }): JSX.Element {
+  const previewRef = useRef<HTMLDivElement>(null);
+
   return (
     <div {...stylex.props(styles.card)}>
       <div {...stylex.props(styles.cardHeader)}>
         <span {...stylex.props(styles.cardName)}>{definition.name || "Untitled widget"}</span>
         {isPlaced && <span {...stylex.props(styles.badge)}>Placed</span>}
       </div>
-      <div {...stylex.props(styles.preview)}>
+      <div ref={previewRef} {...stylex.props(styles.preview)}>
         {renderBuiltinWidget({ definition, store, files, recentItems })}
       </div>
       <div {...stylex.props(styles.cardActions)}>
         <button
           type="button"
-          onClick={() => onPlace({ definitionId: definition.id, params: {} })}
+          onClick={() =>
+            placeFromPreview(previewRef, onPlace, {
+              definitionId: definition.id,
+              params: {},
+            })
+          }
           {...stylex.props(styles.button, styles.confirm)}
         >
           Add to Home Grid
@@ -237,7 +253,7 @@ function GeneratedDefinitionCard({
 }: {
   store: WritableReactiveWidgetStore;
   definition: widgetDefinition;
-  onPlace: (input: PlaceWidgetInput) => void;
+  onPlace: (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
 }): JSX.Element {
@@ -249,6 +265,7 @@ function GeneratedDefinitionCard({
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(definition.name);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const resolvedParams = useMemo(
     () => parseDataSourceParamValues(entry, paramValues),
@@ -271,7 +288,10 @@ function GeneratedDefinitionCard({
       return;
     }
     setError(null);
-    onPlace({ definitionId: definition.id, params: resolvedParams });
+    placeFromPreview(previewRef, onPlace, {
+      definitionId: definition.id,
+      params: resolvedParams,
+    });
   }, [definition.id, entry, onPlace, paramValues, resolvedParams]);
 
   const commitRename = useCallback(() => {
@@ -345,7 +365,9 @@ function GeneratedDefinitionCard({
           </button>
         </div>
       </div>
-      <div {...stylex.props(styles.preview)}>{preview}</div>
+      <div ref={previewRef} {...stylex.props(styles.preview)}>
+        {preview}
+      </div>
       <DataSourceParamsFields
         entry={entry}
         values={paramValues}
@@ -373,7 +395,7 @@ interface AddWidgetDrawerProps {
   files: FileMeta[];
   recentItems: RecentItem[];
   onOpenChange: (open: boolean) => void;
-  onPlace: (input: PlaceWidgetInput) => void;
+  onPlace: (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
 }
@@ -392,6 +414,7 @@ export function AddWidgetDrawer({
 }: AddWidgetDrawerProps): JSX.Element {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const orderedDefinitions = useMemo(() => sortDefinitions(definitions), [definitions]);
 
   useEffect(() => {
@@ -419,9 +442,10 @@ export function AddWidgetDrawer({
       {open && (
         <motion.div
           {...stylex.props(styles.root)}
-          initial={{ opacity: 0 }}
+          initial={reducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         >
           <button
             type="button"
@@ -435,10 +459,10 @@ export function AddWidgetDrawer({
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "tween", duration: 0.22 }}
+            initial={reducedMotion ? false : { transform: "translateY(100%)" }}
+            animate={{ transform: "translateY(0%)" }}
+            exit={{ transform: reducedMotion ? "translateY(0%)" : "translateY(100%)" }}
+            transition={{ type: "tween", duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             {...stylex.props(styles.panel)}
           >
             <div {...stylex.props(styles.header)}>

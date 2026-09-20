@@ -3,11 +3,24 @@ import { expect, test, vi } from "vite-plus/test";
 import {
   createWidgetInstance,
   deleteWidgetInstance,
+  nextWidgetInstanceSortOrder,
   parseWidgetInstanceParams,
   reorderWidgetInstances,
   restoreWidgetInstance,
   updateWidgetInstanceParams,
 } from "@/lib/widgets/widgetInstances";
+
+test("computes sortOrder 0 for the first widget instance", () => {
+  expect(nextWidgetInstanceSortOrder([])).toBe(0);
+});
+
+test("places a new widget strictly after the highest surviving sortOrder, even with gaps left by a delete", () => {
+  // Simulates 3 placed widgets (sortOrder 0, 1, 2) after the middle one was soft-deleted:
+  // only rows 0 and 2 remain active, so `.length` (2) would collide with row 2.
+  const activeRowsAfterDelete = [{ sortOrder: 0 }, { sortOrder: 2 }];
+
+  expect(nextWidgetInstanceSortOrder(activeRowsAfterDelete)).toBe(3);
+});
 
 test("commits a v1.WidgetInstanceCreated event with encoded params", () => {
   const store = { commit: vi.fn() };

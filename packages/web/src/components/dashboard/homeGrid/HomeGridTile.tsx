@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { XCircleIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 import type {
   CSSProperties,
@@ -9,6 +10,11 @@ import type {
   ReactElement,
   ReactNode,
 } from "react";
+
+// Shared with AddWidgetDrawer: a card's preview claims this same name for the instance id it's
+// about to place, just long enough for the View Transition to morph it into this tile's slot.
+export const getHomeGridTileViewTransitionName = (instanceId: string): string =>
+  `home-grid-tile-${instanceId}`;
 
 export const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
@@ -32,6 +38,15 @@ const styles = stylex.create({
     minHeight: 0,
     minWidth: 0,
     position: "relative",
+  },
+  // The wiggle keyframe animation and the outer tile's motion-driven layout transform both
+  // animate `transform` — keep them on separate nodes so they don't fight over the property.
+  tileInner: {
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    minHeight: 0,
+    minWidth: 0,
   },
   editing: { cursor: "grab", touchAction: "none", userSelect: "none" },
   wiggleA: {
@@ -81,11 +96,16 @@ const styles = stylex.create({
   removeIcon: { height: 24, width: 24 },
 });
 
+// Governs only the live neighbour-shift while a drag is in progress — add/remove are animated
+// separately by the browser's View Transition, driven by each tile's `viewTransitionName` below.
+const TILE_TRANSITION = { type: "spring", stiffness: 420, damping: 34, mass: 0.9 } as const;
+
 export function HomeGridTile({
   id,
   title,
   index,
   isEditing,
+  isReordering,
   reducedMotion,
   onRemove,
   onEnterEdit,
@@ -95,6 +115,7 @@ export function HomeGridTile({
   title: string;
   index: number;
   isEditing: boolean;
+  isReordering: boolean;
   reducedMotion: boolean;
   onRemove: () => void;
   onEnterEdit: () => void;
@@ -119,6 +140,10 @@ export function HomeGridTile({
   const style: CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     zIndex: isDragging ? 10 : undefined,
+    // Gives the browser's View Transition (triggered on add/remove in DashboardPage) a stable
+    // identity per tile, so it morphs each survivor to its new slot instead of cross-fading the
+    // whole grid as one block. Reduced motion never starts a transition, so the name is inert.
+    viewTransitionName: reducedMotion ? undefined : getHomeGridTileViewTransitionName(id),
   };
 
   const longPressTimer = useRef<number | null>(null);
@@ -177,7 +202,7 @@ export function HomeGridTile({
   const wiggleStyle = index % 2 === 0 ? styles.wiggleA : styles.wiggleB;
 
   return (
-    <div
+    <motion.div
       ref={(node) => {
         setDragRef(node);
         setDropRef(node);
@@ -185,6 +210,11 @@ export function HomeGridTile({
       style={style}
       data-widget-instance-id={id}
       onContextMenu={handleContextMenu}
+      // Only animate layout while a drag is actually shifting neighbours live — outside of that,
+      // `layout` would fight the View Transition that owns the add/remove reflow instead (both
+      // drive `transform` on the same elements).
+      layout={isReordering && !isDragging && !reducedMotion}
+      transition={TILE_TRANSITION}
       {...(isEditing
         ? attributes
         : {
@@ -198,26 +228,27 @@ export function HomeGridTile({
       {...stylex.props(
         styles.tile,
         isEditing && styles.editing,
-        isEditing && !reducedMotion && wiggleStyle,
         isDragging && styles.dragging,
         isOver && styles.dropTarget,
       )}
     >
-      {isEditing && (
-        <button
-          type="button"
-          onClick={onRemove}
-          {...stylex.props(styles.removeBadge)}
-          aria-label={`Remove ${title}`}
-        >
-          <XCircleIcon className={stylex.props(styles.removeIcon).className} weight="fill" />
-        </button>
-      )}
-      <div {...stylex.props(styles.content)}>{children}</div>
-      <div
-        aria-hidden="true"
-        {...stylex.props(styles.contentMask, isEditing && styles.contentMaskVisible)}
-      />
-    </div>
+      <div {...stylex.props(styles.tileInner, isEditing && !reducedMotion && wiggleStyle)}>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={onRemove}
+            {...stylex.props(styles.removeBadge)}
+            aria-label={`Remove ${title}`}
+          >
+            <XCircleIcon className={stylex.props(styles.removeIcon).className} weight="fill" />
+          </button>
+        )}
+        <div {...stylex.props(styles.content)}>{children}</div>
+        <div
+          aria-hidden="true"
+          {...stylex.props(styles.contentMask, isEditing && styles.contentMaskVisible)}
+        />
+      </div>
+    </motion.div>
   );
 }

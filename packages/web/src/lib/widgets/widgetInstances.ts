@@ -12,6 +12,12 @@ export interface CreateWidgetInstanceInput {
   params?: Record<string, unknown>;
 }
 
+// ponytail: active rows keep their sortOrder after a soft delete, so `rows.length` can tie
+// with a surviving row's sortOrder. Take the max instead so new placements never collide.
+export const nextWidgetInstanceSortOrder = (
+  rows: readonly Pick<widgetInstance, "sortOrder">[],
+): number => rows.reduce((max, row) => Math.max(max, row.sortOrder), -1) + 1;
+
 export const createWidgetInstance = ({
   store,
   input,

@@ -5,7 +5,7 @@ import {
   pointerWithin,
   useSensor,
   useSensors,
-  type DragEndEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core";
 import * as stylex from "@stylexjs/stylex";
 import { useCallback, useState } from "react";
@@ -77,6 +77,9 @@ export function HomeGrid({
   onReorder,
   onRemove,
   onAddWidget,
+  isEditing: controlledIsEditing,
+  onEditingChange,
+  showToolbar = true,
   reducedMotion = false,
 }: {
   tiles: ResolvedWidgetInstance[];
@@ -84,9 +87,25 @@ export function HomeGrid({
   onReorder: (orderedIds: string[]) => void;
   onRemove: (instanceId: string) => void;
   onAddWidget?: () => void;
+  isEditing?: boolean;
+  onEditingChange?: (isEditing: boolean) => void;
+  showToolbar?: boolean;
   reducedMotion?: boolean;
 }): ReactElement {
-  const [isEditing, setIsEditing] = useState(false);
+  const [uncontrolledIsEditing, setUncontrolledIsEditing] = useState(false);
+  const isEditing = controlledIsEditing ?? uncontrolledIsEditing;
+  const setIsEditing = useCallback(
+    (nextIsEditing: boolean) => {
+      if (controlledIsEditing === undefined) {
+        setUncontrolledIsEditing(nextIsEditing);
+      }
+      onEditingChange?.(nextIsEditing);
+    },
+    [controlledIsEditing, onEditingChange],
+  );
+  // Live preview order while dragging, so neighbours shift immediately instead of only
+  // jumping once the drop commits the reorder to the store.
+  const [liveOrderIds, setLiveOrderIds] = useState<string[] | null>(null);
 
   const placedTiles = tiles.filter(
     (tile): tile is { instance: widgetInstance; definition: widgetDefinition } =>
@@ -98,24 +117,52 @@ export function HomeGrid({
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) {
-        return;
-      }
+  const handleDragStart = useCallback(() => {
+    setLiveOrderIds(placedTiles.map((tile) => tile.instance.id));
+  }, [placedTiles]);
 
-      const orderedIds = placedTiles.map((tile) => tile.instance.id);
-      const fromIndex = orderedIds.indexOf(active.id as string);
-      const toIndex = orderedIds.indexOf(over.id as string);
-      if (fromIndex === -1 || toIndex === -1) {
-        return;
-      }
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) {
+      return;
+    }
 
-      onReorder(arrayMove(orderedIds, fromIndex, toIndex));
-    },
-    [onReorder, placedTiles],
-  );
+    setLiveOrderIds((current) => {
+      if (!current) {
+        return current;
+      }
+      const fromIndex = current.indexOf(active.id as string);
+      const toIndex = current.indexOf(over.id as string);
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return current;
+      }
+      return arrayMove(current, fromIndex, toIndex);
+    });
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    const finalOrder = liveOrderIds;
+    setLiveOrderIds(null);
+    if (!finalOrder) {
+      return;
+    }
+
+    const originalOrder = placedTiles.map((tile) => tile.instance.id);
+    const changed = finalOrder.some((id, index) => id !== originalOrder[index]);
+    if (changed) {
+      onReorder(finalOrder);
+    }
+  }, [liveOrderIds, onReorder, placedTiles]);
+
+  const handleDragCancel = useCallback(() => {
+    setLiveOrderIds(null);
+  }, []);
+
+  const orderedTiles = liveOrderIds
+    ? liveOrderIds
+        .map((id) => placedTiles.find((tile) => tile.instance.id === id))
+        .filter((tile): tile is (typeof placedTiles)[number] => tile !== undefined)
+    : placedTiles;
 
   if (placedTiles.length === 0) {
     return (
@@ -131,41 +178,51 @@ export function HomeGrid({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
-      <div {...stylex.props(styles.toolbar)}>
-        {isEditing ? (
-          <>
-            {onAddWidget && (
-              <button type="button" onClick={onAddWidget} {...stylex.props(styles.addButton)}>
-                Add widget
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      {showToolbar && (
+        <div {...stylex.props(styles.toolbar)}>
+          {isEditing ? (
+            <>
+              {onAddWidget && (
+                <button type="button" onClick={onAddWidget} {...stylex.props(styles.addButton)}>
+                  Add widget
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                {...stylex.props(styles.doneButton)}
+              >
+                Done
               </button>
-            )}
+            </>
+          ) : (
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
-              {...stylex.props(styles.doneButton)}
+              onClick={() => setIsEditing(true)}
+              {...stylex.props(styles.addButton)}
             >
-              Done
+              Edit
             </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            {...stylex.props(styles.addButton)}
-          >
-            Edit
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       <div {...stylex.props(styles.grid)}>
-        {placedTiles.map(({ instance, definition }, index) => (
+        {orderedTiles.map(({ instance, definition }, index) => (
           <HomeGridTile
             key={instance.id}
             id={instance.id}
             title={definition.name}
             index={index}
             isEditing={isEditing}
+            isReordering={liveOrderIds !== null}
             reducedMotion={reducedMotion}
             onRemove={() => onRemove(instance.id)}
             onEnterEdit={() => setIsEditing(true)}
