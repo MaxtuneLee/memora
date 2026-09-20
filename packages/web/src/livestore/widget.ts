@@ -72,6 +72,11 @@ type WidgetInstanceDeletedEvent = {
   deletedAt: Date;
 };
 
+type WidgetInstanceRestoredEvent = {
+  id: string;
+  updatedAt: Date;
+};
+
 export const widgetDefinitionTable = State.SQLite.table({
   name: "widgetDefinitions",
   columns: {
@@ -178,6 +183,13 @@ export const widgetEvents = {
       deletedAt: Schema.Date,
     }),
   }),
+  widgetInstanceRestored: Events.synced({
+    name: "v1.WidgetInstanceRestored",
+    schema: Schema.Struct({
+      id: Schema.String,
+      updatedAt: Schema.Date,
+    }),
+  }),
 };
 
 export const widgetMaterializers = {
@@ -243,6 +255,13 @@ export const widgetMaterializers = {
     widgetInstanceTable
       .update({
         deletedAt: event.deletedAt,
+      })
+      .where({ id: event.id }),
+  "v1.WidgetInstanceRestored": (event: WidgetInstanceRestoredEvent) =>
+    widgetInstanceTable
+      .update({
+        deletedAt: null,
+        updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),
 };

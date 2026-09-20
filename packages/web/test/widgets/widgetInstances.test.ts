@@ -5,6 +5,7 @@ import {
   deleteWidgetInstance,
   parseWidgetInstanceParams,
   reorderWidgetInstances,
+  restoreWidgetInstance,
   updateWidgetInstanceParams,
 } from "@/lib/widgets/widgetInstances";
 
@@ -85,6 +86,19 @@ test("commits a v1.WidgetInstanceDeleted event", () => {
     args: { id: "inst-1" },
   });
   expect(committed?.args.deletedAt).toBeInstanceOf(Date);
+});
+
+test("commits a v1.WidgetInstanceRestored event that clears deletedAt", () => {
+  const store = { commit: vi.fn() };
+
+  restoreWidgetInstance({ store, id: "inst-1" });
+
+  const committed = store.commit.mock.calls[0]?.[0];
+  expect(committed).toMatchObject({
+    name: "v1.WidgetInstanceRestored",
+    args: { id: "inst-1" },
+  });
+  expect(committed?.args.updatedAt).toBeInstanceOf(Date);
 });
 
 test("parses stored instance params, falling back to an empty object", () => {

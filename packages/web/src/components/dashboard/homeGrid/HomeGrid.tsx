@@ -8,7 +8,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import * as stylex from "@stylexjs/stylex";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
@@ -36,7 +36,7 @@ const styles = stylex.create({
     paddingInline: 24,
     textAlign: "center",
   },
-  toolbar: { display: "flex", justifyContent: "flex-end", marginBottom: 16 },
+  toolbar: { display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 16 },
   addButton: {
     alignSelf: "center",
     backgroundColor: "#fffdf8",
@@ -49,6 +49,18 @@ const styles = stylex.create({
     paddingBlock: 8,
     paddingInline: 16,
     ":hover": { backgroundColor: "#f5f1e8" },
+  },
+  doneButton: {
+    backgroundColor: "#4f5742",
+    border: "1px solid #4f5742",
+    borderRadius: 9999,
+    color: "#fffdf8",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 600,
+    paddingBlock: 8,
+    paddingInline: 16,
+    ":hover": { backgroundColor: "#3d4433" },
   },
 });
 
@@ -65,13 +77,17 @@ export function HomeGrid({
   onReorder,
   onRemove,
   onAddWidget,
+  reducedMotion = false,
 }: {
   tiles: ResolvedWidgetInstance[];
   renderWidget: (definition: widgetDefinition, instance: widgetInstance) => ReactNode;
   onReorder: (orderedIds: string[]) => void;
   onRemove: (instanceId: string) => void;
   onAddWidget?: () => void;
+  reducedMotion?: boolean;
 }): ReactElement {
+  const [isEditing, setIsEditing] = useState(false);
+
   const placedTiles = tiles.filter(
     (tile): tile is { instance: widgetInstance; definition: widgetDefinition } =>
       tile.definition !== null,
@@ -104,7 +120,7 @@ export function HomeGrid({
   if (placedTiles.length === 0) {
     return (
       <div {...stylex.props(styles.empty)}>
-        <span>No widgets on your Home Grid yet.</span>
+        <span>No widgets yet.</span>
         {onAddWidget && (
           <button type="button" onClick={onAddWidget} {...stylex.props(styles.addButton)}>
             Add widget
@@ -116,20 +132,43 @@ export function HomeGrid({
 
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
-      {onAddWidget && (
-        <div {...stylex.props(styles.toolbar)}>
-          <button type="button" onClick={onAddWidget} {...stylex.props(styles.addButton)}>
-            Add widget
+      <div {...stylex.props(styles.toolbar)}>
+        {isEditing ? (
+          <>
+            {onAddWidget && (
+              <button type="button" onClick={onAddWidget} {...stylex.props(styles.addButton)}>
+                Add widget
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              {...stylex.props(styles.doneButton)}
+            >
+              Done
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            {...stylex.props(styles.addButton)}
+          >
+            Edit
           </button>
-        </div>
-      )}
+        )}
+      </div>
       <div {...stylex.props(styles.grid)}>
-        {placedTiles.map(({ instance, definition }) => (
+        {placedTiles.map(({ instance, definition }, index) => (
           <HomeGridTile
             key={instance.id}
             id={instance.id}
             title={definition.name}
+            index={index}
+            isEditing={isEditing}
+            reducedMotion={reducedMotion}
             onRemove={() => onRemove(instance.id)}
+            onEnterEdit={() => setIsEditing(true)}
           >
             {renderWidget(definition, instance)}
           </HomeGridTile>

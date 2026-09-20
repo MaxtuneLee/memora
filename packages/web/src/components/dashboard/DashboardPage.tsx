@@ -1,4 +1,5 @@
 import { useAppStore } from "@/livestore/store";
+import { Toast } from "@base-ui/react/toast";
 import {
   CaretDownIcon,
   ChatCircleDotsIcon,
@@ -24,6 +25,7 @@ import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { RecentWidget } from "@/components/dashboard/RecentWidget";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
+import ToastStack from "@/components/ToastStack";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
@@ -34,6 +36,7 @@ import {
   createWidgetInstance,
   deleteWidgetInstance,
   reorderWidgetInstances,
+  restoreWidgetInstance,
 } from "@/lib/widgets/widgetInstances";
 import {
   activeWidgetDefinitionsQuery$,
@@ -116,6 +119,28 @@ const styles = stylex.create({
   },
   triggerCaret: { color: "#9a948a", height: 14, width: 14 },
   menuContentNarrow: { width: 224 },
+  toast: {
+    alignItems: "center",
+    backgroundColor: "#fffdf8",
+    border: "1px solid #e9e5dc",
+    borderRadius: 16,
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)",
+    display: "flex",
+    gap: 12,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  toastTitle: { color: "#1d1c1a", flex: 1, fontSize: 13, fontWeight: 600 },
+  toastAction: {
+    backgroundColor: "transparent",
+    border: "none",
+    color: "#4f5742",
+    cursor: "pointer",
+    flexShrink: 0,
+    fontSize: 13,
+    fontWeight: 600,
+    ":hover": { textDecoration: "underline" },
+  },
 });
 
 function MenuActionItem({
@@ -160,6 +185,7 @@ export const Component = (): ReactElement => {
   const store = useAppStore();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion() ?? false;
+  const { add: addToast, close: closeToast } = Toast.useToastManager();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
   const widgetInstanceRows = store.useQuery(
@@ -310,9 +336,24 @@ export const Component = (): ReactElement => {
 
   const handleRemoveWidget = useCallback(
     (instanceId: string) => {
+      const removedTile = homeGridTiles.find((tile) => tile.instance.id === instanceId);
+      const title = removedTile?.definition?.name ?? "Widget";
+      const toastId = crypto.randomUUID();
+
       deleteWidgetInstance({ store, id: instanceId });
+      addToast({
+        id: toastId,
+        title: `${title} removed`,
+        actionProps: {
+          children: "Undo",
+          onClick: () => {
+            restoreWidgetInstance({ store, id: instanceId });
+            closeToast(toastId);
+          },
+        },
+      });
     },
-    [store],
+    [addToast, closeToast, homeGridTiles, store],
   );
 
   const handlePlaceWidget = useCallback(
@@ -445,6 +486,7 @@ export const Component = (): ReactElement => {
                 onReorder={handleReorderWidgets}
                 onRemove={handleRemoveWidget}
                 onAddWidget={() => setIsAddWidgetOpen(true)}
+                reducedMotion={reducedMotion}
               />
             </motion.div>
           </div>
@@ -463,6 +505,14 @@ export const Component = (): ReactElement => {
         confirmLabel="Open link"
         onConfirm={handleConfirmWidgetLink}
         onCancel={() => setPendingWidgetLinkUrl(null)}
+      />
+      <ToastStack
+        render={(toast) => (
+          <Toast.Content {...stylex.props(styles.toast)}>
+            <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title as string}</Toast.Title>
+            <Toast.Action {...stylex.props(styles.toastAction)} />
+          </Toast.Content>
+        )}
       />
     </div>
   );

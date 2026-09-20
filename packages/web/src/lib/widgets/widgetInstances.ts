@@ -70,6 +70,16 @@ export const deleteWidgetInstance = ({
   store.commit(widgetEvents.widgetInstanceDeleted({ id, deletedAt: new Date() }));
 };
 
+export const restoreWidgetInstance = ({
+  store,
+  id,
+}: {
+  store: WidgetInstanceStoreLike;
+  id: string;
+}): void => {
+  store.commit(widgetEvents.widgetInstanceRestored({ id, updatedAt: new Date() }));
+};
+
 export const parseWidgetInstanceParams = (
   row: Pick<widgetInstance, "params">,
 ): Record<string, unknown> => parseJsonRecord(row.params);
