@@ -21,6 +21,7 @@ import type { FileMeta } from "@/types/library";
 
 import { renderBuiltinWidget } from "./builtinWidgetPreview";
 import { GeneratedWidgetFrame } from "./GeneratedWidgetFrame";
+import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
 
 const styles = stylex.create({
   root: { inset: 0, position: "fixed", zIndex: 50 },
@@ -306,7 +307,7 @@ function GeneratedDefinitionCard({
 
   let preview: ReactNode;
   if (source.status === "loading") {
-    preview = <div {...stylex.props(styles.status)}>Loading widget…</div>;
+    preview = <GeneratedWidgetLoadingState />;
   } else if (source.status !== "ready" || source.code === null) {
     preview = <div {...stylex.props(styles.status)}>This widget's source couldn't be loaded.</div>;
   } else {

@@ -81,6 +81,8 @@ const makeInstance = (placed: PlacedInstance, sortOrder: number): widgetInstance
   definitionId: placed.definitionId,
   sortOrder,
   params: JSON.stringify(placed.params),
+  columnSpan: 1,
+  rowSpan: 1,
   createdAt: new Date(0),
   updatedAt: new Date(0),
   deletedAt: null,

@@ -90,7 +90,7 @@ MEMORA_HOME_WIDGET.sendPrompt("real prompt");
   });
 
   it("exposes container, getData, and onData as bare identifiers too, matching Chat's runtime", async () => {
-    // The iframe is sandbox="allow-scripts" with no allow-same-origin (opaque origin), so
+    // The iframe has no allow-same-origin permission (opaque origin), so
     // contentDocument is inaccessible from outside — same constraint documented in
     // generatedWidgetSandbox.browser.test.tsx. The widget reports what it saw over postMessage
     // instead of the outer test reaching in.

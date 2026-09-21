@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 
 import { DATA_SOURCE_CATALOG } from "@/lib/widgets/dataSourceCatalog";
+import { HOME_GRID_GAP_PX, HOME_GRID_MAX_SPAN } from "@/lib/widgets/homeGridLayout";
 
 test("interactive widget guidance includes svg layout rules", () => {
   const showWidgetSource = readFileSync(
@@ -105,6 +106,72 @@ test("widget skill docs teach narrow-column width budgeting", () => {
   expect(svgSetupSource).toContain("567px wide");
   expect(svgSetupSource).toContain("Width budgeting is mandatory.");
   expect(svgSetupSource).toContain("Long explanatory text does not belong in SVG.");
+});
+
+test("widget skill docs teach Home Grid square-cell sizing using the grid's own constants", () => {
+  const readmeSource = readFileSync(
+    new URL("../../bundled-skills/show-widget-skills/README.md", import.meta.url),
+    "utf8",
+  );
+  const coreDesignSystemSource = readFileSync(
+    new URL(
+      "../../bundled-skills/show-widget-skills/sections/core_design_system.md",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  // Pinned to the real layout constants so the numbers a widget author reads cannot drift away
+  // from the grid that actually renders the saved widget.
+  for (const source of [readmeSource, coreDesignSystemSource]) {
+    expect(source).toContain("### Home Grid sizing");
+    expect(source).toContain(`\`${HOME_GRID_GAP_PX}px\` gap`);
+    expect(source).toContain("starts at **1 × 1**");
+    expect(source).toContain(`up to \`${HOME_GRID_MAX_SPAN} × ${HOME_GRID_MAX_SPAN}\``);
+  }
+});
+
+test("widget skill docs settle Home Grid vs chat destination before picking a module", () => {
+  const skillDir = new URL("../../bundled-skills/show-widget-skills/", import.meta.url);
+  const readmeSource = readFileSync(new URL("README.md", skillDir), "utf8");
+  const skillSource = readFileSync(new URL("SKILL.md", skillDir), "utf8");
+  const modulesSource = readFileSync(new URL("sections/modules.md", skillDir), "utf8");
+
+  // Every assembled guideline inlines the shared sections, so the destination step has to reach
+  // all of them — a module doc that skips it re-creates the "build a full chat panel" default.
+  const guidelineSources = [
+    "art",
+    "art_interactive",
+    "chart",
+    "chart_interactive",
+    "CORE",
+    "diagram",
+    "interactive",
+    "mockup",
+  ].map((module) => readFileSync(new URL(`guidelines/${module}.md`, skillDir), "utf8"));
+
+  for (const source of [readmeSource, modulesSource, ...guidelineSources]) {
+    expect(source).toContain("## Destination — decide before the module");
+    expect(source).toContain("ask one short question before building");
+    expect(source).toContain("is not automatically a full-size panel");
+  }
+
+  expect(skillSource).toContain("Settle the destination before designing anything");
+  expect(readmeSource).toContain("Settle the destination before designing anything");
+});
+
+test("chart dashboard guidance fixes the canvas before choosing contents", () => {
+  const skillDir = new URL("../../bundled-skills/show-widget-skills/", import.meta.url);
+  const chartSources = [
+    "sections/charts_chart_js.md",
+    "guidelines/chart.md",
+    "guidelines/chart_interactive.md",
+  ].map((path) => readFileSync(new URL(path, skillDir), "utf8"));
+
+  for (const source of chartSources) {
+    expect(source).toContain("**Dashboard layout** — fix the canvas before choosing the contents.");
+    expect(source).toContain("Never design the full dashboard and then shrink it");
+  }
 });
 
 test("widget skill docs document every data source catalog entry and the onData/getData bindings", () => {

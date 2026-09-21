@@ -6,6 +6,7 @@ import {
   nextWidgetInstanceSortOrder,
   parseWidgetInstanceParams,
   reorderWidgetInstances,
+  resizeWidgetInstance,
   restoreWidgetInstance,
   updateWidgetInstanceParams,
 } from "@/lib/widgets/widgetInstances";
@@ -86,6 +87,39 @@ test("commits a single v1.WidgetInstanceReordered event carrying the whole new o
     args: { orderedIds: ["inst-3", "inst-1", "inst-2"] },
   });
   expect(committed?.args.updatedAt).toBeInstanceOf(Date);
+});
+
+test("commits a v1.WidgetInstanceResized event with spans clamped to 1..4", () => {
+  const store = { commit: vi.fn() };
+
+  resizeWidgetInstance({
+    store,
+    id: "inst-1",
+    columnSpan: 9,
+    rowSpan: 0,
+    current: { columnSpan: 1, rowSpan: 1 },
+  });
+
+  const committed = store.commit.mock.calls[0]?.[0];
+  expect(committed).toMatchObject({
+    name: "v1.WidgetInstanceResized",
+    args: { id: "inst-1", columnSpan: 4, rowSpan: 1 },
+  });
+  expect(committed?.args.updatedAt).toBeInstanceOf(Date);
+});
+
+test("commits nothing when a resize lands on the spans the instance already has", () => {
+  const store = { commit: vi.fn() };
+
+  resizeWidgetInstance({
+    store,
+    id: "inst-1",
+    columnSpan: 2,
+    rowSpan: 3,
+    current: { columnSpan: 2, rowSpan: 3 },
+  });
+
+  expect(store.commit).not.toHaveBeenCalled();
 });
 
 test("commits a v1.WidgetInstanceDeleted event", () => {

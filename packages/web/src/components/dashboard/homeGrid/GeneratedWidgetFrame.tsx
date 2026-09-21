@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   GENERATED_WIDGET_DATA_MESSAGE,
+  GENERATED_WIDGET_ERROR_MESSAGE,
   GENERATED_WIDGET_OPEN_LINK_MESSAGE,
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_RESIZE_MESSAGE,
@@ -12,6 +14,37 @@ import {
   buildGeneratedWidgetSrcDoc,
 } from "@/lib/widgets/generatedWidgetRuntime";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
+
+import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
+
+const styles = stylex.create({
+  frame: { minHeight: 128, position: "relative" },
+  loading: { inset: 0, position: "absolute", zIndex: 1 },
+  iframe: {
+    border: "none",
+    display: "block",
+    opacity: 0,
+    transition: "opacity 180ms cubic-bezier(0.23, 1, 0.32, 1)",
+    width: "100%",
+    "@media (prefers-reduced-motion: reduce)": { transitionDuration: "120ms" },
+  },
+  iframeReady: { opacity: 1 },
+  iframeLoading: { pointerEvents: "none" },
+  error: {
+    alignItems: "center",
+    backgroundColor: "var(--color-memora-warning-surface)",
+    border: "1px solid var(--color-memora-warning-border)",
+    borderRadius: 16,
+    color: "var(--color-memora-warning-text)",
+    display: "flex",
+    fontSize: 14,
+    justifyContent: "center",
+    lineHeight: 1.5,
+    minHeight: 128,
+    padding: 16,
+    textAlign: "center",
+  },
+});
 
 export function GeneratedWidgetFrame({
   widgetCode,
@@ -39,10 +72,13 @@ export function GeneratedWidgetFrame({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const [height, setHeight] = useState(1);
+  const [hasRuntimeError, setHasRuntimeError] = useState(false);
   const srcDoc = useMemo(() => buildGeneratedWidgetSrcDoc(widgetCode), [widgetCode]);
+  const isVisible = ready && dataReady;
 
   useEffect(() => {
     setReady(false);
+    setHasRuntimeError(false);
   }, [srcDoc]);
 
   useEffect(() => {
@@ -53,6 +89,8 @@ export function GeneratedWidgetFrame({
 
       if (event.data?.type === GENERATED_WIDGET_READY_MESSAGE) {
         setReady(true);
+      } else if (event.data?.type === GENERATED_WIDGET_ERROR_MESSAGE) {
+        setHasRuntimeError(true);
       } else if (event.data?.type === GENERATED_WIDGET_RESIZE_MESSAGE) {
         const nextHeight = Number(event.data.height);
         setHeight(Number.isFinite(nextHeight) && nextHeight > 0 ? nextHeight : 1);
@@ -104,13 +142,30 @@ export function GeneratedWidgetFrame({
     );
   }, [ready, dataReady, data]);
 
+  if (hasRuntimeError) {
+    return (
+      <div role="alert" {...stylex.props(styles.error)}>
+        This widget couldn’t be displayed.
+      </div>
+    );
+  }
+
   return (
-    <iframe
-      ref={iframeRef}
-      title={title}
-      srcDoc={srcDoc}
-      sandbox="allow-scripts"
-      style={{ border: "none", display: "block", height, width: "100%" }}
-    />
+    <div {...stylex.props(styles.frame)}>
+      {!isVisible && (
+        <div {...stylex.props(styles.loading)}>
+          <GeneratedWidgetLoadingState />
+        </div>
+      )}
+      <iframe
+        ref={iframeRef}
+        title={title}
+        srcDoc={srcDoc}
+        sandbox="allow-scripts allow-forms"
+        aria-hidden={!isVisible}
+        {...stylex.props(styles.iframe, isVisible ? styles.iframeReady : styles.iframeLoading)}
+        style={{ height }}
+      />
+    </div>
   );
 }

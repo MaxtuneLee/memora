@@ -2,6 +2,7 @@ import { expect, test } from "vite-plus/test";
 
 import {
   GENERATED_WIDGET_DATA_MESSAGE,
+  GENERATED_WIDGET_ERROR_MESSAGE,
   GENERATED_WIDGET_OPEN_LINK_MESSAGE,
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
@@ -21,6 +22,12 @@ test("embeds style, renderable html, and script from the widget source", () => {
   expect(srcDoc).toContain('console.log("run");');
 });
 
+test("places generated widget controls inside the base-style scope", () => {
+  const srcDoc = buildGeneratedWidgetSrcDoc("<button>Run</button><textarea>Notes</textarea>");
+
+  expect(srcDoc).toContain('<div id="widget-root" data-widget-content>');
+});
+
 test("exposes a postMessage-only bridge, never a direct object handoff", () => {
   const srcDoc = buildGeneratedWidgetSrcDoc("<div>widget</div>");
 
@@ -28,6 +35,16 @@ test("exposes a postMessage-only bridge, never a direct object handoff", () => {
   expect(srcDoc).toContain('window.addEventListener("message"');
   expect(srcDoc).toContain(GENERATED_WIDGET_DATA_MESSAGE);
   expect(srcDoc).toContain(GENERATED_WIDGET_READY_MESSAGE);
+});
+
+test("reports script and data-listener failures to the host", () => {
+  const srcDoc = buildGeneratedWidgetSrcDoc(
+    '<div>widget</div><script>throw new Error("boom");</script>',
+  );
+
+  expect(srcDoc).toContain(GENERATED_WIDGET_ERROR_MESSAGE);
+  expect(srcDoc).toContain('throw new Error("boom");');
+  expect(srcDoc).toContain("reportError();");
 });
 
 test("escapes a closing script tag so it cannot break out of the srcDoc string build", () => {

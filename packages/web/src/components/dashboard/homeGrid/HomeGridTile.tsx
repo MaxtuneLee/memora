@@ -1,7 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { XCircleIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
-import { motion } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 import type {
   CSSProperties,
@@ -10,6 +9,12 @@ import type {
   ReactElement,
   ReactNode,
 } from "react";
+
+import {
+  HOME_GRID_GAP_PX,
+  HOME_GRID_MAX_SPAN,
+  nextWidgetSpans,
+} from "@/lib/widgets/homeGridLayout";
 
 // Shared with AddWidgetDrawer: a card's preview claims this same name for the instance id it's
 // about to place, just long enough for the View Transition to morph it into this tile's slot.
@@ -39,8 +44,8 @@ const styles = stylex.create({
     minWidth: 0,
     position: "relative",
   },
-  // The wiggle keyframe animation and the outer tile's motion-driven layout transform both
-  // animate `transform` — keep them on separate nodes so they don't fight over the property.
+  // The tile's drag/sort transform and the wiggle animation target separate nodes so they don't
+  // overwrite one another. Sort animation always excludes the actively dragged tile.
   tileInner: {
     display: "flex",
     flex: 1,
@@ -62,7 +67,6 @@ const styles = stylex.create({
     animationTimingFunction: "ease-in-out",
   },
   dragging: { opacity: 0.4 },
-  dropTarget: { boxShadow: "0 0 0 2px #a7af8f", borderRadius: 27 },
   content: { flex: 1, minHeight: 0, overflow: "auto" },
   // Sits over the widget's own content while editing so drag/remove gestures land on the
   // tile instead of being swallowed by buttons, inputs, or links inside the widget.
@@ -94,31 +98,60 @@ const styles = stylex.create({
     ":hover": { color: "#7c2f24" },
   },
   removeIcon: { height: 24, width: 24 },
+  resizing: { zIndex: 10 },
+  resizeHandle: {
+    alignItems: "center",
+    bottom: 2,
+    color: "#8a857c",
+    cursor: "nwse-resize",
+    display: "flex",
+    height: 20,
+    justifyContent: "center",
+    position: "absolute",
+    right: 2,
+    touchAction: "none",
+    width: 20,
+    zIndex: 20,
+    ":hover": { color: "#4f5742" },
+  },
+  resizeGrip: { height: 12, width: 12 },
 });
-
-// Governs only the live neighbour-shift while a drag is in progress — add/remove are animated
-// separately by the browser's View Transition, driven by each tile's `viewTransitionName` below.
-const TILE_TRANSITION = { type: "spring", stiffness: 420, damping: 34, mass: 0.9 } as const;
 
 export function HomeGridTile({
   id,
   title,
   index,
   isEditing,
-  isReordering,
   reducedMotion,
+  columnSpan,
+  rowSpan,
+  maxColumnSpan,
+  cellSize,
+  isResizing,
+  isResizingSelf,
   onRemove,
   onEnterEdit,
+  onResizePreview,
+  onResizeEnd,
   children,
 }: {
   id: string;
   title: string;
   index: number;
   isEditing: boolean;
-  isReordering: boolean;
   reducedMotion: boolean;
+  /** Stored logical column span, which may exceed the columns the container can currently show. */
+  columnSpan: number;
+  rowSpan: number;
+  maxColumnSpan: number;
+  cellSize: number;
+  /** Any tile in the grid is mid-resize, which pauses every tile's wiggle. */
+  isResizing: boolean;
+  isResizingSelf: boolean;
   onRemove: () => void;
   onEnterEdit: () => void;
+  onResizePreview: (id: string, columnSpan: number, rowSpan: number) => void;
+  onResizeEnd: (id: string, spans: { columnSpan: number; rowSpan: number } | null) => void;
   children: ReactNode;
 }): ReactElement {
   const {
@@ -135,9 +168,12 @@ export function HomeGridTile({
     // fold their labels into this element's accessible name.
     attributes: { role: "group", roleDescription: "widget" },
   });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id, disabled: !isEditing });
+  const { setNodeRef: setDropRef } = useDroppable({ id, disabled: !isEditing });
 
+  const visibleColumnSpan = Math.min(columnSpan, maxColumnSpan);
   const style: CSSProperties = {
+    gridColumn: `span ${visibleColumnSpan}`,
+    gridRow: `span ${Math.min(rowSpan, HOME_GRID_MAX_SPAN)}`,
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     zIndex: isDragging ? 10 : undefined,
     // Gives the browser's View Transition (triggered on add/remove in DashboardPage) a stable
@@ -199,10 +235,83 @@ export function HomeGridTile({
     [cancelLongPress, isEditing, onEnterEdit],
   );
 
+  // Document-level listeners rather than pointer capture, because the pointer regularly leaves the
+  // handle's 20px box within the first few pixels of a drag. Kept in a ref so an unmount mid-gesture
+  // (a remove, or leaving edit mode) tears them down instead of leaving them bound to a dead tile.
+  const endResizeGestureRef = useRef<((committed: boolean) => void) | null>(null);
+
+  useEffect(() => () => endResizeGestureRef.current?.(false), []);
+
+  const handleResizeMouseDown = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+      // Keeps dnd-kit's MouseSensor — whose listeners are spread onto the tile root while editing —
+      // from reading this gesture as the start of a whole-tile reorder drag.
+      event.preventDefault();
+      event.stopPropagation();
+      endResizeGestureRef.current?.(false);
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const cellStride = cellSize + HOME_GRID_GAP_PX;
+      let latestSpans: { columnSpan: number; rowSpan: number } | null = null;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const spans = nextWidgetSpans({
+          storedColumnSpan: columnSpan,
+          storedRowSpan: rowSpan,
+          visibleColumnSpan,
+          maxColumnSpan,
+          cellStride,
+          deltaX: moveEvent.clientX - startX,
+          deltaY: moveEvent.clientY - startY,
+        });
+        latestSpans = spans;
+        onResizePreview(id, spans.columnSpan, spans.rowSpan);
+      };
+
+      const endGesture = (committed: boolean) => {
+        endResizeGestureRef.current = null;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("keydown", handleKeyDown);
+
+        const changed =
+          latestSpans !== null &&
+          (latestSpans.columnSpan !== columnSpan || latestSpans.rowSpan !== rowSpan);
+        onResizeEnd(id, committed && changed ? latestSpans : null);
+      };
+
+      const handleMouseUp = () => endGesture(true);
+      const handleKeyDown = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key === "Escape") {
+          endGesture(false);
+        }
+      };
+
+      endResizeGestureRef.current = endGesture;
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("keydown", handleKeyDown);
+    },
+    [
+      cellSize,
+      columnSpan,
+      id,
+      maxColumnSpan,
+      onResizeEnd,
+      onResizePreview,
+      rowSpan,
+      visibleColumnSpan,
+    ],
+  );
+
   const wiggleStyle = index % 2 === 0 ? styles.wiggleA : styles.wiggleB;
 
   return (
-    <motion.div
+    <div
       ref={(node) => {
         setDragRef(node);
         setDropRef(node);
@@ -210,11 +319,6 @@ export function HomeGridTile({
       style={style}
       data-widget-instance-id={id}
       onContextMenu={handleContextMenu}
-      // Only animate layout while a drag is actually shifting neighbours live — outside of that,
-      // `layout` would fight the View Transition that owns the add/remove reflow instead (both
-      // drive `transform` on the same elements).
-      layout={isReordering && !isDragging && !reducedMotion}
-      transition={TILE_TRANSITION}
       {...(isEditing
         ? attributes
         : {
@@ -229,10 +333,15 @@ export function HomeGridTile({
         styles.tile,
         isEditing && styles.editing,
         isDragging && styles.dragging,
-        isOver && styles.dropTarget,
+        isResizingSelf && styles.resizing,
       )}
     >
-      <div {...stylex.props(styles.tileInner, isEditing && !reducedMotion && wiggleStyle)}>
+      <div
+        {...stylex.props(
+          styles.tileInner,
+          isEditing && !reducedMotion && !isResizing && wiggleStyle,
+        )}
+      >
         {isEditing && (
           <button
             type="button"
@@ -248,7 +357,29 @@ export function HomeGridTile({
           aria-hidden="true"
           {...stylex.props(styles.contentMask, isEditing && styles.contentMaskVisible)}
         />
+        {isEditing && (
+          // Mouse-only by design: touch and keyboard resize are out of scope, so this stays out of
+          // the tab order and out of the accessibility tree rather than claiming a control it isn't.
+          <div
+            aria-hidden="true"
+            data-resize-handle=""
+            onMouseDown={handleResizeMouseDown}
+            {...stylex.props(styles.resizeHandle)}
+          >
+            <svg
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              {...stylex.props(styles.resizeGrip)}
+            >
+              <path d="M11 5 5 11" />
+              <path d="M11 9.5 9.5 11" />
+            </svg>
+          </div>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
 }

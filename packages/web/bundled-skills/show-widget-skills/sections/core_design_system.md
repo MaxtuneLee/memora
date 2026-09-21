@@ -54,6 +54,17 @@ Output streams token-by-token. Structure code so useful content appears early.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
 - **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
 
+### Home Grid sizing
+
+In chat your widget is full-width and auto-fits its content height. But the user can save any widget to the Home Grid, where it becomes a tile in a square-cell grid. Design for both.
+
+- The grid runs 1–4 columns depending on window width, with a `14px` gap. One cell is a square of roughly `280–336px` per side.
+- Every saved widget starts at **1 × 1** — a single square. The user can drag it up to `4 × 4`.
+- Treat the `1 × 1` square as the case that must read well: one headline figure, a small chart, or about 3–5 rows. That is where every widget lands by default.
+- Keep width fluid (`%`, flex, `width: 100%`). Never hardcode a pixel width — a widget that only works at chat width gets cropped at `1 × 1`.
+- Keep the `1 × 1` view short. The host clips the tile to its cell and scrolls it; the grid never grows to fit you, so anything past the first square is hidden until the user resizes.
+- Still auto-fit height and add no scroll container of your own — the host owns the clipping.
+
 ### CSS Variables
 
 **Backgrounds**: `--color-background-primary` (white), `-secondary` (surfaces), `-tertiary` (page bg), `-info`, `-danger`, `-success`, `-warning`

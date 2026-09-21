@@ -4,6 +4,7 @@ import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
 export const GENERATED_WIDGET_READY_MESSAGE = "memora:generated-widget-ready";
 export const GENERATED_WIDGET_DATA_MESSAGE = "memora:generated-widget-data";
+export const GENERATED_WIDGET_ERROR_MESSAGE = "memora:generated-widget-error";
 export const GENERATED_WIDGET_RESIZE_MESSAGE = "memora:generated-widget-resize";
 export const GENERATED_WIDGET_SEND_PROMPT_MESSAGE = "memora:generated-widget-send-prompt";
 export const GENERATED_WIDGET_OPEN_LINK_MESSAGE = "memora:generated-widget-open-link";
@@ -40,8 +41,8 @@ export const escapeClosingScriptTag = (source: string): string =>
   source.replace(/<\/script/gi, "<\\/script");
 
 // Separate from Chat's WIDGET_BRIDGE_KEY runtime (see ADR 0006): this shim talks to the
-// host exclusively over postMessage, since the iframe is sandbox="allow-scripts" with no
-// allow-same-origin and cannot receive a live object reference from the parent.
+// host exclusively over postMessage, since the iframe allows scripts and forms but has no
+// allow-same-origin permission and cannot receive a live object reference from the parent.
 export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
   const parsed = parseShowWidgetCode(widgetCode);
   const inlineScripts = parsed.scripts.filter((script) => !script.src);
@@ -60,12 +61,27 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
     .map((href) => `<script src="${escapeHtmlAttribute(href)}"></script>`)
     .join("");
 
-  return `<!doctype html><html><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style>${parsed.styleText}</style></head><body><div id="widget-root">${parsed.htmlRenderable}</div>${externalScriptTags}<script>
+  return `<!doctype html><html><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style>${parsed.styleText}</style></head><body><div id="widget-root" data-widget-content>${parsed.htmlRenderable}</div>${externalScriptTags}<script>
 (() => {
   "use strict";
   const container = document.getElementById("widget-root");
   const listeners = [];
   let latestData = null;
+  let hasRuntimeError = false;
+  const readyRetryIds = [];
+
+  const notifyReady = () => {
+    window.parent.postMessage({ type: "${GENERATED_WIDGET_READY_MESSAGE}" }, "*");
+  };
+
+  const reportError = () => {
+    hasRuntimeError = true;
+    const notifyHost = () => {
+      window.parent.postMessage({ type: "${GENERATED_WIDGET_ERROR_MESSAGE}" }, "*");
+    };
+    notifyHost();
+    [50, 250, 1000].forEach((delay) => window.setTimeout(notifyHost, delay));
+  };
 
   // Rate-limits writeData per file name to one in-flight postMessage at a time: a call while one
   // is already pending replaces the queued content (last write wins) instead of piling up
@@ -191,10 +207,16 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
       return;
     }
     latestData = event.data.payload;
+    readyRetryIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    if (hasRuntimeError) {
+      reportError();
+      return;
+    }
     listeners.forEach((listener) => {
       try {
         listener(latestData);
       } catch (error) {
+        reportError();
         console.error("Generated widget data listener failed:", error);
       }
     });
@@ -206,10 +228,14 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
   try {
 ${userScript}
   } catch (error) {
+    reportError();
     console.error("Generated widget script failed:", error);
   }
 
-  window.parent.postMessage({ type: "${GENERATED_WIDGET_READY_MESSAGE}" }, "*");
+  notifyReady();
+  [50, 250, 1000].forEach((delay) => {
+    readyRetryIds.push(window.setTimeout(notifyReady, delay));
+  });
   notifyResize();
 })();
 </script></body></html>`;

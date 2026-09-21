@@ -12,7 +12,10 @@ import type { ReactiveWidgetStore } from "@/lib/widgets/widgetStore";
 // chatSessionCount) — the only way to catch OPFS/browser storage changes without a reload.
 const DATA_SOURCE_POLL_INTERVAL_MS = 5_000;
 
-export type DataSourceValueState = { status: "loading" } | { status: "ready"; value: unknown };
+export type DataSourceValueState =
+  | { status: "loading" }
+  | { status: "ready"; value: unknown }
+  | { status: "error" };
 
 // Widget scripts (chat's onData bridge and the Home Grid shim alike) treat "no payload yet" and
 // "resolved payload" as distinct states, so a widget never mistakes an in-flight fetch for a
@@ -50,13 +53,19 @@ export const useDataSourceValue = (
     }
 
     const resolve = () => {
-      void resolveDataSource(dataSourceName, store, params).then((resolved) => {
-        if (cancelled) {
-          return;
-        }
-        hasResolvedRef.current = true;
-        setState({ status: "ready", value: resolved });
-      });
+      void resolveDataSource(dataSourceName, store, params)
+        .then((resolved) => {
+          if (cancelled) {
+            return;
+          }
+          hasResolvedRef.current = true;
+          setState({ status: "ready", value: resolved });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setState({ status: "error" });
+          }
+        });
     };
 
     resolve();

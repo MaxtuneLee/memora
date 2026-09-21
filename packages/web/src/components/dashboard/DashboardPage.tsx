@@ -46,6 +46,7 @@ import {
   deleteWidgetInstance,
   nextWidgetInstanceSortOrder,
   reorderWidgetInstances,
+  resizeWidgetInstance,
   restoreWidgetInstance,
 } from "@/lib/widgets/widgetInstances";
 import {
@@ -67,7 +68,7 @@ const DASHBOARD_FONT_FAMILY = '"Inter", ui-sans-serif, sans-serif';
 const CALENDAR_MOTION_EASE = [0.22, 1, 0.36, 1] as const;
 const ACTION_SPLIT_EASE = [0.23, 1, 0.32, 1] as const;
 const ACTION_LAYOUT_EASE = [0.77, 0, 0.175, 1] as const;
-const ACTION_MORPH_DURATION = 1;
+const ACTION_MORPH_DURATION = 0.8;
 const ACTION_MORPH_GAP = 10;
 // Collapsed width of the Add widget pill, matched to the button's 2.75rem min-height. Square is
 // what lets the maxed border-radius resolve to a full circle: the browser clamps radius to half
@@ -123,7 +124,8 @@ const styles = stylex.create({
   page: { backgroundColor: "#fcfaf6", color: "#1d1c1a", minHeight: "100%" },
   pageContent: {
     marginInline: "auto",
-    maxWidth: 1080,
+    // Wide enough for the Home Grid's four ~280px square columns plus gaps at 40px page padding.
+    maxWidth: 1480,
     paddingBlock: 32,
     paddingInline: 24,
     width: "100%",
@@ -453,6 +455,17 @@ export const Component = (): ReactElement => {
     [store],
   );
 
+  const handleResizeWidget = useCallback(
+    (instanceId: string, columnSpan: number, rowSpan: number) => {
+      const current = homeGridTiles.find((tile) => tile.instance.id === instanceId)?.instance;
+      if (!current) {
+        return;
+      }
+      resizeWidgetInstance({ store, id: instanceId, columnSpan, rowSpan, current });
+    },
+    [homeGridTiles, store],
+  );
+
   const handleRemoveWidget = useCallback(
     (instanceId: string) => {
       const removedTile = homeGridTiles.find((tile) => tile.instance.id === instanceId);
@@ -499,6 +512,8 @@ export const Component = (): ReactElement => {
               definitionId: input.definitionId,
               sortOrder,
               params: JSON.stringify(input.params),
+              columnSpan: 1,
+              rowSpan: 1,
               createdAt: new Date(),
               updatedAt: new Date(),
               deletedAt: null,
@@ -838,6 +853,7 @@ export const Component = (): ReactElement => {
                 renderWidget={renderHomeGridWidget}
                 onReorder={handleReorderWidgets}
                 onRemove={handleRemoveWidget}
+                onResize={handleResizeWidget}
                 onAddWidget={() => setIsAddWidgetOpen(true)}
                 isEditing={isHomeGridEditing}
                 onEditingChange={setIsHomeGridEditing}

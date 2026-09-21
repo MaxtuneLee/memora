@@ -1,5 +1,21 @@
 # Imagine — Visual Creation Suite
 
+## Destination — decide before the module
+
+Two different things get built here, and they have very different size budgets:
+
+- **Chat widget** — renders inline in the conversation at full column width and auto-fits its content height. A full panel fits.
+- **Home Grid widget** — the user saves it to their Home Grid, where it lands in a **1 × 1 square of roughly 280–336px**. A chat-sized panel gets cropped to that square.
+
+If the request does not make the destination obvious, **ask one short question before building**: "Do you want this on the Home Grid, or just here in the conversation?" Then build.
+
+- Home Grid: "save this", "add to my home", "a widget for…", "keep this around" — anything phrased as a thing they will come back to.
+- Chat: "show me", "visualize this", "explain with a chart" — anything answering the question being asked right now.
+
+**A request that sounds like a dashboard is not automatically a full-size panel.** "Storage dashboard", "usage dashboard", "progress dashboard" name the subject, not the canvas. Asking which one it is costs one line; guessing wrong costs the whole layout.
+
+When it is a Home Grid widget, size is the first constraint, not the last. Read "Home Grid sizing" below, lay out inside the square, and only then decide what earns a place in it.
+
 ## Modules
 
 Call read_me again with the modules parameter to load detailed guidance:
@@ -67,6 +83,17 @@ Output streams token-by-token. Structure code so useful content appears early.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
 - **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
 
+### Home Grid sizing
+
+In chat your widget is full-width and auto-fits its content height. But the user can save any widget to the Home Grid, where it becomes a tile in a square-cell grid. Design for both.
+
+- The grid runs 1–4 columns depending on window width, with a `14px` gap. One cell is a square of roughly `280–336px` per side.
+- Every saved widget starts at **1 × 1** — a single square. The user can drag it up to `4 × 4`.
+- Treat the `1 × 1` square as the case that must read well: one headline figure, a small chart, or about 3–5 rows. That is where every widget lands by default.
+- Keep width fluid (`%`, flex, `width: 100%`). Never hardcode a pixel width — a widget that only works at chat width gets cropped at `1 × 1`.
+- Keep the `1 × 1` view short. The host clips the tile to its cell and scrolls it; the grid never grows to fit you, so anything past the first square is hidden until the user resizes.
+- Still auto-fit height and add no scroll container of your own — the host owns the clipping.
+
 ### CSS Variables
 
 **Backgrounds**: `--color-background-primary` (white), `-secondary` (surfaces), `-tertiary` (page bg), `-info`, `-danger`, `-success`, `-warning`
@@ -120,6 +147,8 @@ Flat, clean, white surfaces. Minimal 0.5px borders. Generous whitespace. No grad
 ### Metric cards
 
 For summary numbers (revenue, count, percentage) — surface card with muted 13px label above, 24px/500 number below. `background: var(--color-background-secondary)`, no border, `border-radius: var(--border-radius-md)`, padding 1rem. Use in grids of 2-4 with `gap: 12px`. Distinct from raised cards (which have white bg + border).
+
+Those proportions assume chat width. In a Home Grid `1 × 1` square a 2-4 card grid plus anything else overflows — use a single card, or drop the card and show the number on its own.
 
 ### Layout
 
@@ -305,4 +334,4 @@ plugins: {
 
 Include the value/percentage in each label when the data is categorical (pie, donut, single-series bar). Position the legend above the chart (`margin-bottom`) or below (`margin-top`) — not inside the canvas.
 
-**Dashboard layout** — wrap summary numbers in metric cards (see UI fragment) above the chart. Chart canvas flows below without a card wrapper. Use `sendPrompt()` for drill-down: `sendPrompt('Break down Q4 by region')`.
+**Dashboard layout** — fix the canvas before choosing the contents. At full chat width: wrap summary numbers in metric cards (see UI fragment) above the chart, chart canvas flowing below without a card wrapper. At Home Grid `1 × 1`: a metric-card row *and* a chart does not fit — pick one, either a single headline number or one small chart, and let the user resize for the rest. Never design the full dashboard and then shrink it; start from the square. Use `sendPrompt()` for drill-down: `sendPrompt('Break down Q4 by region')`.

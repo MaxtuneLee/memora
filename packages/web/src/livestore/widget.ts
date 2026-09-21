@@ -53,12 +53,21 @@ type WidgetInstanceCreatedEvent = {
   definitionId: string;
   sortOrder: number;
   params?: string;
+  columnSpan?: number;
+  rowSpan?: number;
   createdAt: Date;
 };
 
 type WidgetInstanceUpdatedEvent = {
   id: string;
   params: string;
+  updatedAt: Date;
+};
+
+type WidgetInstanceResizedEvent = {
+  id: string;
+  columnSpan: number;
+  rowSpan: number;
   updatedAt: Date;
 };
 
@@ -105,6 +114,8 @@ export const widgetInstanceTable = State.SQLite.table({
     definitionId: State.SQLite.text({ default: "" }),
     sortOrder: State.SQLite.integer({ default: 0 }),
     params: State.SQLite.text({ default: "{}" }),
+    columnSpan: State.SQLite.integer({ default: 1 }),
+    rowSpan: State.SQLite.integer({ default: 1 }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     updatedAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     deletedAt: State.SQLite.integer({
@@ -158,6 +169,8 @@ export const widgetEvents = {
       definitionId: Schema.String,
       sortOrder: Schema.Number,
       params: Schema.optional(Schema.String),
+      columnSpan: Schema.optional(Schema.Number),
+      rowSpan: Schema.optional(Schema.Number),
       createdAt: Schema.Date,
     }),
   }),
@@ -166,6 +179,15 @@ export const widgetEvents = {
     schema: Schema.Struct({
       id: Schema.String,
       params: Schema.String,
+      updatedAt: Schema.Date,
+    }),
+  }),
+  widgetInstanceResized: Events.synced({
+    name: "v1.WidgetInstanceResized",
+    schema: Schema.Struct({
+      id: Schema.String,
+      columnSpan: Schema.Number,
+      rowSpan: Schema.Number,
       updatedAt: Schema.Date,
     }),
   }),
@@ -232,6 +254,8 @@ export const widgetMaterializers = {
       definitionId: event.definitionId,
       sortOrder: event.sortOrder,
       params: event.params ?? "{}",
+      columnSpan: event.columnSpan ?? 1,
+      rowSpan: event.rowSpan ?? 1,
       createdAt: event.createdAt,
       updatedAt: event.createdAt,
     }),
@@ -239,6 +263,14 @@ export const widgetMaterializers = {
     widgetInstanceTable
       .update({
         params: event.params,
+        updatedAt: event.updatedAt,
+      })
+      .where({ id: event.id }),
+  "v1.WidgetInstanceResized": (event: WidgetInstanceResizedEvent) =>
+    widgetInstanceTable
+      .update({
+        columnSpan: event.columnSpan,
+        rowSpan: event.rowSpan,
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),

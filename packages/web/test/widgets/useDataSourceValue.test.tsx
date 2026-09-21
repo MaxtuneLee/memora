@@ -64,6 +64,16 @@ test("reports loading before the first resolution, then the resolved value", asy
   await waitFor(() => expect(result.current).toEqual({ status: "ready", value: { count: 1 } }));
 });
 
+test("reports an error when the first data source resolution fails", async () => {
+  testState.listChatSessions.mockRejectedValue(new Error("failed"));
+  const store = makeStore();
+
+  const { result } = renderHook(() => useDataSourceValue(store, "chatSessionCount", {}));
+
+  expect(result.current).toEqual({ status: "loading" });
+  await waitFor(() => expect(result.current).toEqual({ status: "error" }));
+});
+
 test("never reports a loading flash again after the first resolution for the same source", async () => {
   testState.listChatSessions.mockResolvedValue([]);
   const store = makeStore();
