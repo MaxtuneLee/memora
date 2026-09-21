@@ -182,7 +182,6 @@ export interface PersistenceAdapter {
 export const AgentConfigSchema = v.object({
   id: v.string(),
   maxToolResultChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(100)), 8000),
-  maxContextChars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1000)), 100000),
   temperature: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),
   maxTokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   maxIterations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 10),
