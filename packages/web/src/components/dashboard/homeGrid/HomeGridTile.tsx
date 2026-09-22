@@ -21,6 +21,10 @@ import {
 export const getHomeGridTileViewTransitionName = (instanceId: string): string =>
   `home-grid-tile-${instanceId}`;
 
+// Single source of truth for a widget's corner: the tile clips its content, and every widget card
+// inside uses border-radius: inherit rather than repeating a value per widget.
+export const HOME_GRID_TILE_RADIUS_PX = 27;
+
 export const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 
@@ -67,11 +71,17 @@ const styles = stylex.create({
     animationTimingFunction: "ease-in-out",
   },
   dragging: { opacity: 0.4 },
-  content: { flex: 1, minHeight: 0, overflow: "auto" },
+  content: {
+    borderRadius: HOME_GRID_TILE_RADIUS_PX,
+    flex: 1,
+    minHeight: 0,
+    overflow: "auto",
+  },
   // Sits over the widget's own content while editing so drag/remove gestures land on the
   // tile instead of being swallowed by buttons, inputs, or links inside the widget.
   contentMask: {
     backgroundColor: "rgba(255, 253, 248, 0.4)",
+    borderRadius: HOME_GRID_TILE_RADIUS_PX,
     inset: 0,
     opacity: 0,
     pointerEvents: "none",

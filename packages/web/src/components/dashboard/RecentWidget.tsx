@@ -9,7 +9,7 @@ const styles = stylex.create({
   recentWidget: {
     backgroundColor: "white",
     border: "1px solid #ebe4d8",
-    borderRadius: 23,
+    borderRadius: "inherit",
     overflow: "hidden",
   },
   recentWidgetHeader: { paddingBlock: 16, paddingInline: 20 },

@@ -26,7 +26,7 @@ const styles = stylex.create({
   calendar: {
     backgroundColor: "white",
     border: "1px solid #e9e5dc",
-    borderRadius: 27,
+    borderRadius: "inherit",
     padding: 20,
     "@media (min-width: 48rem)": { padding: 24 },
   },
