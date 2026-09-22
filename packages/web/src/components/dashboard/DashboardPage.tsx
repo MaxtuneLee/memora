@@ -33,7 +33,6 @@ import {
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
-import ToastStack from "@/components/ToastStack";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
@@ -173,28 +172,6 @@ const styles = stylex.create({
   },
   triggerCaret: { color: "#9a948a", height: 14, width: 14 },
   menuContentNarrow: { width: 224 },
-  toast: {
-    alignItems: "center",
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e9e5dc",
-    borderRadius: 16,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)",
-    display: "flex",
-    gap: 12,
-    paddingBlock: 12,
-    paddingInline: 16,
-  },
-  toastTitle: { color: "#1d1c1a", flex: 1, fontSize: 13, fontWeight: 600 },
-  toastAction: {
-    backgroundColor: "transparent",
-    border: "none",
-    color: "#4f5742",
-    cursor: "pointer",
-    flexShrink: 0,
-    fontSize: 13,
-    fontWeight: 600,
-    ":hover": { textDecoration: "underline" },
-  },
 });
 
 function MenuActionItem({
@@ -892,14 +869,6 @@ export const Component = (): ReactElement => {
         tone="danger"
         onConfirm={handleConfirmDeleteDefinition}
         onCancel={() => setPendingDeleteDefinitionId(null)}
-      />
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content {...stylex.props(styles.toast)}>
-            <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title as string}</Toast.Title>
-            <Toast.Action {...stylex.props(styles.toastAction)} />
-          </Toast.Content>
-        )}
       />
     </div>
   );

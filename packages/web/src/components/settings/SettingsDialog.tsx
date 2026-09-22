@@ -1,4 +1,3 @@
-import { Toast } from "@base-ui/react/toast";
 import {
   BrainIcon,
   CaretDownIcon,
@@ -31,9 +30,7 @@ import SettingsIndexingSection from "@/components/settings/SettingsIndexingSecti
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
-import ToastStack from "@/components/ToastStack";
 import { NativeDialog } from "@/components/ui/NativeDialog";
-import { toastIconColor } from "@/lib/settings/dialogHelpers";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/types/settings";
 
 interface SettingsDialogProps {
@@ -200,29 +197,6 @@ const styles = stylex.create({
     maxWidth: "44rem",
     width: "100%",
   },
-  toast: {
-    alignItems: "flex-start",
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
-    borderRadius: 18,
-    boxShadow: "0 24px 60px -42px rgb(34 33 29 / 0.3)",
-    display: "flex",
-    gap: 12,
-    paddingBlock: 12,
-    paddingInline: 16,
-    transition: "all 150ms",
-  },
-  toastDot: { borderRadius: 9999, flexShrink: 0, height: 8, marginTop: 4, width: 8 },
-  toastText: { display: "flex", flexDirection: "column", gap: 4 },
-  toastTitle: { color: "var(--color-memora-text-strong)", fontSize: 14, fontWeight: 600 },
-  toastDescription: { color: "var(--color-memora-text-muted)", fontSize: 12, lineHeight: "20px" },
-  toastClose: {
-    color: "var(--color-memora-text-soft)",
-    marginLeft: "auto",
-    transition: "color 150ms",
-    ":hover": { color: "var(--color-memora-text)" },
-  },
-  toastIcon: { height: 12, width: 12 },
 });
 
 const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
@@ -354,7 +328,6 @@ export default function SettingsDialog({
   activeSection,
   onSectionChange,
 }: SettingsDialogProps) {
-  const { close } = Toast.useToastManager();
   const titleId = useId();
   const descriptionId = useId();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
@@ -511,28 +484,6 @@ export default function SettingsDialog({
           </div>
         </div>
       </NativeDialog>
-
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content {...stylex.props(styles.toast)}>
-            <span
-              {...stylex.props(styles.toastDot)}
-              style={{ backgroundColor: toastIconColor(toast.type) }}
-            />
-            <div {...stylex.props(styles.toastText)}>
-              <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title}</Toast.Title>
-              {toast.description ? (
-                <Toast.Description {...stylex.props(styles.toastDescription)}>
-                  {toast.description}
-                </Toast.Description>
-              ) : null}
-            </div>
-            <Toast.Close {...stylex.props(styles.toastClose)} onClick={() => close(toast.id)}>
-              <XIcon className={stylex.props(styles.toastIcon).className} />
-            </Toast.Close>
-          </Toast.Content>
-        )}
-      />
     </>
   );
 }

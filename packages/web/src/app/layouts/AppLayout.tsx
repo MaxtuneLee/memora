@@ -3,6 +3,7 @@ import { Toast } from "@base-ui/react/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "@/app/components/Sidebar";
 import SearchPalette from "@/components/search/SearchPalette";
+import ToastStack from "@/components/ToastStack";
 import SettingsDialog from "@/components/settings/SettingsDialog";
 import { LocalModelDevtoolsPanel } from "@/components/devtools/LocalModelDevtoolsPanel";
 import {
@@ -223,6 +224,7 @@ export default function AppLayout() {
             onSectionChange={setActiveSection}
           />
           {import.meta.env.DEV && <LocalModelDevtoolsPanel currentPath={location.pathname} />}
+          <ToastStack />
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
     </Toast.Provider>

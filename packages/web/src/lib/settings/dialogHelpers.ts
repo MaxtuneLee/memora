@@ -209,17 +209,6 @@ export const formatMemoryTimestamp = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
 };
 
-export const toastIconColor = (type?: string): string => {
-  switch (type) {
-    case "success":
-      return "#10b981";
-    case "error":
-      return "#f43f5e";
-    default:
-      return "#a1a1aa";
-  }
-};
-
 export const parseProviderModels = (provider: Pick<ProviderRow, "models">): ModelInfo[] => {
   try {
     const parsed = JSON.parse(provider.models || "[]") as unknown;

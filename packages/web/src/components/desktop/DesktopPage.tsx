@@ -15,7 +15,6 @@ import {
 } from "@/lib/library/fileService";
 import type { FileType, RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search";
-import ToastStack from "@/components/ToastStack";
 
 const styles = stylex.create({
   root: {
@@ -25,67 +24,6 @@ const styles = stylex.create({
   fileInput: {
     display: "none",
   },
-  toast: {
-    alignItems: "flex-start",
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
-    borderRadius: "1rem",
-    borderStyle: "solid",
-    borderWidth: 1,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-    display: "flex",
-    gap: "0.75rem",
-    paddingBlock: "0.75rem",
-    paddingInline: "1rem",
-    transitionDuration: "150ms",
-    transitionProperty: "color, background-color, border-color, opacity, box-shadow, transform",
-  },
-  statusDot: {
-    borderRadius: "9999px",
-    display: "block",
-    flexShrink: 0,
-    height: "0.5rem",
-    marginTop: "0.25rem",
-    width: "0.5rem",
-  },
-  statusSuccess: {
-    backgroundColor: "#10b981",
-  },
-  statusError: {
-    backgroundColor: "#f43f5e",
-  },
-  statusDefault: {
-    backgroundColor: "#a1a1aa",
-  },
-  toastBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  toastTitle: {
-    color: "#18181b",
-    fontSize: "0.875rem",
-    fontWeight: 500,
-    lineHeight: "1.25rem",
-  },
-  toastDescription: {
-    color: "#71717a",
-    fontSize: "0.75rem",
-    lineHeight: "1rem",
-    marginTop: "0.125rem",
-  },
-  toastClose: {
-    color: {
-      default: "#a1a1aa",
-      ":hover": "#3f3f46",
-    },
-    flexShrink: 0,
-    transitionDuration: "150ms",
-    transitionProperty: "color",
-  },
-  closeIcon: {
-    fontSize: "0.75rem",
-    lineHeight: "1rem",
-  },
 });
 
 export const Component = () => {
@@ -93,7 +31,7 @@ export const Component = () => {
   const fileRows = store.useQuery(desktopFilesQuery$);
   const location = useLocation();
   const navigate = useNavigate();
-  const { add, close } = Toast.useToastManager();
+  const { add } = Toast.useToastManager();
 
   const {
     audioInputRef,
@@ -294,17 +232,6 @@ export const Component = () => {
     });
   }, [location.pathname, location.search, location.state, navigate]);
 
-  const toastIconStyle = (type?: string) => {
-    switch (type) {
-      case "success":
-        return styles.statusSuccess;
-      case "error":
-        return styles.statusError;
-      default:
-        return styles.statusDefault;
-    }
-  };
-
   return (
     <div {...stylex.props(styles.root)}>
       <Desktop
@@ -331,27 +258,6 @@ export const Component = () => {
         isUploading={isUploading}
         onCancel={handleCancel}
         onConfirm={handleUploadConfirm}
-      />
-
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content {...stylex.props(styles.toast)}>
-            <span {...stylex.props(styles.statusDot, toastIconStyle(toast.type as string))} />
-            <div {...stylex.props(styles.toastBody)}>
-              <Toast.Title {...stylex.props(styles.toastTitle)}>
-                {toast.title as string}
-              </Toast.Title>
-              {toast.description && (
-                <Toast.Description {...stylex.props(styles.toastDescription)}>
-                  {toast.description as string}
-                </Toast.Description>
-              )}
-            </div>
-            <Toast.Close {...stylex.props(styles.toastClose)} onClick={() => close(toast.id)}>
-              <span {...stylex.props(styles.closeIcon)}>&#10005;</span>
-            </Toast.Close>
-          </Toast.Content>
-        )}
       />
     </div>
   );

@@ -1,8 +1,6 @@
 import { ConfirmDialog } from "@/components/desktop";
-import { Toast } from "@base-ui/react/toast";
 import * as stylex from "@stylexjs/stylex";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
-import ToastStack from "@/components/ToastStack";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
@@ -23,18 +21,6 @@ const styles = stylex.create({
     paddingTop: 24,
     width: "100%",
   },
-  toast: {
-    alignItems: "center",
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e9e5dc",
-    borderRadius: 16,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)",
-    display: "flex",
-    gap: 12,
-    paddingBlock: 12,
-    paddingInline: 16,
-  },
-  toastTitle: { color: "#1d1c1a", flex: 1, fontSize: 13, fontWeight: 600 },
 });
 
 export const ChatPageView = (props: {
@@ -225,14 +211,6 @@ export const ChatPageView = (props: {
           }
           onConfirmDeleteSession(pendingDeleteSessionId);
         }}
-      />
-
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content {...stylex.props(styles.toast)}>
-            <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title as string}</Toast.Title>
-          </Toast.Content>
-        )}
       />
     </>
   );

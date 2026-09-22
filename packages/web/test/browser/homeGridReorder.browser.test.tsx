@@ -129,14 +129,7 @@ function HomeGridHarnessInner({
         onResize={handleResize}
         reducedMotion={reducedMotion}
       />
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content>
-            <Toast.Title>{toast.title as string}</Toast.Title>
-            <Toast.Action />
-          </Toast.Content>
-        )}
-      />
+      <ToastStack />
     </div>
   );
 }
