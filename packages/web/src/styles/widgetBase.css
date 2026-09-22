@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Noto+Sans+SC:wght@100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap");
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   font-family: var(--font-sans, "Noto Sans", "Noto Sans SC", sans-serif);
   --color-background-primary: #fffdfa;
   --color-background-secondary: #f6f3ec;
@@ -83,53 +83,63 @@
   --widget-range-thumb-border: rgba(123, 135, 90, 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: light;
-    --color-background-primary: #fffdfa;
-    --color-background-secondary: #f6f3ec;
-    --color-background-tertiary: #fcfaf5;
-    --color-background-info: #172554;
-    --color-background-danger: #450a0a;
-    --color-background-success: #052e16;
-    --color-background-warning: #451a03;
-    --color-text-primary: #1d1c1a;
-    --color-text-secondary: #716c64;
-    --color-text-tertiary: #8f897d;
-    --color-text-info: #93c5fd;
-    --color-text-danger: #fca5a5;
-    --color-text-success: #6ee7b7;
-    --color-text-warning: #fcd34d;
-    --color-border-tertiary: rgba(234, 230, 223, 0.7);
-    --color-border-secondary: #eae6df;
-    --color-border-primary: #ded7cc;
-    --color-border-info: rgba(147, 197, 253, 0.35);
-    --color-border-danger: rgba(252, 165, 165, 0.35);
-    --color-border-success: rgba(110, 231, 183, 0.35);
-    --color-border-warning: rgba(252, 211, 77, 0.35);
-    --svg-blue-text-secondary: #bfdbfe;
-    --svg-red-text-secondary: #fecaca;
-    --svg-amber-text-secondary: #fde68a;
-    --svg-green-text-secondary: #a7f3d0;
-    --svg-teal-fill: #042f2e;
-    --svg-teal-stroke: rgba(94, 234, 212, 0.32);
-    --svg-teal-text: #5eead4;
-    --svg-teal-text-secondary: #99f6e4;
-    --svg-purple-fill: #2e1065;
-    --svg-purple-stroke: rgba(196, 181, 253, 0.32);
-    --svg-purple-text: #c4b5fd;
-    --svg-purple-text-secondary: #ddd6fe;
-    --svg-coral-fill: #431407;
-    --svg-coral-stroke: rgba(251, 146, 60, 0.32);
-    --svg-coral-text: #fb923c;
-    --svg-coral-text-secondary: #fdba74;
-    --svg-pink-fill: #500724;
-    --svg-pink-stroke: rgba(244, 114, 182, 0.3);
-    --svg-pink-text: #f472b6;
-    --svg-pink-text-secondary: #f9a8d4;
-    --widget-focus-ring: 0 0 0 3px rgba(167, 175, 143, 0.28);
-    --widget-thumb-shadow: 0 1px 2px rgba(29, 28, 26, 0.12);
-  }
+/* The host sets data-theme to the resolved app theme (initially and on every change), so widgets
+   follow the app's Light/Dark/System preference rather than the OS alone. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background-primary: #262521;
+  --color-background-secondary: #2c2b26;
+  --color-background-tertiary: #23221e;
+  --color-background-info: #172554;
+  --color-background-danger: #450a0a;
+  --color-background-success: #052e16;
+  --color-background-warning: #451a03;
+  --color-text-primary: #ece8df;
+  --color-text-secondary: #aba598;
+  --color-text-tertiary: #908a7d;
+  --color-text-info: #93c5fd;
+  --color-text-danger: #fca5a5;
+  --color-text-success: #6ee7b7;
+  --color-text-warning: #fcd34d;
+  --color-border-tertiary: rgba(58, 56, 50, 0.7);
+  --color-border-secondary: #3a3832;
+  --color-border-primary: #4d4a42;
+  --color-border-info: rgba(147, 197, 253, 0.35);
+  --color-border-danger: rgba(252, 165, 165, 0.35);
+  --color-border-success: rgba(110, 231, 183, 0.35);
+  --color-border-warning: rgba(252, 211, 77, 0.35);
+  --svg-blue-text-secondary: #bfdbfe;
+  --svg-red-text-secondary: #fecaca;
+  --svg-amber-text-secondary: #fde68a;
+  --svg-green-text-secondary: #a7f3d0;
+  --svg-teal-fill: #042f2e;
+  --svg-teal-stroke: rgba(94, 234, 212, 0.32);
+  --svg-teal-text: #5eead4;
+  --svg-teal-text-secondary: #99f6e4;
+  --svg-purple-fill: #2e1065;
+  --svg-purple-stroke: rgba(196, 181, 253, 0.32);
+  --svg-purple-text: #c4b5fd;
+  --svg-purple-text-secondary: #ddd6fe;
+  --svg-coral-fill: #431407;
+  --svg-coral-stroke: rgba(251, 146, 60, 0.32);
+  --svg-coral-text: #fb923c;
+  --svg-coral-text-secondary: #fdba74;
+  --svg-pink-fill: #500724;
+  --svg-pink-stroke: rgba(244, 114, 182, 0.3);
+  --svg-pink-text: #f472b6;
+  --svg-pink-text-secondary: #f9a8d4;
+  --widget-focus-ring: 0 0 0 3px rgba(180, 194, 138, 0.3);
+  --widget-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --widget-button-background: #262521;
+  --widget-button-background-hover: #35332d;
+  --widget-button-text: #ece8df;
+  --widget-button-border: #3a3832;
+  --widget-button-border-hover: #4d4a42;
+  --widget-button-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  --widget-range-track: #33312c;
+  --widget-range-fill: #a3b17a;
+  --widget-range-thumb-background: #ece8df;
+  --widget-range-thumb-border: rgba(163, 177, 122, 0.4);
 }
 
 html,

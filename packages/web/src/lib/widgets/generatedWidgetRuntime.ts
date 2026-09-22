@@ -1,6 +1,7 @@
 import widgetBaseCss from "@/styles/widgetBase.css?raw";
 import svgCss from "@/styles/svg.css?raw";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import type { ResolvedTheme } from "@/lib/theme/documentTheme";
 
 export const GENERATED_WIDGET_READY_MESSAGE = "memora:generated-widget-ready";
 export const GENERATED_WIDGET_DATA_MESSAGE = "memora:generated-widget-data";
@@ -11,6 +12,7 @@ export const GENERATED_WIDGET_OPEN_LINK_MESSAGE = "memora:generated-widget-open-
 export const GENERATED_WIDGET_WRITE_DATA_MESSAGE = "memora:generated-widget-write-data";
 export const GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE =
   "memora:generated-widget-write-data-result";
+export const GENERATED_WIDGET_THEME_MESSAGE = "memora:generated-widget-theme";
 
 // Same allowlist the show-widget-skills docs teach the agent (see README.md's "CDN allowlist"
 // bullet). There is no browser-level CSP backing that claim, so this filter — applied when
@@ -43,7 +45,12 @@ export const escapeClosingScriptTag = (source: string): string =>
 // Separate from Chat's WIDGET_BRIDGE_KEY runtime (see ADR 0006): this shim talks to the
 // host exclusively over postMessage, since the iframe allows scripts and forms but has no
 // allow-same-origin permission and cannot receive a live object reference from the parent.
-export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
+export const buildGeneratedWidgetSrcDoc = (
+  widgetCode: string,
+  initialTheme: ResolvedTheme = "light",
+): string => {
+  // Normalized so only the two known literals ever reach the html attribute below.
+  const theme = initialTheme === "dark" ? "dark" : "light";
   const parsed = parseShowWidgetCode(widgetCode);
   const inlineScripts = parsed.scripts.filter((script) => !script.src);
   const externalScripts = parsed.scripts.filter(
@@ -61,7 +68,7 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
     .map((href) => `<script src="${escapeHtmlAttribute(href)}"></script>`)
     .join("");
 
-  return `<!doctype html><html><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style>${parsed.styleText}</style></head><body><div id="widget-root" data-widget-content>${parsed.htmlRenderable}</div>${externalScriptTags}<script>
+  return `<!doctype html><html data-theme="${theme}" style="color-scheme: ${theme}"><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style>${parsed.styleText}</style></head><body><div id="widget-root" data-widget-content>${parsed.htmlRenderable}</div>${externalScriptTags}<script>
 (() => {
   "use strict";
   const container = document.getElementById("widget-root");
@@ -186,6 +193,20 @@ export const buildGeneratedWidgetSrcDoc = (widgetCode: string): string => {
 
   window.addEventListener("message", (event) => {
     if (!event.data) {
+      return;
+    }
+
+    // Theme updates only come from the host and only carry one of two literals; anything else
+    // is ignored so it cannot restyle the widget or reach the data and write handling below.
+    if (event.data.type === "${GENERATED_WIDGET_THEME_MESSAGE}") {
+      if (event.source !== window.parent) {
+        return;
+      }
+      const nextTheme = event.data.theme;
+      if (nextTheme === "light" || nextTheme === "dark") {
+        document.documentElement.dataset.theme = nextTheme;
+        document.documentElement.style.colorScheme = nextTheme;
+      }
       return;
     }
 

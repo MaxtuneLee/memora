@@ -9,11 +9,13 @@ import {
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_RESIZE_MESSAGE,
   GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
+  GENERATED_WIDGET_THEME_MESSAGE,
   GENERATED_WIDGET_WRITE_DATA_MESSAGE,
   GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE,
   buildGeneratedWidgetSrcDoc,
 } from "@/lib/widgets/generatedWidgetRuntime";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 
 import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
 
@@ -73,7 +75,14 @@ export function GeneratedWidgetFrame({
   const [ready, setReady] = useState(false);
   const [height, setHeight] = useState(1);
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
-  const srcDoc = useMemo(() => buildGeneratedWidgetSrcDoc(widgetCode), [widgetCode]);
+  const theme = useResolvedTheme();
+  // Only the first theme goes into the srcDoc: later changes arrive as messages, so switching
+  // themes never reloads the frame or reruns the widget script.
+  const [initialTheme] = useState(theme);
+  const srcDoc = useMemo(
+    () => buildGeneratedWidgetSrcDoc(widgetCode, initialTheme),
+    [widgetCode, initialTheme],
+  );
   const isVisible = ready && dataReady;
 
   useEffect(() => {
@@ -141,6 +150,17 @@ export function GeneratedWidgetFrame({
       "*",
     );
   }, [ready, dataReady, data]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: GENERATED_WIDGET_THEME_MESSAGE, theme },
+      "*",
+    );
+  }, [ready, theme]);
 
   if (hasRuntimeError) {
     return (

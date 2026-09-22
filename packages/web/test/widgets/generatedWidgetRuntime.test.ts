@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test } from "vite-plus/test";
 
 import {
@@ -6,6 +8,7 @@ import {
   GENERATED_WIDGET_OPEN_LINK_MESSAGE,
   GENERATED_WIDGET_READY_MESSAGE,
   GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
+  GENERATED_WIDGET_THEME_MESSAGE,
   GENERATED_WIDGET_WRITE_DATA_MESSAGE,
   GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE,
   buildGeneratedWidgetSrcDoc,
@@ -109,4 +112,31 @@ test("only emits the external script tags, not their (empty) content, into the e
 
   expect(srcDoc).toContain("window.ran = true;");
   expect(srcDoc).toContain('<script src="https://esm.sh/foo"></script>');
+});
+
+test("starts the widget document in the host's resolved theme", () => {
+  expect(buildGeneratedWidgetSrcDoc("<div>widget</div>")).toContain(
+    '<html data-theme="light" style="color-scheme: light">',
+  );
+  expect(buildGeneratedWidgetSrcDoc("<div>widget</div>", "dark")).toContain(
+    '<html data-theme="dark" style="color-scheme: dark">',
+  );
+});
+
+test("listens for host theme updates next to the data and write channels", () => {
+  const srcDoc = buildGeneratedWidgetSrcDoc("<div>widget</div>");
+
+  expect(srcDoc).toContain(GENERATED_WIDGET_THEME_MESSAGE);
+  expect(srcDoc).toContain("event.source !== window.parent");
+  expect(srcDoc).toContain('nextTheme === "light" || nextTheme === "dark"');
+});
+
+test("widget base styles give dark mode its own tokens instead of forcing light", () => {
+  const widgetBaseCss = readFileSync(
+    new URL("../../src/styles/widgetBase.css", import.meta.url),
+    "utf8",
+  );
+
+  expect(widgetBaseCss).not.toContain("prefers-color-scheme");
+  expect(widgetBaseCss).toMatch(/:root\[data-theme="dark"\] \{\n  color-scheme: dark;/);
 });
