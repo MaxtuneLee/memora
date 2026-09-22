@@ -2,6 +2,7 @@ import {
   Type,
   type AssistantMessage,
   type Context,
+  type JsonObject,
   type Message,
   type Tool,
 } from "@earendil-works/pi-ai";
@@ -75,7 +76,8 @@ const toPiMessage = (message: AgentMessage): Message[] => {
         type: "toolCall" as const,
         id: toolCall.id,
         name: toolCall.name,
-        arguments: toolCall.arguments,
+        // Tool arguments are validated as a record of unknown, but only ever hold parsed JSON.
+        arguments: toolCall.arguments as JsonObject,
       })),
     ];
     return [

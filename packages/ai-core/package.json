@@ -22,7 +22,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "0.84.2",
+    "@earendil-works/pi-ai": "0.87.0",
     "@valibot/to-json-schema": "1.5.0"
   },
   "devDependencies": {

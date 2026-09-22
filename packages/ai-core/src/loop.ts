@@ -13,7 +13,12 @@ import type {
   ToolDefinition,
   PromptSegment,
 } from "./types";
-import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+import {
+  normalizeContext,
+  type Api,
+  type AssistantMessage,
+  type Model,
+} from "@earendil-works/pi-ai";
 import { clampMaxTokensToContext } from "@earendil-works/pi-ai/api/simple-options";
 
 import {
@@ -375,7 +380,7 @@ export class Agent {
 
     for (;;) {
       const messages = trimmed ? dropStaleUsage(candidate) : candidate;
-      const context = toPiContext({ systemPrompt, messages, tools });
+      const context = normalizeContext(toPiContext({ systemPrompt, messages, tools }));
       if (clampMaxTokensToContext(this.model, context, desiredMaxTokens) >= requiredTokens) {
         return messages;
       }

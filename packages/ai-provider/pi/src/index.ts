@@ -1,14 +1,20 @@
 import {
+  collapseSystemMessages,
   createAssistantMessageEventStream,
   createModels,
   createProvider,
+  getCurrentSystemPrompt,
+  getCurrentTools,
+  withoutInitialSystemMessage,
   type Api,
   type AssistantMessage,
   type Context,
+  type JsonObject,
   type Model,
   type ProviderStreams,
   type SimpleStreamOptions,
   type StreamOptions,
+  type TranscriptContext,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
@@ -210,13 +216,17 @@ const toLocalContent = (content: Context["messages"][number]): LocalChatContent[
 
 const toLocalRequest = (
   model: Model<Api>,
-  context: Context,
+  context: TranscriptContext,
   options?: SimpleStreamOptions,
 ): LocalChatRequest => {
+  // Providers receive the prompt and tools as system messages. The local runtime takes them
+  // as separate request fields, so replay them back out and send the rest as the transcript.
+  const transcript = collapseSystemMessages(context);
+  const messages = withoutInitialSystemMessage(transcript.messages);
   return {
     modelId: model.id,
-    systemPrompt: context.systemPrompt ?? "",
-    messages: context.messages.map((message) => ({
+    systemPrompt: getCurrentSystemPrompt(transcript.messages),
+    messages: messages.map((message) => ({
       role: message.role === "toolResult" ? "tool" : message.role,
       content: toLocalContent(message),
       ...(message.role === "assistant"
@@ -228,7 +238,7 @@ const toLocalRequest = (
           }
         : {}),
     })),
-    tools: (context.tools ?? []).map((tool) => ({
+    tools: getCurrentTools(transcript.messages).map((tool) => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
@@ -274,7 +284,11 @@ const createLocalModel = (manifest: LocalModelManifest): Model<typeof LOCAL_API>
 };
 
 const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
-  const streamSimple = (model: Model<Api>, context: Context, options?: SimpleStreamOptions) => {
+  const streamSimple = (
+    model: Model<Api>,
+    context: TranscriptContext,
+    options?: SimpleStreamOptions,
+  ) => {
     const eventStream = createAssistantMessageEventStream();
 
     void (async () => {
@@ -389,7 +403,8 @@ const createLocalStreams = (client: LocalModelClientLike): ProviderStreams => {
               const toolCall = output.content[contentIndex];
               if (toolCall?.type === "toolCall") {
                 toolCall.name = event.toolCall.name;
-                toolCall.arguments = event.toolCall.arguments;
+                // Local tool arguments come from JSON.parse, so they are already JSON values.
+                toolCall.arguments = event.toolCall.arguments as JsonObject;
                 eventStream.push({ type: "toolcall_end", contentIndex, toolCall, partial: output });
               }
               break;
@@ -483,3 +498,48 @@ export const createLocalPiRuntime = (input: {
 };
 
 export { LOCAL_API, LOCAL_PROVIDER_ID };
+
+export interface PiModelLimits {
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+let limitsLookup: Promise<(modelId: string) => PiModelLimits | undefined> | null = null;
+
+const positiveOrUndefined = (value: number): number | undefined =>
+  Number.isFinite(value) && value > 0 ? value : undefined;
+
+// One id can appear under several providers. Keep the smallest value: under-reporting only
+// costs headroom, over-reporting gets the request rejected by the provider.
+const smaller = (known: number | undefined, next: number | undefined): number | undefined => {
+  if (known === undefined) return next;
+  if (next === undefined) return known;
+  return Math.min(known, next);
+};
+
+/**
+ * Token limits from pi's generated model catalog, keyed by model id. Callers use this when a
+ * provider's own model listing omits them, instead of falling back to a guess for a model pi
+ * already knows. The catalog is large, so it loads on first use and stays in its own chunk.
+ */
+export const loadPiModelLimits = (): Promise<(modelId: string) => PiModelLimits | undefined> => {
+  limitsLookup ??= (async () => {
+    const { getBuiltinModels, getBuiltinProviders } =
+      await import("@earendil-works/pi-ai/providers/all");
+    const limits = new Map<string, PiModelLimits>();
+    for (const provider of getBuiltinProviders()) {
+      for (const model of getBuiltinModels(provider)) {
+        const contextWindow = positiveOrUndefined(model.contextWindow);
+        const maxTokens = positiveOrUndefined(model.maxTokens);
+        if (contextWindow === undefined && maxTokens === undefined) continue;
+        const known = limits.get(model.id);
+        limits.set(model.id, {
+          contextWindow: smaller(known?.contextWindow, contextWindow),
+          maxTokens: smaller(known?.maxTokens, maxTokens),
+        });
+      }
+    }
+    return (modelId: string) => limits.get(modelId);
+  })();
+  return limitsLookup;
+};
