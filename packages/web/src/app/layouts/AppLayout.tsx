@@ -15,12 +15,14 @@ import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 import type { SettingsSectionId } from "@/types/settings";
 import { useAppStore } from "@/livestore/store";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
-import { appShellStyles, lightTheme } from "@/styles/stylex.stylex";
+import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
+import { appShellStyles } from "@/styles/stylex.stylex";
 import * as stylex from "@stylexjs/stylex";
 
 export default function AppLayout() {
   const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$);
+  useDocumentTheme(settings.theme ?? "system");
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
@@ -201,13 +203,11 @@ export default function AppLayout() {
       <SettingsDialogContextProvider value={settingsValue}>
         <SearchPaletteContextProvider value={searchValue}>
           {!onboardingGateReady ? (
-            <div {...stylex.props(lightTheme, appShellStyles.loading)}>
-              Preparing your workspace...
-            </div>
+            <div {...stylex.props(appShellStyles.loading)}>Preparing your workspace...</div>
           ) : isOnboardingRoute ? (
             <Outlet />
           ) : (
-            <div {...stylex.props(lightTheme, appShellStyles.shell)}>
+            <div {...stylex.props(appShellStyles.shell)}>
               <Sidebar />
               <main {...stylex.props(appShellStyles.content)}>
                 <div {...stylex.props(appShellStyles.scrollArea)}>

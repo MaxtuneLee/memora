@@ -2,8 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
+import { applyDocumentTheme } from "./lib/theme/documentTheme";
 import { startAutoHideScrollbars } from "./lib/ui/autoHideScrollbars";
 
+// index.html resolved the first-frame theme; add the matching StyleX theme before React renders.
+applyDocumentTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 startAutoHideScrollbars();
 
 if (import.meta.env.DEV) {

@@ -113,8 +113,10 @@ const config = {
         name: "Memora",
         short_name: "Memora",
         description: "Local-first multimodal learning and memory workspace.",
-        theme_color: "#09090b",
-        background_color: "#09090b",
+        // Manifest colors are static; they match the light default and runtime metadata
+        // follows the resolved theme.
+        theme_color: "#fcfaf6",
+        background_color: "#fcfaf6",
         display: "standalone",
         start_url: "/",
         scope: "/",

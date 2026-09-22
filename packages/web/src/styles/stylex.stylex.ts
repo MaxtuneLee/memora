@@ -1,14 +1,144 @@
 import * as stylex from "@stylexjs/stylex";
 
-export const tokens = stylex.defineVars({
+// Semantic color roles. Components read these instead of literals so every role has a
+// light and dark value. The defaults are the light values; the theme classes are applied
+// to the document root by useDocumentTheme.
+const LIGHT_COLORS = {
+  // Application layers
   background: "#fcfaf6",
+  shell: "#fffbf2",
+  canvas: "#fcfaf6",
+  rail: "#f7f2e9",
+  sidebar: "#f6f4ee",
   surface: "#fffdfa",
+  surfaceSoft: "#fcfaf5",
   surfaceMuted: "#f6f3ec",
-  border: "#eae6df",
+  card: "#ffffff",
+  // Text
   text: "#1d1c1a",
+  textStrong: "#22211d",
   textMuted: "#716c64",
+  textSoft: "#8f897d",
+  textInverse: "#fcfaf6",
+  // Borders
+  border: "#eae6df",
+  borderSoft: "#e8e1d5",
+  borderStrong: "#d6d0c4",
+  // Accent
   olive: "#7b875a",
   oliveSoft: "#a7af8f",
+  // Interaction states
+  hover: "#efece5",
+  hoverStrong: "#faf7f0",
+  pressed: "#e7e3da",
+  selected: "#eef0e4",
+  // Controls
+  controlBackground: "#fffdfa",
+  controlBorder: "#e3ddd2",
+  controlDisabledBackground: "#f3f0ea",
+  controlDisabledText: "#aaa497",
+  primaryBackground: "#1d1c1a",
+  primaryText: "#fcfaf6",
+  // Focus, overlays, selection
+  focusRing: "#7b875a",
+  overlay: "rgb(29 28 26 / 32%)",
+  selectionBackground: "#879a4f",
+  selectionText: "#18181b",
+  // Status surfaces
+  warningSurface: "#fdf6f1",
+  warningBorder: "#eadfd6",
+  warningText: "#7b4f39",
+  dangerSurface: "#fdf2f1",
+  dangerBorder: "#efd3cf",
+  dangerText: "#9b3a2f",
+  successSurface: "#f1f6ee",
+  successBorder: "#d5e3cc",
+  successText: "#3f6b35",
+  infoSurface: "#eff3fb",
+  infoBorder: "#d3dcef",
+  infoText: "#34528f",
+  // Content types
+  contentAudio: "#8cbf67",
+  contentVideo: "#6d8fd4",
+  contentImage: "#d0a267",
+  // Charts
+  chart1: "#7b875a",
+  chart2: "#6d8fd4",
+  chart3: "#d0a267",
+  chart4: "#b8716a",
+  chart5: "#8a7fb8",
+  chartGrid: "#eae6df",
+  chartLabel: "#716c64",
+  // Shadows
+  shadowSmall: "0 1px 2px 0 rgb(0 0 0 / 3%)",
+  shadowMedium: "0 4px 6px -1px rgb(0 0 0 / 5%)",
+  shadowLarge: "0 16px 40px -12px rgb(0 0 0 / 12%)",
+};
+
+// Warm gray and olive, without pure black surfaces.
+const DARK_COLORS: typeof LIGHT_COLORS = {
+  background: "#1b1a17",
+  shell: "#1f1e1a",
+  canvas: "#1b1a17",
+  rail: "#22211d",
+  sidebar: "#201f1b",
+  surface: "#262521",
+  surfaceSoft: "#23221e",
+  surfaceMuted: "#2c2b26",
+  card: "#292824",
+  text: "#ece8df",
+  textStrong: "#f5f2ea",
+  textMuted: "#aba598",
+  textSoft: "#908a7d",
+  textInverse: "#1d1c1a",
+  border: "#3a3832",
+  borderSoft: "#33312c",
+  borderStrong: "#4d4a42",
+  olive: "#a3b17a",
+  oliveSoft: "#7d8662",
+  hover: "#2f2d28",
+  hoverStrong: "#35332d",
+  pressed: "#3b3933",
+  selected: "#343829",
+  controlBackground: "#23221e",
+  controlBorder: "#45423b",
+  controlDisabledBackground: "#2a2925",
+  controlDisabledText: "#726d63",
+  primaryBackground: "#ece8df",
+  primaryText: "#1d1c1a",
+  focusRing: "#b4c28a",
+  overlay: "rgb(0 0 0 / 55%)",
+  selectionBackground: "#5d6b3a",
+  selectionText: "#f5f2ea",
+  warningSurface: "#342920",
+  warningBorder: "#5a4332",
+  warningText: "#e6bc9c",
+  dangerSurface: "#3a2220",
+  dangerBorder: "#6b3a35",
+  dangerText: "#f0aba2",
+  successSurface: "#1f2e22",
+  successBorder: "#3a5a40",
+  successText: "#a3d3a5",
+  infoSurface: "#1f2836",
+  infoBorder: "#3a4a66",
+  infoText: "#abc3ef",
+  contentAudio: "#9fcf7c",
+  contentVideo: "#8ea9e2",
+  contentImage: "#deb57e",
+  chart1: "#a3b17a",
+  chart2: "#8ea9e2",
+  chart3: "#deb57e",
+  chart4: "#d9928a",
+  chart5: "#aca1d8",
+  chartGrid: "#3a3832",
+  chartLabel: "#aba598",
+  shadowSmall: "0 1px 2px 0 rgb(0 0 0 / 30%)",
+  shadowMedium: "0 4px 8px -1px rgb(0 0 0 / 40%)",
+  shadowLarge: "0 16px 40px -12px rgb(0 0 0 / 55%)",
+};
+
+export const tokens = stylex.defineVars({
+  ...LIGHT_COLORS,
   fontSans: '"Noto Sans", "Noto Sans SC", sans-serif',
   fontSerif: '"IBM Plex Serif", serif',
   radiusSmall: "0.5rem",
@@ -17,22 +147,9 @@ export const tokens = stylex.defineVars({
   easeOut: "cubic-bezier(0.25, 1, 0.5, 1)",
 });
 
-export const lightTheme = stylex.createTheme(tokens, {
-  background: "#fcfaf6",
-  surface: "#fffdfa",
-  surfaceMuted: "#f6f3ec",
-  border: "#eae6df",
-  text: "#1d1c1a",
-  textMuted: "#716c64",
-  olive: "#7b875a",
-  oliveSoft: "#a7af8f",
-  fontSans: '"Noto Sans", "Noto Sans SC", sans-serif',
-  fontSerif: '"IBM Plex Serif", serif',
-  radiusSmall: "0.5rem",
-  radiusMedium: "0.75rem",
-  durationFast: "220ms",
-  easeOut: "cubic-bezier(0.25, 1, 0.5, 1)",
-});
+export const lightTheme = stylex.createTheme(tokens, LIGHT_COLORS);
+
+export const darkTheme = stylex.createTheme(tokens, DARK_COLORS);
 
 export const appShellStyles = stylex.create({
   loading: {
@@ -56,8 +173,8 @@ export const appShellStyles = stylex.create({
     overflow: "hidden",
     width: "100%",
     "::selection": {
-      backgroundColor: "#879a4f",
-      color: "#18181b",
+      backgroundColor: tokens.selectionBackground,
+      color: tokens.selectionText,
     },
   },
   content: {

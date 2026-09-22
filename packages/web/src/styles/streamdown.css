@@ -131,16 +131,22 @@
   background: var(--sdm-tbg) !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  .streamdown-rich [data-streamdown="code-block-body"] pre {
-    background: var(--shiki-dark-bg, var(--sdm-bg, transparent)) !important;
-  }
+:root[data-theme="dark"] .streamdown-rich [data-streamdown="code-block-body"] pre {
+  background: var(--shiki-dark-bg, var(--sdm-bg, transparent)) !important;
+}
 
-  .streamdown-rich [data-streamdown="code-block-body"] code span[style*="--sdm-c"] {
-    color: var(--shiki-dark, var(--sdm-c, inherit)) !important;
-  }
+:root[data-theme="dark"]
+  .streamdown-rich
+  [data-streamdown="code-block-body"]
+  code
+  span[style*="--sdm-c"] {
+  color: var(--shiki-dark, var(--sdm-c, inherit)) !important;
+}
 
-  .streamdown-rich [data-streamdown="code-block-body"] code span[style*="--sdm-tbg"] {
-    background: var(--shiki-dark-bg, var(--sdm-tbg)) !important;
-  }
+:root[data-theme="dark"]
+  .streamdown-rich
+  [data-streamdown="code-block-body"]
+  code
+  span[style*="--sdm-tbg"] {
+  background: var(--shiki-dark-bg, var(--sdm-tbg)) !important;
 }

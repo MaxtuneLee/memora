@@ -18,6 +18,7 @@ import * as stylex from "@stylexjs/stylex";
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
 import SettingsModelRoutingSection from "@/components/settings/SettingsModelRoutingSection";
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
+import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
 import {
   SETTINGS_PANEL_CLASS_NAME,
@@ -49,6 +50,7 @@ const SETTINGS_NAV_HIGHLIGHT_TRANSITION = {
 
 const styles = stylex.create({
   bodyMargin: { marginTop: 8 },
+  sectionStack: { display: "flex", flexDirection: "column", gap: 20 },
   navButton: {
     alignItems: "center",
     borderRadius: 12,
@@ -346,7 +348,12 @@ export default function SettingsDialog({
   const renderSectionContent = () => {
     if (activeSection === "model-routing") return <SettingsModelRoutingSection />;
     if (activeSection === "general") {
-      return <SettingsGeneralSection />;
+      return (
+        <div {...stylex.props(styles.sectionStack)}>
+          <SettingsAppearanceSection />
+          <SettingsGeneralSection />
+        </div>
+      );
     }
 
     if (activeSection === "ai-provider") {

@@ -71,6 +71,12 @@ body {
   background: var(--color-memora-bg);
   color: var(--color-memora-text);
 }
+/* Dark first frame, set by the theme bootstrap in index.html, until the shell migrates
+   to the semantic StyleX tokens. */
+:root[data-theme="dark"] body {
+  background: #1b1a17;
+  color: #ece8df;
+}
 h1,
 h2,
 h3,
