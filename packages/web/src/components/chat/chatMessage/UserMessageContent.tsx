@@ -2,16 +2,17 @@ import type { RefObject } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
+import { tokens } from "../../../styles/stylex.stylex";
 
 import type { ChatMessageData } from "./types";
 
 const styles = stylex.create({
   editor: { display: "flex", flexDirection: "column", gap: 12 },
   textArea: {
-    backgroundColor: "#f3efe9",
-    border: "1px solid #d9d1c5",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.borderStrong}`,
     borderRadius: 16,
-    color: "#18181b",
+    color: tokens.textStrong,
     display: "block",
     fontSize: 14,
     paddingBlock: 12,
@@ -19,15 +20,15 @@ const styles = stylex.create({
     resize: "vertical",
     outline: "none",
     width: "100%",
-    "::placeholder": { color: "#a1a1aa" },
+    "::placeholder": { color: tokens.textSoft },
   },
   actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
   button: {
     alignItems: "center",
-    backgroundColor: "white",
-    border: "1px solid #d9d1c5",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.borderStrong}`,
     borderRadius: 12,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "inline-flex",
     fontSize: 12,
     fontWeight: 500,
@@ -35,20 +36,22 @@ const styles = stylex.create({
     paddingBlock: 8,
     paddingInline: 14,
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: "#fafafa" },
+    ":hover": { backgroundColor: tokens.hover },
   },
   done: {
-    backgroundColor: "#18181b",
-    borderColor: "#18181b",
-    color: "white",
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
     fontWeight: 600,
-    ":hover": { backgroundColor: "#27272a" },
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
   message: {
-    backgroundColor: "#efe7db",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 16,
-    color: "#18181b",
+    color: tokens.textStrong,
     maxWidth: "100%",
     paddingBlock: 10,
     paddingInline: 16,

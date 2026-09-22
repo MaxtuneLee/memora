@@ -3,30 +3,31 @@ import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import type { WriteApprovalRequest } from "@/lib/chat/tools";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "white",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 16,
-    boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+    boxShadow: tokens.shadowLarge,
     padding: 24,
     width: "min(460px, 94vw)",
   },
   content: { display: "flex", flexDirection: "column", gap: 16 },
-  title: { color: "#18181b", fontSize: 18, fontWeight: 600 },
-  description: { color: "#71717a", fontSize: 14, marginTop: 4 },
+  title: { color: tokens.textStrong, fontSize: 18, fontWeight: 600 },
+  description: { color: tokens.textMuted, fontSize: 14, marginTop: 4 },
   details: {
-    backgroundColor: "rgb(250 250 250 / 0.8)",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     fontSize: 12,
     paddingBlock: 10,
     paddingInline: 12,
   },
   detailLine: { marginTop: 4 },
-  detailLabel: { color: "#18181b", fontWeight: 500 },
+  detailLabel: { color: tokens.textStrong, fontWeight: 500 },
   actions: {
     alignItems: "center",
     display: "flex",
@@ -35,21 +36,23 @@ const styles = stylex.create({
     justifyContent: "flex-end",
   },
   button: {
-    border: "1px solid #e4e4e7",
+    border: `1px solid ${tokens.border}`,
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     fontSize: 14,
     paddingBlock: 6,
     paddingInline: 12,
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: "#fafafa" },
+    ":hover": { backgroundColor: tokens.hover },
   },
-  sessionButton: { backgroundColor: "white", ":hover": { backgroundColor: "#f4f4f5" } },
+  sessionButton: { backgroundColor: tokens.card, ":hover": { backgroundColor: tokens.hover } },
   allowButton: {
-    backgroundColor: "#18181b",
-    borderColor: "#18181b",
-    color: "white",
-    ":hover": { backgroundColor: "#27272a" },
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
   },
 });
 

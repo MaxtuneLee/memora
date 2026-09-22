@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
+import { tokens } from "../../styles/stylex.stylex";
 
 const shimmer = stylex.keyframes({
   "0%": { backgroundPosition: "-200% 0" },
@@ -23,30 +24,30 @@ const styles = stylex.create({
   root: { marginBottom: 12 },
   header: {
     alignItems: "center",
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "flex",
     fontSize: 12,
     fontWeight: 500,
     gap: 6,
     transition: "color 150ms",
-    ":hover": { color: "#52525b" },
+    ":hover": { color: tokens.textMuted },
   },
-  headerActive: { color: "#0d9488" },
+  headerActive: { color: tokens.oliveText },
   icon: { height: 12, width: 12 },
-  mutedIcon: { color: "#a1a1aa", flexShrink: 0, height: 12, width: 12 },
+  mutedIcon: { color: tokens.textSoft, flexShrink: 0, height: 12, width: 12 },
   activeIcon: {
     animationDuration: "1s",
     animationIterationCount: "infinite",
     animationName: spin,
     animationTimingFunction: "linear",
-    color: "#14b8a6",
+    color: tokens.oliveText,
     flexShrink: 0,
     height: 12,
     width: 12,
   },
   collapse: { overflow: "hidden" },
   steps: {
-    borderLeft: "2px solid #e4e4e7",
+    borderLeft: `2px solid ${tokens.border}`,
     display: "flex",
     flexDirection: "column",
     gap: 8,
@@ -56,13 +57,13 @@ const styles = stylex.create({
   row: { alignItems: "center", display: "flex", gap: 6 },
   reasoningRow: { alignItems: "flex-start", display: "flex", gap: 6 },
   reasoningWrap: { display: "flex", flexDirection: "column", gap: 4 },
-  text: { color: "#71717a", fontSize: 12 },
-  reasoningText: { color: "#71717a", fontSize: 12, lineHeight: 1.625 },
+  text: { color: tokens.textMuted, fontSize: 12 },
+  reasoningText: { color: tokens.textMuted, fontSize: 12, lineHeight: 1.625 },
   shimmer: {
     animationDuration: "2s",
     animationIterationCount: "infinite",
     animationName: shimmer,
-    backgroundImage: "linear-gradient(to right, #f4f4f5, #fafafa, #f4f4f5)",
+    backgroundImage: `linear-gradient(to right, ${tokens.surfaceMuted}, ${tokens.hoverStrong}, ${tokens.surfaceMuted})`,
     backgroundSize: "200% 100%",
     borderRadius: 4,
     height: 12,
@@ -72,7 +73,7 @@ const styles = stylex.create({
   searchWrap: { display: "flex", flexDirection: "column", gap: 6 },
   searchResult: {
     alignItems: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 8,
     display: "flex",
     gap: 6,
@@ -82,7 +83,7 @@ const styles = stylex.create({
   },
   children: { display: "flex", flexDirection: "column", gap: 4, marginLeft: 18 },
   childText: {
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     fontSize: 12,
     overflow: "hidden",
     textOverflow: "ellipsis",

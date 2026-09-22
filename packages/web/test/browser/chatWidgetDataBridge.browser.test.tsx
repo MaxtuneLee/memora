@@ -1,10 +1,11 @@
-import { useMemo, type JSX } from "react";
+import { useMemo, useState, type JSX } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { WIDGET_IFRAME_SRC_DOC } from "@/components/chat/chatWidget/constants";
+import { buildWidgetIframeSrcDoc } from "@/components/chat/chatWidget/constants";
 import { useWidgetIframe } from "@/components/chat/chatWidget/useWidgetIframe";
 import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime";
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
@@ -27,6 +28,9 @@ const WIDGET: ChatWidgetData = {
 
 function DataBridgeHarness({ dataState }: { dataState: DataSourceValueState | null }): JSX.Element {
   const parsedCode = useMemo(() => parseShowWidgetCode(WIDGET.widgetCode), []);
+  const resolvedTheme = useResolvedTheme();
+  const [initialTheme] = useState(resolvedTheme);
+  const iframeSrcDoc = useMemo(() => buildWidgetIframeSrcDoc(initialTheme), [initialTheme]);
   const {
     iframeRef,
     iframeDocumentRef,
@@ -54,7 +58,7 @@ function DataBridgeHarness({ dataState }: { dataState: DataSourceValueState | nu
     <iframe
       ref={iframeRef}
       title={WIDGET.title}
-      srcDoc={WIDGET_IFRAME_SRC_DOC}
+      srcDoc={iframeSrcDoc}
       style={{ height: iframeHeight, width: "100%" }}
       onLoad={bindIframeDocument}
     />

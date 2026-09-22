@@ -14,6 +14,7 @@ import {
   MEMORA_STREAMDOWN_THEME,
 } from "@/lib/streamdown";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
+import { tokens } from "../../../styles/stylex.stylex";
 
 import { MediaJumpCard } from "./MediaJumpCard";
 import type { ChatMessageData } from "./types";
@@ -23,10 +24,10 @@ const styles = stylex.create({
   content: { display: "flex", flexDirection: "column", gap: 12 },
   contentWithWidgets: { marginTop: 12 },
   loading: { alignItems: "center", display: "flex", gap: 4, paddingBlock: 2 },
-  loadingDot: { backgroundColor: "#a1a1aa", borderRadius: 9999, height: 6, width: 6 },
+  loadingDot: { backgroundColor: tokens.textSoft, borderRadius: 9999, height: 6, width: 6 },
   tokenUsage: {
-    borderTop: "1px solid rgb(228 228 231 / 0.7)",
-    color: "#a1a1aa",
+    borderTop: `1px solid ${tokens.border}`,
+    color: tokens.textSoft,
     fontSize: 11,
     fontWeight: 500,
     marginTop: 12,

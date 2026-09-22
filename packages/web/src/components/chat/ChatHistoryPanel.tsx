@@ -2,15 +2,16 @@ import { memo, useMemo } from "react";
 import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "rgb(247 242 233 / 0.85)",
+    backgroundColor: `color-mix(in srgb, ${tokens.rail} 85%, transparent)`,
     display: "flex",
     flexDirection: "column",
     height: "100%",
   },
-  header: { borderBottom: "1px solid rgb(228 228 231 / 0.6)", flexShrink: 0, padding: 12 },
+  header: { borderBottom: `1px solid ${tokens.borderSoft}`, flexShrink: 0, padding: 12 },
   headingRow: {
     alignItems: "center",
     display: "flex",
@@ -20,7 +21,7 @@ const styles = stylex.create({
   },
   headingCopy: { minWidth: 0 },
   heading: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: 14,
     fontWeight: 600,
     overflow: "hidden",
@@ -28,7 +29,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   activeTitle: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -37,21 +38,21 @@ const styles = stylex.create({
   iconButton: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "inline-flex",
     height: 28,
     justifyContent: "center",
     transition: "color 150ms, background-color 150ms",
     width: 28,
-    ":hover": { backgroundColor: "rgb(228 228 231 / 0.7)", color: "#27272a" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text },
   },
   icon: { height: 14, width: 14 },
   newSession: {
     alignItems: "center",
-    backgroundColor: "white",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "inline-flex",
     fontSize: 12,
     fontWeight: 500,
@@ -61,15 +62,15 @@ const styles = stylex.create({
     paddingInline: 12,
     transition: "background-color 150ms",
     width: "100%",
-    ":hover": { backgroundColor: "#fafafa" },
+    ":hover": { backgroundColor: tokens.hover },
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
   scrollArea: { flex: 1, minHeight: 0, overflowY: "auto", paddingBlock: 12, paddingInline: 8 },
   empty: {
-    backgroundColor: "rgb(255 255 255 / 0.6)",
-    border: "1px dashed rgb(228 228 231 / 0.7)",
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 60%, transparent)`,
+    border: `1px dashed ${tokens.borderSoft}`,
     borderRadius: 12,
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     paddingBlock: 16,
     paddingInline: 12,
@@ -78,8 +79,8 @@ const styles = stylex.create({
   groups: { display: "flex", flexDirection: "column", gap: 12 },
   groupHeading: {
     backdropFilter: "blur(8px)",
-    backgroundColor: "rgb(247 242 233 / 0.95)",
-    color: "#71717a",
+    backgroundColor: `color-mix(in srgb, ${tokens.rail} 95%, transparent)`,
+    color: tokens.textMuted,
     fontSize: 12,
     fontWeight: 600,
     paddingBlock: 6,
@@ -91,16 +92,20 @@ const styles = stylex.create({
   sessions: { display: "flex", flexDirection: "column", gap: 4 },
   session: {
     alignItems: "flex-start",
-    backgroundColor: "rgb(255 255 255 / 0.8)",
-    border: "1px solid #e4e4e7",
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "flex",
     gap: 4,
     padding: 8,
     transition: "background-color 150ms, border-color 150ms",
   },
-  sessionActive: { backgroundColor: "#18181b", borderColor: "#18181b", color: "white" },
+  sessionActive: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+  },
   disabled: { cursor: "not-allowed", opacity: 0.6 },
   select: {
     backgroundColor: "transparent",
@@ -119,18 +124,18 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   preview: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     marginTop: 4,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  previewActive: { color: "#d4d4d8" },
+  previewActive: { color: `color-mix(in srgb, ${tokens.primaryText} 80%, transparent)` },
   delete: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "inline-flex",
     flexShrink: 0,
     height: 28,
@@ -138,9 +143,15 @@ const styles = stylex.create({
     marginTop: 2,
     transition: "all 150ms",
     width: 28,
-    ":hover": { backgroundColor: "#f4f4f5", color: "#dc2626" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.dangerText },
   },
-  deleteActive: { color: "#d4d4d8", ":hover": { backgroundColor: "#27272a", color: "#fca5a5" } },
+  deleteActive: {
+    color: `color-mix(in srgb, ${tokens.primaryText} 80%, transparent)`,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryText} 15%, transparent)`,
+      color: tokens.primaryText,
+    },
+  },
   deleting: { cursor: "not-allowed", opacity: 0.4 },
 });
 

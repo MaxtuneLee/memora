@@ -8,7 +8,7 @@ import { WidgetPlaceholder } from "@/components/chat/chatWidget/WidgetPlaceholde
 import { SaveWidgetDefinitionDialog } from "@/components/chat/chatWidget/SaveWidgetDefinitionDialog";
 import {
   IS_DEV,
-  WIDGET_IFRAME_SRC_DOC,
+  buildWidgetIframeSrcDoc,
   getPlaceholderCopy,
   getWidgetLabel,
 } from "@/components/chat/chatWidget/constants";
@@ -21,30 +21,32 @@ import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
 import { useDataSourceValue, type DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import { usePreviewWidgetData } from "@/hooks/widgets/usePreviewWidgetData";
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "rgb(250 250 250 / 0.7)",
-    border: "1px solid rgb(228 228 231 / 0.8)",
+    backgroundColor: tokens.surfaceSoft,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 16,
     overflow: "hidden",
   },
   header: {
     alignItems: "center",
-    borderBottom: "1px solid rgb(228 228 231 / 0.8)",
+    borderBottom: `1px solid ${tokens.border}`,
     display: "flex",
     gap: 12,
     justifyContent: "space-between",
     paddingBlock: 8,
     paddingInline: 12,
   },
-  label: { color: "#71717a", fontFamily: "monospace", fontSize: 11, margin: 0 },
+  label: { color: tokens.textMuted, fontFamily: "monospace", fontSize: 11, margin: 0 },
   saveButton: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 9999,
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "inline-flex",
     fontSize: 12,
     fontWeight: 600,
@@ -53,12 +55,12 @@ const styles = stylex.create({
     paddingBlock: 4,
     paddingInline: 9,
     ":hover": {
-      backgroundColor: "var(--color-memora-hover)",
-      borderColor: "var(--color-memora-olive-soft)",
-      color: "var(--color-memora-text)",
+      backgroundColor: tokens.hover,
+      borderColor: tokens.oliveSoft,
+      color: tokens.text,
     },
     ":focus-visible": {
-      outline: "2px solid var(--color-memora-olive-soft)",
+      outline: `2px solid ${tokens.oliveSoft}`,
       outlineOffset: 2,
     },
   },
@@ -67,17 +69,17 @@ const styles = stylex.create({
   hidden: { display: "none" },
   iframe: { backgroundColor: "transparent", border: 0, display: "block", width: "100%" },
   loading: {
-    backgroundColor: "rgb(255 255 255 / 0.8)",
-    borderTop: "1px solid rgb(228 228 231 / 0.8)",
-    color: "#71717a",
+    backgroundColor: tokens.surface,
+    borderTop: `1px solid ${tokens.border}`,
+    color: tokens.textMuted,
     fontSize: 12,
     paddingBlock: 8,
     paddingInline: 12,
   },
   error: {
-    backgroundColor: "#fef2f2",
-    borderTop: "1px solid #fecaca",
-    color: "#b91c1c",
+    backgroundColor: tokens.dangerSurface,
+    borderTop: `1px solid ${tokens.dangerBorder}`,
+    color: tokens.dangerText,
     fontSize: 12,
     paddingBlock: 8,
     paddingInline: 12,
@@ -110,6 +112,11 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const dataState: DataSourceValueState | null = isWidgetDataBound
     ? { status: "ready", value: previewWidgetData.value }
     : catalogDataState;
+  const resolvedTheme = useResolvedTheme();
+  // Only the first theme goes into the srcDoc, matching Home Grid's sandboxed widgets — later
+  // changes reach the same-origin frame directly through useWidgetIframe's effect, never a reload.
+  const [initialTheme] = useState(resolvedTheme);
+  const iframeSrcDoc = useMemo(() => buildWidgetIframeSrcDoc(initialTheme), [initialTheme]);
   const {
     iframeRef,
     iframeDocumentRef,
@@ -220,7 +227,7 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
           <iframe
             ref={iframeRef}
             title={getWidgetLabel(widget)}
-            srcDoc={WIDGET_IFRAME_SRC_DOC}
+            srcDoc={iframeSrcDoc}
             {...stylex.props(styles.iframe)}
             style={{ height: `${iframeHeight}px` }}
             scrolling="no"

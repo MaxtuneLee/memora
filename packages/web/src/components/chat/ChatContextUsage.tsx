@@ -1,6 +1,7 @@
 import { Tooltip } from "@base-ui/react/tooltip";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import type { ChatMessage } from "@/hooks/chat/useAgent";
 import type { ModelInfo } from "@/types/settingsDialog";
@@ -40,7 +41,7 @@ const styles = stylex.create({
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
     borderRadius: 12,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     color: "var(--color-memora-text-muted)",
     fontSize: 12,
     paddingBlock: 8,

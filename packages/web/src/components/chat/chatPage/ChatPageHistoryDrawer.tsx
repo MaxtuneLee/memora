@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
@@ -11,10 +12,10 @@ const styles = stylex.create({
     zIndex: 50,
     "@media (max-width: 47.999rem)": { display: "block" },
   },
-  backdrop: { backgroundColor: "rgb(24 24 27 / 0.3)", inset: 0, position: "absolute" },
+  backdrop: { backgroundColor: tokens.overlay, inset: 0, position: "absolute" },
   drawer: {
-    borderRight: "1px solid rgb(228 228 231 / 0.7)",
-    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
+    borderRight: `1px solid ${tokens.borderSoft}`,
+    boxShadow: tokens.shadowLarge,
     height: "100%",
     left: 0,
     maxWidth: 320,

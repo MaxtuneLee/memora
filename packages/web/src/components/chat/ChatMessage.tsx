@@ -4,6 +4,7 @@ import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/Mem
 import { motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
+import { tokens } from "../../styles/stylex.stylex";
 
 import { AssistantMessageContent } from "./chatMessage/AssistantMessageContent";
 import { getAssistantAvatarState } from "./chatMessage/getAssistantAvatarState";
@@ -16,7 +17,7 @@ const styles = stylex.create({
   assistantRoot: { justifyContent: "flex-start" },
   avatarButton: {
     alignItems: "center",
-    backgroundColor: "var(--color-mocha)",
+    backgroundColor: tokens.olive,
     borderRadius: 9999,
     display: "flex",
     flexShrink: 0,
@@ -25,7 +26,10 @@ const styles = stylex.create({
     transition: "transform 150ms",
     width: 36,
     ":hover": { transform: "scale(1.03)" },
-    ":focus-visible": { outline: "none", boxShadow: "0 0 0 2px rgb(145 168 91 / 0.45)" },
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`,
+    },
   },
   avatar: { height: 28, width: 28 },
   messageWrap: { minWidth: 0 },
@@ -40,12 +44,12 @@ const styles = stylex.create({
   messageContent: { fontSize: 14, lineHeight: 1.625, position: "relative" },
   userContent: {
     alignItems: "flex-end",
-    color: "#18181b",
+    color: tokens.textStrong,
     display: "flex",
     flexDirection: "column",
     width: "100%",
   },
-  assistantContent: { color: "#27272a", flex: 1, minWidth: 0 },
+  assistantContent: { color: tokens.text, flex: 1, minWidth: 0 },
   actions: {
     alignItems: "center",
     display: "flex",
@@ -62,17 +66,21 @@ const styles = stylex.create({
   assistantActions: { left: "100%", marginLeft: 12 },
   actionButton: {
     alignItems: "center",
-    backgroundColor: "#f1ebe2",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 9999,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
-    color: "#52525b",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textMuted,
     display: "inline-flex",
     height: 32,
     justifyContent: "center",
     transition: "all 150ms",
     width: 32,
-    ":hover": { backgroundColor: "white", borderColor: "#d4d4d8", color: "#18181b" },
+    ":hover": {
+      backgroundColor: tokens.card,
+      borderColor: tokens.borderStrong,
+      color: tokens.textStrong,
+    },
     ":disabled": { cursor: "not-allowed", opacity: 0.4 },
   },
   actionIcon: { height: 14, width: 14 },

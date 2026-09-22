@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { CircleNotchIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 import type { AgentStatus } from "@/hooks/chat/useAgent";
+import { tokens } from "../../styles/stylex.stylex";
 
 const shimmer = stylex.keyframes({
   "0%": { backgroundPosition: "-200% 0" },
@@ -15,10 +16,10 @@ const styles = stylex.create({
     animationDuration: "2s",
     animationIterationCount: "infinite",
     animationName: shimmer,
-    backgroundImage: "linear-gradient(to right, #f4f4f5, #fafafa, #f4f4f5)",
+    backgroundImage: `linear-gradient(to right, ${tokens.surfaceMuted}, ${tokens.hoverStrong}, ${tokens.surfaceMuted})`,
     backgroundSize: "200% 100%",
     borderRadius: 9999,
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "inline-flex",
     fontSize: 12,
     fontWeight: 500,
@@ -28,7 +29,7 @@ const styles = stylex.create({
     position: "relative",
     zIndex: 10,
   },
-  error: { animationName: "none", backgroundColor: "#fef2f2", color: "#ef4444" },
+  error: { animationName: "none", backgroundColor: tokens.dangerSurface, color: tokens.dangerText },
   icon: {
     animationDuration: "1s",
     animationIterationCount: "infinite",

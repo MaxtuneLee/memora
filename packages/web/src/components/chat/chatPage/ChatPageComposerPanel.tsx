@@ -19,13 +19,14 @@ import type { file as LiveStoreFile } from "@/livestore/file";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import type { ResolvedReferenceScope } from "@/lib/chat/tools";
 import type { ChatSessionReference } from "@/lib/chat/chatSessionStorage";
+import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageComposerAttachments } from "./ChatPageComposerAttachments";
 import type { ComposerNotice, ReferencePickerSource } from "./types";
 
 const styles = stylex.create({
   root: { bottom: 0, insetInline: 0, pointerEvents: "none", position: "absolute", zIndex: 10 },
   fade: {
-    backgroundImage: "linear-gradient(to top, #fffbf2, rgb(255 251 242 / 0.9), transparent)",
+    backgroundImage: `linear-gradient(to top, ${tokens.shell}, color-mix(in srgb, ${tokens.shell} 90%, transparent), transparent)`,
     bottom: 0,
     insetInline: 0,
     pointerEvents: "none",
@@ -35,22 +36,30 @@ const styles = stylex.create({
   overlay: { paddingBlock: 64, paddingBottom: 24, paddingInline: 16 },
   composerArea: { marginInline: "auto", maxWidth: 672, pointerEvents: "auto" },
   notice: {
-    border: "1px solid #bfdbfe",
+    border: `1px solid ${tokens.infoBorder}`,
     borderRadius: 12,
-    color: "#1d4ed8",
+    color: tokens.infoText,
     fontSize: 12,
     marginBottom: 8,
     paddingBlock: 8,
     paddingInline: 12,
   },
-  noticeError: { backgroundColor: "#fff1f2", borderColor: "#fecdd3", color: "#be123c" },
-  noticeSuccess: { backgroundColor: "#ecfdf5", borderColor: "#bbf7d0", color: "#047857" },
+  noticeError: {
+    backgroundColor: tokens.dangerSurface,
+    borderColor: tokens.dangerBorder,
+    color: tokens.dangerText,
+  },
+  noticeSuccess: {
+    backgroundColor: tokens.successSurface,
+    borderColor: tokens.successBorder,
+    color: tokens.successText,
+  },
   memoryNotice: {
     alignItems: "center",
-    backgroundColor: "#ecfdf5",
-    border: "1px solid #bbf7d0",
+    backgroundColor: tokens.successSurface,
+    border: `1px solid ${tokens.successBorder}`,
     borderRadius: 8,
-    color: "#047857",
+    color: tokens.successText,
     display: "flex",
     fontSize: 12,
     gap: 12,
@@ -61,26 +70,30 @@ const styles = stylex.create({
   },
   inlineActions: { alignItems: "center", display: "flex", gap: 8 },
   memoryAction: {
-    color: "#065f46",
+    color: tokens.successText,
     fontWeight: 600,
     transition: "color 150ms",
-    ":hover": { color: "#064e3b" },
+    ":hover": { color: `color-mix(in srgb, ${tokens.successText} 75%, black)` },
   },
-  dismissAction: { color: "#059669", transition: "color 150ms", ":hover": { color: "#047857" } },
+  dismissAction: {
+    color: tokens.successText,
+    transition: "color 150ms",
+    ":hover": { color: `color-mix(in srgb, ${tokens.successText} 75%, black)` },
+  },
   iconSmall: { height: 14, width: 14 },
   referenceNotice: {
-    backgroundColor: "#fffbeb",
-    border: "1px solid #fde68a",
+    backgroundColor: tokens.warningSurface,
+    border: `1px solid ${tokens.warningBorder}`,
     borderRadius: 8,
-    color: "#b45309",
+    color: tokens.warningText,
     fontSize: 12,
     marginBottom: 8,
     paddingBlock: 8,
     paddingInline: 12,
   },
   references: {
-    backgroundColor: "rgb(255 255 255 / 0.8)",
-    border: "1px solid #e4e4e7",
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
     marginBottom: 8,
     paddingBlock: 8,
@@ -95,22 +108,22 @@ const styles = stylex.create({
     justifyContent: "space-between",
     marginBottom: 6,
   },
-  referenceTitle: { color: "#52525b", fontSize: 12, fontWeight: 500 },
-  referenceCount: { color: "#a1a1aa", marginLeft: 4 },
-  scopeText: { color: "#71717a", fontSize: 11 },
+  referenceTitle: { color: tokens.textMuted, fontSize: 12, fontWeight: 500 },
+  referenceCount: { color: tokens.textSoft, marginLeft: 4 },
+  scopeText: { color: tokens.textMuted, fontSize: 11 },
   clearButton: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     transition: "color 150ms",
-    ":hover": { color: "#3f3f46" },
+    ":hover": { color: tokens.textStrong },
   },
   referenceList: { display: "flex", flexWrap: "wrap", gap: 6 },
   referenceChip: {
     alignItems: "center",
-    backgroundColor: "#f4f4f5",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 9999,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "inline-flex",
     fontSize: 12,
     gap: 4,
@@ -118,36 +131,39 @@ const styles = stylex.create({
     paddingBlock: 4,
     paddingInline: 8,
   },
-  referenceIcon: { color: "#71717a", flexShrink: 0, height: 14, width: 14 },
+  referenceIcon: { color: tokens.textMuted, flexShrink: 0, height: 14, width: 14 },
   truncate: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   removeReference: {
     alignItems: "center",
     borderRadius: 9999,
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "inline-flex",
     height: 16,
     justifyContent: "center",
     transition: "color 150ms, background-color 150ms",
     width: 16,
-    ":hover": { backgroundColor: "#e4e4e7", color: "#3f3f46" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   hidden: { display: "none" },
   composer: {
     backdropFilter: "blur(24px)",
-    backgroundColor: "rgb(255 255 255 / 0.9)",
-    border: "1px solid rgb(228 228 231 / 0.8)",
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 90%, transparent)`,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
-    boxShadow: "0 24px 60px -28px rgb(24 24 27 / 0.35)",
+    boxShadow: tokens.shadowLarge,
     position: "relative",
     transition: "border-color 150ms, box-shadow 150ms",
   },
-  composerDragging: { borderColor: "#18181b", boxShadow: "0 0 0 2px rgb(24 24 27 / 0.1)" },
+  composerDragging: {
+    borderColor: tokens.primaryBackground,
+    boxShadow: `0 0 0 2px color-mix(in srgb, ${tokens.primaryBackground} 10%, transparent)`,
+  },
   dragOverlay: {
     alignItems: "center",
-    backgroundColor: "rgb(24 24 27 / 0.05)",
-    border: "1px dashed rgb(24 24 27 / 0.2)",
+    backgroundColor: `color-mix(in srgb, ${tokens.text} 5%, transparent)`,
+    border: `1px dashed color-mix(in srgb, ${tokens.text} 20%, transparent)`,
     borderRadius: 12,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "flex",
     fontSize: 14,
     fontWeight: 500,
@@ -162,7 +178,7 @@ const styles = stylex.create({
   attachments: { paddingBlock: 12, paddingBottom: 4, paddingInline: 12 },
   textArea: {
     backgroundColor: "transparent",
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: 14,
     maxHeight: 180,
     outline: "none",
@@ -171,7 +187,7 @@ const styles = stylex.create({
     paddingInline: 16,
     resize: "none",
     width: "100%",
-    "::placeholder": { color: "#a1a1aa" },
+    "::placeholder": { color: tokens.textSoft },
   },
   textAreaWithImages: { paddingTop: 8 },
   textAreaWithoutImages: { paddingTop: 14 },
@@ -186,35 +202,52 @@ const styles = stylex.create({
   toolButton: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "flex",
     height: 28,
     justifyContent: "center",
     transition: "color 150ms, background-color 150ms",
     width: 28,
-    ":hover": { backgroundColor: "#f4f4f5", color: "#52525b" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textMuted },
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
-  toolButtonActive: { backgroundColor: "#18181b", color: "white" },
+  toolButtonActive: { backgroundColor: tokens.primaryBackground, color: tokens.primaryText },
   icon: { height: 16, width: 16 },
   submitGroup: { alignItems: "center", display: "flex", gap: 8 },
   roundButton: {
     alignItems: "center",
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: 9999,
-    color: "white",
+    color: tokens.primaryText,
     display: "flex",
     height: 28,
     justifyContent: "center",
     transition: "all 150ms",
     width: 28,
-    ":hover": { backgroundColor: "#27272a" },
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
   },
-  submitInactive: { backgroundColor: "#e4e4e7", color: "#a1a1aa" },
+  submitInactive: {
+    backgroundColor: tokens.controlDisabledBackground,
+    color: tokens.controlDisabledText,
+  },
   disabled: { cursor: "not-allowed", opacity: 0.5 },
+  deliveryModeSelect: {
+    backgroundColor: tokens.controlBackground,
+    border: `1px solid ${tokens.controlBorder}`,
+    borderRadius: 8,
+    color: tokens.text,
+    fontSize: 13,
+    paddingBlock: 4,
+    paddingInline: 8,
+  },
 });
 
 interface ChatPageComposerPanelProps {
+  pendingCount: number;
+  deliveryMode: "pending" | "steer";
+  onDeliveryModeChange: (mode: "pending" | "steer") => void;
   composerFadeHeight: number;
   composerOverlayRef: React.RefObject<HTMLDivElement | null>;
   isStreaming: boolean;
@@ -274,6 +307,9 @@ interface ChatPageComposerPanelProps {
 }
 
 export const ChatPageComposerPanel = ({
+  pendingCount,
+  deliveryMode,
+  onDeliveryModeChange,
   composerFadeHeight,
   composerOverlayRef,
   isStreaming,
@@ -451,6 +487,7 @@ export const ChatPageComposerPanel = ({
             {...stylex.props(styles.hidden)}
             onChange={onImageInputChange}
           />
+          {pendingCount > 0 && <p role="status">{pendingCount} pending</p>}
           <form onSubmit={onSubmit}>
             <div
               {...stylex.props(styles.composer, composerDragActive && styles.composerDragging)}
@@ -538,29 +575,53 @@ export const ChatPageComposerPanel = ({
                     messages={messages}
                     model={selectedModelInfo}
                   />
+                  {isStreaming && (
+                    <select
+                      aria-label="Message delivery"
+                      value={deliveryMode}
+                      onChange={(event) =>
+                        onDeliveryModeChange(event.target.value === "steer" ? "steer" : "pending")
+                      }
+                      {...stylex.props(styles.deliveryModeSelect)}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="steer">Steer</option>
+                    </select>
+                  )}
                   {isStreaming ? (
-                    <button type="button" onClick={onAbort} {...stylex.props(styles.roundButton)}>
+                    <button
+                      type="button"
+                      aria-label="Stop current task"
+                      onClick={onAbort}
+                      {...stylex.props(styles.roundButton)}
+                    >
                       <StopIcon
                         className={stylex.props(styles.iconSmall).className}
                         weight="fill"
                       />
                     </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={!canSubmitMessage}
-                      {...stylex.props(
-                        styles.roundButton,
-                        !canSubmitMessage && styles.submitInactive,
-                        !canSubmitMessage && styles.disabled,
-                      )}
-                    >
-                      <ArrowUpIcon
-                        className={stylex.props(styles.iconSmall).className}
-                        weight="bold"
-                      />
-                    </button>
-                  )}
+                  ) : null}
+                  <button
+                    aria-label={
+                      isStreaming
+                        ? deliveryMode === "steer"
+                          ? "Steer current task"
+                          : "Queue message"
+                        : "Send message"
+                    }
+                    type="submit"
+                    disabled={!canSubmitMessage}
+                    {...stylex.props(
+                      styles.roundButton,
+                      !canSubmitMessage && styles.submitInactive,
+                      !canSubmitMessage && styles.disabled,
+                    )}
+                  >
+                    <ArrowUpIcon
+                      className={stylex.props(styles.iconSmall).className}
+                      weight="bold"
+                    />
+                  </button>
                 </div>
               </div>
             </div>

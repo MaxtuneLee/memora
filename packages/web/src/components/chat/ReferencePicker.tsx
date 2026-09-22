@@ -1,12 +1,14 @@
 import { FileTextIcon, FolderSimpleIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   root: {
-    backgroundColor: "rgb(255 255 255 / 0.95)",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     marginBottom: 8,
     overflow: "hidden",
     position: "relative",
@@ -14,39 +16,39 @@ const styles = stylex.create({
   },
   header: {
     alignItems: "center",
-    borderBottom: "1px solid #e4e4e7",
+    borderBottom: `1px solid ${tokens.border}`,
     display: "flex",
     gap: 8,
     paddingBlock: 8,
     paddingInline: 12,
   },
-  icon: { color: "#a1a1aa", flexShrink: 0, height: 16, width: 16 },
-  iconSelected: { color: "#e4e4e7" },
+  icon: { color: tokens.textSoft, flexShrink: 0, height: 16, width: 16 },
+  iconSelected: { color: tokens.textInverse },
   input: {
     backgroundColor: "transparent",
-    color: "#27272a",
+    color: tokens.text,
     flex: 1,
     fontSize: 14,
     height: 28,
     minWidth: 0,
     outline: "none",
-    "::placeholder": { color: "#a1a1aa" },
+    "::placeholder": { color: tokens.textSoft },
   },
   close: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "inline-flex",
     height: 28,
     justifyContent: "center",
     transition: "all 150ms",
     width: 28,
-    ":hover": { backgroundColor: "#f4f4f5", color: "#3f3f46" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   listArea: { maxHeight: 256, overflowY: "auto", padding: 6 },
   empty: {
     borderRadius: 8,
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     paddingBlock: 24,
     paddingInline: 12,
@@ -56,7 +58,7 @@ const styles = stylex.create({
   option: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.textStrong,
     display: "flex",
     fontSize: 14,
     gap: 8,
@@ -65,9 +67,9 @@ const styles = stylex.create({
     textAlign: "left",
     transition: "all 150ms",
     width: "100%",
-    ":hover": { backgroundColor: "#f4f4f5" },
+    ":hover": { backgroundColor: tokens.hover },
   },
-  optionSelected: { backgroundColor: "#18181b", color: "white" },
+  optionSelected: { backgroundColor: tokens.primaryBackground, color: tokens.primaryText },
   name: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
 });
 

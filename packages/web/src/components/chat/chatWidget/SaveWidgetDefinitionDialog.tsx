@@ -16,13 +16,14 @@ import type {
   SaveChatWidgetDefinitionInput,
   SaveChatWidgetDefinitionResult,
 } from "@/lib/widgets/saveChatWidgetDefinition";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
     borderRadius: 20,
-    boxShadow: "0 24px 48px rgb(43 39 32 / 0.16)",
+    boxShadow: tokens.shadowLarge,
     padding: 24,
     width: "min(460px, 92vw)",
   },

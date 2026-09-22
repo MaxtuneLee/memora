@@ -4,24 +4,25 @@ import * as stylex from "@stylexjs/stylex";
 
 import { formatDuration } from "@/lib/format";
 import type { MediaJumpCardData } from "@/lib/chat/memoraJump";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   card: {
-    backgroundColor: "#fafafa",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
     display: "block",
     paddingBlock: 8,
     paddingInline: 12,
     transition: "background-color 150ms, border-color 150ms",
-    ":hover": { backgroundColor: "#fff", borderColor: "#d4d4d8" },
+    ":hover": { backgroundColor: tokens.card, borderColor: tokens.borderStrong },
   },
   row: { alignItems: "flex-start", display: "flex", gap: 10 },
   iconWrap: {
     alignItems: "center",
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: 8,
-    color: "#fff",
+    color: tokens.primaryText,
     display: "flex",
     flexShrink: 0,
     height: 28,
@@ -33,7 +34,7 @@ const styles = stylex.create({
   body: { flex: 1, minWidth: 0 },
   header: { alignItems: "center", display: "flex", gap: 8, justifyContent: "space-between" },
   fileName: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: 14,
     fontWeight: 500,
     margin: 0,
@@ -41,9 +42,9 @@ const styles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  duration: { color: "#71717a", flexShrink: 0, fontSize: 11, fontWeight: 500 },
+  duration: { color: tokens.textMuted, flexShrink: 0, fontSize: 11, fontWeight: 500 },
   context: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 12,
     marginBlock: 4,
     overflow: "hidden",
