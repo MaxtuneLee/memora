@@ -2,6 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
+import { startAutoHideScrollbars } from "./lib/ui/autoHideScrollbars";
+
+startAutoHideScrollbars();
+
 if (import.meta.env.DEV) {
   const diagnostics = new BroadcastChannel("memora-livestore-worker-diagnostics");
   diagnostics.addEventListener("message", (event: MessageEvent<unknown>) => {
