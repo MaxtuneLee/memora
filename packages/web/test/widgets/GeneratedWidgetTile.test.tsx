@@ -59,12 +59,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("renders the definition name in card chrome and waits for the first data payload", () => {
+test("labels the card with the definition name and waits for the first data payload", () => {
   const view = render(
     <GeneratedWidgetTile store={store} definition={definition} instance={instance} />,
   );
 
-  expect(view.getByRole("heading", { name: "Reading progress" })).toBeTruthy();
+  // The card draws no heading — the widget's own document owns its title — so the definition
+  // name reaches assistive tech through the region label instead.
+  expect(view.getByRole("region", { name: "Reading progress" })).toBeTruthy();
   expect(view.getByRole("status").textContent).toBe("Loading widget…");
   expect(view.getByText("Loading widget…")).toBeTruthy();
   expect(view.container.querySelector("iframe")).toBeNull();

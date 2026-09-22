@@ -15,20 +15,17 @@ const styles = stylex.create({
   card: {
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
-    borderRadius: 27,
+    borderRadius: "inherit",
     display: "flex",
     flexDirection: "column",
-    minHeight: 192,
-    padding: 20,
-    "@media (min-width: 48rem)": { padding: 24 },
+    // Fills the tile so the scrolling happens in `body` below, inside this card's border,
+    // rather than on the tile wrapper outside it. overflow keeps the widget's square content
+    // from spilling past the card's inherited rounded corners.
+    height: "100%",
+    overflow: "hidden",
+    padding: 14,
   },
-  title: {
-    color: "var(--color-memora-text)",
-    fontSize: 17,
-    fontWeight: 700,
-    marginBottom: 16,
-  },
-  body: { minHeight: 0 },
+  body: { flex: 1, minHeight: 0, overflow: "auto" },
   status: {
     alignItems: "center",
     color: "var(--color-memora-text-muted)",
@@ -108,7 +105,6 @@ export function GeneratedWidgetTile({
 
   return (
     <section aria-label={definition.name} {...stylex.props(styles.card)}>
-      <h2 {...stylex.props(styles.title)}>{definition.name}</h2>
       <div {...stylex.props(styles.body)}>{content}</div>
     </section>
   );

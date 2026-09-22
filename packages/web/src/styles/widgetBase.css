@@ -138,6 +138,14 @@ body {
   padding: 0;
   width: 100%;
   background: transparent;
+  /* The host sizes the iframe to the document's height, so the frame's own scrollbar only ever
+     flickers mid-resize. Hiding it leaves any scroll container inside the widget untouched. */
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
 }
 
 body,
