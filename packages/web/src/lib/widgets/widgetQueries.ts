@@ -52,7 +52,7 @@ export const listResolvedWidgetInstances = (
 // don't need the full DataSourceName literal union.
 export const resolveWidgetInstanceParams = (
   definition: Pick<widgetDefinition, "dataSourceParams"> & {
-    dataSourceName?: string;
+    dataSourceName?: string | null;
     folderId?: string | null;
   },
   instance: Pick<widgetInstance, "params">,

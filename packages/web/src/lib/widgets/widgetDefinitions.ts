@@ -27,7 +27,7 @@ export interface CreateWidgetDefinitionInput {
   name: string;
   widgetCode?: string;
   builtinKey?: BuiltinWidgetKey;
-  dataSourceName: DataSourceName;
+  dataSourceName?: DataSourceName | null;
   dataSourceParams?: Record<string, unknown>;
   folderId?: string | null;
   sourceFileId?: string | null;
@@ -47,7 +47,7 @@ export const createWidgetDefinition = ({
       builtinKey: input.builtinKey,
       name: input.name,
       widgetCode: input.widgetCode,
-      dataSourceName: input.dataSourceName,
+      dataSourceName: input.dataSourceName ?? undefined,
       dataSourceParams: JSON.stringify(input.dataSourceParams ?? {}),
       folderId: input.folderId ?? undefined,
       sourceFileId: input.sourceFileId ?? undefined,
@@ -59,7 +59,8 @@ export const createWidgetDefinition = ({
 export interface UpdateWidgetDefinitionInput {
   id: string;
   name?: string;
-  dataSourceName?: DataSourceName;
+  // null clears the binding; undefined leaves whatever the row already has.
+  dataSourceName?: DataSourceName | null;
   dataSourceParams?: Record<string, unknown>;
   // Backfills the folder/source-file binding onto a row that predates it (the legacy migration
   // in seedHomeGrid.ts) — a plain rename never sets these.
@@ -126,7 +127,8 @@ export const updateWidgetDefinition = ({
           kind: definition.kind,
           builtinKey: definition.builtinKey,
           name,
-          dataSourceName: input.dataSourceName ?? definition.dataSourceName,
+          dataSourceName:
+            input.dataSourceName !== undefined ? input.dataSourceName : definition.dataSourceName,
           dataSourceParams:
             input.dataSourceParams ?? parseWidgetDefinitionDataSourceParams(definition),
           dataFiles: previousManifest?.dataFiles,

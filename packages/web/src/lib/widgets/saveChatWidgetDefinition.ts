@@ -23,6 +23,7 @@ export interface SaveChatWidgetDefinitionInput {
   id: string;
   name: string;
   widgetCode: string;
+  // Optional: a widget with no persistent state needs no catalog binding at all.
   dataSourceName?: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
   // File names this Definition may write via writeData once saved (see ADR 0008).
@@ -35,7 +36,7 @@ export interface SaveChatWidgetDefinitionInput {
 
 export type SaveChatWidgetDefinitionResult =
   | { ok: true; id: string }
-  | { ok: false; reason: "missing-data-source" | "missing-widget-code" };
+  | { ok: false; reason: "missing-widget-code" };
 
 export interface SaveChatWidgetDefinitionStore
   extends WidgetDefinitionStoreLike, WidgetFolderStoreLike, WidgetQueryableStore {}
@@ -47,10 +48,6 @@ export const saveChatWidgetDefinition = async ({
   store: SaveChatWidgetDefinitionStore;
   input: SaveChatWidgetDefinitionInput;
 }): Promise<SaveChatWidgetDefinitionResult> => {
-  if (!input.dataSourceName) {
-    return { ok: false, reason: "missing-data-source" };
-  }
-
   if (!input.widgetCode.trim()) {
     return { ok: false, reason: "missing-widget-code" };
   }
@@ -65,7 +62,7 @@ export const saveChatWidgetDefinition = async ({
         input: {
           id: existing.id,
           name: input.name,
-          dataSourceName: input.dataSourceName,
+          dataSourceName: input.dataSourceName ?? null,
           dataSourceParams: input.dataSourceParams,
         },
         definition: existing,

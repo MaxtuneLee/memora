@@ -70,7 +70,9 @@ export const DATA_SOURCE_CATALOG: readonly DataSourceCatalogEntry[] = [
   },
 ];
 
-export const getDataSourceCatalogEntry = (name: string): DataSourceCatalogEntry | undefined => {
+export const getDataSourceCatalogEntry = (
+  name: string | null | undefined,
+): DataSourceCatalogEntry | undefined => {
   return DATA_SOURCE_CATALOG.find((entry) => entry.name === name);
 };
 

@@ -140,11 +140,6 @@ export function SaveWidgetDefinitionDialog({
   }, [onOpenChange]);
 
   const handleSave = useCallback(async () => {
-    if (!dataSourceName) {
-      setError("Choose a data source before saving this definition.");
-      return;
-    }
-
     const validationError = validateDataSourceParamValues(selectedDataSource, paramValues);
     if (validationError) {
       setError(validationError);
@@ -159,17 +154,13 @@ export function SaveWidgetDefinitionDialog({
         id: crypto.randomUUID(),
         name: widgetName || "Untitled widget",
         widgetCode,
-        dataSourceName,
+        dataSourceName: dataSourceName || undefined,
         dataSourceParams: parseDataSourceParamValues(selectedDataSource, paramValues),
         dataFiles,
       });
 
       if (!result.ok) {
-        setError(
-          result.reason === "missing-widget-code"
-            ? "This preview has no widget source to save."
-            : "Choose a data source before saving this definition.",
-        );
+        setError("This preview has no widget source to save.");
         setIsSaving(false);
         return;
       }
@@ -209,7 +200,7 @@ export function SaveWidgetDefinitionDialog({
             Save widget definition
           </h2>
           <p id={descriptionId} {...stylex.props(styles.description)}>
-            Bind this preview to a catalog data source before saving it for later use.
+            Save this preview for later use. Bind it to a catalog data source if it needs one.
           </p>
         </div>
         <div {...stylex.props(styles.field)}>
@@ -232,7 +223,7 @@ export function SaveWidgetDefinitionDialog({
             }}
             {...stylex.props(styles.select)}
           >
-            <option value="">Choose a data source</option>
+            <option value="">No data source</option>
             {DATA_SOURCE_CATALOG.map((option) => (
               <option key={option.name} value={option.name}>
                 {option.label}

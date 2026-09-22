@@ -26,7 +26,7 @@ type WidgetDefinitionCreatedEvent = {
   builtinKey?: BuiltinWidgetKey;
   name: string;
   widgetCode?: string;
-  dataSourceName: DataSourceName;
+  dataSourceName?: DataSourceName;
   dataSourceParams?: string;
   folderId?: string;
   sourceFileId?: string;
@@ -36,7 +36,7 @@ type WidgetDefinitionCreatedEvent = {
 type WidgetDefinitionUpdatedEvent = {
   id: string;
   name?: string;
-  dataSourceName?: DataSourceName;
+  dataSourceName?: DataSourceName | null;
   dataSourceParams?: string;
   folderId?: string;
   sourceFileId?: string;
@@ -94,7 +94,8 @@ export const widgetDefinitionTable = State.SQLite.table({
     builtinKey: State.SQLite.text({ nullable: true, schema: BuiltinWidgetKeySchema }),
     name: State.SQLite.text({ default: "" }),
     widgetCode: State.SQLite.text({ default: "" }),
-    dataSourceName: State.SQLite.text({ default: "recentFiles", schema: DataSourceNameSchema }),
+    // Nullable: a widget that renders from its own markup alone has no catalog binding.
+    dataSourceName: State.SQLite.text({ nullable: true, schema: DataSourceNameSchema }),
     dataSourceParams: State.SQLite.text({ default: "{}" }),
     folderId: State.SQLite.text({ nullable: true }),
     sourceFileId: State.SQLite.text({ nullable: true }),
@@ -134,7 +135,7 @@ export const widgetEvents = {
       builtinKey: Schema.optional(BuiltinWidgetKeySchema),
       name: Schema.String,
       widgetCode: Schema.optional(Schema.String),
-      dataSourceName: DataSourceNameSchema,
+      dataSourceName: Schema.optional(DataSourceNameSchema),
       dataSourceParams: Schema.optional(Schema.String),
       folderId: Schema.optional(Schema.String),
       sourceFileId: Schema.optional(Schema.String),
@@ -146,7 +147,7 @@ export const widgetEvents = {
     schema: Schema.Struct({
       id: Schema.String,
       name: Schema.optional(Schema.String),
-      dataSourceName: Schema.optional(DataSourceNameSchema),
+      dataSourceName: Schema.optional(Schema.NullOr(DataSourceNameSchema)),
       dataSourceParams: Schema.optional(Schema.String),
       // Plain optional, like the same fields on widgetDefinitionCreated: only ever set once
       // (renamed-folder sync, or the legacy folderId backfill), never explicitly cleared.
@@ -222,7 +223,7 @@ export const widgetMaterializers = {
       builtinKey: event.builtinKey ?? null,
       name: event.name,
       widgetCode: event.widgetCode ?? "",
-      dataSourceName: event.dataSourceName,
+      dataSourceName: event.dataSourceName ?? null,
       dataSourceParams: event.dataSourceParams ?? "{}",
       folderId: event.folderId ?? null,
       sourceFileId: event.sourceFileId ?? null,

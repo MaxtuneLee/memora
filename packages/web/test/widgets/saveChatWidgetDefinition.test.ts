@@ -178,7 +178,7 @@ test("reuses an existing Widgets root and appends a numeric suffix on a folder n
   expect(definitionFolderCreated?.args.parentId).toBe("root-1");
 });
 
-test("rejects a chat widget definition without a catalog binding", async () => {
+test("saves a chat widget definition with no catalog binding", async () => {
   const store = makeStore([]);
 
   const result = await saveChatWidgetDefinition({
@@ -190,8 +190,11 @@ test("rejects a chat widget definition without a catalog binding", async () => {
     },
   });
 
-  expect(result).toEqual({ ok: false, reason: "missing-data-source" });
-  expect(store.commit).not.toHaveBeenCalled();
+  expect(result).toEqual({ ok: true, id: "widget-definition-1" });
+
+  const commits = store.commit.mock.calls.map((call) => call[0]);
+  const created = commits.find((event) => event.name === "v1.WidgetDefinitionCreated");
+  expect(created?.args.dataSourceName).toBeUndefined();
 });
 
 test("rejects a chat widget definition without renderable widget source", async () => {
