@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { VectorDbIndexInspection } from "@/lib/vector-db";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
+import { tokens } from "../../styles/stylex.stylex";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
@@ -142,7 +143,7 @@ const styles = stylex.create({
   headingGroup: { alignItems: "flex-start", display: "flex", gap: "0.75rem" },
   headingIconFrame: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-olive-faint)",
+    backgroundColor: tokens.selected,
     borderRadius: "0.5rem",
     color: "var(--color-memora-olive)",
     display: "flex",
@@ -238,7 +239,7 @@ const styles = stylex.create({
     ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
   },
   selectedDocument: {
-    backgroundColor: "color-mix(in srgb, var(--color-memora-olive-faint) 35%, transparent)",
+    backgroundColor: tokens.selected,
     borderColor: "var(--color-memora-olive-soft)",
   },
   documentTop: {

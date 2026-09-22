@@ -19,6 +19,7 @@ import { useAgent } from "@/hooks/chat/useAgent";
 import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
 import { chatActiveFilesQuery$, chatProvidersQuery$ } from "@/lib/chat/queries";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { tokens } from "../../styles/stylex.stylex";
 import {
   buildContextPack,
   buildGroundedChunks,
@@ -99,7 +100,7 @@ const styles = stylex.create({
   introRow: { alignItems: "flex-start", display: "flex", gap: "0.75rem" },
   brainFrame: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-olive-faint)",
+    backgroundColor: tokens.selected,
     borderRadius: "0.5rem",
     color: "var(--color-memora-olive)",
     display: "flex",
@@ -398,9 +399,9 @@ const styles = stylex.create({
     ":disabled": { cursor: "not-allowed", opacity: 0.45 },
   },
   methodActive: {
-    backgroundColor: "var(--color-memora-olive-faint)",
+    backgroundColor: tokens.selected,
     color: "var(--color-memora-olive)",
-    ":hover": { backgroundColor: "var(--color-memora-olive-faint)" },
+    ":hover": { backgroundColor: tokens.selected },
   },
   contextStats: {
     color: "var(--color-memora-text-muted)",
@@ -595,7 +596,7 @@ const styles = stylex.create({
   sampleDataset: { color: "var(--color-memora-text)", fontWeight: 500 },
   separator: { color: "var(--color-memora-text-soft)", marginInline: "0.375rem" },
   benchmarkProgress: {
-    backgroundColor: "var(--color-memora-olive-faint)",
+    backgroundColor: tokens.selected,
     borderRadius: "0.5rem",
     color: "var(--color-memora-text-muted)",
     fontSize: "0.875rem",

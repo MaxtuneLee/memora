@@ -25,6 +25,7 @@ import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { getLocalModelOptions } from "@/lib/local-model";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import type { provider as ProviderRow } from "@/livestore/provider";
+import { tokens } from "../../styles/stylex.stylex";
 import type { ProviderFormState } from "@/types/settingsDialog";
 
 import {
@@ -60,11 +61,17 @@ interface OnboardingExperienceProps {
 const TOTAL_STEPS = 8;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
+// ponytail: the brand panel, its pattern marks, the tail artwork, and the mobile brand
+// wordmark below keep a fixed brand-olive color in both themes, like a logo lockup —
+// justified "brand color" exception per the theming brief, not a missed token.
+const BRAND_GREEN = "#8fa06f";
+const MODE_DESCRIPTION_SELECTED = `color-mix(in srgb, ${tokens.primaryText} 82%, ${tokens.primaryBackground})`;
+
 const styles = stylex.create({
   tailSvg: { height: "100%", overflow: "visible", width: "100%" },
   tailInteractive: { cursor: "pointer" },
   brandPanel: {
-    backgroundColor: "#8fa06f",
+    backgroundColor: BRAND_GREEN,
     display: { default: "none", "@media (min-width: 1024px)": "block" },
     height: "100dvh",
     overflow: "hidden",
@@ -132,8 +139,8 @@ const styles = stylex.create({
     width: "min(30rem,54vw)",
   },
   root: {
-    backgroundColor: "#fbf7ed",
-    color: "#25231f",
+    backgroundColor: tokens.canvas,
+    color: tokens.text,
     display: "grid",
     gridTemplateColumns: {
       default: "minmax(0,1fr)",
@@ -168,7 +175,7 @@ const styles = stylex.create({
     display: { default: "block", "@media (min-width: 1024px)": "none" },
   },
   mobileBrandText: {
-    color: "#8fa06f",
+    color: BRAND_GREEN,
     fontFamily: "monospace",
     fontSize: "0.6875rem",
     fontWeight: 900,
@@ -176,7 +183,7 @@ const styles = stylex.create({
   },
   intro: { marginBottom: "2.5rem" },
   step: {
-    color: "#8d877d",
+    color: tokens.textSoft,
     fontSize: "0.75rem",
     fontWeight: 600,
     letterSpacing: "0.18em",
@@ -184,14 +191,14 @@ const styles = stylex.create({
     textTransform: "uppercase",
   },
   heading: {
-    color: "#24231f",
+    color: tokens.textStrong,
     fontSize: "clamp(2.1rem,3vw,3.2rem)",
     fontWeight: 600,
     letterSpacing: "-0.01em",
     lineHeight: 1.05,
   },
   description: {
-    color: "#777167",
+    color: tokens.textMuted,
     fontSize: "clamp(1rem,1.2vw,1.35rem)",
     lineHeight: 1.35,
     marginTop: "1.25rem",
@@ -203,15 +210,15 @@ const styles = stylex.create({
   stack2: { display: "flex", flexDirection: "column", gap: "0.5rem" },
   label: { display: "flex", flexDirection: "column", gap: "0.625rem" },
   fieldLabel: {
-    color: "#8d877d",
+    color: tokens.textSoft,
     fontSize: "0.75rem",
     fontWeight: 600,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
   },
   input: {
-    backgroundColor: "#fffdf8",
-    borderColor: { default: "#ded7c9", ":focus": "#9ca97a" },
+    backgroundColor: tokens.surface,
+    borderColor: { default: tokens.border, ":focus": tokens.focusRing },
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -234,11 +241,15 @@ const styles = stylex.create({
     transition: "background-color 150ms",
     userSelect: "none",
   },
-  tagSelected: { backgroundColor: "#24231f", borderColor: "#24231f", color: "#fffdf8" },
+  tagSelected: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+  },
   tagIdle: {
-    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
-    borderColor: "#ded7c9",
-    color: "#777167",
+    backgroundColor: { default: tokens.surface, ":hover": tokens.hoverStrong },
+    borderColor: tokens.border,
+    color: tokens.textMuted,
   },
   customTag: { alignItems: "center", display: "inline-flex", gap: "0.25rem" },
   icon12: { height: "0.75rem", width: "0.75rem" },
@@ -258,19 +269,23 @@ const styles = stylex.create({
     textAlign: "left",
     transition: "background-color 150ms",
   },
-  modeSelected: { backgroundColor: "#24231f", borderColor: "#24231f", color: "#fffdf8" },
+  modeSelected: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+  },
   modeIdle: {
-    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
-    borderColor: "#ded7c9",
-    color: "#25231f",
+    backgroundColor: { default: tokens.surface, ":hover": tokens.hoverStrong },
+    borderColor: tokens.border,
+    color: tokens.text,
   },
   modeTitle: { fontSize: "0.875rem", fontWeight: 600 },
   modeDescription: { fontSize: "0.75rem", lineHeight: "1.25rem", marginTop: "0.25rem" },
-  modeDescriptionSelected: { color: "#e8e4da" },
-  modeDescriptionIdle: { color: "#777167" },
+  modeDescriptionSelected: { color: MODE_DESCRIPTION_SELECTED },
+  modeDescriptionIdle: { color: tokens.textMuted },
   warningCard: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    borderColor: "var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    borderColor: tokens.warningBorder,
     borderRadius: "1.2rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -279,24 +294,24 @@ const styles = stylex.create({
     gap: "0.5rem",
     padding: "1rem",
   },
-  warningText: { color: "var(--color-memora-warning-text)", fontSize: "0.875rem" },
+  warningText: { color: tokens.warningText, fontSize: "0.875rem" },
   warningAction: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.75rem",
     fontWeight: 600,
     textDecoration: "underline",
     textUnderlineOffset: 2,
   },
   skip: {
-    color: { default: "#8d877d", ":hover": "#5f5a52" },
+    color: { default: tokens.textSoft, ":hover": tokens.text },
     fontSize: "0.75rem",
     fontWeight: 500,
     textDecoration: "underline",
     textUnderlineOffset: 2,
   },
   recordingCard: {
-    backgroundColor: "#fffdf8",
-    borderColor: "#ded7c9",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1.2rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -307,7 +322,7 @@ const styles = stylex.create({
   },
   visualizer: { height: "2.5rem", width: "100%" },
   transcription: {
-    backgroundColor: "#fbf7ed",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "1rem",
     height: "10rem",
     overflow: "hidden",
@@ -316,9 +331,12 @@ const styles = stylex.create({
   actionRow: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: "0.75rem" },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: { default: "#24231f", ":hover": "#35332e" },
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
     borderRadius: "1rem",
-    color: "#fffdf8",
+    color: tokens.primaryText,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -331,12 +349,12 @@ const styles = stylex.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: { default: "#fffdf8", ":hover": "#f3eee3" },
-    borderColor: "#ded7c9",
+    backgroundColor: { default: tokens.surface, ":hover": tokens.hoverStrong },
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#5f5a52",
+    color: tokens.text,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -347,24 +365,24 @@ const styles = stylex.create({
     transition: "background-color 150ms",
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
-  smallWarning: { color: "var(--color-memora-warning-text)", fontSize: "0.75rem" },
+  smallWarning: { color: tokens.warningText, fontSize: "0.75rem" },
   preview: {
-    backgroundColor: "#fffdf8",
-    borderColor: "#ded7c9",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1.2rem",
     borderStyle: "solid",
     borderWidth: 1,
     overflow: "hidden",
   },
   transcriptPreview: { height: "16rem" },
-  loading: { color: "#777167", fontSize: "0.875rem" },
+  loading: { color: tokens.textMuted, fontSize: "0.875rem" },
   error: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    borderColor: "var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    borderColor: tokens.warningBorder,
     borderRadius: "0.9rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.75rem",
     paddingBlock: "0.5rem",
     paddingInline: "0.75rem",

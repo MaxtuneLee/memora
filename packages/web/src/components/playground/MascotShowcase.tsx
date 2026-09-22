@@ -5,6 +5,12 @@ import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/Mem
 
 const STATES: MemoraMascotState[] = ["idle", "listening", "thinking", "speaking", "asleep"];
 
+// ponytail: the mascot's own SVG artwork uses fixed brand colors (see MemoraMascot.tsx), so
+// the circular backdrop behind it keeps the matching fixed brand green/cream ring in both
+// themes too — a justified "media artwork" exception, not a missed token.
+const MASCOT_FRAME_BACKGROUND = "#aebe79";
+const MASCOT_FRAME_RING = "#ddd1c1";
+
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: "2rem" },
   section: {
@@ -38,9 +44,9 @@ const styles = stylex.create({
   },
   heroFrame: {
     alignItems: "center",
-    backgroundColor: "#aebe79",
+    backgroundColor: MASCOT_FRAME_BACKGROUND,
     borderRadius: "9999px",
-    boxShadow: "0 0 0 8px #ddd1c1",
+    boxShadow: `0 0 0 8px ${MASCOT_FRAME_RING}`,
     display: "flex",
     flexShrink: 0,
     height: "10rem",
@@ -98,9 +104,9 @@ const styles = stylex.create({
   },
   stateFrame: {
     alignItems: "center",
-    backgroundColor: "#aebe79",
+    backgroundColor: MASCOT_FRAME_BACKGROUND,
     borderRadius: "9999px",
-    boxShadow: "0 0 0 4px #ddd1c1",
+    boxShadow: `0 0 0 4px ${MASCOT_FRAME_RING}`,
     display: "flex",
     flexShrink: 0,
     height: "6rem",

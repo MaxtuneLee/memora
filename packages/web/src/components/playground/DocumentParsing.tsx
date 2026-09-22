@@ -25,6 +25,7 @@ import { I18nextProvider, initReactI18next } from "react-i18next";
 import { Streamdown } from "streamdown";
 
 import { formatBytes } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 import {
   getDocumentParseErrorMessage,
   getSupportedDocumentKind,
@@ -79,6 +80,9 @@ const styles = stylex.create({
     width: "100%",
   },
   minFullHeight: { minHeight: "100%" },
+  // ponytail: the PPTX viewer renders a third-party slide surface on a fixed dark canvas
+  // (like a video player chrome), so its message/error text stays fixed light/red for
+  // contrast on that canvas regardless of app theme — justified "media artwork" exception.
   viewerMessage: {
     alignItems: "center",
     color: "rgba(255,255,255,0.7)",
@@ -275,7 +279,11 @@ const styles = stylex.create({
     transition: "border-color 150ms",
     ":focus-within": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
   },
-  dropzoneResult: { backgroundColor: "#ebe7df", borderStyle: "solid", padding: "0.75rem" },
+  dropzoneResult: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderStyle: "solid",
+    padding: "0.75rem",
+  },
   srOnly: {
     clip: "rect(0,0,0,0)",
     height: 1,
@@ -365,8 +373,8 @@ const styles = stylex.create({
     paddingInline: "0.625rem",
   },
   badgeSuccess: {
-    backgroundColor: "var(--color-memora-olive-faint)",
-    color: "var(--color-memora-olive-strong)",
+    backgroundColor: tokens.selected,
+    color: tokens.oliveText,
   },
   badgeWarning: {
     backgroundColor: "var(--color-memora-warning-surface)",
@@ -416,7 +424,7 @@ const styles = stylex.create({
     width: "1.75rem",
     ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
   },
-  pageActive: { backgroundColor: "var(--color-memora-olive)", color: "white" },
+  pageActive: { backgroundColor: "var(--color-memora-olive)", color: tokens.selectionText },
   pageIdle: {
     backgroundColor: {
       default: "var(--color-memora-surface)",
@@ -667,10 +675,10 @@ const styles = stylex.create({
     alignItems: "center",
     backgroundColor: {
       default: "var(--color-memora-olive)",
-      ":hover": "var(--color-memora-olive-strong)",
+      ":hover": "color-mix(in srgb, var(--color-memora-olive) 86%, var(--color-memora-surface))",
     },
     borderRadius: "0.75rem",
-    color: "white",
+    color: tokens.selectionText,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,

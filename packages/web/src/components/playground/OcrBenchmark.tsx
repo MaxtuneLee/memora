@@ -66,7 +66,7 @@ const styles = stylex.create({
     transition: "border-color 150ms",
     ":focus-within": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
   },
-  dropzoneSelected: { backgroundColor: "#f2eee6", borderStyle: "solid" },
+  dropzoneSelected: { backgroundColor: "var(--color-memora-surface-muted)", borderStyle: "solid" },
   srOnly: {
     clip: "rect(0,0,0,0)",
     height: 1,
@@ -279,7 +279,10 @@ const styles = stylex.create({
   },
   runButton: {
     alignItems: "center",
-    backgroundColor: { default: "var(--color-memora-primary)", ":hover": "#34332f" },
+    backgroundColor: {
+      default: "var(--color-memora-primary)",
+      ":hover": "color-mix(in srgb, var(--color-memora-primary) 86%, var(--color-memora-surface))",
+    },
     borderRadius: "9999px",
     color: "var(--color-memora-surface)",
     display: "inline-flex",

@@ -19,6 +19,7 @@ import "streamdown/styles.css";
 import "katex/dist/katex.min.css";
 
 import { formatBytes } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 import {
   ImageDocumentPipelineSession,
   type ImageDocumentBlock,
@@ -43,6 +44,8 @@ const PIPELINE_STAGES: Array<{ id: ImagePipelineStage; label: string; detail: st
 
 const STAGE_INDEX = new Map(PIPELINE_STAGES.map((stage, index) => [stage.id, index]));
 
+// ponytail: categorical layout-block colors drawn as overlays on the source document image —
+// a data-viz ramp, not app chrome, so it stays fixed across themes (justified exception).
 const BLOCK_COLORS: Record<string, string> = {
   doc_title: "#647542",
   paragraph_title: "#7c895b",
@@ -157,7 +160,11 @@ const styles = stylex.create({
     transition: "border-color 150ms",
     ":focus-within": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
   },
-  dropzoneSelected: { backgroundColor: "#ebe7df", borderStyle: "solid", padding: "1rem" },
+  dropzoneSelected: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderStyle: "solid",
+    padding: "1rem",
+  },
   srOnly: {
     clip: "rect(0,0,0,0)",
     height: 1,
@@ -270,10 +277,10 @@ const styles = stylex.create({
     alignItems: "center",
     backgroundColor: {
       default: "var(--color-memora-olive)",
-      ":hover": "var(--color-memora-olive-strong)",
+      ":hover": "color-mix(in srgb, var(--color-memora-olive) 86%, var(--color-memora-surface))",
     },
     borderRadius: "0.75rem",
-    color: "white",
+    color: tokens.selectionText,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -320,7 +327,7 @@ const styles = stylex.create({
     padding: "0.75rem",
   },
   stageRunning: {
-    backgroundColor: "var(--color-memora-olive-faint)",
+    backgroundColor: tokens.selected,
     borderColor: "var(--color-memora-olive-soft)",
   },
   stageHeader: { alignItems: "center", display: "flex", gap: "0.5rem" },
