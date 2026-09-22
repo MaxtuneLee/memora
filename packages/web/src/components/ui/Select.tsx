@@ -7,16 +7,17 @@ import * as stylex from "@stylexjs/stylex";
 import { cn } from "@/lib/cn";
 
 import "./select.css";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   trigger: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "flex",
     fontSize: "0.875rem",
     gap: 12,
@@ -27,12 +28,17 @@ const styles = stylex.create({
     transition:
       "border-color 300ms var(--ease-out-quart), box-shadow 300ms var(--ease-out-quart), background-color 300ms var(--ease-out-quart)",
     width: "100%",
-    ":hover": { backgroundColor: "var(--color-memora-hover)" },
+    ":hover": { backgroundColor: tokens.hover },
     ":focus-visible": {
-      borderColor: "var(--color-memora-olive-soft)",
-      boxShadow: "0 0 0 1px var(--color-memora-olive-soft)",
+      borderColor: tokens.focusRing,
+      boxShadow: `0 0 0 1px ${tokens.focusRing}`,
     },
-    "[data-popup-open]": { borderColor: "var(--color-memora-olive-soft)" },
+    "[data-popup-open]": { borderColor: tokens.oliveSoft },
+    "[data-disabled]": {
+      backgroundColor: tokens.controlDisabledBackground,
+      color: tokens.controlDisabledText,
+      cursor: "not-allowed",
+    },
   },
   value: {
     flex: 1,
@@ -42,7 +48,7 @@ const styles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  icon: { color: "var(--color-memora-text-soft)", flexShrink: 0 },
+  icon: { color: tokens.textSoft, flexShrink: 0 },
   iconGlyph: { height: 16, width: 16 },
   positioner: { outline: "none", zIndex: 70 },
   itemDisabled: { cursor: "not-allowed", opacity: 0.5 },

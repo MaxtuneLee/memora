@@ -33,6 +33,7 @@ import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/types/settings";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -68,18 +69,22 @@ const styles = stylex.create({
     transitionProperty: "color, background-color",
     userSelect: "none",
     width: "100%",
-    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa, 0 0 0 3px #fff" },
+    ":focus-visible": {
+      boxShadow: `0 0 0 2px ${tokens.surfaceSoft}, 0 0 0 4px ${tokens.focusRing}`,
+    },
   },
-  navActive: { color: "#18181b" },
+  navActive: { color: tokens.textStrong },
   navIdle: {
-    color: "#71717a",
-    ":hover": { backgroundColor: "rgb(255 255 255 / 0.6)", color: "#18181b" },
+    color: tokens.textMuted,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   navHighlight: {
-    backgroundColor: "rgb(255 255 255 / 0.72)",
-    border: "1px solid #e7e1d8",
+    backgroundColor: tokens.card,
+    borderColor: tokens.borderSoft,
     borderRadius: 12,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowSmall,
     inset: 0,
     pointerEvents: "none",
     position: "absolute",
@@ -92,8 +97,8 @@ const styles = stylex.create({
     width: 16,
     zIndex: 10,
   },
-  navActiveIcon: { color: "#18181b" },
-  navIdleIcon: { color: "#a1a1aa" },
+  navActiveIcon: { color: tokens.textStrong },
+  navIdleIcon: { color: tokens.textSoft },
   navLabel: {
     minWidth: 0,
     overflow: "hidden",
@@ -112,7 +117,7 @@ const styles = stylex.create({
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
     borderRadius: 24,
-    boxShadow: "0 32px 80px -56px rgb(34 33 29 / 0.42)",
+    boxShadow: tokens.shadowLarge,
     overflow: "hidden",
   },
   layout: {

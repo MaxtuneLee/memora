@@ -17,7 +17,7 @@ const LIGHT_COLORS = {
   // Text
   text: "#1d1c1a",
   textStrong: "#22211d",
-  textMuted: "#716c64",
+  textMuted: "#67625a",
   textSoft: "#8f897d",
   textInverse: "#fcfaf6",
   // Borders
@@ -27,6 +27,8 @@ const LIGHT_COLORS = {
   // Accent
   olive: "#7b875a",
   oliveSoft: "#a7af8f",
+  // Olive for text: the accent itself is below 4.5:1 on light surfaces.
+  oliveText: "#5f6b41",
   // Interaction states
   hover: "#efece5",
   hoverStrong: "#faf7f0",
@@ -96,6 +98,7 @@ const DARK_COLORS: typeof LIGHT_COLORS = {
   borderStrong: "#4d4a42",
   olive: "#a3b17a",
   oliveSoft: "#7d8662",
+  oliveText: "#b4c28a",
   hover: "#2f2d28",
   hoverStrong: "#35332d",
   pressed: "#3b3933",
@@ -150,6 +153,41 @@ export const tokens = stylex.defineVars({
 export const lightTheme = stylex.createTheme(tokens, LIGHT_COLORS);
 
 export const darkTheme = stylex.createTheme(tokens, DARK_COLORS);
+
+// ponytail: temporary aliases so plain CSS and Tailwind arbitrary values that still read the
+// older --color-memora-* names follow the theme. Remove each alias once its callers migrate.
+export const legacyColorAliases = stylex.create({
+  root: {
+    "--color-memora-bg": tokens.background,
+    "--color-memora-shell": tokens.shell,
+    "--color-memora-canvas": tokens.canvas,
+    "--color-memora-rail": tokens.rail,
+    "--color-memora-surface": tokens.surface,
+    "--color-memora-surface-soft": tokens.surfaceSoft,
+    "--color-memora-surface-muted": tokens.surfaceMuted,
+    "--color-memora-sidebar": tokens.sidebar,
+    "--color-memora-border": tokens.border,
+    "--color-memora-border-soft": tokens.borderSoft,
+    "--color-memora-text": tokens.text,
+    "--color-memora-text-strong": tokens.textStrong,
+    "--color-memora-text-muted": tokens.textMuted,
+    "--color-memora-text-soft": tokens.textSoft,
+    "--color-memora-hover": tokens.hover,
+    "--color-memora-hover-strong": tokens.hoverStrong,
+    "--color-memora-card": tokens.card,
+    "--color-memora-primary": tokens.primaryBackground,
+    "--color-memora-olive": tokens.olive,
+    "--color-memora-olive-soft": tokens.oliveSoft,
+    "--color-memora-warning-surface": tokens.warningSurface,
+    "--color-memora-warning-border": tokens.warningBorder,
+    "--color-memora-warning-text": tokens.warningText,
+    "--color-memora-file-audio": tokens.contentAudio,
+    "--color-memora-file-video": tokens.contentVideo,
+    "--color-memora-file-image": tokens.contentImage,
+    "--shadow-sm-soft": tokens.shadowSmall,
+    "--shadow-md-soft": tokens.shadowMedium,
+  },
+});
 
 export const appShellStyles = stylex.create({
   loading: {

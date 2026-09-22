@@ -1,13 +1,16 @@
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
-  root: { alignItems: "center", color: "#71717a", display: "flex", fontSize: 11, gap: 8 },
+  root: { alignItems: "center", color: tokens.textMuted, display: "flex", fontSize: 11, gap: 8 },
   key: {
     alignItems: "center",
-    backgroundColor: "#f7f4ef",
-    border: "1px solid #e5e0d8",
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
     borderRadius: 6,
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "inline-flex",
     fontWeight: 500,
     justifyContent: "center",

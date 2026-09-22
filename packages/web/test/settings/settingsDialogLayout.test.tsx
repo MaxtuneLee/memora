@@ -29,7 +29,7 @@ test("settings dialog source keeps the shell minimal while preserving collapsibl
   expect(dialogSource).toContain('layoutGroupId="settings-section-navigation-mobile"');
   expect(dialogSource).toContain('layoutId="settings-active-item"');
   expect(dialogSource).toContain('layoutId="settings-mobile-active-item"');
-  expect(dialogSource).toContain('navActive: { color: "#18181b" }');
+  expect(dialogSource).toContain("navActive: { color: tokens.textStrong }");
   expect(dialogSource).toContain("useReducedMotion");
   expect(classNamesSource).toContain('fontFamily: "var(--font-serif)"');
   expect(indexCss).toContain('@import "./styles/tokens.css";');

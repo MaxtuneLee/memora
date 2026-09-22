@@ -3,6 +3,7 @@ import type { ComponentProps } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 type DistributiveOmit<Type, Key extends PropertyKey> = Type extends unknown
   ? Omit<Type, Key>
@@ -26,6 +27,9 @@ export type ButtonProps = BaseButtonProps & {
   className?: string;
 };
 
+const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`;
+const LIFT = "translateY(-0.125rem)";
+
 const styles = stylex.create({
   base: {
     alignItems: "center",
@@ -40,82 +44,74 @@ const styles = stylex.create({
     transition:
       "background-color 300ms var(--ease-out-quart), border-color 300ms var(--ease-out-quart), color 300ms var(--ease-out-quart), box-shadow 300ms var(--ease-out-quart), transform 300ms var(--ease-out-quart)",
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
-    ":focus-visible": {
-      boxShadow: "0 0 0 2px var(--color-memora-olive-soft), 0 0 0 4px var(--color-memora-surface)",
-      outline: "none",
-    },
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
+    "[aria-busy=true]": { cursor: "progress", opacity: 0.7 },
   },
   primary: {
-    backgroundColor: "var(--color-memora-text-strong)",
-    borderColor: "var(--color-memora-text-strong)",
-    color: "var(--color-memora-surface)",
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
     minHeight: 40,
     paddingInline: 16,
     ":hover": {
-      backgroundColor: "#34312b",
-      borderColor: "#4a463e",
-      transform: "translateY(-0.125rem)",
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+      transform: LIFT,
+    },
+    ":active": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 76%, ${tokens.surface})`,
+      transform: "none",
     },
   },
   secondary: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
-    color: "var(--color-memora-text)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    color: tokens.text,
     minHeight: 40,
     paddingInline: 16,
-    ":hover": {
-      backgroundColor: "var(--color-memora-hover-strong)",
-      transform: "translateY(-0.125rem)",
-    },
+    ":hover": { backgroundColor: tokens.hoverStrong, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
   },
   oliveGhost: {
     backgroundColor: "transparent",
     borderColor: "transparent",
-    color: "var(--color-memora-olive-soft)",
+    color: tokens.oliveText,
     minHeight: 40,
     paddingInline: 16,
-    ":hover": {
-      backgroundColor: "color-mix(in srgb, var(--color-memora-olive-soft) 20%, transparent)",
-      color: "var(--color-memora-olive-soft)",
-      transform: "translateY(-0.125rem)",
-    },
+    ":hover": { backgroundColor: tokens.selected, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
   },
   destructive: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-warning-border)",
-    color: "var(--color-memora-warning-text)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.warningBorder,
+    color: tokens.warningText,
     minHeight: 40,
     paddingInline: 16,
-    ":hover": {
-      backgroundColor: "var(--color-memora-warning-surface)",
-      transform: "translateY(-0.125rem)",
-    },
+    ":hover": { backgroundColor: tokens.warningSurface, transform: LIFT },
+    ":active": { borderColor: tokens.warningText, transform: "none" },
   },
   icon: {
     backgroundColor: "transparent",
     borderColor: "transparent",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     height: 36,
     paddingInline: 0,
     width: 36,
-    ":hover": {
-      backgroundColor: "var(--color-memora-hover)",
-      color: "var(--color-memora-text)",
-      transform: "translateY(-0.125rem)",
-    },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
   },
   destructiveIcon: {
     backgroundColor: "transparent",
     borderColor: "transparent",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     height: 36,
     paddingInline: 0,
     width: 36,
     ":hover": {
-      backgroundColor: "var(--color-memora-warning-surface)",
-      color: "var(--color-memora-warning-text)",
-      transform: "translateY(-0.125rem)",
+      backgroundColor: tokens.warningSurface,
+      color: tokens.warningText,
+      transform: LIFT,
     },
+    ":active": { borderColor: tokens.warningBorder, transform: "none" },
   },
   plain: {
     backgroundColor: "transparent",
@@ -124,23 +120,20 @@ const styles = stylex.create({
     padding: 0,
   },
   segmentActive: {
-    backgroundColor: "var(--color-memora-text-strong)",
-    borderColor: "var(--color-memora-text-strong)",
-    color: "var(--color-memora-surface)",
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
     paddingBlock: 8,
     paddingInline: 14,
   },
   segmentIdle: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
-    color: "var(--color-memora-text-muted)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    color: tokens.textMuted,
     paddingBlock: 8,
     paddingInline: 14,
-    ":hover": {
-      backgroundColor: "var(--color-memora-hover-strong)",
-      color: "var(--color-memora-text)",
-      transform: "translateY(-0.125rem)",
-    },
+    ":hover": { backgroundColor: tokens.hoverStrong, color: tokens.text, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
   },
 });
 

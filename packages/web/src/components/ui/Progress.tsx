@@ -1,10 +1,12 @@
 import { Progress as BaseProgress } from "@base-ui/react/progress";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 },
   labelRow: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 12,
     gap: 12,
@@ -13,14 +15,14 @@ const styles = stylex.create({
   label: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   value: { flexShrink: 0, fontVariantNumeric: "tabular-nums" },
   track: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     height: 6,
     overflow: "hidden",
     width: "100%",
   },
   indicator: {
-    backgroundColor: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.primaryBackground,
     height: "100%",
     transition: "width 300ms ease-out",
   },

@@ -2,10 +2,11 @@ import { type CSSProperties, useId, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 12,
     display: "grid",
     isolation: "isolate",
@@ -14,10 +15,10 @@ const styles = stylex.create({
     width: "fit-content",
   },
   indicator: {
-    backgroundColor: "var(--color-memora-surface)",
+    backgroundColor: tokens.card,
     borderRadius: 8,
     bottom: 4,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     left: 4,
     pointerEvents: "none",
     position: "absolute",
@@ -31,7 +32,7 @@ const styles = stylex.create({
   },
   option: { position: "relative", zIndex: 10 },
   optionFocused: {
-    boxShadow: "0 0 0 2px var(--color-memora-olive-soft), 0 0 0 4px var(--color-memora-surface)",
+    boxShadow: `0 0 0 2px ${tokens.surfaceMuted}, 0 0 0 4px ${tokens.focusRing}`,
   },
   input: {
     borderWidth: 0,
@@ -47,7 +48,7 @@ const styles = stylex.create({
   label: {
     alignItems: "center",
     borderRadius: 8,
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     cursor: "pointer",
     display: "flex",
     fontSize: "0.75rem",
@@ -57,7 +58,7 @@ const styles = stylex.create({
     paddingInline: 12,
     transition: "color 200ms var(--ease-out-quart)",
   },
-  selectedLabel: { color: "var(--color-memora-text)" },
+  selectedLabel: { color: tokens.textStrong },
   disabledLabel: { cursor: "not-allowed", opacity: 0.5 },
 });
 

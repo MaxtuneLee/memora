@@ -2,10 +2,12 @@ import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import type { ComponentProps } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   root: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.borderStrong,
     borderRadius: 9999,
     display: "inline-flex",
     flexShrink: 0,
@@ -13,19 +15,19 @@ const styles = stylex.create({
     padding: 4,
     transition: "background-color 150ms",
     width: 44,
-    "[data-checked]": { backgroundColor: "var(--color-memora-text-strong)" },
+    "[data-checked]": { backgroundColor: tokens.primaryBackground },
     "[data-disabled]": { opacity: 0.5 },
     ":focus-visible": {
-      boxShadow: "0 0 0 2px var(--color-memora-olive-soft), 0 0 0 4px var(--color-memora-surface)",
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`,
       outline: "none",
     },
   },
   thumb: {
-    backgroundColor: "var(--color-memora-surface)",
+    backgroundColor: tokens.card,
     borderRadius: 9999,
     display: "block",
     height: 16,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     transform: "translateX(0)",
     transition: "transform 150ms",
     width: 16,

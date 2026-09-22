@@ -1,9 +1,11 @@
 import { Toast } from "@base-ui/react/toast";
+import { CheckCircleIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 import { motion } from "motion/react";
 import { useMemo } from "react";
 
 import { useNativeDialogLayer } from "../lib/nativeDialogLayer";
+import { tokens } from "../styles/stylex.stylex";
 
 const styles = stylex.create({
   viewport: {
@@ -20,12 +22,12 @@ const styles = stylex.create({
   limited: { pointerEvents: "none" },
   toast: {
     alignItems: "flex-start",
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.card,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowLarge,
     display: "flex",
     gap: "0.75rem",
     paddingBlock: "0.75rem",
@@ -33,29 +35,22 @@ const styles = stylex.create({
     transitionDuration: "150ms",
     transitionProperty: "color, background-color, border-color, opacity, box-shadow, transform",
   },
-  statusDot: {
-    borderRadius: "9999px",
-    display: "block",
-    flexShrink: 0,
-    height: "0.5rem",
-    marginTop: "0.25rem",
-    width: "0.5rem",
-  },
-  statusSuccess: { backgroundColor: "#10b981" },
-  statusError: { backgroundColor: "#f43f5e" },
-  statusDefault: { backgroundColor: "#a1a1aa" },
+  statusIcon: { flexShrink: 0, height: "1rem", marginTop: "0.125rem", width: "1rem" },
+  statusSuccess: { color: tokens.successText },
+  statusError: { color: tokens.dangerText },
+  statusDefault: { color: tokens.textSoft },
   toastBody: {
     flex: 1,
     minWidth: 0,
   },
   toastTitle: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: "0.875rem",
     fontWeight: 500,
     lineHeight: "1.25rem",
   },
   toastDescription: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: "0.75rem",
     lineHeight: "1rem",
     marginTop: "0.125rem",
@@ -63,7 +58,7 @@ const styles = stylex.create({
   toastAction: {
     backgroundColor: "transparent",
     border: "none",
-    color: "#4f5742",
+    color: tokens.oliveText,
     cursor: "pointer",
     flexShrink: 0,
     fontSize: "0.875rem",
@@ -72,8 +67,8 @@ const styles = stylex.create({
   },
   toastClose: {
     color: {
-      default: "#a1a1aa",
-      ":hover": "#3f3f46",
+      default: tokens.textSoft,
+      ":hover": tokens.text,
     },
     flexShrink: 0,
     transitionDuration: "150ms",
@@ -85,14 +80,19 @@ const styles = stylex.create({
   },
 });
 
-const statusStyle = (type?: string) => {
+// The icon shape carries the status, so it does not rely on color alone.
+const StatusIcon = ({ type }: { type?: string }) => {
   switch (type) {
     case "success":
-      return styles.statusSuccess;
+      return (
+        <CheckCircleIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusSuccess)} />
+      );
     case "error":
-      return styles.statusError;
+      return (
+        <WarningCircleIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusError)} />
+      );
     default:
-      return styles.statusDefault;
+      return <InfoIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusDefault)} />;
   }
 };
 
@@ -182,7 +182,7 @@ export default function ToastStack() {
             }}
           >
             <Toast.Content {...stylex.props(styles.toast)}>
-              <span {...stylex.props(styles.statusDot, statusStyle(toast.type))} />
+              <StatusIcon type={toast.type} />
               <div {...stylex.props(styles.toastBody)}>
                 <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title}</Toast.Title>
                 {toast.description ? (

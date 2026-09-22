@@ -1,16 +1,18 @@
 import * as stylex from "@stylexjs/stylex";
 import type { ComponentProps } from "react";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 export interface InputProps extends ComponentProps<"input"> {}
 
 const styles = stylex.create({
   input: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     outline: "none",
@@ -20,11 +22,20 @@ const styles = stylex.create({
       "border-color 300ms var(--ease-out-quart), box-shadow 300ms var(--ease-out-quart), background-color 300ms var(--ease-out-quart)",
     width: "100%",
     "::placeholder": {
-      color: "var(--color-memora-text-soft)",
+      color: tokens.textMuted,
     },
     ":focus": {
-      borderColor: "var(--color-memora-olive-soft)",
-      boxShadow: "0 0 0 1px var(--color-memora-olive-soft)",
+      borderColor: tokens.focusRing,
+      boxShadow: `0 0 0 1px ${tokens.focusRing}`,
+    },
+    ":disabled": {
+      backgroundColor: tokens.controlDisabledBackground,
+      color: tokens.controlDisabledText,
+      cursor: "not-allowed",
+    },
+    "[aria-invalid=true]": {
+      borderColor: tokens.dangerText,
+      boxShadow: `0 0 0 1px ${tokens.dangerText}`,
     },
   },
 });

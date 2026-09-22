@@ -13,6 +13,7 @@ import type { GlobalSearchItem, SearchNavigationState } from "@/types/search";
 import { SearchResultRow } from "./searchPalette/SearchResultRow";
 import { ShortcutHint } from "./searchPalette/ShortcutHint";
 import { useSearchResults } from "./searchPalette/useSearchResults";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   viewport: {
@@ -26,13 +27,13 @@ const styles = stylex.create({
     },
   },
   panel: {
-    backgroundColor: "rgb(255 255 253 / 0.98)",
-    borderColor: "#ddd8d0",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.borderStrong,
     borderRadius: 18,
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 18px 48px rgb(38 34 29 / 0.12)",
-    color: "#09090b",
+    boxShadow: tokens.shadowLarge,
+    color: tokens.textStrong,
     overflow: "hidden",
     width: "min(760px, calc(100vw - 1rem))",
     "@media (min-width: 640px)": { width: "min(760px, 92vw)" },
@@ -60,7 +61,7 @@ const styles = stylex.create({
   },
   searchFrame: {
     backgroundColor: "transparent",
-    borderColor: "#ebe7e1",
+    borderColor: tokens.border,
     borderRadius: 14,
     borderStyle: "solid",
     borderWidth: 1,
@@ -74,7 +75,7 @@ const styles = stylex.create({
   },
   searchIconFrame: {
     alignItems: "center",
-    color: "#3f3f46",
+    color: tokens.text,
     display: "flex",
     flexShrink: 0,
     height: "2rem",
@@ -84,21 +85,21 @@ const styles = stylex.create({
   searchIcon: { height: "1.25rem", width: "1.25rem" },
   input: {
     backgroundColor: "transparent",
-    color: "#27272a",
+    color: tokens.text,
     flex: 1,
     fontSize: 15,
     minWidth: 0,
     outline: "none",
-    "::placeholder": { color: "#a1a1aa" },
+    "::placeholder": { color: tokens.textMuted },
   },
   shortcut: {
     alignItems: "center",
-    backgroundColor: "#f7f4ef",
-    borderColor: "#e5e0d8",
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.border,
     borderRadius: "0.375rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "none",
     fontSize: 11,
     fontWeight: 500,
@@ -121,20 +122,20 @@ const styles = stylex.create({
     paddingBottom: "0.5rem",
     paddingInline: "0.5rem",
   },
-  sectionTitle: { color: "#71717a", fontSize: 13, fontWeight: 600 },
-  resultCount: { color: "#a1a1aa", fontSize: "0.75rem", lineHeight: "1rem" },
+  sectionTitle: { color: tokens.textMuted, fontSize: 13, fontWeight: 600 },
+  resultCount: { color: tokens.textMuted, fontSize: "0.75rem", lineHeight: "1rem" },
   empty: {
-    backgroundColor: "#f6f5f3",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 14,
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     padding: "1rem",
   },
   resultItems: { display: "flex", flexDirection: "column", gap: "0.25rem" },
   footer: {
-    backgroundColor: "#fcfbf8",
-    borderTopColor: "#ebe7e1",
+    backgroundColor: tokens.surfaceSoft,
+    borderTopColor: tokens.border,
     borderTopStyle: "solid",
     borderTopWidth: 1,
     paddingBlock: "0.75rem",

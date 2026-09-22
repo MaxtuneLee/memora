@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 
 import type { setting } from "@/livestore/setting";
-import { darkTheme, lightTheme } from "@/styles/stylex.stylex";
+import { darkTheme, legacyColorAliases, lightTheme } from "@/styles/stylex.stylex";
 
 export type ThemePreference = setting["theme"];
 export type ResolvedTheme = "light" | "dark";
@@ -16,8 +16,12 @@ export const THEME_COLORS: Record<ResolvedTheme, string> = {
 const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 
 const THEME_CLASS_NAMES: Record<ResolvedTheme, string[]> = {
-  light: (stylex.props(lightTheme).className ?? "").split(" ").filter(Boolean),
-  dark: (stylex.props(darkTheme).className ?? "").split(" ").filter(Boolean),
+  light: (stylex.props(lightTheme, legacyColorAliases.root).className ?? "")
+    .split(" ")
+    .filter(Boolean),
+  dark: (stylex.props(darkTheme, legacyColorAliases.root).className ?? "")
+    .split(" ")
+    .filter(Boolean),
 };
 
 export function resolveTheme(preference: ThemePreference, systemDark: boolean): ResolvedTheme {

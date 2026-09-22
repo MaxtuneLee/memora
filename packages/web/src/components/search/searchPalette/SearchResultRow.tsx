@@ -5,6 +5,7 @@ import { getFileIcon } from "@/lib/library/fileIcon";
 import type { GlobalSearchItem } from "@/types/search";
 
 import { CATEGORY_LABELS, SEARCH_ITEM_ICONS } from "./constants";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   row: {
@@ -21,17 +22,19 @@ const styles = stylex.create({
     transition: "background-color 150ms",
     width: "100%",
   },
-  inactive: { ":hover": { backgroundColor: "#f5f4f2" } },
+  inactive: { ":hover": { backgroundColor: tokens.hover } },
   activeSurface: {
-    backgroundColor: "#f1f0ee",
-    border: "1px solid #e7e1d8",
+    backgroundColor: tokens.pressed,
+    borderColor: tokens.borderSoft,
+    borderStyle: "solid",
+    borderWidth: 1,
     borderRadius: 14,
     inset: 0,
     position: "absolute",
   },
   iconWrap: {
     alignItems: "center",
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "flex",
     flexShrink: 0,
     height: 32,
@@ -42,7 +45,7 @@ const styles = stylex.create({
     width: 32,
     zIndex: 10,
   },
-  activeIcon: { color: "#3f3f46" },
+  activeIcon: { color: tokens.text },
   icon: { height: 20, width: 20 },
   body: { flex: 1, minWidth: 0, position: "relative", zIndex: 10 },
   heading: {
@@ -54,7 +57,7 @@ const styles = stylex.create({
     rowGap: 2,
   },
   title: {
-    color: "#27272a",
+    color: tokens.textStrong,
     fontSize: 15,
     fontWeight: 600,
     margin: 0,
@@ -62,9 +65,9 @@ const styles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  separator: { color: "#d4d4d8", flexShrink: 0, fontSize: 14 },
+  separator: { color: tokens.textSoft, flexShrink: 0, fontSize: 14 },
   description: {
-    color: "#a1a1aa",
+    color: tokens.textMuted,
     fontSize: 14,
     margin: 0,
     overflow: "hidden",
@@ -72,7 +75,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   preview: {
-    color: "#a1a1aa",
+    color: tokens.textMuted,
     display: "-webkit-box",
     fontSize: 12,
     lineClamp: 1,
@@ -82,7 +85,7 @@ const styles = stylex.create({
     WebkitBoxOrient: "vertical",
     "@media (min-width: 640px)": { lineClamp: 2 },
   },
-  activePreview: { color: "#71717a" },
+  activePreview: { color: tokens.text },
 });
 
 export function SearchResultRow({

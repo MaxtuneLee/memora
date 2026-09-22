@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 import MemoraMascot from "@/components/assistant/MemoraMascot";
 import * as stylex from "@stylexjs/stylex";
 import type { LiveStoreLoadingStatus } from "../liveStoreLoadingStatus";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface LiveStoreLoadingScreenProps {
   status: LiveStoreLoadingStatus;
@@ -16,17 +17,17 @@ const STAGE_COPY: Record<LiveStoreLoadingStatus["stage"], string> = {
 
 const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;
 const BACKGROUND_IMAGE = `
-  radial-gradient(circle at 50% 24%, rgba(255, 250, 236, 0.98) 0%, color-mix(in srgb, var(--color-memora-bg) 82%, transparent) 34%, transparent 70%),
+  radial-gradient(circle at 50% 24%, var(--color-memora-shell) 0%, color-mix(in srgb, var(--color-memora-bg) 82%, transparent) 34%, transparent 70%),
   radial-gradient(circle at 18% 78%, rgba(135, 154, 79, 0.12) 0%, rgba(135, 154, 79, 0) 42%),
   radial-gradient(circle at 88% 14%, rgba(196, 167, 111, 0.14) 0%, rgba(196, 167, 111, 0) 36%),
-  linear-gradient(180deg, #fffdf8 0%, var(--color-memora-bg) 52%, #f8f1e3 100%)
+  linear-gradient(180deg, var(--color-memora-surface) 0%, var(--color-memora-bg) 52%, var(--color-memora-rail) 100%)
 `;
 
 const styles = stylex.create({
   root: {
     alignItems: "center",
-    backgroundColor: "#fcfaf6",
-    color: "#171311",
+    backgroundColor: tokens.background,
+    color: tokens.textStrong,
     display: "flex",
     justifyContent: "center",
     minHeight: "100dvh",
@@ -37,7 +38,8 @@ const styles = stylex.create({
   },
   backdrop: { inset: 0, overflow: "hidden", pointerEvents: "none", position: "absolute" },
   centerGlow: {
-    backgroundColor: "rgba(255, 247, 231, 0.8)",
+    backgroundColor: tokens.shell,
+    opacity: 0.8,
     borderRadius: "9999px",
     filter: "blur(88px)",
     height: "26rem",
@@ -86,13 +88,13 @@ const styles = stylex.create({
     textAlign: "center",
   },
   title: {
-    color: "#171311",
+    color: tokens.textStrong,
     fontSize: "clamp(1.55rem, 2.8vw, 1.9rem)",
     fontWeight: 600,
     letterSpacing: "-0.05em",
   },
   description: {
-    color: "#6c645a",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: 1.5,
     maxWidth: "17rem",
@@ -101,14 +103,18 @@ const styles = stylex.create({
   progress: { marginTop: "2rem", maxWidth: "15rem", width: "100%" },
   progressStack: { display: "flex", flexDirection: "column", gap: "0.625rem" },
   progressTrack: {
-    backgroundColor: "rgba(217, 207, 191, 0.7)",
+    backgroundColor: tokens.border,
     borderRadius: "9999px",
     height: "0.375rem",
     overflow: "hidden",
   },
-  progressFill: { backgroundColor: "#1a1612", borderRadius: "9999px", height: "100%" },
+  progressFill: {
+    backgroundColor: tokens.primaryBackground,
+    borderRadius: "9999px",
+    height: "100%",
+  },
   progressText: {
-    color: "#8a7f72",
+    color: tokens.textMuted,
     fontSize: "0.68rem",
     letterSpacing: "0.26em",
     textAlign: "center",
@@ -116,7 +122,7 @@ const styles = stylex.create({
   },
   dots: { alignItems: "center", display: "flex", gap: "0.625rem", justifyContent: "center" },
   dot: {
-    backgroundColor: "#1a1612",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: "9999px",
     height: "0.625rem",
     width: "0.625rem",
