@@ -11,6 +11,7 @@ import {
   getLocalModelDownloadTotalBytes,
   type LocalModelDownloadState,
 } from "@/lib/local-model/downloadState";
+import { tokens } from "../../styles/stylex.stylex";
 
 const rotate = stylex.keyframes({
   to: { transform: "rotate(360deg)" },
@@ -18,8 +19,8 @@ const rotate = stylex.keyframes({
 
 const styles = stylex.create({
   card: {
-    backgroundColor: "#fffdf8",
-    borderColor: "#ded7c9",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1.4rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -36,13 +37,13 @@ const styles = stylex.create({
   },
   heading: { minWidth: 0 },
   title: {
-    color: "#24231f",
+    color: tokens.textStrong,
     fontSize: "1.125rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
   },
   description: {
-    color: "#817b70",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
     marginTop: "0.25rem",
@@ -57,9 +58,9 @@ const styles = stylex.create({
   },
   downloadedBadge: {
     alignItems: "center",
-    backgroundColor: "#eef3e2",
+    backgroundColor: tokens.successSurface,
     borderRadius: "9999px",
-    color: "#5c6c3d",
+    color: tokens.successText,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -70,7 +71,7 @@ const styles = stylex.create({
   },
   smallIcon: { height: "0.875rem", width: "0.875rem" },
   size: {
-    color: "#6f695f",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     fontVariantNumeric: "tabular-nums",
     fontWeight: 600,
@@ -79,14 +80,14 @@ const styles = stylex.create({
   },
   cachedSize: { fontSize: "0.75rem", lineHeight: "1rem" },
   progressTrack: {
-    backgroundColor: "#e4e3d9",
+    backgroundColor: tokens.border,
     borderRadius: "9999px",
     height: "0.5rem",
     marginTop: "1.75rem",
     overflow: "hidden",
   },
   progressBar: {
-    backgroundColor: "#7d8c59",
+    backgroundColor: tokens.olive,
     borderRadius: "9999px",
     height: "100%",
     transformOrigin: "left",
@@ -95,7 +96,7 @@ const styles = stylex.create({
   },
   progressMeta: {
     alignItems: "center",
-    color: "#817b70",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: "0.875rem",
     fontWeight: 600,

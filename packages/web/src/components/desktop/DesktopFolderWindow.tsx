@@ -7,16 +7,17 @@ import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSurface } from "./DesktopSurface";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   dragOver: {
-    backgroundColor: "rgb(239 246 255 / 0.3)",
-    boxShadow: "inset 0 0 0 2px rgb(96 165 250 / 0.7)",
+    backgroundColor: tokens.selected,
+    boxShadow: `inset 0 0 0 2px ${tokens.oliveSoft}`,
   },
   windowBody: { display: "flex", flexDirection: "column", height: "100%" },
   toolbar: {
     alignItems: "center",
-    borderBottom: "1px solid #f4f4f5",
+    borderBottom: `1px solid ${tokens.border}`,
     display: "flex",
     justifyContent: "space-between",
     paddingBlock: 8,
@@ -24,18 +25,18 @@ const styles = stylex.create({
   },
   breadcrumbs: {
     alignItems: "center",
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: "0.75rem",
     gap: 4,
   },
-  breadcrumb: { color: "#71717a", ":hover": { color: "#3f3f46" } },
-  activeBreadcrumb: { color: "#3f3f46", fontWeight: 500 },
-  separator: { color: "#d4d4d8", marginInline: 4 },
+  breadcrumb: { color: tokens.textMuted, ":hover": { color: tokens.text } },
+  activeBreadcrumb: { color: tokens.text, fontWeight: 500 },
+  separator: { color: tokens.textSoft, marginInline: 4 },
   viewSwitcher: {
     alignItems: "center",
-    backgroundColor: "#fff",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 8,
     display: "flex",
     gap: 4,
@@ -44,21 +45,21 @@ const styles = stylex.create({
   viewButton: {
     alignItems: "center",
     borderRadius: 6,
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "flex",
     height: 28,
     justifyContent: "center",
     transition: "background-color 150ms, color 150ms",
     width: 28,
-    ":hover": { backgroundColor: "#f4f4f5" },
+    ":hover": { backgroundColor: tokens.hover },
   },
   activeViewButton: {
-    backgroundColor: "#18181b",
-    color: "#fff",
-    ":hover": { backgroundColor: "#18181b" },
+    backgroundColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    ":hover": { backgroundColor: tokens.primaryBackground },
   },
   viewIcon: { height: 16, width: 16 },
-  content: { backgroundColor: "rgb(250 250 250 / 0.7)", flex: 1, overflow: "auto" },
+  content: { backgroundColor: tokens.surfaceSoft, flex: 1, overflow: "auto" },
 });
 
 export const FOLDER_WINDOW_DROP_PREFIX = "folder-window:";

@@ -43,7 +43,7 @@ const styles = stylex.create({
     alignItems: "center",
     border: "1px solid",
     borderRadius: 9999,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: "var(--shadow-sm-soft)",
     display: "flex",
     height: 20,
     justifyContent: "center",

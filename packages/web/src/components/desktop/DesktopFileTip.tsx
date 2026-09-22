@@ -3,32 +3,39 @@ import * as stylex from "@stylexjs/stylex";
 
 import { formatBytes } from "@/lib/format";
 import type { DesktopFileItem, DesktopFolderItem } from "@/types/desktop";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   positioner: { zIndex: 20 },
   popup: {
     backdropFilter: "blur(4px)",
-    backgroundColor: "rgb(255 255 255 / 0.95)",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 8,
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowMedium,
     fontSize: "0.75rem",
     maxWidth: 240,
     paddingBlock: 8,
     paddingInline: 12,
   },
   title: {
-    color: "#27272a",
+    color: tokens.textStrong,
     fontWeight: 500,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  details: { color: "#71717a", display: "flex", flexDirection: "column", gap: 2, marginTop: 6 },
-  detailLabel: { color: "#52525b" },
-  folder: { color: "#71717a", marginTop: 4 },
+  details: {
+    color: tokens.textMuted,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    marginTop: 6,
+  },
+  detailLabel: { color: tokens.textMuted },
+  folder: { color: tokens.textMuted, marginTop: 4 },
 });
 
 type TippableItem = DesktopFileItem | DesktopFolderItem;

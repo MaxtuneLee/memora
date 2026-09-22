@@ -52,10 +52,11 @@ import {
   mapFolderRowsToDesktopItems,
   sortDesktopItems,
 } from "@/components/desktop/desktop/utils";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   canvas: {
-    backgroundImage: "linear-gradient(to bottom right, #fafafa, rgb(244 244 245 / 0.5), #f4f4f5)",
+    backgroundColor: tokens.canvas,
     height: "100%",
     overflow: "auto",
     position: "relative",
@@ -65,7 +66,7 @@ const styles = stylex.create({
   dropOverlay: {
     alignItems: "center",
     backdropFilter: "blur(2px)",
-    backgroundColor: "rgb(239 246 255 / 0.6)",
+    backgroundColor: tokens.selected,
     display: "flex",
     inset: 0,
     justifyContent: "center",
@@ -74,16 +75,16 @@ const styles = stylex.create({
     zIndex: 50,
   },
   dropCard: {
-    backgroundColor: "rgb(255 255 255 / 0.8)",
-    borderColor: "#60a5fa",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.oliveSoft,
     borderRadius: 16,
     borderStyle: "dashed",
     borderWidth: 2,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowMedium,
     paddingBlock: 24,
     paddingInline: 32,
   },
-  dropLabel: { color: "#2563eb", fontSize: "0.875rem", fontWeight: 500 },
+  dropLabel: { color: tokens.oliveText, fontSize: "0.875rem", fontWeight: 500 },
 });
 
 interface DesktopProps {

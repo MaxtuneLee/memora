@@ -43,7 +43,7 @@ const styles = stylex.create({
     transition: "transform 300ms",
   },
   complete: { backgroundColor: "var(--color-memora-olive)" },
-  downloading: { backgroundColor: "#5f8fcb" },
+  downloading: { backgroundColor: "var(--color-memora-text-soft)" },
 });
 
 interface LocalModelDownloadFilesProps {

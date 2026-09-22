@@ -2,12 +2,13 @@ import * as stylex from "@stylexjs/stylex";
 
 import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
 import { useLocalModelDownloadSettings } from "@/hooks/settings/useLocalModelDownloadSettings";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 12 },
   overview: {
-    backgroundColor: "#fffdf8",
-    borderColor: "#ded7c9",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1.4rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -20,13 +21,13 @@ const styles = stylex.create({
     gap: 16,
     justifyContent: "space-between",
   },
-  title: { color: "#24231f", fontSize: "1.125rem", fontWeight: 600 },
-  body: { color: "#817b70", fontSize: "0.875rem", lineHeight: 1.5 },
+  title: { color: tokens.textStrong, fontSize: "1.125rem", fontWeight: 600 },
+  body: { color: tokens.textMuted, fontSize: "0.875rem", lineHeight: 1.5 },
   titleBody: { marginTop: 4 },
   badge: {
-    backgroundColor: "#eef3e2",
+    backgroundColor: tokens.successSurface,
     borderRadius: 9999,
-    color: "#5c6c3d",
+    color: tokens.successText,
     flexShrink: 0,
     fontSize: "0.875rem",
     fontWeight: 600,

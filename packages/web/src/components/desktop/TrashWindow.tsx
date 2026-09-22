@@ -5,35 +5,36 @@ import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSurface } from "./DesktopSurface";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   actionButton: {
-    backgroundColor: "#fff",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 8,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#3f3f46",
+    color: tokens.text,
     fontSize: "0.75rem",
     paddingBlock: 4,
     paddingInline: 10,
     transition: "background-color 150ms",
     ":disabled": { opacity: 0.5 },
-    ":hover": { backgroundColor: "#fafafa" },
+    ":hover": { backgroundColor: tokens.hoverStrong },
   },
   headerAction: { fontWeight: 500 },
   body: { display: "flex", flexDirection: "column", height: "100%" },
   toolbar: {
     alignItems: "center",
-    borderBottom: "1px solid #f4f4f5",
+    borderBottom: `1px solid ${tokens.border}`,
     display: "flex",
     justifyContent: "space-between",
     paddingBlock: 8,
     paddingInline: 12,
   },
-  status: { color: "#71717a", fontSize: "0.75rem" },
+  status: { color: tokens.textMuted, fontSize: "0.75rem" },
   actions: { alignItems: "center", display: "flex", gap: 8 },
-  content: { backgroundColor: "rgb(250 250 250 / 0.7)", flex: 1, overflow: "auto" },
+  content: { backgroundColor: tokens.surfaceSoft, flex: 1, overflow: "auto" },
 });
 
 interface TrashWindowProps {

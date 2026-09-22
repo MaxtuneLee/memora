@@ -5,15 +5,16 @@ import { useId } from "react";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { formatBytes } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+    boxShadow: tokens.shadowLarge,
     padding: "1.5rem",
     width: "min(420px, 92vw)",
   },
@@ -23,13 +24,13 @@ const styles = stylex.create({
     justifyContent: "space-between",
   },
   title: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: "1.125rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
   },
   description: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.25rem",
@@ -38,12 +39,12 @@ const styles = stylex.create({
     alignItems: "center",
     backgroundColor: {
       default: "transparent",
-      ":hover": "#f4f4f5",
+      ":hover": tokens.hover,
     },
     borderRadius: "9999px",
     color: {
-      default: "#a1a1aa",
-      ":hover": "#18181b",
+      default: tokens.textSoft,
+      ":hover": tokens.textStrong,
     },
     cursor: "pointer",
     display: "flex",
@@ -64,7 +65,7 @@ const styles = stylex.create({
     marginTop: "1.25rem",
   },
   label: {
-    color: "#3f3f46",
+    color: tokens.text,
     display: "block",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -72,13 +73,13 @@ const styles = stylex.create({
   },
   input: {
     borderColor: {
-      default: "#e4e4e7",
-      ":focus": "#a1a1aa",
+      default: tokens.border,
+      ":focus": tokens.focusRing,
     },
     borderRadius: "0.5rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.25rem",
@@ -89,14 +90,14 @@ const styles = stylex.create({
     transitionProperty: "border-color, box-shadow",
     width: "100%",
     "::placeholder": {
-      color: "#a1a1aa",
+      color: tokens.textSoft,
     },
     ":focus": {
-      boxShadow: "0 0 0 2px #e4e4e7",
+      boxShadow: `0 0 0 2px ${tokens.border}`,
     },
   },
   metadata: {
-    color: "#71717a",
+    color: tokens.textMuted,
     columnGap: "1.5rem",
     display: "flex",
     flexWrap: "wrap",
@@ -105,7 +106,7 @@ const styles = stylex.create({
     rowGap: "0.5rem",
   },
   metadataLabel: {
-    color: "#3f3f46",
+    color: tokens.text,
     fontWeight: 500,
   },
   actions: {
@@ -130,21 +131,21 @@ const styles = stylex.create({
   },
   cancelButton: {
     backgroundColor: {
-      default: "white",
-      ":hover": "#fafafa",
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
     },
-    borderColor: "#e4e4e7",
+    borderColor: tokens.border,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#3f3f46",
+    color: tokens.text,
   },
   confirmButton: {
     backgroundColor: {
-      default: "#18181b",
-      ":hover": "#27272a",
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
     },
     borderWidth: 0,
-    color: "white",
+    color: tokens.primaryText,
   },
 });
 

@@ -2,40 +2,52 @@ import { useId } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "#fff",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 16,
-    boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+    boxShadow: tokens.shadowLarge,
     padding: 24,
     width: "min(420px, 92vw)",
   },
   content: { display: "flex", flexDirection: "column", gap: 16 },
-  title: { color: "#18181b", fontSize: 18, fontWeight: 600, margin: 0 },
-  description: { color: "#71717a", fontSize: 14, marginTop: 4 },
+  title: { color: tokens.textStrong, fontSize: 18, fontWeight: 600, margin: 0 },
+  description: { color: tokens.textMuted, fontSize: 14, marginTop: 4 },
   actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
   cancel: {
-    border: "1px solid #e4e4e7",
+    border: `1px solid ${tokens.border}`,
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.text,
     fontSize: 14,
     paddingBlock: 6,
     paddingInline: 12,
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: "#fafafa" },
+    ":hover": { backgroundColor: tokens.hoverStrong },
   },
   confirm: {
     borderRadius: 8,
-    color: "#fff",
     fontSize: 14,
     paddingBlock: 6,
     paddingInline: 12,
     transition: "background-color 150ms",
   },
-  defaultConfirm: { backgroundColor: "#18181b", ":hover": { backgroundColor: "#27272a" } },
-  dangerConfirm: { backgroundColor: "#dc2626", ":hover": { backgroundColor: "#b91c1c" } },
+  defaultConfirm: {
+    backgroundColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+  },
+  dangerConfirm: {
+    backgroundColor: tokens.dangerText,
+    color: tokens.textInverse,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.dangerText} 86%, ${tokens.surface})`,
+    },
+  },
 });
 
 interface ConfirmDialogProps {

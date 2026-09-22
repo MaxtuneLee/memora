@@ -10,6 +10,7 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import type { Position } from "@/types/desktop";
+import { tokens } from "../../styles/stylex.stylex";
 
 const menuEnter = stylex.keyframes({
   from: { opacity: 0, transform: "scale(0.95)" },
@@ -22,19 +23,19 @@ const styles = stylex.create({
     animationDuration: "100ms",
     animationName: menuEnter,
     backdropFilter: "blur(12px)",
-    backgroundColor: "rgb(255 255 255 / 0.95)",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 12,
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowMedium,
     minWidth: 180,
     padding: 6,
   },
   item: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.text,
     cursor: "pointer",
     display: "flex",
     fontSize: "0.875rem",
@@ -44,12 +45,12 @@ const styles = stylex.create({
     paddingInline: 12,
     transition: "background-color 150ms, color 150ms",
     width: "100%",
-    "[data-highlighted]": { backgroundColor: "#f4f4f5", color: "#18181b" },
+    "[data-highlighted]": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   deleteItem: {
     alignItems: "center",
     borderRadius: 8,
-    color: "#3f3f46",
+    color: tokens.text,
     cursor: "pointer",
     display: "flex",
     fontSize: "0.875rem",
@@ -59,11 +60,11 @@ const styles = stylex.create({
     paddingInline: 12,
     transition: "background-color 150ms, color 150ms",
     width: "100%",
-    "[data-highlighted]": { backgroundColor: "#fef2f2", color: "#dc2626" },
+    "[data-highlighted]": { backgroundColor: tokens.dangerSurface, color: tokens.dangerText },
   },
-  icon: { color: "#a1a1aa", height: 16, width: 16 },
-  deleteIcon: { color: "#dc2626", height: 16, width: 16 },
-  separator: { backgroundColor: "#f4f4f5", height: 1, marginBlock: 4 },
+  icon: { color: tokens.textSoft, height: 16, width: 16 },
+  deleteIcon: { color: tokens.dangerText, height: 16, width: 16 },
+  separator: { backgroundColor: tokens.border, height: 1, marginBlock: 4 },
 });
 
 interface DesktopContextMenuProps {

@@ -16,7 +16,7 @@ import { tokens } from "../../styles/stylex.stylex";
 const styles = stylex.create({
   status: {
     alignItems: "center",
-    color: "rgb(255 255 255 / 0.7)",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: "0.875rem",
     height: "100%",
@@ -24,7 +24,7 @@ const styles = stylex.create({
     lineHeight: "1.25rem",
   },
   error: {
-    color: "#fecaca",
+    color: tokens.dangerText,
     lineHeight: "1.5rem",
     paddingInline: "2rem",
     textAlign: "center",
@@ -41,13 +41,15 @@ const styles = stylex.create({
     minHeight: 0,
     overflow: "hidden",
   },
+  // Slide-viewer chrome (toolbar, buttons, picker) follows the application theme; only the
+  // rendered slide pixels below (SlideCanvas, third-party) keep their own intrinsic colors.
   controls: {
     alignItems: "center",
-    backgroundColor: "rgb(0 0 0 / 0.25)",
-    borderTopColor: "rgb(255 255 255 / 0.1)",
+    backgroundColor: tokens.surfaceMuted,
+    borderTopColor: tokens.border,
     borderTopStyle: "solid",
     borderTopWidth: 1,
-    color: "rgb(255 255 255 / 0.8)",
+    color: tokens.textMuted,
     display: "flex",
     flexShrink: 0,
     gap: "0.5rem",
@@ -60,7 +62,7 @@ const styles = stylex.create({
     borderRadius: "0.375rem",
     color: {
       default: "inherit",
-      ":hover": "white",
+      ":hover": tokens.textStrong,
     },
     display: "inline-flex",
     height: "1.75rem",
@@ -69,10 +71,10 @@ const styles = stylex.create({
     transitionProperty: "color, background-color, opacity",
     width: "1.75rem",
     ":hover": {
-      backgroundColor: "rgb(255 255 255 / 0.1)",
+      backgroundColor: tokens.hover,
     },
     ":focus-visible": {
-      boxShadow: "0 0 0 2px rgb(255 255 255 / 0.4)",
+      boxShadow: `0 0 0 2px ${tokens.focusRing}`,
       outline: "none",
     },
     ":disabled": {
@@ -104,29 +106,29 @@ const styles = stylex.create({
     width: 1,
   },
   select: {
-    backgroundColor: "rgb(255 255 255 / 0.05)",
-    borderColor: "rgb(255 255 255 / 0.1)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "0.375rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "white",
+    color: tokens.text,
     fontSize: "0.75rem",
     height: "1.75rem",
     lineHeight: "1rem",
     outline: "none",
     paddingInline: "0.5rem",
     ":focus-visible": {
-      boxShadow: "0 0 0 2px rgb(255 255 255 / 0.4)",
+      boxShadow: `0 0 0 2px ${tokens.focusRing}`,
     },
   },
   option: {
-    color: "#18181b",
+    color: tokens.text,
   },
   slideCount: {
-    color: "rgb(255 255 255 / 0.55)",
+    color: tokens.textSoft,
   },
   preview: {
-    backgroundColor: "#191919",
+    backgroundColor: tokens.surfaceMuted,
     borderColor: tokens.border,
     borderRadius: "0.5rem",
     borderStyle: "solid",

@@ -2,10 +2,11 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { getSupportedDocumentKind } from "@/lib/playground/documentParsing";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   docx: {
-    backgroundColor: "#f4f4f5",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 8,
     height: "100%",
     overflow: "auto",
@@ -14,7 +15,7 @@ const styles = stylex.create({
   docxBody: { minHeight: "100%" },
   message: {
     alignItems: "center",
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 14,
     height: "100%",
@@ -22,7 +23,7 @@ const styles = stylex.create({
   },
   error: {
     alignItems: "center",
-    color: "#dc2626",
+    color: tokens.dangerText,
     display: "flex",
     fontSize: 14,
     height: "100%",
@@ -30,6 +31,7 @@ const styles = stylex.create({
     paddingInline: 24,
     textAlign: "center",
   },
+  // PDF/DOCX pages render as literal paper, like media artwork; kept white in both themes.
   pdf: { backgroundColor: "#fff", borderRadius: 8, height: "100%", width: "100%" },
 });
 

@@ -3,23 +3,25 @@ import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   window: {
     backdropFilter: "blur(4px)",
-    backgroundColor: "#fff",
+    backgroundColor: tokens.surface,
     borderRadius: 12,
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowMedium,
     position: "absolute",
     transition: "box-shadow 150ms",
   },
-  focusedWindow: { borderColor: "#d4d4d8", boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)" },
-  idleWindow: { borderColor: "#e4e4e7" },
+  focusedWindow: { borderColor: tokens.borderStrong, boxShadow: tokens.shadowLarge },
+  idleWindow: { borderColor: tokens.border },
   header: {
     alignItems: "center",
-    backgroundImage: "linear-gradient(to bottom, #fff, #fafafa)",
-    borderBottom: "1px solid #e4e4e7",
+    backgroundImage: `linear-gradient(to bottom, ${tokens.surface}, ${tokens.surfaceSoft})`,
+    borderBottom: `1px solid ${tokens.border}`,
     borderRadius: "12px 12px 0 0",
     cursor: "grab",
     display: "flex",
@@ -30,19 +32,19 @@ const styles = stylex.create({
   headerTitle: { alignItems: "center", display: "flex", gap: 8, minWidth: 0 },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "#e4e4e7",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
-    color: "#52525b",
+    color: tokens.textMuted,
     display: "flex",
     height: 16,
     justifyContent: "center",
     transition: "background-color 150ms",
     width: 16,
-    ":hover": { backgroundColor: "#d4d4d8" },
+    ":hover": { backgroundColor: tokens.borderStrong },
   },
   closeIcon: { height: 12, width: 12 },
   title: {
-    color: "#3f3f46",
+    color: tokens.text,
     fontSize: "0.75rem",
     fontWeight: 600,
     overflow: "hidden",
@@ -57,8 +59,8 @@ const styles = stylex.create({
     position: "relative",
   },
   resizeHandle: {
-    backgroundColor: "#f4f4f5",
-    border: "1px solid #d4d4d8",
+    backgroundColor: tokens.hover,
+    border: `1px solid ${tokens.borderStrong}`,
     borderRadius: 2,
     bottom: 4,
     cursor: "se-resize",

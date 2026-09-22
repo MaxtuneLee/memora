@@ -16,6 +16,7 @@ import { DesktopIndexStatusLabel } from "./DesktopIndexStatus";
 import { DocumentFilePreview } from "./DocumentFilePreview";
 import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 import { DesktopWindow } from "./DesktopWindow";
+import { tokens } from "../../styles/stylex.stylex";
 import type { JSX } from "react";
 
 const styles = stylex.create({
@@ -23,15 +24,17 @@ const styles = stylex.create({
     height: "2.5rem",
     width: "2.5rem",
   },
+  // Folder icon color is a content-type brand color, not a semantic one; kept fixed like
+  // tokens.contentAudio/contentVideo/contentImage.
   folderIcon: {
     color: "#3b82f6",
   },
   fileIcon: {
-    color: "#71717a",
+    color: tokens.textMuted,
   },
   centeredMessage: {
     alignItems: "center",
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: "0.875rem",
     height: "100%",
@@ -54,6 +57,7 @@ const styles = stylex.create({
     padding: "0.75rem",
   },
   video: {
+    // Video letterboxing stays black in both themes, like media artwork.
     backgroundColor: "rgb(0 0 0 / 0.8)",
     borderRadius: "0.5rem",
     height: "100%",
@@ -61,7 +65,7 @@ const styles = stylex.create({
   },
   imagePreview: {
     alignItems: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: tokens.surfaceSoft,
     display: "flex",
     height: "100%",
     justifyContent: "center",
@@ -69,25 +73,25 @@ const styles = stylex.create({
   },
   image: {
     borderRadius: "0.5rem",
-    boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowSmall,
     maxHeight: "100%",
     maxWidth: "100%",
     objectFit: "contain",
   },
   documentPreview: {
-    backgroundColor: "#fafafa",
+    backgroundColor: tokens.surfaceSoft,
     height: "100%",
     overflow: "hidden",
     padding: "0.75rem",
   },
   textPreview: {
-    backgroundColor: "#fafafa",
+    backgroundColor: tokens.surfaceSoft,
     height: "100%",
     overflow: "auto",
     padding: "1rem",
   },
   preformattedText: {
-    color: "#3f3f46",
+    color: tokens.text,
     fontSize: "0.75rem",
     lineHeight: 1.625,
     whiteSpace: "pre-wrap",
@@ -99,7 +103,7 @@ const styles = stylex.create({
   },
   header: {
     alignItems: "center",
-    borderBottomColor: "#f4f4f5",
+    borderBottomColor: tokens.border,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     display: "flex",
@@ -109,7 +113,7 @@ const styles = stylex.create({
   },
   iconFrame: {
     alignItems: "center",
-    backgroundColor: "#f4f4f5",
+    backgroundColor: tokens.hover,
     borderRadius: "0.75rem",
     display: "flex",
     flexShrink: 0,
@@ -120,7 +124,7 @@ const styles = stylex.create({
     minWidth: 0,
   },
   fileName: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: "0.875rem",
     fontWeight: 600,
     lineHeight: "1.25rem",
@@ -129,7 +133,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   metadata: {
-    color: "#71717a",
+    color: tokens.textMuted,
     columnGap: "1rem",
     display: "flex",
     flexWrap: "wrap",
@@ -139,16 +143,16 @@ const styles = stylex.create({
     rowGap: "0.25rem",
   },
   metadataLabel: {
-    color: "#52525b",
+    color: tokens.textMuted,
     fontWeight: 500,
   },
   openButton: {
     backgroundColor: {
-      default: "#18181b",
-      ":hover": "#27272a",
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
     },
     borderRadius: "0.5rem",
-    color: "white",
+    color: tokens.primaryText,
     cursor: "pointer",
     fontSize: "0.75rem",
     fontWeight: 500,
@@ -159,10 +163,10 @@ const styles = stylex.create({
     transitionProperty: "background-color",
   },
   details: {
-    borderBottomColor: "#f4f4f5",
+    borderBottomColor: tokens.border,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: "0.75rem",
     lineHeight: "1rem",
     paddingBlock: "0.5rem",
@@ -176,11 +180,11 @@ const styles = stylex.create({
     rowGap: "0.375rem",
   },
   separator: {
-    color: "#d4d4d8",
+    color: tokens.textSoft,
   },
   indexRow: {
     alignItems: "center",
-    borderTopColor: "#f4f4f5",
+    borderTopColor: tokens.border,
     borderTopStyle: "solid",
     borderTopWidth: 1,
     display: "flex",
@@ -192,14 +196,14 @@ const styles = stylex.create({
   reindexButton: {
     alignItems: "center",
     backgroundColor: {
-      default: "white",
-      ":hover": "#fafafa",
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
     },
-    borderColor: "#e4e4e7",
+    borderColor: tokens.border,
     borderRadius: "0.375rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#52525b",
+    color: tokens.textMuted,
     display: "inline-flex",
     fontSize: "0.6875rem",
     fontWeight: 500,
@@ -219,10 +223,10 @@ const styles = stylex.create({
     width: "0.75rem",
   },
   updatedAt: {
-    color: "#a1a1aa",
+    color: tokens.textSoft,
   },
   summary: {
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "-webkit-box",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",

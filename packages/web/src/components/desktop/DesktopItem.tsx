@@ -9,12 +9,15 @@ import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
 import { DesktopFileTip } from "./DesktopFileTip";
 import { areDesktopItemsEqual } from "./desktop/utils";
 import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
+import { tokens } from "../../styles/stylex.stylex";
 import type { JSX } from "react";
 
 const styles = stylex.create({
+  // Folder icon color is a content-type brand color, not a semantic one; kept fixed like
+  // tokens.contentAudio/contentVideo/contentImage.
   folderIcon: { color: "#3b82f6", height: 40, width: 40 },
-  trashIcon: { color: "#ef4444", height: 36, width: 36 },
-  fileIcon: { color: "#71717a", height: 32, width: 32 },
+  trashIcon: { color: tokens.dangerText, height: 36, width: 36 },
+  fileIcon: { color: tokens.textMuted, height: 32, width: 32 },
   item: {
     outline: "none",
     transition: "background-color 150ms",
@@ -37,49 +40,49 @@ const styles = stylex.create({
     gap: 6,
     padding: 8,
   },
-  listSelected: { backgroundColor: "#f4f4f5" },
-  listIdle: { ":hover": { backgroundColor: "#fafafa" } },
-  desktopSelected: { backgroundColor: "rgb(228 228 231 / 0.8)" },
-  desktopIdle: { ":hover": { backgroundColor: "rgb(244 244 245 / 0.6)" } },
-  dragging: { boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)", outline: "2px solid #d4d4d8" },
+  listSelected: { backgroundColor: tokens.selected },
+  listIdle: { ":hover": { backgroundColor: tokens.hoverStrong } },
+  desktopSelected: { backgroundColor: tokens.selected },
+  desktopIdle: { ":hover": { backgroundColor: tokens.hover } },
+  dragging: { boxShadow: tokens.shadowMedium, outline: `2px solid ${tokens.borderStrong}` },
   overFolder: {
-    backgroundColor: "rgb(239 246 255 / 0.6)",
-    outline: "2px solid rgb(96 165 250 / 0.7)",
+    backgroundColor: tokens.selected,
+    outline: `2px solid ${tokens.oliveSoft}`,
   },
   iconSurface: {
     alignItems: "center",
-    backgroundColor: "rgb(255 255 255 / 0.8)",
+    backgroundColor: tokens.surface,
     borderRadius: 12,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     display: "flex",
     justifyContent: "center",
-    outline: "1px solid rgb(24 24 27 / 0.05)",
+    outline: `1px solid ${tokens.borderSoft}`,
     position: "relative",
     transition: "transform 150ms",
   },
   iconHovered: { transform: "scale(1.05)" },
-  iconSelected: { boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)", outlineColor: "#a1a1aa" },
+  iconSelected: { boxShadow: tokens.shadowMedium, outlineColor: tokens.borderStrong },
   listRenameInput: {
-    backgroundColor: "#fff",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 6,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#18181b",
+    color: tokens.textStrong,
     flex: 1,
     fontSize: "0.875rem",
     outline: "none",
     paddingBlock: 4,
     paddingInline: 8,
-    ":focus": { borderColor: "#a1a1aa" },
+    ":focus": { borderColor: tokens.focusRing },
   },
   desktopRenameInput: {
-    backgroundColor: "#fff",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 6,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: "0.75rem",
     fontWeight: 500,
     outline: "none",
@@ -87,7 +90,7 @@ const styles = stylex.create({
     paddingInline: 8,
     textAlign: "center",
     width: 88,
-    ":focus": { borderColor: "#a1a1aa" },
+    ":focus": { borderColor: tokens.focusRing },
   },
   listName: {
     flex: 1,
@@ -109,8 +112,8 @@ const styles = stylex.create({
     overflowWrap: "break-word",
     textAlign: "center",
   },
-  selectedName: { color: "#18181b" },
-  idleName: { color: "#3f3f46" },
+  selectedName: { color: tokens.textStrong },
+  idleName: { color: tokens.text },
 });
 
 interface DesktopItemProps {
