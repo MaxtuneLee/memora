@@ -94,6 +94,9 @@ const styles = stylex.create({
   },
   listName: {
     flex: 1,
+    // Flex items default to min-width: auto, which blocks shrinking below the text's natural
+    // width; without this, a long unbroken name overflows the row instead of truncating.
+    minWidth: 0,
     fontSize: "0.875rem",
     fontWeight: 500,
     overflow: "hidden",

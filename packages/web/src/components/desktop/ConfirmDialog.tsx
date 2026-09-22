@@ -4,6 +4,11 @@ import * as stylex from "@stylexjs/stylex";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { tokens } from "../../styles/stylex.stylex";
 
+// The dialog panel itself is tokens.surface, so a plain tokens.focusRing ring (tuned against
+// tokens.background) falls just under the WCAG 3:1 non-text contrast minimum in dark mode.
+// textStrong flips near-black/near-white per theme, so it stays clearly legible on the panel.
+const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.textStrong}`;
+
 const styles = stylex.create({
   panel: {
     backgroundColor: tokens.surface,
@@ -26,6 +31,7 @@ const styles = stylex.create({
     paddingInline: 12,
     transition: "background-color 150ms",
     ":hover": { backgroundColor: tokens.hoverStrong },
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
   },
   confirm: {
     borderRadius: 8,
@@ -33,6 +39,7 @@ const styles = stylex.create({
     paddingBlock: 6,
     paddingInline: 12,
     transition: "background-color 150ms",
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
   },
   defaultConfirm: {
     backgroundColor: tokens.primaryBackground,
