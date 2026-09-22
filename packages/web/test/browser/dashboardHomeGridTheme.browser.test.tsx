@@ -49,6 +49,23 @@ const backgroundOf = (element: Element): string => {
 const textContrast = (element: Element) =>
   contrast(getComputedStyle(element).color, backgroundOf(element));
 
+const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
+const NARROW_VIEWPORT = { width: 375, height: 700 };
+
+const LONG_EN_TASK =
+  "Coordinate the quarterly roadmap review with design, engineering, and support before the leadership sync on Friday afternoon.";
+const LONG_ZH_TASK =
+  "在周五下午的领导层同步会议之前，协调设计、工程和支持团队完成本季度路线图的评审工作并准备最终演示文稿。";
+const LONG_EN_WIDGET_TITLE =
+  "Quarterly-financial-planning-and-budget-review-meeting-recording-archive-2026.m4a";
+const LONG_ZH_WIDGET_TITLE = "第一季度财务规划与预算审查会议录音存档备份文件完整版.m4a";
+
+// A container must never grow wider than its own box; a truncated/wrapped text carrier is
+// allowed to report a wider intrinsic scrollWidth than its clientWidth (that's the ellipsis or
+// wrap actually doing its job), as long as the container around it doesn't follow it out.
+const fitsWithoutOverflow = (container: Element): boolean =>
+  container.scrollWidth <= container.clientWidth + 1;
+
 const RECENT_ITEM: RecentItem = {
   id: "file-1",
   title: "Weekly notes",
@@ -157,12 +174,13 @@ const mount = async (theme: ResolvedTheme, onReorder: (order: string[]) => void 
   await expect.poll(() => page.getByText("Today Tasks").elements().length).toBe(1);
 };
 
-afterEach(() => {
+afterEach(async () => {
   root?.unmount();
   container?.remove();
   document.body.removeAttribute("style");
   root = undefined;
   container = undefined;
+  await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
 });
 
 describe.each(["light", "dark"] as const)("Dashboard and Home Grid in %s", (theme) => {
@@ -265,5 +283,120 @@ describe("Dashboard theme change", () => {
         element.getAttribute("data-widget-instance-id"),
       ),
     ).toEqual(["inst-def-b", "inst-def-a"]);
+  });
+});
+
+function NarrowDashboardHarness(): JSX.Element {
+  const longRecentEn: RecentItem = {
+    ...RECENT_ITEM,
+    id: "recent-long-en",
+    title: LONG_EN_WIDGET_TITLE,
+    subtitle: LONG_EN_WIDGET_TITLE,
+  };
+  const longRecentZh: RecentItem = {
+    ...RECENT_ITEM,
+    id: "recent-long-zh",
+    title: LONG_ZH_WIDGET_TITLE,
+    subtitle: LONG_ZH_WIDGET_TITLE,
+  };
+  const definitionEn: widgetDefinition = { ...WIDGET_A, id: "tile-en", name: "Recent (EN)" };
+  const definitionZh: widgetDefinition = { ...WIDGET_A, id: "tile-zh", name: "Recent (ZH)" };
+  const tiles = [
+    { instance: makeInstance(definitionEn.id, 0), definition: definitionEn },
+    { instance: makeInstance(definitionZh.id, 1), definition: definitionZh },
+  ];
+
+  return (
+    <MemoryRouter>
+      {/* Mirrors the padded content column DashboardPage renders its Home Grid and widgets
+          inside, scaled to a 375px phone viewport instead of the desktop max width. */}
+      <div data-testid="narrow-dashboard" style={{ width: "100%", maxWidth: 360 }}>
+        <TodoPanel files={[]} store={TODO_STORE} />
+        <HomeGrid
+          tiles={tiles}
+          renderWidget={(definition) =>
+            definition.id === definitionEn.id ? (
+              <RecentWidget items={[longRecentEn]} />
+            ) : (
+              <RecentWidget items={[longRecentZh]} />
+            )
+          }
+          onReorder={() => {}}
+          onRemove={() => {}}
+          showToolbar={false}
+          reducedMotion
+        />
+      </div>
+    </MemoryRouter>
+  );
+}
+
+const mountNarrow = async (theme: ResolvedTheme) => {
+  await page.viewport(NARROW_VIEWPORT.width, NARROW_VIEWPORT.height);
+  applyDocumentTheme(theme);
+  document.body.style.backgroundColor = "var(--color-memora-bg)";
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  root.render(<NarrowDashboardHarness />);
+  await expect.poll(() => page.getByText("Today Tasks").elements().length).toBe(1);
+};
+
+describe.each(["light", "dark"] as const)("Dashboard at a narrow viewport in %s", (theme) => {
+  it("keeps the dashboard, Home Grid tiles, and Today Tasks free of horizontal overflow with long English and Chinese text", async () => {
+    await mountNarrow(theme);
+
+    const dashboard = document.querySelector('[data-testid="narrow-dashboard"]') as HTMLElement;
+    expect(dashboard).toBeTruthy();
+    expect(fitsWithoutOverflow(dashboard), "dashboard wrapper").toBe(true);
+
+    // Home Grid tiles: each must stay inside its own box even though its built-in Recent widget
+    // carries a long, unbroken English or Chinese file name.
+    const tiles = Array.from(document.querySelectorAll<HTMLElement>("[data-widget-instance-id]"));
+    expect(tiles).toHaveLength(2);
+    for (const tile of tiles) {
+      expect(fitsWithoutOverflow(tile), tile.dataset.widgetInstanceId ?? "tile").toBe(true);
+    }
+
+    // The Recent widget truncates with an ellipsis instead of growing the row: the title's own
+    // content is expected to be wider than its box (that's the truncation actually engaging),
+    // as long as the row around it — and the tile around that — never follows it out.
+    for (const title of [LONG_EN_WIDGET_TITLE, LONG_ZH_WIDGET_TITLE]) {
+      const titleEl = [...document.querySelectorAll("p")].find((p) => p.textContent === title);
+      expect(titleEl, title).toBeTruthy();
+      const row = titleEl?.closest("a") as HTMLElement;
+      expect(fitsWithoutOverflow(row), `${title} row`).toBe(true);
+      const titleStyle = getComputedStyle(titleEl as Element);
+      expect(titleStyle.textOverflow, `${title} ellipsis`).toBe("ellipsis");
+      expect(
+        (titleEl as HTMLElement).scrollWidth,
+        `${title} is actually truncated, not just configured to be`,
+      ).toBeGreaterThan((titleEl as HTMLElement).clientWidth);
+    }
+
+    // Today Tasks: long English and Chinese tasks must wrap onto multiple lines rather than
+    // pushing their row, or the panel, wider than the narrow viewport. The composer closes after
+    // each submit, so it's reopened for the second task.
+    for (const taskText of [LONG_EN_TASK, LONG_ZH_TASK]) {
+      await page.getByRole("button", { name: "Add task" }).click();
+      await page.getByPlaceholder("Add a task for today...").fill(taskText);
+      await userEvent.keyboard("{Enter}");
+      await expect.element(page.getByText(taskText)).toBeVisible();
+
+      const taskEl = [...document.querySelectorAll("span")].find(
+        (span) => span.textContent === taskText,
+      ) as HTMLElement;
+      const row = taskEl.closest("label") as HTMLElement;
+      expect(fitsWithoutOverflow(row), `${taskText.slice(0, 12)}… row`).toBe(true);
+      expect(fitsWithoutOverflow(taskEl), `${taskText.slice(0, 12)}… text`).toBe(true);
+      // A single line of this panel's task text is ~40px tall; a row this long only fits inside
+      // 360px by wrapping across several lines, so a noticeably taller row is the visible wrap.
+      expect(
+        row.getBoundingClientRect().height,
+        `${taskText.slice(0, 12)}… wraps onto multiple lines`,
+      ).toBeGreaterThan(60);
+    }
+
+    expect(fitsWithoutOverflow(dashboard), "dashboard wrapper after adding tasks").toBe(true);
   });
 });
