@@ -16,8 +16,12 @@ import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { TRANSCRIPT_LANGUAGE_STORAGE_KEY } from "@/lib/transcript/transcriptUtils";
+import { tokens } from "../../styles/stylex.stylex";
 
 const SECTION_EASE = [0.22, 1, 0.36, 1] as const;
+
+const CREATE_BUTTON_HOVER_BG = `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`;
+const CREATE_BUTTON_ACTIVE_BG = `color-mix(in srgb, ${tokens.primaryBackground} 76%, ${tokens.surface})`;
 
 const styles = stylex.create({
   page: {
@@ -29,7 +33,7 @@ const styles = stylex.create({
     "@media (min-width: 768px)": { paddingBlock: "2.5rem", paddingInline: "2.5rem" },
   },
   header: {
-    borderBottomColor: "#e9e5dc",
+    borderBottomColor: tokens.border,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     display: "flex",
@@ -43,7 +47,7 @@ const styles = stylex.create({
     },
   },
   title: {
-    color: "#22211d",
+    color: tokens.textStrong,
     fontFamily: "var(--font-serif)",
     fontSize: "clamp(1.9rem, 4vw, 2.45rem)",
     fontWeight: 600,
@@ -51,7 +55,7 @@ const styles = stylex.create({
     lineHeight: 0.98,
   },
   description: {
-    color: "#716c64",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
     marginTop: "0.5rem",
@@ -61,18 +65,21 @@ const styles = stylex.create({
   actions: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: "0.5rem" },
   createButton: {
     alignItems: "center",
-    backgroundColor: { default: "#22211d", ":hover": "#34312b", ":active": "#1d1c18" },
-    borderColor: { default: "#2b2925", ":hover": "#4a463e", ":active": "#1f1e1a" },
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": CREATE_BUTTON_HOVER_BG,
+      ":active": CREATE_BUTTON_ACTIVE_BG,
+    },
+    borderColor: tokens.primaryBackground,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
     boxShadow: {
-      default: "inset 0 1px 0 rgb(255 255 255 / 0.05), 0 10px 24px -22px rgb(34 33 29 / 0.55)",
-      ":hover":
-        "inset 0 1px 0 rgb(255 255 255 / 0.12), 0 0 0 1px rgb(255 251 242 / 0.08), 0 10px 24px -22px rgb(34 33 29 / 0.55)",
-      ":active": "inset 0 1px 0 rgb(255 255 255 / 0.03), 0 6px 14px -14px rgb(34 33 29 / 0.42)",
+      default: tokens.shadowSmall,
+      ":hover": tokens.shadowMedium,
+      ":active": tokens.shadowSmall,
     },
-    color: "#fffdfa",
+    color: tokens.primaryText,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -87,8 +94,12 @@ const styles = stylex.create({
   },
   createIcon: { height: "1rem", marginRight: "0.5rem", width: "1rem" },
   menuTrigger: {
-    backgroundColor: { default: "#fffdfa", ":hover": "#fffcf6", "[data-open=true]": "#fffcf6" },
-    borderColor: { default: "#e7e1d8", "[data-open=true]": "#ddd7cb" },
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
+      "[data-open=true]": tokens.hoverStrong,
+    },
+    borderColor: { default: tokens.borderSoft, "[data-open=true]": tokens.borderStrong },
     borderRadius: "9999px",
     boxShadow: "none",
     gap: "0.625rem",
@@ -99,9 +110,9 @@ const styles = stylex.create({
   },
   menuIconFrame: {
     alignItems: "center",
-    backgroundColor: "#f6f3ec",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "9999px",
-    color: "#7c7265",
+    color: tokens.textMuted,
     display: "flex",
     flexShrink: 0,
     height: "1.75rem",
@@ -112,21 +123,26 @@ const styles = stylex.create({
     width: "1.75rem",
   },
   menuIcon: { height: 18, width: 18 },
-  menuLabel: { color: "#22211d", fontSize: "0.875rem", fontWeight: 600, lineHeight: "1.25rem" },
-  caret: { color: "#9a948a", flexShrink: 0, height: "0.875rem", width: "0.875rem" },
+  menuLabel: {
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+  },
+  caret: { color: tokens.textSoft, flexShrink: 0, height: "0.875rem", width: "0.875rem" },
   menuContent: { width: 292 },
   languagePanel: {
-    backgroundColor: "#fcfaf5",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "1rem",
-    color: "#6f695f",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     padding: "0.75rem",
   },
-  divider: { backgroundColor: "#ede7dc", height: 1, marginBlock: "0.5rem" },
+  divider: { backgroundColor: tokens.borderSoft, height: 1, marginBlock: "0.5rem" },
   menuItem: {
     alignItems: "center",
-    backgroundColor: { default: "transparent", ":hover": "#f8f4ec" },
+    backgroundColor: { default: "transparent", ":hover": tokens.hoverStrong },
     borderRadius: "1rem",
     display: "flex",
     fontSize: "0.875rem",
@@ -142,7 +158,7 @@ const styles = stylex.create({
   },
   itemText: { minWidth: 0 },
   itemTitle: {
-    color: "#2b2925",
+    color: tokens.textStrong,
     display: "block",
     fontSize: 14,
     fontWeight: 600,
@@ -151,7 +167,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   itemDescription: {
-    color: "#7b7469",
+    color: tokens.textMuted,
     display: "block",
     fontSize: 13,
     lineHeight: "1.25rem",
@@ -159,9 +175,9 @@ const styles = stylex.create({
   },
   itemIconFrame: {
     alignItems: "center",
-    backgroundColor: "#f6f1e8",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "9999px",
-    color: "#90897d",
+    color: tokens.textSoft,
     display: "flex",
     flexShrink: 0,
     height: "2.25rem",

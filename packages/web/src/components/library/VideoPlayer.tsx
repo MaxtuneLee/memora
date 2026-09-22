@@ -12,6 +12,11 @@ import {
   SubtitlesIcon,
 } from "@phosphor-icons/react";
 
+// ponytail: this overlay sits on top of arbitrary video pixels, not the app background, so it
+// keeps the universal white-on-black-scrim video-player convention (YouTube, native <video>
+// controls, etc.) in both themes rather than following app tokens -- app-theme colors here would
+// break contrast against a bright video frame in light mode. Revisit only if a per-video theme
+// (e.g. reading average frame luminance) is ever wanted.
 const styles = stylex.create({
   root: { backgroundColor: "#000", borderRadius: 12, overflow: "hidden", position: "relative" },
   video: { aspectRatio: "16 / 9", cursor: "pointer", width: "100%" },

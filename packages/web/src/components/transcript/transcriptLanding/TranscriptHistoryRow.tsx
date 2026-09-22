@@ -22,7 +22,7 @@ import type { TranscriptHistoryRowState } from "./transcriptLandingState";
 
 const styles = stylex.create({
   root: {
-    borderTopColor: "#ece5d9",
+    borderTopColor: "var(--color-memora-border-soft)",
     borderTopStyle: "solid",
     borderTopWidth: 1,
     ":first-child": { borderTopWidth: 0 },
@@ -35,7 +35,7 @@ const styles = stylex.create({
     transitionDuration: "300ms",
     transitionProperty: "background-color",
     transitionTimingFunction: "var(--ease-out-quart)",
-    ":hover": { backgroundColor: "#fcfaf5" },
+    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
     "@media (min-width: 640px)": {
       alignItems: "flex-start",
       gridTemplateColumns: "minmax(0, 1.4fr) auto",
@@ -50,7 +50,10 @@ const styles = stylex.create({
     rowGap: "0.25rem",
   },
   title: {
-    color: { default: "var(--color-memora-text)", ":hover": "#4d5737" },
+    color: {
+      default: "var(--color-memora-text)",
+      ":hover": "color-mix(in srgb, var(--color-memora-olive) 82%, var(--color-memora-text))",
+    },
     fontSize: 15,
     fontWeight: 600,
     overflow: "hidden",
@@ -91,7 +94,7 @@ const styles = stylex.create({
   statusIcon: { alignSelf: "center", flexShrink: 0, height: "0.75rem", width: "0.75rem" },
   statusText: { lineHeight: 1 },
   preview: {
-    color: "#716c64",
+    color: "var(--color-memora-text-muted)",
     display: "-webkit-box",
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
@@ -103,7 +106,7 @@ const styles = stylex.create({
   },
   metadata: {
     alignItems: "center",
-    color: "#8f897d",
+    color: "var(--color-memora-text-soft)",
     columnGap: "0.75rem",
     display: "flex",
     flexWrap: "wrap",
@@ -132,14 +135,21 @@ const styles = stylex.create({
     transitionDuration: "150ms",
   },
   deleteAction: {
-    backgroundColor: { default: "transparent", ":hover": "#fdf6f1" },
-    color: { default: "#8a6455", ":hover": "#7b4f39" },
+    backgroundColor: { default: "transparent", ":hover": "var(--color-memora-warning-surface)" },
+    color: {
+      default:
+        "color-mix(in srgb, var(--color-memora-warning-text) 75%, var(--color-memora-text-muted))",
+      ":hover": "var(--color-memora-warning-text)",
+    },
     fontWeight: 500,
     transitionProperty: "color, background-color",
   },
   openAction: {
-    backgroundColor: { default: "#fffdfa", ":hover": "#faf7f0" },
-    borderColor: "#e6dfd1",
+    backgroundColor: {
+      default: "var(--color-memora-surface)",
+      ":hover": "var(--color-memora-hover-strong)",
+    },
+    borderColor: "var(--color-memora-border-soft)",
     borderStyle: "solid",
     borderWidth: 1,
     color: "var(--color-memora-text)",

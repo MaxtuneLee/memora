@@ -2,10 +2,12 @@ import { motion } from "motion/react";
 import { memo, useEffect, useRef } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   root: { height: "100%", minHeight: 0, position: "relative" },
   content: {
-    color: "#18181b",
+    color: tokens.textStrong,
     fontSize: 16,
     height: "100%",
     lineHeight: 1.625,
@@ -15,17 +17,19 @@ const styles = stylex.create({
     whiteSpace: "pre-wrap",
     "@media (min-width: 768px)": { paddingBlock: 12, paddingInline: 8 },
   },
-  current: { color: "#71717a", fontStyle: "italic" },
-  empty: { color: "#a1a1aa", fontStyle: "italic" },
+  current: { color: tokens.textMuted, fontStyle: "italic" },
+  empty: { color: tokens.textSoft, fontStyle: "italic" },
   scrollEnd: { scrollMarginBottom: 112, "@media (min-width: 768px)": { scrollMarginBottom: 128 } },
   rate: {
     backdropFilter: "blur(4px)",
-    backgroundColor: "rgb(250 248 243 / 0.92)",
-    border: "1px solid #e4e4e7",
+    backgroundColor: `color-mix(in srgb, ${tokens.surfaceSoft} 92%, transparent)`,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
     borderRadius: 9999,
     bottom: 16,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
-    color: "#71717a",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textMuted,
     fontSize: 12,
     fontVariantNumeric: "tabular-nums",
     paddingBlock: 4,

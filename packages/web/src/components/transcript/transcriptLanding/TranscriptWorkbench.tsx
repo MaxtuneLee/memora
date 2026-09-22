@@ -9,10 +9,10 @@ import type { TranscriptHistoryRowState } from "./transcriptLandingState";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "#fffdfa",
-    border: "1px solid #ebe4d8",
+    backgroundColor: "var(--color-memora-surface)",
+    border: "1px solid var(--color-memora-border-soft)",
     borderRadius: "1.55rem",
-    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.85)",
+    boxShadow: "var(--shadow-sm-soft)",
     overflow: "hidden",
   },
   header: { paddingBlock: 16, paddingInline: 20 },

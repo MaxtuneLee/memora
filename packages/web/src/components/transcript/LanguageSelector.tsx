@@ -2,10 +2,11 @@ import { Field } from "@base-ui/react/field";
 import * as stylex from "@stylexjs/stylex";
 
 import { Select } from "@/components/ui/Select";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { alignItems: "center", display: "flex", gap: 8, justifyContent: "space-between" },
-  label: { color: "#52525b", fontSize: 14 },
+  label: { color: tokens.textMuted, fontSize: 14 },
   autoWidth: { width: "auto" },
 });
 

@@ -2,11 +2,23 @@ import { memo, useEffect, useRef } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { drawRoundedRect, formatTimeMarker, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
+import { useThemeColorVars } from "@/hooks/theme/useThemeColorVars";
 
 const styles = stylex.create({
   root: { position: "relative" },
   canvas: { inset: 0, position: "absolute" },
 });
+
+// Resolved via getComputedStyle so the buffer, playhead, marker text, and separator redraw with
+// the theme instead of staying on their light-mode hex defaults (see useThemeColorVars). Explicit
+// color props still win.
+const ZOOM_WAVEFORM_COLOR_VARS = [
+  "--color-memora-text-strong",
+  "--color-memora-border-strong",
+  "--color-memora-olive",
+  "--color-memora-text-soft",
+  "--color-memora-border",
+] as const;
 
 interface ZoomWaveformCanvasProps {
   peaks: number[];
@@ -33,16 +45,23 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
   visibleSeconds = 7,
   height,
   className = "",
-  playedColor = "#27272a",
-  unplayedColor = "#d4d4d8",
-  playheadColor = "#3b82f6",
+  playedColor,
+  unplayedColor,
+  playheadColor,
   smoothingFactor = 0.12,
   showTimeMarkers = true,
   markerStepSeconds = 1,
-  markerColor = "#a1a1aa",
+  markerColor,
   markerFont = "12px ui-sans-serif, system-ui, -apple-system",
   audioRef,
 }: ZoomWaveformCanvasProps) {
+  const themeColors = useThemeColorVars(ZOOM_WAVEFORM_COLOR_VARS);
+  const resolvedPlayedColor = playedColor || themeColors["--color-memora-text-strong"] || "#27272a";
+  const resolvedUnplayedColor =
+    unplayedColor || themeColors["--color-memora-border-strong"] || "#d4d4d8";
+  const resolvedPlayheadColor = playheadColor || themeColors["--color-memora-olive"] || "#3b82f6";
+  const resolvedMarkerColor = markerColor || themeColors["--color-memora-text-soft"] || "#a1a1aa";
+  const resolvedSeparatorColor = themeColors["--color-memora-border"] || "#e4e4e7";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -65,9 +84,9 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
     duration,
     visibleSeconds,
     height,
-    playedColor,
-    unplayedColor,
-    playheadColor,
+    playedColor: resolvedPlayedColor,
+    unplayedColor: resolvedUnplayedColor,
+    playheadColor: resolvedPlayheadColor,
     smoothingFactor,
     audioRef,
   });
@@ -79,9 +98,9 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
       duration,
       visibleSeconds,
       height,
-      playedColor,
-      unplayedColor,
-      playheadColor,
+      playedColor: resolvedPlayedColor,
+      unplayedColor: resolvedUnplayedColor,
+      playheadColor: resolvedPlayheadColor,
       smoothingFactor,
       audioRef,
     };
@@ -91,9 +110,9 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
     duration,
     visibleSeconds,
     height,
-    playedColor,
-    unplayedColor,
-    playheadColor,
+    resolvedPlayedColor,
+    resolvedUnplayedColor,
+    resolvedPlayheadColor,
     smoothingFactor,
     audioRef,
   ]);
@@ -204,7 +223,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
             const barHeight = Math.max(3, amplitude * maxBarHeight);
             const x = index * totalBarWidth;
             const y = centerY - barHeight / 2;
-            bufferContext.fillStyle = unplayedColor;
+            bufferContext.fillStyle = resolvedUnplayedColor;
             drawRoundedRect(bufferContext, x, y, barWidth, barHeight, 1);
           }
         }
@@ -255,7 +274,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
 
       if (showTimeMarkers && currentProps.duration > 0 && markerAreaHeight > 0) {
         const separatorY = waveformHeight + 0.5;
-        context.strokeStyle = "#e4e4e7";
+        context.strokeStyle = resolvedSeparatorColor;
         context.lineWidth = 1;
         context.beginPath();
         context.moveTo(0, separatorY);
@@ -271,7 +290,7 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
         const firstMarker = Math.ceil(visibleStart / markerStep) * markerStep;
 
         context.font = markerFont;
-        context.fillStyle = markerColor;
+        context.fillStyle = resolvedMarkerColor;
         context.textBaseline = "top";
 
         for (let marker = firstMarker; marker <= visibleEnd; marker += markerStep) {
@@ -315,11 +334,12 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
   }, [
     currentTime,
     height,
-    markerColor,
+    resolvedMarkerColor,
+    resolvedSeparatorColor,
     markerFont,
     markerStepSeconds,
     showTimeMarkers,
-    unplayedColor,
+    resolvedUnplayedColor,
   ]);
 
   return (

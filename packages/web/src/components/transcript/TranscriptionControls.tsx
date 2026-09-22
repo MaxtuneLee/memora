@@ -9,6 +9,7 @@ import {
   type TranscriptionControlsMode,
   getTranscriptionControlsDockState,
 } from "@/components/transcript/transcriptionControlMotion";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   controls: {
@@ -49,46 +50,50 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   recordingButton: {
-    backgroundColor: { default: "white", ":hover": "#fafafa" },
-    borderColor: "#e4e4e7",
+    backgroundColor: { default: tokens.surface, ":hover": tokens.hoverStrong },
+    borderColor: tokens.border,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-    color: "#3f3f46",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.text,
     fontWeight: 500,
     outline: "none",
     paddingBlock: "0.625rem",
     paddingInline: "0.875rem",
     transitionDuration: "150ms",
     transitionProperty: "background-color",
-    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.focusRing}` },
   },
   savingButton: {
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-    color: "#3f3f46",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.text,
     fontWeight: 500,
     paddingBlock: "0.625rem",
     paddingInline: "1rem",
   },
   savedButton: {
-    color: "#059669",
+    color: tokens.successText,
     fontWeight: 500,
     paddingBlock: "0.625rem",
     paddingInline: "1rem",
   },
+  // Recording (red) and save (green) stay their own saturated brand colors in both themes --
+  // the action's meaning (stop/danger, confirm/success) matters more here than surface tone, and
+  // white text on either reads fine on light or dark chrome. Only the focus-ring gap (which must
+  // match the surrounding surface) and ambient shadow come from tokens.
   idleButton: {
     backgroundColor: { default: "#ef4444", ":hover": "#dc2626", ":disabled": "#fecaca" },
     borderColor: "rgb(239 68 68 / 0.3)",
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     color: { default: "white", ":disabled": "#b91c1c" },
     cursor: { default: "pointer", ":disabled": "not-allowed" },
     fontWeight: 600,
@@ -100,14 +105,14 @@ const styles = stylex.create({
     transitionProperty: "background-color, transform",
     userSelect: "none",
     ":active": { transform: "scale(0.985)" },
-    ":focus-visible": { boxShadow: "0 0 0 2px white, 0 0 0 4px #ef4444" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px #ef4444` },
   },
   label: { alignItems: "center", display: "flex", gap: "0.5rem", whiteSpace: "nowrap" },
   saveButton: {
     alignItems: "center",
     backgroundColor: { default: "#059669", ":hover": "#047857" },
     borderRadius: "9999px",
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     color: "white",
     display: "flex",
     fontSize: "0.875rem",
@@ -118,7 +123,7 @@ const styles = stylex.create({
     paddingInline: "0.875rem",
     transitionDuration: "150ms",
     transitionProperty: "background-color",
-    ":focus-visible": { boxShadow: "0 0 0 2px white, 0 0 0 4px #059669" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px #059669` },
   },
   icon: { height: "1rem", width: "1rem" },
   iconFrame: {
@@ -129,10 +134,10 @@ const styles = stylex.create({
     width: "1rem",
   },
   spinner: {
-    borderColor: "#d4d4d8",
+    borderColor: tokens.borderStrong,
     borderRadius: "9999px",
     borderStyle: "solid",
-    borderTopColor: "#3f3f46",
+    borderTopColor: tokens.text,
     borderWidth: 2,
     height: "1rem",
     width: "1rem",

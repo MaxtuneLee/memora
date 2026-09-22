@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 
 import { Progress } from "@/components/ui/Progress";
+import { tokens } from "../../styles/stylex.stylex";
 
 const bounce = stylex.keyframes({
   "0%, 100%": {
@@ -18,14 +19,14 @@ const styles = stylex.create({
     animationDuration: "1s",
     animationIterationCount: "infinite",
     animationName: bounce,
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.textStrong,
     borderRadius: 9999,
     height: 16,
     width: 16,
   },
   firstDot: { animationDelay: "-0.2s" },
   secondDot: { animationDelay: "-0.1s" },
-  message: { color: "#52525b", fontSize: "0.875rem", textAlign: "center" },
+  message: { color: tokens.textMuted, fontSize: "0.875rem", textAlign: "center" },
   progressList: { display: "flex", flexDirection: "column", gap: 8 },
 });
 

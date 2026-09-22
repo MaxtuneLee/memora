@@ -1,24 +1,37 @@
 import { memo, useMemo } from "react";
 import * as stylex from "@stylexjs/stylex";
 import type { RecordingWord } from "@/types/library";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   word: { borderRadius: 2, cursor: "pointer", transition: "all 200ms" },
-  active: { color: "#09090b", fontSize: "1.25rem", fontWeight: 600 },
-  past: { color: "#09090b" },
-  future: { color: "rgb(9 9 11 / 0.3)", ":hover": { color: "rgb(9 9 11 / 0.5)" } },
+  active: { color: tokens.textStrong, fontSize: "1.25rem", fontWeight: 600 },
+  past: { color: tokens.textStrong },
+  future: {
+    color: `color-mix(in srgb, ${tokens.textStrong} 30%, transparent)`,
+    ":hover": { color: `color-mix(in srgb, ${tokens.textStrong} 50%, transparent)` },
+  },
   empty: {
-    backgroundColor: "#fafafa",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
     borderRadius: 8,
-    color: "#71717a",
+    color: tokens.textMuted,
     fontSize: 14,
     padding: 16,
   },
-  root: { backgroundColor: "#fafafa", border: "1px solid #e4e4e7", borderRadius: 8, padding: 16 },
+  root: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+  },
   header: {
     alignItems: "center",
-    color: "#a1a1aa",
+    color: tokens.textSoft,
     display: "flex",
     fontSize: 12,
     justifyContent: "space-between",

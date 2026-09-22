@@ -164,7 +164,11 @@ const styles = stylex.create({
   },
   saveButton: {
     alignItems: "center",
-    backgroundColor: { default: "var(--color-memora-text-strong)", ":hover": "#2f2d27" },
+    backgroundColor: {
+      default: "var(--color-memora-text-strong)",
+      ":hover":
+        "color-mix(in srgb, var(--color-memora-text-strong) 86%, var(--color-memora-surface))",
+    },
     borderRadius: "9999px",
     color: "var(--color-memora-surface)",
     display: "flex",
@@ -176,7 +180,7 @@ const styles = stylex.create({
     paddingInline: "1rem",
     transitionDuration: "150ms",
     transitionProperty: "background-color, transform, box-shadow, opacity",
-    ":hover": { boxShadow: "0 10px 24px -18px rgb(34 33 29 / 0.95)" },
+    ":hover": { boxShadow: "var(--shadow-md-soft)" },
     ":disabled": { opacity: 0.5 },
   },
   transcriptContent: { flex: 1, minHeight: 0, paddingTop: "1rem" },

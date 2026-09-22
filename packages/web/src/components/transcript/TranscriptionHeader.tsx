@@ -8,6 +8,7 @@ import { LanguageSelector } from "@/components/transcript/LanguageSelector";
 import type { SettingsSectionId } from "@/types/settings";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { BackButton } from "@/components/transcript/BackButton";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: "1rem", paddingBottom: "1.5rem" },
@@ -22,12 +23,12 @@ const styles = stylex.create({
     },
   },
   panel: {
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     display: "flex",
     flexDirection: "column",
     gap: "1rem",
@@ -43,10 +44,13 @@ const styles = stylex.create({
   actions: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: "0.5rem" },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: { default: "#18181b", ":hover": "#27272a" },
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
     borderRadius: "9999px",
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-    color: "white",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.primaryText,
     display: "flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -59,13 +63,13 @@ const styles = stylex.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: { default: "white", ":hover": "#fafafa" },
-    borderColor: "#e4e4e7",
+    backgroundColor: { default: tokens.surface, ":hover": tokens.hoverStrong },
+    borderColor: tokens.border,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-    color: "#3f3f46",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.text,
     display: "flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -78,24 +82,24 @@ const styles = stylex.create({
   },
   icon: { height: "1rem", width: "1rem" },
   menu: {
-    backgroundColor: "white",
+    backgroundColor: tokens.surface,
     borderRadius: "0.75rem",
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+    boxShadow: tokens.shadowLarge,
     minWidth: 220,
   },
   languageSection: {
     borderRadius: "0.5rem",
-    color: "#3f3f46",
+    color: tokens.text,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     paddingBlock: "0.5rem",
     paddingInline: "0.75rem",
   },
   languageControl: { marginTop: "0.5rem" },
-  separator: { backgroundColor: "#f4f4f5", height: 1, marginBlock: "0.5rem" },
+  separator: { backgroundColor: tokens.borderSoft, height: 1, marginBlock: "0.5rem" },
   menuItem: {
     alignItems: "center",
-    color: { default: "#3f3f46", "[data-highlighted]": "#18181b" },
+    color: { default: tokens.text, "[data-highlighted]": tokens.textStrong },
     borderRadius: "0.5rem",
     display: "flex",
     fontSize: "0.875rem",
@@ -107,9 +111,15 @@ const styles = stylex.create({
     paddingInline: "0.75rem",
     transitionDuration: "150ms",
     transitionProperty: "color, background-color",
-    "[data-highlighted]": { backgroundColor: "#f4f4f5" },
+    "[data-highlighted]": { backgroundColor: tokens.hover },
   },
-  menuIcon: { alignSelf: "center", color: "#a1a1aa", flexShrink: 0, height: "1rem", width: "1rem" },
+  menuIcon: {
+    alignSelf: "center",
+    color: tokens.textSoft,
+    flexShrink: 0,
+    height: "1rem",
+    width: "1rem",
+  },
   visualizer: { flex: 1, height: "1.5rem", maxWidth: "100%" },
   badge: {
     alignItems: "center",
@@ -121,9 +131,9 @@ const styles = stylex.create({
     paddingInline: "0.75rem",
   },
   statusDot: { borderRadius: "9999px", height: "0.5rem", width: "0.5rem" },
-  statusSuccess: { backgroundColor: "#34d399" },
-  statusWarning: { backgroundColor: "#fbbf24" },
-  statusNeutral: { backgroundColor: "#a1a1aa" },
+  statusSuccess: { backgroundColor: tokens.successText },
+  statusWarning: { backgroundColor: tokens.warningText },
+  statusNeutral: { backgroundColor: tokens.textSoft },
 });
 
 interface TranscriptionHeaderProps {

@@ -1,14 +1,16 @@
 import { Button } from "@base-ui/react/button";
 import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 16 },
-  text: { color: "#52525b", fontSize: 14, margin: 0, textAlign: "center" },
+  text: { color: tokens.textMuted, fontSize: 14, margin: 0, textAlign: "center" },
   button: {
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: 6,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
-    color: "#fff",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.primaryText,
     fontSize: 14,
     fontWeight: 500,
     paddingBlock: 10,
@@ -16,9 +18,17 @@ const styles = stylex.create({
     transition: "transform 150ms, background-color 150ms",
     width: "100%",
     ":active": { transform: "scale(0.95)" },
-    ":hover": { backgroundColor: "#27272a" },
-    ":focus-visible": { boxShadow: "0 0 0 2px #18181b, 0 0 0 4px #fff" },
-    ":disabled": { backgroundColor: "#f4f4f5", color: "#a1a1aa", cursor: "not-allowed" },
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+    ":focus-visible": {
+      boxShadow: `0 0 0 2px ${tokens.primaryBackground}, 0 0 0 4px ${tokens.surface}`,
+    },
+    ":disabled": {
+      backgroundColor: tokens.controlDisabledBackground,
+      color: tokens.controlDisabledText,
+      cursor: "not-allowed",
+    },
   },
 });
 
