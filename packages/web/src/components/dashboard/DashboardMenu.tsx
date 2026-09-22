@@ -22,6 +22,7 @@ import type {
 import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 import { DashboardToolbarButton } from "./DashboardToolbarButton";
 
@@ -30,8 +31,8 @@ import "./dashboardMenu.css";
 const styles = stylex.create({
   trigger: {
     "[data-open=true]": {
-      backgroundColor: "#fffcf6",
-      borderColor: "#ddd7cb",
+      backgroundColor: tokens.surfaceSoft,
+      borderColor: tokens.borderStrong,
       boxShadow: "0 10px 24px rgba(34, 33, 29, 0.06)",
       opacity: 0,
       transitionDuration: "150ms",
@@ -40,8 +41,8 @@ const styles = stylex.create({
   item: {
     outline: "none",
     transition: "background-color 150ms",
-    ":focus-visible": { backgroundColor: "#faf7f0" },
-    ":hover": { backgroundColor: "#faf7f0" },
+    ":focus-visible": { backgroundColor: tokens.hoverStrong },
+    ":hover": { backgroundColor: tokens.hoverStrong },
   },
 });
 

@@ -79,7 +79,7 @@
   position: absolute;
   inset: 0;
   border-radius: 1.1rem;
-  background: #fffdfa;
+  background: var(--color-memora-surface);
   box-shadow: 0 12px 28px rgba(34, 33, 29, 0.07);
   opacity: 0;
   pointer-events: none;

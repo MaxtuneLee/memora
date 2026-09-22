@@ -3,16 +3,17 @@ import type { ButtonHTMLAttributes, ReactElement } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
     alignItems: "center",
-    backgroundColor: "#fffdfa",
-    borderColor: "#e7e1d7",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.borderSoft,
     borderRadius: 9999,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#3c3934",
+    color: tokens.text,
     cursor: "pointer",
     display: "inline-flex",
     fontSize: "0.875rem",
@@ -37,37 +38,40 @@ const styles = stylex.create({
       cubic-bezier(0.34, 1.56, 0.64, 1)`,
     "@media (hover: hover) and (pointer: fine)": {
       ":hover": {
-        backgroundColor: "#fffcf6",
+        backgroundColor: tokens.surfaceSoft,
         boxShadow: "0 8px 20px rgba(34, 33, 29, 0.05)",
         transform: "translateY(-1px)",
       },
     },
     // Brightness stays outside the reduced-motion gate: it is a tonal change, not movement, so it
-    // remains as press feedback when the pop is suppressed. #fffdfa is already at the top of the
-    // range, so brightening it would be invisible — the default tone has to go down to register.
+    // remains as press feedback when the pop is suppressed. The default tone is already near the
+    // top of its range, so brightening it would be invisible — the tone has to go down to register.
     ":active": { filter: "brightness(1.5)" },
     // Declared only under no-preference, so reduced motion simply never gets the rule and there is
     // nothing to override. Matches TabSelect.tsx:28.
     "@media (prefers-reduced-motion: no-preference)": {
       ":active": { scale: "1.2" },
     },
+    // Inner ring matches the button's own surface (a gap, not a color statement); the outer ring
+    // carries the olive accent so it stays visible against the page in both themes. Matches the
+    // FOCUS_RING convention in Button.tsx.
     ":focus-visible": {
-      boxShadow: "0 0 0 2px #a7af8f, 0 0 0 4px #fbfaf7",
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.oliveSoft}`,
     },
   },
   primary: {
-    backgroundColor: "#4f5742",
-    borderColor: "#4f5742",
-    color: "#fffdf8",
+    backgroundColor: tokens.oliveText,
+    borderColor: tokens.oliveText,
+    color: tokens.textInverse,
     "@media (hover: hover) and (pointer: fine)": {
       ":hover": {
-        backgroundColor: "#3d4433",
-        borderColor: "#3d4433",
+        backgroundColor: `color-mix(in srgb, ${tokens.oliveText} 82%, black)`,
+        borderColor: `color-mix(in srgb, ${tokens.oliveText} 82%, black)`,
         boxShadow: "0 8px 20px rgba(34, 33, 29, 0.1)",
       },
     },
-    // Inverted against the default tone. One direction cannot read on both: #4f5742 has room to
-    // brighten and almost none to darken, so it lights up on press where the pale tone dims.
+    // Inverted against the default tone. One direction cannot read on both: the pale default tone
+    // dims on press, so the filled tone lights up instead.
     ":active": { filter: "brightness(1.5)" },
   },
 });

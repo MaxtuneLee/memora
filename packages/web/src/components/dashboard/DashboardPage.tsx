@@ -57,6 +57,7 @@ import { setPendingHomeGridPrompt } from "@/lib/widgets/homeGridPrompt";
 import { fileEvents } from "@/livestore/file";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
+import { tokens } from "../../styles/stylex.stylex";
 import type { SearchNavigationState } from "@/types/search";
 
 import { DEFAULT_WELCOME_COPY, getWelcomeCopy } from "./welcomeCopy";
@@ -104,13 +105,13 @@ const styles = stylex.create({
     textAlign: "left",
     transition: "background-color 150ms",
     width: "100%",
-    "[data-highlighted]": { backgroundColor: "#faf7f0" },
+    "[data-highlighted]": { backgroundColor: tokens.hoverStrong },
   },
   menuIconShell: {
     alignItems: "center",
-    backgroundColor: "#f6f3ec",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 9999,
-    color: "#7c7265",
+    color: tokens.textMuted,
     display: "flex",
     height: 32,
     justifyContent: "center",
@@ -118,9 +119,9 @@ const styles = stylex.create({
   },
   menuIcon: { height: 18, width: 18 },
   menuCopy: { minWidth: 0 },
-  menuTitle: { color: "#1d1c1a", fontSize: 14, fontWeight: 600 },
-  menuNote: { color: "#7a7369", fontSize: 11, lineHeight: "16px", marginTop: 2 },
-  page: { backgroundColor: "#fcfaf6", color: "#1d1c1a", minHeight: "100%" },
+  menuTitle: { color: tokens.text, fontSize: 14, fontWeight: 600 },
+  menuNote: { color: tokens.textMuted, fontSize: 11, lineHeight: "16px", marginTop: 2 },
+  page: { backgroundColor: tokens.background, color: tokens.text, minHeight: "100%" },
   pageContent: {
     marginInline: "auto",
     // Wide enough for the Home Grid's four ~280px square columns plus gaps at 40px page padding.
@@ -131,7 +132,7 @@ const styles = stylex.create({
     "@media (min-width: 48rem)": { paddingBlock: 40, paddingInline: 40 },
   },
   hero: { paddingBottom: 28, "@media (min-width: 48rem)": { paddingBottom: 32 } },
-  welcomeHeader: { borderBottom: "1px solid #e9e5dc", paddingBottom: 16 },
+  welcomeHeader: { borderBottom: `1px solid ${tokens.border}`, paddingBottom: 16 },
   widgetsArea: { marginTop: 24 },
   menuRow: {
     alignItems: "center",
@@ -158,19 +159,19 @@ const styles = stylex.create({
   menuMotionItem: { display: "flex" },
   triggerIconShell: {
     alignItems: "center",
-    backgroundColor: "#f6f3ec",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 9999,
-    color: "#7c7265",
+    color: tokens.textMuted,
     display: "flex",
     height: 28,
     justifyContent: "center",
     width: 28,
   },
   primaryTriggerIconShell: {
-    backgroundColor: "rgba(255, 253, 248, 0.14)",
-    color: "#fffdf8",
+    backgroundColor: `color-mix(in srgb, ${tokens.surface} 14%, transparent)`,
+    color: tokens.textInverse,
   },
-  triggerCaret: { color: "#9a948a", height: 14, width: 14 },
+  triggerCaret: { color: tokens.textSoft, height: 14, width: 14 },
   menuContentNarrow: { width: 224 },
 });
 

@@ -15,6 +15,7 @@ import {
   HOME_GRID_MAX_SPAN,
   nextWidgetSpans,
 } from "@/lib/widgets/homeGridLayout";
+import { tokens } from "../../../styles/stylex.stylex";
 
 // Shared with AddWidgetDrawer: a card's preview claims this same name for the instance id it's
 // about to place, just long enough for the View Transition to morph it into this tile's slot.
@@ -80,7 +81,7 @@ const styles = stylex.create({
   // Sits over the widget's own content while editing so drag/remove gestures land on the
   // tile instead of being swallowed by buttons, inputs, or links inside the widget.
   contentMask: {
-    backgroundColor: "rgba(255, 253, 248, 0.4)",
+    backgroundColor: `color-mix(in srgb, ${tokens.surface} 40%, transparent)`,
     borderRadius: HOME_GRID_TILE_RADIUS_PX,
     inset: 0,
     opacity: 0,
@@ -92,9 +93,9 @@ const styles = stylex.create({
   contentMaskVisible: { opacity: 1, pointerEvents: "auto" },
   removeBadge: {
     alignItems: "center",
-    backgroundColor: "#fffdf8",
+    backgroundColor: tokens.surface,
     borderRadius: 9999,
-    color: "#a5493a",
+    color: tokens.dangerText,
     cursor: "pointer",
     display: "flex",
     height: 24,
@@ -105,14 +106,14 @@ const styles = stylex.create({
     touchAction: "manipulation",
     width: 24,
     zIndex: 20,
-    ":hover": { color: "#7c2f24" },
+    ":hover": { color: `color-mix(in srgb, ${tokens.dangerText} 80%, black)` },
   },
   removeIcon: { height: 24, width: 24 },
   resizing: { zIndex: 10 },
   resizeHandle: {
     alignItems: "center",
     bottom: 2,
-    color: "#8a857c",
+    color: tokens.textSoft,
     cursor: "nwse-resize",
     display: "flex",
     height: 20,
@@ -122,7 +123,7 @@ const styles = stylex.create({
     touchAction: "none",
     width: 20,
     zIndex: 20,
-    ":hover": { color: "#4f5742" },
+    ":hover": { color: tokens.oliveText },
   },
   resizeGrip: { height: 12, width: 12 },
 });

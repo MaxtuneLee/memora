@@ -16,6 +16,7 @@ import {
 } from "@/lib/widgets/dataSourceCatalog";
 import { parseWidgetDefinitionDataSourceParams } from "@/lib/widgets/widgetDefinitions";
 import type { WritableReactiveWidgetStore } from "@/lib/widgets/widgetStore";
+import { tokens } from "../../../styles/stylex.stylex";
 import type { BuiltinWidgetKey, widgetDefinition } from "@/livestore/widget";
 import type { FileMeta } from "@/types/library";
 
@@ -25,7 +26,7 @@ import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
 
 const styles = stylex.create({
   root: { inset: 0, position: "fixed", zIndex: 50 },
-  backdrop: { backgroundColor: "rgb(24 24 27 / 0.35)", inset: 0, position: "absolute" },
+  backdrop: { backgroundColor: tokens.overlay, inset: 0, position: "absolute" },
   panel: {
     backgroundColor: "var(--color-memora-surface)",
     borderTopLeftRadius: 24,
@@ -115,7 +116,10 @@ const styles = stylex.create({
     width: 26,
     ":hover": { backgroundColor: "var(--color-memora-hover)" },
   },
-  iconButtonDanger: { color: "#b91c1c", ":hover": { backgroundColor: "#fef2f2" } },
+  iconButtonDanger: {
+    color: tokens.dangerText,
+    ":hover": { backgroundColor: tokens.dangerSurface },
+  },
   icon: { height: 14, width: 14 },
   badge: {
     backgroundColor: "var(--color-memora-hover)",

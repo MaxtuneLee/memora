@@ -12,6 +12,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 
+import { tokens } from "../../../styles/stylex.stylex";
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
 import {
   HOME_GRID_GAP_PX,
@@ -33,10 +34,10 @@ const styles = stylex.create({
     gridAutoFlow: "row dense",
   },
   empty: {
-    backgroundColor: "#fffdf8",
-    border: "1px dashed #e9e5dc",
+    backgroundColor: tokens.surface,
+    border: `1px dashed ${tokens.border}`,
     borderRadius: 28,
-    color: "#716c64",
+    color: tokens.textMuted,
     display: "flex",
     flexDirection: "column",
     fontSize: 14,
@@ -48,28 +49,28 @@ const styles = stylex.create({
   toolbar: { display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 16 },
   addButton: {
     alignSelf: "center",
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e9e5dc",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 9999,
-    color: "#4f5742",
+    color: tokens.oliveText,
     cursor: "pointer",
     fontSize: 14,
     fontWeight: 600,
     paddingBlock: 8,
     paddingInline: 16,
-    ":hover": { backgroundColor: "#f5f1e8" },
+    ":hover": { backgroundColor: tokens.hover },
   },
   doneButton: {
-    backgroundColor: "#4f5742",
-    border: "1px solid #4f5742",
+    backgroundColor: tokens.oliveText,
+    border: `1px solid ${tokens.oliveText}`,
     borderRadius: 9999,
-    color: "#fffdf8",
+    color: tokens.textInverse,
     cursor: "pointer",
     fontSize: 14,
     fontWeight: 600,
     paddingBlock: 8,
     paddingInline: 16,
-    ":hover": { backgroundColor: "#3d4433" },
+    ":hover": { backgroundColor: `color-mix(in srgb, ${tokens.oliveText} 82%, black)` },
   },
 });
 

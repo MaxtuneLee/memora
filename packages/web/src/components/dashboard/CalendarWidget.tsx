@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import type { ReactElement } from "react";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 import {
   CALENDAR_MOTION_EASE,
   getCalendarGridMotion,
@@ -24,8 +26,8 @@ const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as cons
 const styles = stylex.create({
   icon: { height: 16, width: 16 },
   calendar: {
-    backgroundColor: "white",
-    border: "1px solid #e9e5dc",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
     borderRadius: "inherit",
     padding: 20,
     "@media (min-width: 48rem)": { padding: 24 },
@@ -40,19 +42,21 @@ const styles = stylex.create({
   calendarButton: {
     alignItems: "center",
     borderRadius: 9999,
-    color: "#9aa28d",
+    color: tokens.oliveSoft,
     display: "flex",
     height: 32,
     justifyContent: "center",
     outline: "none",
     transition: "color 150ms, background-color 150ms",
     width: 32,
-    ":hover": { backgroundColor: "#f5f1e8", color: "#6c7654" },
-    ":focus-visible": { boxShadow: "0 0 0 2px #a7af8f, 0 0 0 4px white" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.oliveText },
+    // Inner ring matches the widget's own surface; the outer ring carries the olive accent so it
+    // stays visible against the page in both themes. Matches Button.tsx's FOCUS_RING convention.
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.oliveSoft}` },
   },
   calendarLabelFrame: { height: 24, overflow: "hidden", position: "relative" },
   calendarLabel: {
-    color: "#4f5742",
+    color: tokens.oliveText,
     fontSize: 15,
     fontWeight: 700,
     inset: 0,
@@ -66,7 +70,7 @@ const styles = stylex.create({
     rowGap: 8,
   },
   weekday: {
-    color: "#9aa28d",
+    color: tokens.oliveSoft,
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: "0.12em",
@@ -84,31 +88,31 @@ const styles = stylex.create({
     alignItems: "center",
     aspectRatio: 1,
     borderRadius: 9999,
-    color: "#565b4f",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 14,
     justifyContent: "center",
     position: "relative",
     transition: "transform 150ms",
   },
-  calendarDayMuted: { color: "#c9c4bb" },
-  calendarDayActive: { backgroundColor: "#7b875a", color: "#fffdfa", fontWeight: 700 },
+  calendarDayMuted: { color: tokens.borderStrong },
+  calendarDayActive: { backgroundColor: tokens.olive, color: tokens.textInverse, fontWeight: 700 },
   dayRing: {
-    border: "1px solid rgb(170 180 138 / 0.55)",
+    border: `1px solid color-mix(in srgb, ${tokens.oliveSoft} 55%, transparent)`,
     borderRadius: 9999,
     inset: 0,
     position: "absolute",
   },
   dayLabel: { position: "relative", zIndex: 10 },
   activityDot: {
-    backgroundColor: "#74824d",
+    backgroundColor: tokens.oliveText,
     borderRadius: 9999,
     bottom: 6,
     height: 6,
     position: "absolute",
     width: 6,
   },
-  activityDotActive: { backgroundColor: "#fffdfa" },
+  activityDotActive: { backgroundColor: tokens.textInverse },
 });
 
 const createCalendarDays = (monthDate: Date, activityTimestamps: number[]): CalendarDay[] => {

@@ -2,6 +2,8 @@ import { memo, useEffect, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import type { ReactElement } from "react";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 const WELCOME_TYPE_START_DELAY_MS = 140;
 const WELCOME_TYPE_INTERVAL_MS = 34;
 const cursorPulse = stylex.keyframes({
@@ -12,7 +14,7 @@ const cursorPulse = stylex.keyframes({
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 12 },
   title: {
-    color: "#22211d",
+    color: tokens.textStrong,
     fontSize: "clamp(1.85rem, 4.2vw, 2.9rem)",
     fontWeight: 600,
     letterSpacing: "-0.045em",
@@ -23,13 +25,13 @@ const styles = stylex.create({
     animationDuration: "2s",
     animationIterationCount: "infinite",
     animationName: cursorPulse,
-    color: "#8d907a",
+    color: tokens.textSoft,
     display: "inline-block",
     marginLeft: "0.08em",
     width: "0.65ch",
   },
   description: {
-    color: "#716c64",
+    color: tokens.textMuted,
     fontSize: 14,
     lineHeight: "24px",
     "@media (min-width: 48rem)": { fontSize: 15 },

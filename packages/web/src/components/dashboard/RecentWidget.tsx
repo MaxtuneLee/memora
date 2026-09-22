@@ -3,20 +3,22 @@ import * as stylex from "@stylexjs/stylex";
 import type { ReactElement } from "react";
 import { Link } from "react-router";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 import type { RecentItem } from "./recentItems";
 
 const styles = stylex.create({
   recentWidget: {
-    backgroundColor: "white",
-    border: "1px solid #ebe4d8",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
     borderRadius: "inherit",
     overflow: "hidden",
   },
   recentWidgetHeader: { paddingBlock: 16, paddingInline: 20 },
-  recentWidgetTitle: { color: "#1d1c1a", fontSize: 17, fontWeight: 700 },
+  recentWidgetTitle: { color: tokens.text, fontSize: 17, fontWeight: 700 },
   recentRow: {
     alignItems: "center",
-    borderTop: "1px solid #ece5d9",
+    borderTop: `1px solid ${tokens.border}`,
     display: "grid",
     gap: 12,
     gridTemplateColumns: "2.625rem minmax(0, 1fr) auto",
@@ -24,7 +26,7 @@ const styles = stylex.create({
     paddingInline: 20,
     textDecoration: "none",
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: "#fcfaf5" },
+    ":hover": { backgroundColor: tokens.surfaceSoft },
     ":first-child": { borderTopWidth: 0 },
   },
   recentIconShell: {
@@ -35,16 +37,16 @@ const styles = stylex.create({
     justifyContent: "center",
     width: 42,
   },
-  recordingShell: { backgroundColor: "#f5f0e8" },
-  fileShell: { backgroundColor: "#f4f1ea" },
-  chatShell: { backgroundColor: "#f2efe6" },
+  recordingShell: { backgroundColor: tokens.surfaceMuted },
+  fileShell: { backgroundColor: tokens.surfaceMuted },
+  chatShell: { backgroundColor: tokens.surfaceMuted },
   recentIcon: { height: 20, width: 20 },
-  recordingIcon: { color: "#8a7e6c" },
-  fileIcon: { color: "#6b655d" },
-  chatIcon: { color: "#65704e" },
+  recordingIcon: { color: tokens.textSoft },
+  fileIcon: { color: tokens.textMuted },
+  chatIcon: { color: tokens.oliveText },
   recentCopy: { minWidth: 0 },
   recentTitle: {
-    color: "#1d1c1a",
+    color: tokens.text,
     fontSize: 15,
     fontWeight: 600,
     overflow: "hidden",
@@ -52,14 +54,14 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   recentSubtitle: {
-    color: "#716c64",
+    color: tokens.textMuted,
     fontSize: 12,
     marginTop: 4,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  recentArrow: { color: "#9a948a", height: 16, transition: "transform 150ms", width: 16 },
+  recentArrow: { color: tokens.textSoft, height: 16, transition: "transform 150ms", width: 16 },
 });
 
 const getRecentShellStyle = (tone: RecentItem["tone"]) => {
