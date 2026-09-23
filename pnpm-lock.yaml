@@ -217,6 +217,9 @@ importers:
       '@codemirror/lang-markdown':
         specifier: ^6.3.4
         version: 6.5.2
+      '@codemirror/language':
+        specifier: ^6.12.4
+        version: 6.12.4
       '@codemirror/state':
         specifier: ^6.5.2
         version: 6.7.1
@@ -250,6 +253,9 @@ importers:
       '@lexical/table':
         specifier: ^0.44.0
         version: 0.44.0
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@livestore/adapter-web':
         specifier: ^0.4.0
         version: 0.4.0(936ffa85fd5e0bed3281f35657c4b044)

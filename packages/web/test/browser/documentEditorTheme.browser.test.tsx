@@ -111,6 +111,29 @@ describe.each(["light", "dark"] as const)("SourceDocumentEditor in %s", (theme) 
     if (!diagnosticButton) throw new Error("Missing diagnostic button");
     expect(textContrast(diagnosticButton)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it("colors markdown syntax with readable theme colors", async () => {
+    await mount(
+      theme,
+      <SourceDocumentEditor
+        text={"# Title\n\n[link](https://a.b) `code`"}
+        onTextChange={() => {}}
+      />,
+    );
+
+    const spanFor = (text: string) =>
+      [...(host?.querySelectorAll(".cm-line span") ?? [])].find((span) =>
+        span.textContent?.includes(text),
+      );
+    await expect.poll(() => spanFor("Title")).toBeTruthy();
+    const plain = host?.querySelector(".cm-content") as HTMLElement;
+    for (const text of ["link", "code"]) {
+      const span = spanFor(text);
+      if (!span) throw new Error(`Missing highlighted span for ${text}`);
+      expect.soft(getComputedStyle(span).color, text).not.toBe(getComputedStyle(plain).color);
+      expect.soft(textContrast(span), text).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 });
 
 describe.each(["light", "dark"] as const)("WysiwygDocumentEditor in %s", (theme) => {

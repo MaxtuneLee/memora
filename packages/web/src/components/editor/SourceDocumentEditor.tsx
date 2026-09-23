@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { markdown } from "@codemirror/lang-markdown";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import {
   Compartment,
   StateEffect,
@@ -18,6 +19,7 @@ import {
   type Range,
 } from "@codemirror/state";
 import { Decoration, EditorView, hoverTooltip, type DecorationSet } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import * as stylex from "@stylexjs/stylex";
 
@@ -245,7 +247,22 @@ const buildSourceEditorTheme = (dark: boolean): Extension =>
     { dark },
   );
 
+// Colors are CSS variables, so the style repaints with the resolved theme without reconfiguring.
+const sourceEditorHighlightStyle = HighlightStyle.define([
+  { tag: tags.heading, color: "var(--color-memora-text-strong)", fontWeight: "700" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: [tags.link, tags.url], color: "var(--color-memora-olive-text)" },
+  { tag: tags.monospace, color: "var(--color-memora-warning-text)" },
+  {
+    tag: [tags.processingInstruction, tags.meta, tags.contentSeparator, tags.quote],
+    color: "var(--color-memora-text-muted)",
+  },
+]);
+
 const sourceEditorExtensions = [
+  syntaxHighlighting(sourceEditorHighlightStyle),
   markdown(),
   EditorView.contentAttributes.of({
     "aria-label": "Document source",
@@ -411,12 +428,6 @@ export const SourceDocumentEditor = forwardRef<
             foldGutter: false,
             highlightActiveLine: true,
             highlightActiveLineGutter: true,
-            // ponytail: CodeMirror's fallback highlight style hardcodes a couple of tag colors
-            // (heading/link markers, URLs) that read as near-invisible on a dark surface and
-            // can't be recolored without a direct @codemirror/language dependency this package
-            // doesn't declare. The rest of the markdown formatting (bold/italic/strikethrough)
-            // comes from font weight and decoration, which default off with it; add a themed
-            // HighlightStyle here if richer inline syntax coloring is worth the new dependency.
             syntaxHighlighting: false,
           }}
           editable={!readOnly}
