@@ -35,6 +35,7 @@ export const useChatComposerImages = ({
 }: UseChatComposerImagesParams): UseChatComposerImagesResult => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const composerImagesRef = useRef<ChatImageAttachment[]>([]);
+  const messagesRef = useRef(messages);
   const dragDepthRef = useRef(0);
   const [composerImages, setComposerImages] = useState<ChatImageAttachment[]>([]);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
@@ -50,6 +51,10 @@ export const useChatComposerImages = ({
   useEffect(() => {
     composerImagesRef.current = composerImages;
   }, [composerImages]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     if (!composerNotice) {
@@ -339,7 +344,7 @@ export const useChatComposerImages = ({
 
   const handleSaveImageToLibrary = useCallback(
     async (messageId: string, attachmentId: string) => {
-      const targetMessage = messages.find((message) => message.id === messageId);
+      const targetMessage = messagesRef.current.find((message) => message.id === messageId);
       const targetAttachment = targetMessage?.attachments?.find(
         (attachment) => attachment.id === attachmentId,
       );
@@ -405,7 +410,7 @@ export const useChatComposerImages = ({
         });
       }
     },
-    [messages, store, updateMessage],
+    [store, updateMessage],
   );
 
   return {

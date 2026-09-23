@@ -16,6 +16,25 @@ const requests = new Map<
 const calls = new Map<string, AbortController>();
 const approvals = new Map<string, (decision: "allow_once" | "allow_session" | "deny") => void>();
 
+// postMessage clones every snapshot, so reuse unchanged branches of the previous one to keep
+// object identity stable for memoized consumers (e.g. only the streaming message changes).
+export function shareEqual<T>(previous: unknown, next: T): T {
+  if (previous === next || typeof previous !== "object" || typeof next !== "object") {
+    return Object.is(previous, next) ? (previous as T) : next;
+  }
+  if (!previous || !next || Array.isArray(previous) !== Array.isArray(next)) return next;
+  const prev = previous as Record<string, unknown>;
+  const result = next as Record<string, unknown>;
+  const prevKeys = Object.keys(prev);
+  const nextKeys = Object.keys(result);
+  let equal = prevKeys.length === nextKeys.length;
+  for (const key of nextKeys) {
+    result[key] = shareEqual(prev[key], result[key]);
+    if (result[key] !== prev[key] || !(key in prev)) equal = false;
+  }
+  return equal ? (previous as T) : next;
+}
+
 function connection(): MessagePort {
   if (worker) return worker.port;
   if (typeof SharedWorker === "undefined")
@@ -39,7 +58,10 @@ function connection(): MessagePort {
     } else if (message.type === "snapshot") {
       const current = snapshots.get(message.snapshot.sessionId);
       if (current && current.revision > message.snapshot.revision) return;
-      snapshots.set(message.snapshot.sessionId, message.snapshot);
+      snapshots.set(
+        message.snapshot.sessionId,
+        current ? shareEqual(current, message.snapshot) : message.snapshot,
+      );
       listeners.get(message.snapshot.sessionId)?.forEach((listener) => listener());
     } else if (message.type === "tool") {
       const controller = new AbortController();

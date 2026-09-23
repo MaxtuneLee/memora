@@ -186,3 +186,39 @@ describe("session execution", () => {
     expect(h.runtime.snapshot.activeRunId).toBeUndefined();
   });
 });
+
+describe("SessionRuntime stream publishing", () => {
+  it("coalesces per-token events into one snapshot and still publishes the final state", async () => {
+    vi.useFakeTimers();
+    const published: SessionSnapshot[] = [];
+    let release: () => void = () => {};
+    const runtime = new SessionRuntime({
+      snapshot: emptySessionSnapshot("session"),
+      publish: (snapshot) => published.push(snapshot),
+      save: async () => {},
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {
+          for (const delta of ["a", "b", "c"]) yield { type: "text-delta", delta } as AgentEvent;
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        },
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+
+    await runtime.submit(submission("one"));
+    await vi.advanceTimersByTimeAsync(0);
+    const beforeFlush = published.length;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(published.length).toBe(beforeFlush + 1);
+    expect(published.at(-1)?.messages.at(-1)?.content).toBe("abc");
+
+    release();
+    await vi.runAllTimersAsync();
+    expect(published.at(-1)?.activeRunId).toBeUndefined();
+    vi.useRealTimers();
+  });
+});

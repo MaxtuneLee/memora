@@ -32,6 +32,7 @@ export class SessionRuntime {
   private writes: Promise<void> = Promise.resolve();
   private rawWidgetArgs = new Map<string, string>();
   private saveTimer?: ReturnType<typeof setTimeout>;
+  private publishTimer?: ReturnType<typeof setTimeout>;
   private idleWaiters: Array<() => void> = [];
 
   private options: SessionRuntimeOptions;
@@ -49,6 +50,8 @@ export class SessionRuntime {
   }
 
   private publish(): void {
+    clearTimeout(this.publishTimer);
+    this.publishTimer = undefined;
     this.snapshot = { ...this.snapshot, revision: this.snapshot.revision + 1 };
     this.options.publish(this.snapshot);
   }
@@ -61,8 +64,10 @@ export class SessionRuntime {
     await this.writes;
   }
 
-  private changed(): void {
-    this.publish();
+  // Stream events arrive per token; coalesce them so each tab clones and renders at most ~20 snapshots/s.
+  private changed(streaming = false): void {
+    if (!streaming) this.publish();
+    else this.publishTimer ??= setTimeout(() => this.publish(), 50);
     if (!this.saveTimer) {
       this.saveTimer = setTimeout(() => {
         this.saveTimer = undefined;
@@ -251,7 +256,7 @@ export class SessionRuntime {
         break;
     }
     this.updateAssistant((message) => ({ ...message, thinkingSteps: this.snapshot.thinkingSteps }));
-    this.changed();
+    this.changed(true);
   }
 
   private widget(

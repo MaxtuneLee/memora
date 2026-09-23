@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   toPiTool,
   type AgentConfig,
@@ -34,8 +34,14 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     },
     [sessionId],
   );
+  // Callers pass a fresh options object every render; read the latest at call time so `send` stays stable.
+  const optionsRef = useRef(options);
+  useLayoutEffect(() => {
+    optionsRef.current = options;
+  });
   const send = useCallback<UseAgentReturn["send"]>(
     async (input, turnOptions) => {
+      const options = optionsRef.current;
       setLocalError(null);
       setDismissedIteration(null);
       try {
@@ -100,7 +106,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         throw error;
       }
     },
-    [options, sessionId, reportError],
+    [sessionId, reportError],
   );
   const abort = useCallback(() => {
     const runId = getSnapshot(sessionId).activeRunId;
