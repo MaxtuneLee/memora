@@ -1,6 +1,16 @@
 import { Toast } from "@base-ui/react/toast";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
-import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  Component,
+  Suspense,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { WidgetDebugPanel } from "@/components/chat/chatWidget/WidgetDebugPanel";
@@ -75,6 +85,12 @@ const styles = stylex.create({
     fontSize: 12,
     paddingBlock: 8,
     paddingInline: 12,
+  },
+  errorDetail: {
+    fontFamily: "monospace",
+    marginTop: 4,
+    overflowWrap: "anywhere",
+    whiteSpace: "pre-wrap",
   },
   error: {
     backgroundColor: tokens.dangerSurface,
@@ -270,4 +286,50 @@ const areChatWidgetPropsEqual = (
   );
 };
 
-export const ChatWidget = memo(ChatWidgetComponent, areChatWidgetPropsEqual);
+// Keeps a failing widget preview from taking down the whole Chat route. A new widget value
+// (for example the next streamed chunk) clears the error and retries.
+class ChatWidgetErrorBoundary extends Component<
+  { widget: ChatWidgetData; children: ReactNode },
+  { error: Error | null; widget: ChatWidgetData }
+> {
+  state = { error: null as Error | null, widget: this.props.widget };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  static getDerivedStateFromProps(
+    props: { widget: ChatWidgetData },
+    state: { error: Error | null; widget: ChatWidgetData },
+  ) {
+    return props.widget === state.widget ? null : { error: null, widget: props.widget };
+  }
+
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    return (
+      <div role="alert" {...stylex.props(styles.root)}>
+        <div {...stylex.props(styles.header)}>
+          <p {...stylex.props(styles.label)}>{getWidgetLabel(this.props.widget)}</p>
+        </div>
+        <div {...stylex.props(styles.error)}>
+          This widget could not be displayed.
+          <div {...stylex.props(styles.errorDetail)}>{error.message}</div>
+        </div>
+      </div>
+    );
+  }
+}
+
+function ChatWidgetWithBoundary(props: ChatWidgetProps) {
+  return (
+    <ChatWidgetErrorBoundary widget={props.widget}>
+      <Suspense fallback={<div {...stylex.props(styles.loading)}>Loading widget…</div>}>
+        <ChatWidgetComponent {...props} />
+      </Suspense>
+    </ChatWidgetErrorBoundary>
+  );
+}
+
+export const ChatWidget = memo(ChatWidgetWithBoundary, areChatWidgetPropsEqual);
