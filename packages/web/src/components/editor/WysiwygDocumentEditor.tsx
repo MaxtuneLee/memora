@@ -117,14 +117,14 @@ const CODE_BLOCK_WITH_FENCES_STYLE =
   "margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0.25rem; padding-bottom: 0.25rem;";
 
 const EDITABLE_LINK_LABEL_SOURCE_STYLE =
-  "color: var(--color-memora-accent); text-decoration-line: underline; text-decoration-color: color-mix(in srgb, var(--color-memora-accent) 58%, transparent); text-underline-offset: 2px;";
+  "color: var(--color-memora-olive-text); text-decoration-line: underline; text-decoration-color: color-mix(in srgb, var(--color-memora-olive-text) 58%, transparent); text-underline-offset: 2px;";
 const EDITABLE_LINK_MARKER_SOURCE_STYLE = "color: var(--color-memora-text-muted);";
 
 const editorStyles = stylex.create({
   codeBlock: {
-    backgroundColor: "#fafafa",
+    backgroundColor: "var(--color-memora-surface-muted)",
     borderRadius: "0.75rem",
-    color: "#18181b",
+    color: "var(--color-memora-text)",
     display: "block",
     fontFamily: "monospace",
     fontSize: "0.875rem",
@@ -135,7 +135,7 @@ const editorStyles = stylex.create({
     paddingInline: "1rem",
   },
   h1: {
-    color: "#09090b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "2.25rem",
     fontWeight: 600,
     letterSpacing: "-0.03em",
@@ -144,7 +144,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h2: {
-    color: "#18181b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "1.5rem",
     fontWeight: 600,
     letterSpacing: "-0.02em",
@@ -154,7 +154,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h3: {
-    color: "#18181b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "1.25rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
@@ -163,7 +163,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h4: {
-    color: "#18181b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "1.125rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
@@ -172,7 +172,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h5: {
-    color: "#18181b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "1rem",
     fontWeight: 600,
     lineHeight: "1.5rem",
@@ -181,7 +181,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h6: {
-    color: "#52525b",
+    color: "var(--color-memora-text-muted)",
     fontSize: "0.875rem",
     fontWeight: 600,
     letterSpacing: "0.14em",
@@ -195,34 +195,34 @@ const editorStyles = stylex.create({
   horizontalRule: {
     borderBottomWidth: 0,
     borderInlineWidth: 0,
-    borderTopColor: "#e4e4e7",
+    borderTopColor: "var(--color-memora-border-soft)",
     borderTopStyle: "solid",
     borderTopWidth: 1,
     marginBlock: "1.5rem",
   },
   link: {
-    color: "var(--color-memora-olive)",
-    textDecorationColor: "color-mix(in srgb, var(--color-memora-olive) 58%, transparent)",
+    color: "var(--color-memora-olive-text)",
+    textDecorationColor: "color-mix(in srgb, var(--color-memora-olive-text) 58%, transparent)",
     textDecorationLine: "underline",
     textUnderlineOffset: 2,
   },
   list: { marginBlock: "1rem", marginLeft: "1.5rem" },
   checklist: { listStyleType: "none" },
-  listItem: { color: "#18181b", lineHeight: "1.75rem", marginBlock: "0.25rem" },
+  listItem: { color: "var(--color-memora-text)", lineHeight: "1.75rem", marginBlock: "0.25rem" },
   checkedItem: {
-    color: "#71717a",
+    color: "var(--color-memora-text-muted)",
     listStyleType: "none",
     paddingLeft: "1.75rem",
     position: "relative",
     textDecorationLine: "line-through",
     "::before": {
       alignItems: "center",
-      backgroundColor: "#18181b",
-      borderColor: "#d4d4d8",
+      backgroundColor: "var(--color-memora-primary)",
+      borderColor: "var(--color-memora-border-soft)",
       borderRadius: "0.375rem",
       borderStyle: "solid",
       borderWidth: 1,
-      color: "white",
+      color: "var(--color-memora-primary-text)",
       content: '"✓"',
       display: "flex",
       fontSize: "0.6875rem",
@@ -235,13 +235,13 @@ const editorStyles = stylex.create({
     },
   },
   uncheckedItem: {
-    color: "#18181b",
+    color: "var(--color-memora-text)",
     listStyleType: "none",
     paddingLeft: "1.75rem",
     position: "relative",
     "::before": {
-      backgroundColor: "white",
-      borderColor: "#d4d4d8",
+      backgroundColor: "var(--color-memora-surface)",
+      borderColor: "var(--color-memora-border-soft)",
       borderRadius: "0.375rem",
       borderStyle: "solid",
       borderWidth: 1,
@@ -254,33 +254,47 @@ const editorStyles = stylex.create({
     },
   },
   nestedList: { marginTop: "0.5rem" },
-  orderedList: { listStyleType: "decimal", "::marker": { color: "#a1a1aa" } },
-  unorderedList: { listStyleType: "disc", "::marker": { color: "#a1a1aa" } },
-  paragraph: { color: "#18181b", lineHeight: "1.75rem", marginBottom: "0.75rem" },
+  orderedList: {
+    listStyleType: "decimal",
+    "::marker": { color: "var(--color-memora-text-soft)" },
+  },
+  unorderedList: {
+    listStyleType: "disc",
+    "::marker": { color: "var(--color-memora-text-soft)" },
+  },
+  paragraph: {
+    color: "var(--color-memora-text)",
+    lineHeight: "1.75rem",
+    marginBottom: "0.75rem",
+  },
   quote: {
-    borderLeftColor: "#d4d4d8",
+    borderLeftColor: "var(--color-memora-border-soft)",
     borderLeftStyle: "solid",
     borderLeftWidth: 2,
-    color: "#52525b",
+    color: "var(--color-memora-text-muted)",
     fontStyle: "italic",
     paddingLeft: "1rem",
   },
   editorRoot: { minHeight: 420, padding: 0, position: "relative" },
   table: { borderCollapse: "collapse", fontSize: "0.875rem", lineHeight: "1.25rem", width: "100%" },
   tableCell: {
-    borderColor: "#e4e4e7",
+    borderColor: "var(--color-memora-border-soft)",
     borderStyle: "solid",
     borderWidth: 1,
     paddingBlock: "0.5rem",
     paddingInline: "0.75rem",
     verticalAlign: "top",
   },
-  tableHeader: { backgroundColor: "#fafafa", color: "#18181b", fontWeight: 600 },
+  tableHeader: {
+    backgroundColor: "var(--color-memora-surface-muted)",
+    color: "var(--color-memora-text)",
+    fontWeight: 600,
+  },
   alignTop: { verticalAlign: "top" },
   horizontalScroll: { overflowX: "auto" },
   bold: { fontWeight: 600 },
   inlineCode: {
-    backgroundColor: "#f4f4f5",
+    backgroundColor: "var(--color-memora-surface-muted)",
     borderRadius: "0.25rem",
     fontFamily: "monospace",
     fontSize: "0.92em",

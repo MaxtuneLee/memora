@@ -77,7 +77,7 @@ const updateMarkdownLinkDOM = (
   }
 
   element.setAttribute("data-active-markdown-source", "true");
-  element.style.color = "var(--color-memora-accent)";
+  element.style.color = "var(--color-memora-olive-text)";
 };
 
 export type SerializedMarkdownLinkNode = Spread<

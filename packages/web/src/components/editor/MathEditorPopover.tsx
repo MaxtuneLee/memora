@@ -6,6 +6,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { $getNodeByKey, $getSelection, $isNodeSelection, type NodeKey } from "lexical";
 
 import { $isMathNode } from "@/components/editor/lexical/MathNode";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface SelectedFormula {
   anchor: HTMLElement;
@@ -26,7 +27,7 @@ const styles = stylex.create({
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
     borderRadius: 12,
-    boxShadow: "0 16px 40px -24px rgb(34 33 29 / 0.4)",
+    boxShadow: tokens.shadowLarge,
     outline: "none",
     padding: 12,
     width: "min(26rem, calc(100vw - 1.5rem))",
@@ -51,7 +52,7 @@ const styles = stylex.create({
     "::placeholder": { color: "var(--color-memora-text-soft)" },
     ":focus": {
       borderColor: "var(--color-memora-olive-soft)",
-      boxShadow: "0 0 0 2px rgb(145 168 91 / 0.35)",
+      boxShadow: "0 0 0 2px color-mix(in srgb, var(--color-memora-olive-soft) 45%, transparent)",
     },
   },
   multiline: { minHeight: 96, resize: "vertical" },

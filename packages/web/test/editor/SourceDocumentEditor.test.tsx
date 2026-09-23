@@ -235,9 +235,9 @@ test("mounts selection formatting without current-block source interception", ()
   expect(mountedEditorSource).not.toContain("editableMarkdownSourceRef");
   expect(mountedEditorSource).toContain("const markdown = exportWysiwygMarkdown(editorState);");
   expect(mountedEditorSource).toContain("commitMarkdown(markdown);");
-  expect(wysiwygEditorSource).toContain('color: "var(--color-memora-olive)"');
+  expect(wysiwygEditorSource).toContain('color: "var(--color-memora-olive-text)"');
   expect(wysiwygEditorSource).not.toContain("#3f7fc4");
-  expect(wysiwygEditorSource).toContain("var(--color-memora-accent)");
+  expect(wysiwygEditorSource).not.toContain("var(--color-memora-accent)");
   expect(wysiwygEditorSource).toContain("editableMarkdownSourceRef.current");
   expect(wysiwygEditorSource).toContain("onEditableMarkdownSourceCommit");
   expect(mountedEditorSource).not.toContain("if (editableMarkdownSourceRef.current)");

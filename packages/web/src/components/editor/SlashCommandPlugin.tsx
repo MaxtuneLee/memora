@@ -39,6 +39,7 @@ import {
 } from "lexical";
 
 import { $createMathNode } from "@/components/editor/lexical/MathNode";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   anchor: { zIndex: 30 },
@@ -48,7 +49,7 @@ const styles = stylex.create({
     borderRadius: 12,
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 16px 40px -24px rgba(34, 33, 29, 0.45)",
+    boxShadow: tokens.shadowLarge,
     maxHeight: 320,
     outline: "none",
     overflowY: "auto",
@@ -57,6 +58,8 @@ const styles = stylex.create({
   },
   option: {
     alignItems: "center",
+    // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
+    backgroundColor: "transparent",
     borderRadius: 8,
     color: "var(--color-memora-text)",
     display: "flex",

@@ -180,6 +180,7 @@ export const legacyColorAliases = stylex.create({
     "--color-memora-primary-text": tokens.primaryText,
     "--color-memora-olive": tokens.olive,
     "--color-memora-olive-soft": tokens.oliveSoft,
+    "--color-memora-olive-text": tokens.oliveText,
     "--color-memora-selection-bg": tokens.selectionBackground,
     "--color-memora-warning-surface": tokens.warningSurface,
     "--color-memora-warning-border": tokens.warningBorder,

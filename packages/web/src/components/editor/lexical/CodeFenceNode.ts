@@ -22,7 +22,7 @@ export type SerializedCodeFenceNode = Spread<
 
 const getCodeFenceClassName = (role: CodeFenceRole, isActive: boolean): string => {
   return [
-    "my-0 block w-full overflow-x-auto bg-zinc-50 px-4 font-mono text-sm leading-6 text-zinc-800",
+    "my-0 block w-full overflow-x-auto bg-[var(--color-memora-surface-muted)] px-4 font-mono text-sm leading-6 text-[var(--color-memora-text)]",
     "whitespace-pre-wrap empty:before:content-['\\200b']",
     role === "open" ? "rounded-t-xl pt-3 pb-1" : "rounded-b-xl pt-1 pb-3",
     isActive ? "block" : "hidden",

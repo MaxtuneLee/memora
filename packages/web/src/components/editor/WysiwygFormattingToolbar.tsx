@@ -30,6 +30,8 @@ import {
   type TextNode,
 } from "lexical";
 
+import { tokens } from "../../styles/stylex.stylex";
+
 type PressedState = boolean | "mixed";
 type ToolbarFormat = Extract<TextFormatType, "bold" | "code" | "italic" | "strikethrough">;
 
@@ -233,7 +235,7 @@ const styles = stylex.create({
     backgroundColor: "var(--color-memora-surface)",
     border: "1px solid var(--color-memora-border)",
     borderRadius: 12,
-    boxShadow: "0 12px 34px -22px rgb(34 33 29 / 0.38)",
+    boxShadow: tokens.shadowLarge,
     display: "flex",
     gap: 2,
     padding: 4,
@@ -242,6 +244,8 @@ const styles = stylex.create({
   },
   button: {
     alignItems: "center",
+    // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
+    backgroundColor: "transparent",
     borderRadius: 8,
     color: "var(--color-memora-text-muted)",
     display: "inline-flex",

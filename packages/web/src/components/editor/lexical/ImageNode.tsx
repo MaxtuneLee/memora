@@ -13,8 +13,8 @@ import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
 const styles = stylex.create({
   container: { marginBlock: 16 },
   figure: {
-    backgroundColor: "#fafafa",
-    borderColor: "#e4e4e7",
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderColor: "var(--color-memora-border-soft)",
     borderRadius: 16,
     borderStyle: "solid",
     borderWidth: 1,
@@ -32,13 +32,13 @@ const styles = stylex.create({
     objectFit: "contain",
   },
   caption: {
-    borderTop: "1px solid #e4e4e7",
-    color: "#71717a",
+    borderTop: "1px solid var(--color-memora-border-soft)",
+    color: "var(--color-memora-text-muted)",
     fontSize: "0.875rem",
     paddingBlock: 8,
     paddingInline: 12,
   },
-  link: { color: "var(--color-memora-olive)", display: "inline-block", maxWidth: "100%" },
+  link: { color: "var(--color-memora-olive-text)", display: "inline-block", maxWidth: "100%" },
   source: {
     alignItems: "flex-start",
     display: "flex",
@@ -48,12 +48,12 @@ const styles = stylex.create({
     maxWidth: "100%",
   },
   sourceCode: {
-    backgroundColor: "#fafafa",
-    borderColor: "#e4e4e7",
+    backgroundColor: "var(--color-memora-surface-muted)",
+    borderColor: "var(--color-memora-border-soft)",
     borderRadius: 8,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#18181b",
+    color: "var(--color-memora-text)",
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
     fontSize: "0.875rem",
