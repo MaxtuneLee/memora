@@ -185,7 +185,6 @@ const buildSourceEditorTheme = (dark: boolean): Extension =>
         fontSize: "var(--document-editor-font-size, 16px)",
       },
       "&.cm-focused": {
-        boxShadow: "inset 0 0 0 2px var(--color-memora-olive-soft)",
         outline: "none",
       },
       ".cm-scroller": {

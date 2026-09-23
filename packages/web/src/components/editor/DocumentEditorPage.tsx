@@ -39,8 +39,8 @@ const styles = stylex.create({
     width: "100%",
   },
   missingCard: {
-    backgroundColor: "white",
-    borderColor: "#e4e4e7",
+    backgroundColor: "var(--color-memora-card)",
+    borderColor: "var(--color-memora-border)",
     borderRadius: "1.5rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -49,13 +49,13 @@ const styles = stylex.create({
     textAlign: "center",
   },
   missingTitle: {
-    color: "#09090b",
+    color: "var(--color-memora-text-strong)",
     fontSize: "1.5rem",
     fontWeight: 600,
     lineHeight: "2rem",
   },
   missingDescription: {
-    color: "#71717a",
+    color: "var(--color-memora-text-muted)",
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",
@@ -63,13 +63,13 @@ const styles = stylex.create({
   backButton: {
     backgroundColor: {
       default: "transparent",
-      ":hover": "#fafafa",
+      ":hover": "var(--color-memora-hover)",
     },
-    borderColor: "#e4e4e7",
+    borderColor: "var(--color-memora-border)",
     borderRadius: "0.5rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "#3f3f46",
+    color: "var(--color-memora-text)",
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "1rem",
