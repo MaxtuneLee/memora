@@ -2,7 +2,7 @@ import { Toast } from "@base-ui/react/toast";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import OnboardingExperience from "@/components/onboarding/OnboardingExperience";
 import PlaygroundPage from "@/components/playground/PlaygroundPage";
@@ -54,6 +54,24 @@ const backgroundOf = (element: Element): string => {
 
 const textContrast = (element: Element) =>
   contrast(getComputedStyle(element).color, backgroundOf(element));
+
+const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
+const NARROW_VIEWPORT = { width: 375, height: 700 };
+
+const LONG_EN_VALUE =
+  "A very long English value typed only to verify the layout never overflows horizontally on a narrow phone screen";
+const LONG_ZH_VALUE =
+  "一个非常长的中文自定义标签用来检查窄屏幕布局是否会出现横向溢出的问题以及文字换行是否正常工作";
+
+// A truncated element is acceptable either when its container never grows past its own box
+// (scrollWidth <= clientWidth, wrapping/ellipsis handled it) or when the element still exposes
+// the full text via a title attribute for hover/assistive access.
+const hasNoHorizontalOverflow = (container: Element, textCarrier?: Element): boolean => {
+  const fits = container.scrollWidth <= container.clientWidth + 1;
+  const hasTitle =
+    !!textCarrier?.hasAttribute("title") && textCarrier?.getAttribute("title") !== "";
+  return fits || hasTitle;
+};
 
 // Matches the innermost element whose own text equals `text`, tolerating icon children
 // (e.g. a tab or button that renders an SVG icon next to a bare text node) as long as
@@ -139,12 +157,13 @@ const mount = async (theme: ResolvedTheme, node: React.ReactElement) => {
   await expect.poll(() => (host?.textContent?.length ?? 0) > 0).toBe(true);
 };
 
-afterEach(() => {
+afterEach(async () => {
   root?.unmount();
   host?.remove();
   document.body.removeAttribute("style");
   root = null;
   host = null;
+  await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
 });
 
 describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
@@ -193,6 +212,49 @@ describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
     const researchTag = byButtonText("research notes");
     expect(researchTag.getAttribute("class")).toBeTruthy();
   });
+
+  it("keeps long English and Chinese input values from overflowing at a narrow viewport, and a disabled continue button distinguishable from an enabled one", async () => {
+    await page.viewport(NARROW_VIEWPORT.width, NARROW_VIEWPORT.height);
+    await mount(theme, <OnboardingFixture />);
+
+    // Step 1 -> step 2 (no providers) -> auto-skip to step 4.
+    await userEvent.click(byButtonText("Continue"));
+    await userEvent.click(byButtonText("Continue"));
+    expect(byText("Personalize Memora")).toBeTruthy();
+
+    // Nothing has been typed yet, so Continue is disabled; capture that state before it
+    // becomes enabled below.
+    const disabledContinue = byButtonText("Continue");
+    expect(disabledContinue.disabled).toBe(true);
+    const disabledOpacity = Number(getComputedStyle(disabledContinue).opacity);
+
+    const nameInput = document.querySelector("input[placeholder='What should Memora call you?']");
+    expect(nameInput).not.toBeNull();
+    await userEvent.type(nameInput as Element, LONG_EN_VALUE);
+
+    await userEvent.click(byButtonText("Custom"));
+    const customTagInput = document.querySelector(
+      "input[placeholder='Add custom tags, separated by commas']",
+    );
+    expect(customTagInput).not.toBeNull();
+    await userEvent.type(customTagInput as Element, LONG_ZH_VALUE);
+
+    const enabledContinue = byButtonText("Continue");
+    expect(enabledContinue.disabled).toBe(false);
+    const enabledOpacity = Number(getComputedStyle(enabledContinue).opacity);
+    expect(enabledOpacity).not.toBe(disabledOpacity);
+    expect(disabledOpacity).toBeLessThan(1);
+
+    // Text inputs legitimately scroll their own overlong value internally (scrollWidth >
+    // clientWidth is normal native behavior there); what must not happen is the *layout*
+    // around them growing wider than the viewport.
+    const step = document.querySelector("main") as Element;
+    expect(hasNoHorizontalOverflow(step)).toBe(true);
+    const nameLabel = (nameInput as Element).closest("label") as Element;
+    expect(hasNoHorizontalOverflow(nameLabel)).toBe(true);
+    const customTagRow = (customTagInput as Element).parentElement as Element;
+    expect(hasNoHorizontalOverflow(customTagRow)).toBe(true);
+  });
 });
 
 describe.each(["light", "dark"] as const)("playground in %s", (theme) => {
@@ -234,5 +296,28 @@ describe.each(["light", "dark"] as const)("playground in %s", (theme) => {
     const ocrTab = byButtonText("OCR engines");
     ocrTab.focus();
     expect(document.activeElement).toBe(ocrTab);
+  });
+
+  // Playground's own panels are worker/file-backed and take no text props to inject long
+  // Chinese content into (the onboarding suite above covers long English/Chinese input
+  // values); this covers the other half of AC5 for Playground: the full tab list at a
+  // narrow viewport must not force the page to overflow horizontally, and a disabled
+  // control must stay visually distinguishable from an enabled one.
+  it("keeps the full tab list from overflowing at a narrow viewport, and a disabled action distinguishable from an enabled one", async () => {
+    await page.viewport(NARROW_VIEWPORT.width, NARROW_VIEWPORT.height);
+    await mount(theme, <PlaygroundPage />);
+
+    expect(hasNoHorizontalOverflow(document.body)).toBe(true);
+
+    // The OCR tab is the default panel; its "Run comparison" action starts disabled until
+    // an image is selected.
+    const runButton = byButtonText("Run comparison");
+    expect(runButton.disabled).toBe(true);
+    const runOpacity = Number(getComputedStyle(runButton).opacity);
+    expect(runOpacity).toBeLessThan(1);
+
+    const ocrTab = byButtonText("OCR engines");
+    const tabOpacity = Number(getComputedStyle(ocrTab).opacity);
+    expect(tabOpacity).not.toBe(runOpacity);
   });
 });
