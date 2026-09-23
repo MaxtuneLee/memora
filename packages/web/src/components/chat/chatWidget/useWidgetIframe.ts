@@ -5,9 +5,13 @@ import type { ResolvedTheme } from "@/lib/theme/documentTheme";
 
 // The preview document is same-origin, so the theme is set on its root directly — no reload,
 // reparse, or script rerun, and the widget's DOM and state stay intact.
+// Before the srcDoc parses (and while React reconnects a hidden subtree) the iframe can expose
+// an empty document with no root; skip it, the load handler rebinds once the root exists.
 const applyIframeTheme = (iframeDocument: Document, theme: ResolvedTheme): void => {
-  iframeDocument.documentElement.dataset.theme = theme;
-  iframeDocument.documentElement.style.colorScheme = theme;
+  const root = iframeDocument.documentElement;
+  if (!root) return;
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
 };
 
 export const useWidgetIframe = () => {
