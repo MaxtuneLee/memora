@@ -12,7 +12,10 @@ const styles = stylex.create({
     backgroundColor: tokens.card,
     border: `1px solid ${tokens.border}`,
     borderRadius: "inherit",
-    overflow: "hidden",
+    // Fills the Home Grid tile and scrolls itself, so the scrollbar stays inside this border
+    // instead of on the tile wrapper outside it.
+    height: "100%",
+    overflowY: "auto",
   },
   recentWidgetHeader: { paddingBlock: 16, paddingInline: 20 },
   recentWidgetTitle: { color: tokens.text, fontSize: 17, fontWeight: 700 },

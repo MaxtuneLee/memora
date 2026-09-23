@@ -388,3 +388,40 @@ describe.each(["light", "dark"] as const)("Dashboard at a narrow viewport in %s"
     await expectScreenshot(dashboard, `dashboard-narrow-${theme}`);
   });
 });
+
+describe("Home Grid built-in widget overflow", () => {
+  it("scrolls a tall Recent widget inside its card border, not on the tile", async () => {
+    const items = Array.from({ length: 12 }, (_, index) => ({
+      ...RECENT_ITEM,
+      id: `file-${index}`,
+      title: `Recent item ${index}`,
+    }));
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    root.render(
+      <MemoryRouter>
+        <div style={{ width: "640px" }}>
+          <HomeGrid
+            tiles={[{ instance: makeInstance(WIDGET_A.id, 0), definition: WIDGET_A }]}
+            renderWidget={() => <RecentWidget items={items} />}
+            onReorder={() => {}}
+            onRemove={() => {}}
+            showToolbar={false}
+            reducedMotion
+          />
+        </div>
+      </MemoryRouter>,
+    );
+    await expect.poll(() => page.getByText("Recent item 11").elements().length).toBe(1);
+
+    const card = page.getByRole("heading", { name: "Recent" }).element().parentElement
+      ?.parentElement as HTMLElement;
+    const tileContent = card.parentElement as HTMLElement;
+    expect(card.scrollHeight).toBeGreaterThan(card.clientHeight);
+    expect(tileContent.scrollHeight).toBeLessThanOrEqual(tileContent.clientHeight + 1);
+    expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      tileContent.getBoundingClientRect().bottom + 1,
+    );
+  });
+});
