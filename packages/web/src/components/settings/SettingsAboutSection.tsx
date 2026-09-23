@@ -8,20 +8,21 @@ import {
 } from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 16 },
   panelStack: { display: "flex", flexDirection: "column", gap: 16 },
-  title: { color: "var(--color-memora-text-strong)", fontSize: "0.875rem", fontWeight: 600 },
+  title: { color: tokens.textStrong, fontSize: "0.875rem", fontWeight: 600 },
   bodyMargin: { marginTop: 8 },
   logo: { width: 112 },
   description: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: 1.5,
     maxWidth: "42rem",
   },
-  version: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem" },
+  version: { color: tokens.textSoft, fontSize: "0.75rem" },
   githubIcon: { height: 16, width: 16 },
   externalIcon: { height: 14, width: 14 },
   facts: {

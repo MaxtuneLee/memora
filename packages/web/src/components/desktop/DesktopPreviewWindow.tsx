@@ -24,10 +24,8 @@ const styles = stylex.create({
     height: "2.5rem",
     width: "2.5rem",
   },
-  // Folder icon color is a content-type brand color, not a semantic one; kept fixed like
-  // tokens.contentAudio/contentVideo/contentImage.
   folderIcon: {
-    color: "#3b82f6",
+    color: tokens.contentFolder,
   },
   fileIcon: {
     color: tokens.textMuted,

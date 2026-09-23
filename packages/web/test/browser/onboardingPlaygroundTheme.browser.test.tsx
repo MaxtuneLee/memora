@@ -9,6 +9,8 @@ import PlaygroundPage from "@/components/playground/PlaygroundPage";
 import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
 import type { provider as ProviderRow } from "@/livestore/provider";
+import { luminance, textContrast } from "./colorContrast";
+import { expectScreenshot, loadAppFonts } from "./visual";
 
 // Importing OnboardingExperience pulls in the LiveStore-backed settings module graph
 // (@memora local-model-runtime -> LiveStore's wa-sqlite loader), which this headless
@@ -21,39 +23,6 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 // Computed-style checks only: no assertions on generated StyleX class names.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-// Walks up to the first opaque background, the color the text is actually drawn on.
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const NARROW_VIEWPORT = { width: 375, height: 700 };
@@ -175,6 +144,15 @@ describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
     expect(textContrast(continueButton)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("matches the desktop reference for the welcome step", async () => {
+    await mount(theme, <OnboardingFixture />);
+    await loadAppFonts();
+    await expectScreenshot(
+      document.querySelector("main") as Element,
+      `onboarding-desktop-${theme}`,
+    );
+  });
+
   it("paints the onboarding surface from the resolved theme", async () => {
     await mount(theme, <OnboardingFixture />);
     const heading = luminance(getComputedStyle(byText("Welcome to Memora")).color);
@@ -254,6 +232,7 @@ describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
     expect(hasNoHorizontalOverflow(nameLabel)).toBe(true);
     const customTagRow = (customTagInput as Element).parentElement as Element;
     expect(hasNoHorizontalOverflow(customTagRow)).toBe(true);
+    await expectScreenshot(step, `onboarding-personalize-narrow-${theme}`);
   });
 });
 

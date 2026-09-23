@@ -2,47 +2,17 @@ import { act } from "@testing-library/react";
 import { useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
 
 import { SourceDocumentEditor } from "@/components/editor/SourceDocumentEditor";
 import { WysiwygDocumentEditor } from "@/components/editor/WysiwygDocumentEditor";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
+import { contrast, textContrast } from "./colorContrast";
+import { DESKTOP_VIEWPORT, expectScreenshot, loadAppFonts, NARROW_VIEWPORT } from "./visual";
 
 // Computed-style checks only: no assertions on generated StyleX class names.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -256,4 +226,45 @@ it("keeps Lexical content, selection, and focus across a runtime theme change", 
   expect(host?.querySelector('[data-testid="wysiwyg-contenteditable"]')).toBe(contentEditable);
   expect(contentEditable.textContent).toBe("Hello world!");
   expect(document.activeElement).toBe(contentEditable);
+});
+
+const REFERENCE_MARKDOWN = [
+  "# Quarterly planning notes",
+  "",
+  "A paragraph with a [link](https://example.com) and `inline code`.",
+  "",
+  "Memora keeps every recording, transcript, and linked note on this device, so reviewing the quarterly-financial-planning-and-budget-review material never leaves your workspace.",
+  "",
+  "第一季度财务规划与预算审查会议的全部录音、转录文本和关联笔记都保存在本设备上，不会离开你的工作区。",
+  "",
+  "- [ ] Draft the summary",
+  "- [x] Share the recording",
+  "",
+  "```ts",
+  "const total = items.reduce((sum, item) => sum + item.amount, 0);",
+  "```",
+].join("\n");
+
+describe.each(["light", "dark"] as const)("document editor references in %s", (theme) => {
+  it.each([
+    ["desktop", DESKTOP_VIEWPORT],
+    ["narrow", NARROW_VIEWPORT],
+  ] as const)(
+    "matches the %s reference with long English and Chinese text",
+    async (size, viewport) => {
+      await page.viewport(viewport.width, viewport.height);
+      try {
+        await mount(
+          theme,
+          <WysiwygDocumentEditor text={REFERENCE_MARKDOWN} onTextChange={() => {}} />,
+        );
+        await loadAppFonts();
+        const editor = host as HTMLElement;
+        expect(editor.scrollWidth).toBeLessThanOrEqual(editor.clientWidth + 1);
+        await expectScreenshot(editor, `editor-${size}-${theme}`);
+      } finally {
+        await page.viewport(DESKTOP_VIEWPORT.width, DESKTOP_VIEWPORT.height);
+      }
+    },
+  );
 });

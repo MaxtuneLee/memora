@@ -32,8 +32,8 @@ const styles = stylex.create({
   primaryFrame: { isolation: "isolate", position: "relative" },
   rippleFrame: { inset: "-0.45rem", pointerEvents: "none", position: "absolute", zIndex: -10 },
   ripple: {
-    backgroundColor: "rgb(248 113 113 / 0.16)",
-    borderColor: "rgb(248 113 113 / 0.55)",
+    backgroundColor: `color-mix(in srgb, ${tokens.recordBackground} 16%, transparent)`,
+    borderColor: `color-mix(in srgb, ${tokens.recordBackground} 55%, transparent)`,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 2,
@@ -83,18 +83,20 @@ const styles = stylex.create({
     paddingBlock: "0.625rem",
     paddingInline: "1rem",
   },
-  // Recording (red) and save (green) stay their own saturated brand colors in both themes --
-  // the action's meaning (stop/danger, confirm/success) matters more here than surface tone, and
-  // white text on either reads fine on light or dark chrome. Only the focus-ring gap (which must
-  // match the surrounding surface) and ambient shadow come from tokens.
+  // Record (red) and save (green) keep one saturated hue in both themes: the action's meaning
+  // matters more here than surface tone.
   idleButton: {
-    backgroundColor: { default: "#ef4444", ":hover": "#dc2626", ":disabled": "#fecaca" },
-    borderColor: "rgb(239 68 68 / 0.3)",
+    backgroundColor: {
+      default: tokens.recordBackground,
+      ":hover": tokens.recordBackgroundHover,
+      ":disabled": tokens.controlDisabledBackground,
+    },
+    borderColor: `color-mix(in srgb, ${tokens.recordBackground} 30%, transparent)`,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
     boxShadow: tokens.shadowSmall,
-    color: { default: "white", ":disabled": "#b91c1c" },
+    color: { default: tokens.actionText, ":disabled": tokens.controlDisabledText },
     cursor: { default: "pointer", ":disabled": "not-allowed" },
     fontWeight: 600,
     letterSpacing: "0.01em",
@@ -105,15 +107,17 @@ const styles = stylex.create({
     transitionProperty: "background-color, transform",
     userSelect: "none",
     ":active": { transform: "scale(0.985)" },
-    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px #ef4444` },
+    ":focus-visible": {
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.recordBackground}`,
+    },
   },
   label: { alignItems: "center", display: "flex", gap: "0.5rem", whiteSpace: "nowrap" },
   saveButton: {
     alignItems: "center",
-    backgroundColor: { default: "#059669", ":hover": "#047857" },
+    backgroundColor: { default: tokens.confirmBackground, ":hover": tokens.confirmBackgroundHover },
     borderRadius: "9999px",
     boxShadow: tokens.shadowSmall,
-    color: "white",
+    color: tokens.actionText,
     display: "flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -123,7 +127,9 @@ const styles = stylex.create({
     paddingInline: "0.875rem",
     transitionDuration: "150ms",
     transitionProperty: "background-color",
-    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px #059669` },
+    ":focus-visible": {
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.confirmBackground}`,
+    },
   },
   icon: { height: "1rem", width: "1rem" },
   iconFrame: {

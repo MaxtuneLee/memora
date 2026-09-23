@@ -25,12 +25,13 @@ import * as stylex from "@stylexjs/stylex";
 
 import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 16 },
   editorSurface: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    borderColor: "var(--color-memora-border-soft)",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.borderSoft,
     borderRadius: 12,
     borderStyle: "solid",
     borderWidth: 1,
@@ -38,9 +39,9 @@ const styles = stylex.create({
     paddingBlock: 4,
     paddingInline: 4,
   },
-  diagnostic: { borderLeft: "1px solid var(--color-memora-warning-border)", paddingLeft: 12 },
+  diagnostic: { borderLeft: `1px solid ${tokens.warningBorder}`, paddingLeft: 12 },
   diagnosticTitle: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.75rem",
     fontWeight: 600,
     letterSpacing: "0.12em",
@@ -52,18 +53,18 @@ const styles = stylex.create({
     // reset explicitly - that gray was tanking this text's contrast in dark mode.
     backgroundColor: "transparent",
     borderRadius: 4,
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.875rem",
     outline: "none",
     paddingBlock: 2,
     paddingInline: 4,
     textAlign: "left",
-    textDecorationColor: "var(--color-memora-warning-border)",
+    textDecorationColor: tokens.warningBorder,
     textDecorationLine: "underline",
     textUnderlineOffset: 4,
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: "var(--color-memora-warning-surface)" },
-    ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+    ":hover": { backgroundColor: tokens.warningSurface },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
   },
 });
 
@@ -181,7 +182,7 @@ const buildSourceEditorTheme = (dark: boolean): Extension =>
     {
       "&": {
         backgroundColor: "transparent",
-        color: "var(--color-memora-text)",
+        color: tokens.text,
         fontSize: "var(--document-editor-font-size, 16px)",
       },
       "&.cm-focused": {
@@ -195,45 +196,45 @@ const buildSourceEditorTheme = (dark: boolean): Extension =>
         overflow: "auto",
       },
       ".cm-content": {
-        caretColor: "var(--color-memora-text)",
+        caretColor: tokens.text,
         padding: "0.25rem 0",
       },
       ".cm-gutters": {
         backgroundColor: "transparent",
-        borderRight: "1px solid var(--color-memora-border-soft)",
-        color: "var(--color-memora-text-soft)",
+        borderRight: `1px solid ${tokens.borderSoft}`,
+        color: tokens.textSoft,
       },
       ".cm-activeLine, .cm-activeLineGutter": {
-        backgroundColor: "var(--color-memora-hover-strong)",
+        backgroundColor: tokens.hoverStrong,
       },
       ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": {
-        backgroundColor: "var(--color-memora-selection-bg)",
+        backgroundColor: tokens.selectionBackground,
       },
       ".cm-searchMatch": {
-        backgroundColor: "color-mix(in srgb, var(--color-memora-olive-soft) 35%, transparent)",
+        backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 35%, transparent)`,
       },
       ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: "color-mix(in srgb, var(--color-memora-olive) 45%, transparent)",
+        backgroundColor: `color-mix(in srgb, ${tokens.olive} 45%, transparent)`,
       },
       ".cm-selectionMatch": {
-        backgroundColor: "color-mix(in srgb, var(--color-memora-olive-soft) 22%, transparent)",
+        backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 22%, transparent)`,
       },
       ".cm-markdown-safety-line": {
-        backgroundColor: "var(--color-memora-warning-surface)",
-        boxShadow: "inset 2px 0 0 var(--color-memora-warning-text)",
+        backgroundColor: tokens.warningSurface,
+        boxShadow: `inset 2px 0 0 ${tokens.warningText}`,
       },
       ".cm-markdown-safety-diagnostic": {
-        backgroundColor: "var(--color-memora-warning-surface)",
-        textDecoration: "underline wavy var(--color-memora-warning-text)",
+        backgroundColor: tokens.warningSurface,
+        textDecoration: `underline wavy ${tokens.warningText}`,
         textDecorationThickness: "1px",
         textUnderlineOffset: "3px",
       },
       ".cm-tooltip.cm-tooltip-hover": {
-        backgroundColor: "var(--color-memora-surface)",
-        border: "1px solid var(--color-memora-warning-border)",
+        backgroundColor: tokens.surface,
+        border: `1px solid ${tokens.warningBorder}`,
         borderRadius: "0.75rem",
-        boxShadow: "var(--shadow-md-soft)",
-        color: "var(--color-memora-warning-text)",
+        boxShadow: tokens.shadowMedium,
+        color: tokens.warningText,
         maxWidth: "32rem",
         padding: "0.5rem 0.75rem",
       },
@@ -248,15 +249,15 @@ const buildSourceEditorTheme = (dark: boolean): Extension =>
 
 // Colors are CSS variables, so the style repaints with the resolved theme without reconfiguring.
 const sourceEditorHighlightStyle = HighlightStyle.define([
-  { tag: tags.heading, color: "var(--color-memora-text-strong)", fontWeight: "700" },
+  { tag: tags.heading, color: tokens.textStrong, fontWeight: "700" },
   { tag: tags.strong, fontWeight: "700" },
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: [tags.link, tags.url], color: "var(--color-memora-olive-text)" },
-  { tag: tags.monospace, color: "var(--color-memora-warning-text)" },
+  { tag: [tags.link, tags.url], color: tokens.oliveText },
+  { tag: tags.monospace, color: tokens.warningText },
   {
     tag: [tags.processingInstruction, tags.meta, tags.contentSeparator, tags.quote],
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
   },
 ]);
 

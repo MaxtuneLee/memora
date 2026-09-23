@@ -12,6 +12,7 @@ import { AudioPlayer } from "@/components/library/AudioPlayer";
 import { VideoPlayer } from "@/components/library/VideoPlayer";
 import { formatBytes } from "@/lib/format";
 import type { RecordingItem, RecordingWord } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
@@ -33,14 +34,14 @@ const styles = stylex.create({
     display: "flex",
     height: "2rem",
     justifyContent: "center",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     width: "2rem",
   },
   sourceIcon: { height: "1.25rem", width: "1.25rem" },
   sourceDetails: { minWidth: 0 },
-  label: { color: "var(--color-memora-text-soft)", fontSize: 11, lineHeight: "1rem" },
+  label: { color: tokens.textSoft, fontSize: 11, lineHeight: "1rem" },
   metadata: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     fontWeight: 500,
     lineHeight: "1.25rem",
@@ -50,7 +51,7 @@ const styles = stylex.create({
   },
   surface: { borderRadius: "1.5rem" },
   videoSurface: { backgroundColor: "rgb(0 0 0 / 0.9)", overflow: "hidden" },
-  audioSurface: { backgroundColor: "var(--color-memora-surface-soft)" },
+  audioSurface: { backgroundColor: tokens.surfaceSoft },
   centeredSurface: {
     alignItems: "center",
     display: "flex",
@@ -58,7 +59,7 @@ const styles = stylex.create({
     minHeight: "20rem",
   },
   imageSurface: {
-    backgroundColor: "var(--color-memora-rail)",
+    backgroundColor: tokens.rail,
     overflow: "hidden",
     padding: "1rem",
   },
@@ -71,12 +72,12 @@ const styles = stylex.create({
     width: "100%",
     ":hover": { transform: "scale(1.01)" },
   },
-  loading: { color: "var(--color-memora-text-muted)", fontSize: "0.875rem", lineHeight: "1.25rem" },
-  documentSurface: { backgroundColor: "var(--color-memora-surface-soft)", padding: "1.5rem" },
+  loading: { color: tokens.textMuted, fontSize: "0.875rem", lineHeight: "1.25rem" },
+  documentSurface: { backgroundColor: tokens.surfaceSoft, padding: "1.5rem" },
   documentContent: { maxWidth: "24rem", textAlign: "center" },
   documentIconFrame: {
     alignItems: "center",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     display: "flex",
     height: "3.5rem",
     justifyContent: "center",
@@ -85,14 +86,14 @@ const styles = stylex.create({
   },
   documentIcon: { height: "1.75rem", width: "1.75rem" },
   documentTitle: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     fontWeight: 500,
     lineHeight: "1.25rem",
     marginTop: "1rem",
   },
   documentDescription: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
     marginTop: "0.5rem",

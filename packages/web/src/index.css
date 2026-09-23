@@ -13,11 +13,6 @@
   --duration-fast: 220ms;
   --duration-medium: 360ms;
   --duration-slow: 620ms;
-  --color-mocha: #aebe79;
-  --color-memora-muted: #7b7873;
-  --color-memora-olive-faint: #aab48a;
-  --color-memora-accent: #a4d87a;
-  /* The remaining --color-memora-* names alias the StyleX tokens; see legacyColorAliases. */
 }
 
 /* Unlayered on purpose: StyleX also emits unlayered class selectors (see
@@ -44,8 +39,8 @@ body {
   background: var(--color-memora-bg, #fcfaf6);
   color: var(--color-memora-text, #1d1c1a);
 }
-/* Dark first frame: index.html sets data-theme before main.tsx adds the StyleX theme and
-   alias classes that define the variables above. */
+/* First frame: index.html sets data-theme before main.tsx adds the StyleX theme classes that
+   define the variables above, so these fallbacks repeat the light and dark background tokens. */
 :root[data-theme="dark"] body {
   background: #1b1a17;
   color: #ece8df;

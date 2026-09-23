@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ProviderFormState } from "@/types/settingsDialog";
+import { tokens } from "../../styles/stylex.stylex";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
@@ -41,16 +42,16 @@ const styles = stylex.create({
   list: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16 },
   row: { display: "flex", gap: 16 },
   provider: { flex: 1, minWidth: 0 },
-  providerName: { color: "var(--color-memora-text-strong)", fontSize: "0.875rem", fontWeight: 600 },
+  providerName: { color: tokens.textStrong, fontSize: "0.875rem", fontWeight: 600 },
   providerUrl: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     marginTop: 4,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  providerModels: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem", marginTop: 4 },
+  providerModels: { color: tokens.textSoft, fontSize: "0.75rem", marginTop: 4 },
   actions: { alignItems: "flex-start", display: "flex", flexShrink: 0, gap: 4 },
   form: { marginTop: 16, overflow: "hidden" },
 });

@@ -4,15 +4,16 @@ import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import type { ShowWidgetDebugState } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 
+import { tokens } from "../../../styles/stylex.stylex";
 import { formatDebugTimestamp, formatStreamFootprint } from "./constants";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "#09090b",
-    borderTopColor: "rgba(228,228,231,0.8)",
+    backgroundColor: tokens.surfaceMuted,
+    borderTopColor: tokens.border,
     borderTopStyle: "solid",
     borderTopWidth: 1,
-    color: "#f4f4f5",
+    color: tokens.text,
   },
   summary: {
     cursor: "pointer",
@@ -25,7 +26,7 @@ const styles = stylex.create({
   },
   content: { display: "flex", flexDirection: "column", gap: "0.75rem", padding: "0.75rem" },
   facts: {
-    color: "#d4d4d8",
+    color: tokens.textMuted,
     display: "grid",
     fontSize: "11px",
     gap: "0.5rem",
@@ -35,18 +36,18 @@ const styles = stylex.create({
       "@media (min-width: 1024px)": "repeat(3, minmax(0, 1fr))",
     },
   },
-  muted: { color: "#71717a" },
+  muted: { color: tokens.textMuted },
   section: { display: "flex", flexDirection: "column", gap: "0.25rem" },
   label: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontSize: "10px",
     letterSpacing: "0.08em",
     lineHeight: "1rem",
   },
   code: {
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.borderSoft,
     borderRadius: "0.75rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -59,11 +60,11 @@ const styles = stylex.create({
     padding: "0.75rem",
     whiteSpace: "pre-wrap",
   },
-  amberCode: { color: "#fef3c7" },
-  emeraldCode: { color: "#d1fae5", maxHeight: "16rem" },
+  amberCode: { color: tokens.warningText },
+  emeraldCode: { color: tokens.successText, maxHeight: "16rem" },
   events: {
-    backgroundColor: "rgba(0,0,0,0.2)",
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.borderSoft,
     borderRadius: "0.75rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -71,7 +72,7 @@ const styles = stylex.create({
     overflow: "auto",
   },
   event: {
-    borderBottomColor: "rgba(255,255,255,0.05)",
+    borderBottomColor: tokens.borderSoft,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     paddingBlock: "0.5rem",
@@ -86,16 +87,16 @@ const styles = stylex.create({
     justifyContent: "space-between",
   },
   eventCopy: { minWidth: 0 },
-  eventTitle: { color: "#f4f4f5", fontWeight: 500 },
+  eventTitle: { color: tokens.textStrong, fontWeight: 500 },
   monoMuted: {
-    color: "#71717a",
+    color: tokens.textMuted,
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   },
   timestamp: { flexShrink: 0 },
   details: {
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "0.5rem",
-    color: "#d4d4d8",
+    color: tokens.textMuted,
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontSize: "10px",
     lineHeight: "1.25rem",
@@ -105,7 +106,12 @@ const styles = stylex.create({
     padding: "0.5rem",
     whiteSpace: "pre-wrap",
   },
-  empty: { color: "#71717a", fontSize: "11px", paddingBlock: "0.5rem", paddingInline: "0.75rem" },
+  empty: {
+    color: tokens.textMuted,
+    fontSize: "11px",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
 });
 
 export const WidgetDebugPanel = ({

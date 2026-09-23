@@ -20,24 +20,25 @@ import { RecordingHeader } from "@/components/transcript/transcriptDetail/Record
 import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
 import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
 import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   statePage: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-shell)",
+    backgroundColor: tokens.shell,
     display: "flex",
     justifyContent: "center",
     minHeight: "100%",
     padding: "1.5rem",
   },
   stateText: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
   },
   page: {
-    backgroundColor: "var(--color-memora-bg)",
-    color: "var(--color-memora-text)",
+    backgroundColor: tokens.background,
+    color: tokens.text,
     fontFamily: "var(--font-sans)",
     minHeight: "100%",
   },

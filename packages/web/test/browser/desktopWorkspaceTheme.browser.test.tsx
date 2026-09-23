@@ -10,6 +10,8 @@ import { DesktopItem } from "@/components/desktop/DesktopItem";
 import { DesktopWindow } from "@/components/desktop/DesktopWindow";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
 import type { DesktopFileItem, DesktopWidgetItem } from "@/types/desktop";
+import { contrast, textContrast } from "./colorContrast";
+import { expectScreenshot, loadAppFonts } from "./visual";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const NARROW_VIEWPORT = { width: 375, height: 700 };
@@ -31,38 +33,6 @@ const hasNoHorizontalOverflow = (container: Element, textCarrier: Element): bool
 };
 
 // Computed-style checks only: no assertions on generated StyleX class names.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 const byText = (text: string) => {
   const element = [...document.querySelectorAll("body *")].find(
@@ -168,6 +138,50 @@ describe.each(["light", "dark"] as const)("desktop workspace in %s", (theme) => 
 
     const trashIcon = document.querySelector("svg");
     expect(trashIcon).not.toBeNull();
+  });
+
+  it("matches the desktop reference for a focused window with selected and idle files", async () => {
+    await mount(
+      theme,
+      <Tooltip.Provider>
+        <DndContext>
+          <DesktopWindow
+            id="w1"
+            title="Workspace"
+            position={{ x: 0, y: 0 }}
+            size={{ width: 420, height: 260 }}
+            zIndex={1}
+            isFocused
+            boundsRef={{ current: null }}
+            onClose={() => {}}
+            onFocus={() => {}}
+            onMove={() => {}}
+            onResize={() => {}}
+          >
+            <DesktopItem
+              item={fileItem}
+              isSelected
+              layout="list"
+              onSelect={() => {}}
+              onContextMenu={() => {}}
+              onOpenItem={() => {}}
+            />
+            <DesktopItem
+              item={{ ...fileItem, id: "file-2", name: "Notes.txt" }}
+              isSelected={false}
+              layout="list"
+              onSelect={() => {}}
+              onContextMenu={() => {}}
+              onOpenItem={() => {}}
+            />
+          </DesktopWindow>
+        </DndContext>
+      </Tooltip.Provider>,
+    );
+    // The window is absolutely positioned; give the host its box so the capture has a size.
+    host!.style.cssText = "position: relative; width: 440px; height: 280px";
+    await loadAppFonts();
+    await expectScreenshot(host as Element, `desktop-window-${theme}`);
   });
 
   it("paints window chrome distinctly for the focused window", async () => {
@@ -309,6 +323,8 @@ describe.each(["light", "dark"] as const)("desktop workspace in %s", (theme) => 
       // The row itself must stay within the narrow layout, not just the truncated span.
       expect(row.scrollWidth, name).toBeLessThanOrEqual(row.clientWidth + 1);
     }
+    await loadAppFonts();
+    await expectScreenshot(host as Element, `desktop-files-narrow-${theme}`);
   });
 
   it("keeps long English and Chinese dialog copy from overflowing horizontally", async () => {
@@ -335,6 +351,8 @@ describe.each(["light", "dark"] as const)("desktop workspace in %s", (theme) => 
     expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth + 1);
     const description = byText(`${LONG_EN_DESCRIPTION} ${LONG_ZH_DESCRIPTION}`);
     expect(hasNoHorizontalOverflow(panel, description)).toBe(true);
+    await loadAppFonts();
+    await expectScreenshot(panel, `desktop-dialog-narrow-${theme}`);
   });
 
   it("shows a visible, high-contrast focus ring on dialog buttons", async () => {

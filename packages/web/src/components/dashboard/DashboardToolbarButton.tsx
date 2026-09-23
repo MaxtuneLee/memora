@@ -39,7 +39,7 @@ const styles = stylex.create({
     "@media (hover: hover) and (pointer: fine)": {
       ":hover": {
         backgroundColor: tokens.surfaceSoft,
-        boxShadow: "0 8px 20px rgba(34, 33, 29, 0.05)",
+        boxShadow: "0 8px 20px rgb(0 0 0 / 0.05)",
         transform: "translateY(-1px)",
       },
     },
@@ -67,7 +67,7 @@ const styles = stylex.create({
       ":hover": {
         backgroundColor: `color-mix(in srgb, ${tokens.oliveText} 82%, black)`,
         borderColor: `color-mix(in srgb, ${tokens.oliveText} 82%, black)`,
-        boxShadow: "0 8px 20px rgba(34, 33, 29, 0.1)",
+        boxShadow: "0 8px 20px rgb(0 0 0 / 0.1)",
       },
     },
     // Inverted against the default tone. One direction cannot read on both: the pale default tone

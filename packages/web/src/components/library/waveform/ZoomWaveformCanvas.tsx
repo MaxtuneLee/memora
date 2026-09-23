@@ -3,6 +3,7 @@ import * as stylex from "@stylexjs/stylex";
 
 import { drawRoundedRect, formatTimeMarker, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
 import { useThemeColorVars } from "@/hooks/theme/useThemeColorVars";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { position: "relative" },
@@ -10,15 +11,14 @@ const styles = stylex.create({
 });
 
 // Resolved via getComputedStyle so the buffer, playhead, marker text, and separator redraw with
-// the theme instead of staying on their light-mode hex defaults (see useThemeColorVars). Explicit
-// color props still win.
-const ZOOM_WAVEFORM_COLOR_VARS = [
-  "--color-memora-text-strong",
-  "--color-memora-border-strong",
-  "--color-memora-olive",
-  "--color-memora-text-soft",
-  "--color-memora-border",
-] as const;
+// the theme (see useThemeColorVars). Explicit color props still win.
+const ZOOM_WAVEFORM_COLORS = {
+  played: tokens.textStrong,
+  unplayed: tokens.borderStrong,
+  playhead: tokens.olive,
+  marker: tokens.textSoft,
+  separator: tokens.border,
+};
 
 interface ZoomWaveformCanvasProps {
   peaks: number[];
@@ -55,13 +55,12 @@ export const ZoomWaveformCanvas = memo(function ZoomWaveformCanvas({
   markerFont = "12px ui-sans-serif, system-ui, -apple-system",
   audioRef,
 }: ZoomWaveformCanvasProps) {
-  const themeColors = useThemeColorVars(ZOOM_WAVEFORM_COLOR_VARS);
-  const resolvedPlayedColor = playedColor || themeColors["--color-memora-text-strong"] || "#27272a";
-  const resolvedUnplayedColor =
-    unplayedColor || themeColors["--color-memora-border-strong"] || "#d4d4d8";
-  const resolvedPlayheadColor = playheadColor || themeColors["--color-memora-olive"] || "#3b82f6";
-  const resolvedMarkerColor = markerColor || themeColors["--color-memora-text-soft"] || "#a1a1aa";
-  const resolvedSeparatorColor = themeColors["--color-memora-border"] || "#e4e4e7";
+  const themeColors = useThemeColorVars(ZOOM_WAVEFORM_COLORS);
+  const resolvedPlayedColor = playedColor || themeColors.played;
+  const resolvedUnplayedColor = unplayedColor || themeColors.unplayed;
+  const resolvedPlayheadColor = playheadColor || themeColors.playhead;
+  const resolvedMarkerColor = markerColor || themeColors.marker;
+  const resolvedSeparatorColor = themeColors.separator;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);

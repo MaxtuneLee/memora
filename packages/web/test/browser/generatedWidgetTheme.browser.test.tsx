@@ -8,6 +8,8 @@ import {
   GENERATED_WIDGET_THEME_MESSAGE,
 } from "@/lib/widgets/generatedWidgetRuntime";
 
+import { expectScreenshot, loadAppFonts } from "./visual";
+
 const PROBE_MESSAGE_TYPE = "memora-test:theme-probe";
 
 interface ThemeReport {
@@ -161,5 +163,55 @@ describe("Generated Home Grid widget theme", () => {
     root.render(<ThemeHarness value={2} />);
     await expect.poll(() => reports.at(-1)?.renderedValue, { timeout: 5000 }).toBe("value:2");
     expect(reports.at(-1)?.runId).toBe(runId);
+  });
+});
+
+// Static content: no random or time-based output, so the capture is deterministic.
+const REFERENCE_WIDGET_CODE = `<div style="display:flex;flex-direction:column;gap:12px;padding:16px">
+<h3 style="margin:0">Weekly focus</h3>
+<p id="value" style="margin:0;color:var(--color-text-secondary)">waiting</p>
+<label style="display:flex;gap:8px;align-items:center">Progress <input type="range" value="60" /></label>
+<div style="display:flex;gap:8px"><button>Refresh</button><button disabled>Archive</button></div>
+</div><script>
+onData(function (data) { document.getElementById("value").textContent = data; });
+// The frame loads its own web fonts; report once they are ready so the capture is stable.
+var waitForFonts = function () {
+  var registered = Array.from(document.fonts).some(function (face) { return face.family.indexOf("Noto Sans") !== -1; });
+  if (!registered) return setTimeout(waitForFonts, 50);
+  document.fonts.load("400 1em \\"Noto Sans\\"").then(function () { return document.fonts.ready; }).then(function () {
+    window.parent.postMessage({ type: "memora-test:fonts-ready" }, "*");
+  });
+};
+waitForFonts();
+</script>`;
+
+describe.each(["light", "dark"] as const)("Generated Home Grid widget reference in %s", (theme) => {
+  it("matches the reference once its data arrives", async () => {
+    document.documentElement.dataset.theme = theme;
+    let fontsReady = false;
+    const onFontsReady = (event: MessageEvent) => {
+      if (event.data?.type === "memora-test:fonts-ready") fontsReady = true;
+    };
+    window.addEventListener("message", onFontsReady);
+    container = document.createElement("div");
+    container.style.width = "360px";
+    container.style.height = "220px";
+    document.body.append(container);
+    root = createRoot(container);
+    root.render(
+      <GeneratedWidgetFrame
+        widgetCode={REFERENCE_WIDGET_CODE}
+        data="Three recordings to review"
+        title="Reference widget"
+      />,
+    );
+
+    await expect
+      .poll(() => container?.querySelector("[role='status']") ?? null, { timeout: 10_000 })
+      .toBeNull();
+    await expect.poll(() => fontsReady, { timeout: 10_000 }).toBe(true);
+    window.removeEventListener("message", onFontsReady);
+    await loadAppFonts();
+    await expectScreenshot(container, `widget-${theme}`);
   });
 });

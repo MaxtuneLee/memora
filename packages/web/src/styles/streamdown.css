@@ -4,16 +4,24 @@
     var(--color-background-primary) 96%,
     var(--color-background-secondary)
   );
-  --color-sidebar: color-mix(in srgb, var(--color-mocha) 6%, var(--color-background-secondary));
+  --color-sidebar: color-mix(
+    in srgb,
+    var(--color-memora-olive) 6%,
+    var(--color-background-secondary)
+  );
   --color-border: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
-  --color-muted: color-mix(in srgb, var(--color-mocha) 5%, var(--color-background-secondary));
-  --color-muted-foreground: var(--color-text-tertiary);
+  --color-muted: color-mix(
+    in srgb,
+    var(--color-memora-olive) 5%,
+    var(--color-background-secondary)
+  );
+  --color-muted-foreground: var(--color-text-secondary);
   --color-foreground: var(--color-text-primary);
 }
 
 .streamdown-rich [data-streamdown="inline-code"] {
-  border: 1px solid color-mix(in srgb, var(--color-mocha) 10%, var(--color-border));
-  background: color-mix(in srgb, var(--color-mocha) 4%, var(--color-background-primary));
+  border: 1px solid color-mix(in srgb, var(--color-memora-olive) 10%, var(--color-border));
+  background: color-mix(in srgb, var(--color-memora-olive) 4%, var(--color-background-primary));
   border-radius: 0.45rem;
 }
 
@@ -21,7 +29,7 @@
   position: relative;
   gap: 0.35rem;
   margin-block: 1rem;
-  border-color: color-mix(in srgb, var(--color-mocha) 8%, var(--color-border));
+  border-color: color-mix(in srgb, var(--color-memora-olive) 8%, var(--color-border));
   border-radius: 0.95rem;
   background: color-mix(in srgb, var(--color-background-primary) 98%, var(--color-sidebar));
   box-shadow: 0 1px 0 color-mix(in srgb, white 40%, transparent);
@@ -37,7 +45,7 @@
   min-height: unset;
   height: auto;
   padding-inline: 0.25rem;
-  color: color-mix(in srgb, var(--color-text-secondary) 90%, var(--color-mocha) 10%);
+  color: color-mix(in srgb, var(--color-text-secondary) 90%, var(--color-memora-olive) 10%);
   font-family: var(--font-mono);
   font-size: 0.71rem;
   font-weight: 500;
@@ -89,7 +97,7 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-copy-button"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-mocha) 7%, var(--color-background-primary));
+  background: color-mix(in srgb, var(--color-memora-olive) 7%, var(--color-background-primary));
   color: var(--color-text-primary);
 }
 
@@ -98,12 +106,12 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-copy-button"]:focus-visible {
-  outline: 1px solid color-mix(in srgb, var(--color-mocha) 30%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--color-memora-olive) 30%, transparent);
   outline-offset: 1px;
 }
 
 .streamdown-rich [data-streamdown="code-block-body"] {
-  border-color: color-mix(in srgb, var(--color-mocha) 6%, var(--color-border));
+  border-color: color-mix(in srgb, var(--color-memora-olive) 6%, var(--color-border));
   border-radius: 0.7rem;
   background: color-mix(
     in srgb,
@@ -155,7 +163,8 @@
    blockquotes, tables), but this project has no Tailwind build to turn them into rules - so
    without the plain-tag styles here they'd render as unstyled browser defaults in both themes.
    Colors read the theme-aware vars this file already sets above (--color-foreground etc.) or,
-   for cases those don't cover, the tokens.css vars directly - both follow :root[data-theme]. */
+   for cases those don't cover, the --color-{background,text,border}-* vars from cssColorVars in
+   styles/stylex.stylex.ts - both follow the resolved theme. */
 .streamdown-rich {
   color: var(--color-foreground);
   font-size: 0.9375rem;
@@ -257,13 +266,13 @@
 }
 /* The last button in the dialog is the primary "Open link" action. */
 [data-streamdown="link-safety-modal"] button:last-of-type {
-  background: var(--color-mocha);
-  border-color: var(--color-mocha);
+  background: var(--color-memora-olive);
+  border-color: var(--color-memora-olive);
   color: var(--color-text-primary);
   font-weight: 600;
 }
 [data-streamdown="link-safety-modal"] button:last-of-type:hover {
-  background: color-mix(in srgb, var(--color-mocha) 85%, var(--color-background-primary));
+  background: color-mix(in srgb, var(--color-memora-olive) 85%, var(--color-background-primary));
 }
 
 .streamdown-rich hr {

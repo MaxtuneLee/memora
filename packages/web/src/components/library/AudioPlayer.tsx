@@ -10,6 +10,7 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { WaveformCanvas } from "./WaveformCanvas";
+import { tokens } from "../../styles/stylex.stylex";
 
 const PLACEHOLDER_HEIGHTS = Array.from({ length: 60 }, (_, i) => 12 + ((i * 37 + 13) % 60));
 
@@ -44,14 +45,14 @@ const styles = stylex.create({
     paddingInline: 8,
   },
   placeholderBar: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     transition: "transform 300ms var(--ease-out-quart)",
     width: 4,
   },
   progressWrap: { paddingBlockEnd: 4, paddingInline: 20 },
   progress: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     cursor: "pointer",
     height: 4,
@@ -61,7 +62,7 @@ const styles = stylex.create({
   },
   dragging: { height: 6 },
   progressFill: {
-    backgroundColor: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.textStrong,
     borderRadius: 9999,
     insetBlock: 0,
     left: 0,
@@ -69,7 +70,7 @@ const styles = stylex.create({
   },
   times: { alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: 6 },
   time: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: 11,
     fontVariantNumeric: "tabular-nums",
   },
@@ -84,27 +85,27 @@ const styles = stylex.create({
   skip: {
     alignItems: "center",
     borderRadius: 9999,
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     display: "flex",
     height: 44,
     justifyContent: "center",
     position: "relative",
     transition: "color 150ms",
     width: 44,
-    ":hover": { color: "var(--color-memora-text)" },
+    ":hover": { color: tokens.text },
   },
   play: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.textStrong,
     borderRadius: 9999,
-    boxShadow: "0 18px 40px -30px rgb(34 33 29 / 0.9)",
-    color: "var(--color-memora-surface)",
+    boxShadow: "0 18px 40px -30px rgb(0 0 0 / 0.9)",
+    color: tokens.surface,
     display: "flex",
     height: 56,
     justifyContent: "center",
     transition: "transform 150ms, box-shadow 150ms, background-color 150ms",
     width: 56,
-    ":hover": { boxShadow: "0 22px 42px -26px rgb(34 33 29 / 0.95)" },
+    ":hover": { boxShadow: "0 22px 42px -26px rgb(0 0 0 / 0.95)" },
   },
   smallIcon: { height: 20, width: 20 },
   largeIcon: { height: 24, width: 24 },

@@ -1,32 +1,33 @@
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 20,
     padding: 20,
     "@media (min-width: 40rem)": { paddingInline: 24 },
   },
   insetPanel: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: 16,
     padding: 16,
   },
   row: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: 16,
     paddingBlock: 12,
     paddingInline: 16,
   },
   sectionTitle: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontFamily: "var(--font-serif)",
     fontSize: "0.95rem",
     fontWeight: 600,
   },
-  sectionBody: { color: "var(--color-memora-text-muted)", fontSize: 14, lineHeight: "24px" },
-  fieldLabel: { color: "var(--color-memora-text-muted)", fontSize: 14, fontWeight: 500 },
+  sectionBody: { color: tokens.textMuted, fontSize: 14, lineHeight: "24px" },
+  fieldLabel: { color: tokens.textMuted, fontSize: 14, fontWeight: 500 },
 });
 
 export const SETTINGS_PANEL_CLASS_NAME = stylex.props(styles.panel).className;

@@ -2,6 +2,7 @@ import { dir as opfsDir } from "@memora/fs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FILES_DIR } from "@/types/library";
+import { tokens } from "../../styles/stylex.stylex";
 
 const AUDIO_EXTENSIONS = new Set([".webm", ".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg"]);
 
@@ -30,9 +31,11 @@ export const STORAGE_CONTENT_CATEGORY_CONFIG = [
   { id: "videos", label: "Videos", color: "#7c6f64" },
 ] as const;
 
+// The first two segments follow the theme so they stay visible on dark surfaces; the rest are
+// a warm mid-tone ramp that reads on both.
 const STORAGE_BREAKDOWN_SEGMENT_CONFIG = [
-  { id: "user-content", label: "User content", color: "#18181b" },
-  { id: "internal-data", label: "Internal data", color: "#71717a" },
+  { id: "user-content", label: "User content", color: tokens.text },
+  { id: "internal-data", label: "Internal data", color: tokens.textSoft },
   { id: "browser-cache", label: "Browser cache", color: "#c39a5b" },
   { id: "service-workers", label: "Service workers", color: "#879a4f" },
   { id: "other", label: "Other", color: "#8c7b6a" },

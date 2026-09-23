@@ -17,10 +17,10 @@ const STAGE_COPY: Record<LiveStoreLoadingStatus["stage"], string> = {
 
 const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;
 const BACKGROUND_IMAGE = `
-  radial-gradient(circle at 50% 24%, var(--color-memora-shell) 0%, color-mix(in srgb, var(--color-memora-bg) 82%, transparent) 34%, transparent 70%),
-  radial-gradient(circle at 18% 78%, rgba(135, 154, 79, 0.12) 0%, rgba(135, 154, 79, 0) 42%),
-  radial-gradient(circle at 88% 14%, rgba(196, 167, 111, 0.14) 0%, rgba(196, 167, 111, 0) 36%),
-  linear-gradient(180deg, var(--color-memora-surface) 0%, var(--color-memora-bg) 52%, var(--color-memora-rail) 100%)
+  radial-gradient(circle at 50% 24%, ${tokens.shell} 0%, color-mix(in srgb, ${tokens.background} 82%, transparent) 34%, transparent 70%),
+  radial-gradient(circle at 18% 78%, color-mix(in srgb, ${tokens.olive} 12%, transparent) 0%, transparent 42%),
+  radial-gradient(circle at 88% 14%, color-mix(in srgb, ${tokens.contentImage} 14%, transparent) 0%, transparent 36%),
+  linear-gradient(180deg, ${tokens.surface} 0%, ${tokens.background} 52%, ${tokens.rail} 100%)
 `;
 
 const styles = stylex.create({
@@ -50,7 +50,7 @@ const styles = stylex.create({
     width: "26rem",
   },
   lowerGlow: {
-    backgroundColor: "rgba(142, 161, 91, 0.12)",
+    backgroundColor: `color-mix(in srgb, ${tokens.olive} 12%, transparent)`,
     borderRadius: "9999px",
     bottom: "-6rem",
     filter: "blur(96px)",
@@ -60,7 +60,7 @@ const styles = stylex.create({
     width: "18rem",
   },
   upperGlow: {
-    backgroundColor: "rgba(207, 178, 124, 0.16)",
+    backgroundColor: `color-mix(in srgb, ${tokens.contentImage} 16%, transparent)`,
     borderRadius: "9999px",
     filter: "blur(80px)",
     height: "16rem",

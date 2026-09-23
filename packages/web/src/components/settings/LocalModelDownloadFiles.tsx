@@ -2,6 +2,7 @@ import { CheckIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 
 import type { LocalModelDownloadState } from "@/lib/local-model/downloadState";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 10, marginTop: 12 },
@@ -14,7 +15,7 @@ const styles = stylex.create({
     justifyContent: "space-between",
   },
   name: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -22,16 +23,16 @@ const styles = stylex.create({
   },
   value: {
     alignItems: "center",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     display: "flex",
     flexShrink: 0,
     fontVariantNumeric: "tabular-nums",
     fontWeight: 500,
     gap: 4,
   },
-  check: { color: "var(--color-memora-olive)", height: 12, width: 12 },
+  check: { color: tokens.olive, height: 12, width: 12 },
   track: {
-    backgroundColor: "var(--color-memora-border-soft)",
+    backgroundColor: tokens.borderSoft,
     borderRadius: 9999,
     height: 6,
     overflow: "hidden",
@@ -42,8 +43,8 @@ const styles = stylex.create({
     transformOrigin: "left",
     transition: "transform 300ms",
   },
-  complete: { backgroundColor: "var(--color-memora-olive)" },
-  downloading: { backgroundColor: "var(--color-memora-text-soft)" },
+  complete: { backgroundColor: tokens.olive },
+  downloading: { backgroundColor: tokens.textSoft },
 });
 
 interface LocalModelDownloadFilesProps {

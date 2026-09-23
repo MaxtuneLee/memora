@@ -116,7 +116,7 @@ const styles = stylex.create({
   spin: { animation: `${rotate} 1s linear infinite` },
   files: { marginTop: "1rem" },
   error: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.75rem",

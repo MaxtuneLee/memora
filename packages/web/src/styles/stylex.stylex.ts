@@ -59,10 +59,18 @@ const LIGHT_COLORS = {
   infoSurface: "#eff3fb",
   infoBorder: "#d3dcef",
   infoText: "#34528f",
+  // Saturated record and confirm actions: they keep one hue in both themes, and white text on
+  // them stays at 4.5:1 or more.
+  recordBackground: "#dc2626",
+  recordBackgroundHover: "#b91c1c",
+  confirmBackground: "#047857",
+  confirmBackgroundHover: "#065f46",
+  actionText: "#ffffff",
   // Content types
   contentAudio: "#8cbf67",
   contentVideo: "#6d8fd4",
   contentImage: "#d0a267",
+  contentFolder: "#3b82f6",
   // Charts
   chart1: "#7b875a",
   chart2: "#6d8fd4",
@@ -125,9 +133,15 @@ const DARK_COLORS: typeof LIGHT_COLORS = {
   infoSurface: "#1f2836",
   infoBorder: "#3a4a66",
   infoText: "#abc3ef",
+  recordBackground: "#dc2626",
+  recordBackgroundHover: "#b91c1c",
+  confirmBackground: "#047857",
+  confirmBackgroundHover: "#065f46",
+  actionText: "#ffffff",
   contentAudio: "#9fcf7c",
   contentVideo: "#8ea9e2",
   contentImage: "#deb57e",
+  contentFolder: "#60a5fa",
   chart1: "#a3b17a",
   chart2: "#8ea9e2",
   chart3: "#deb57e",
@@ -154,42 +168,47 @@ export const lightTheme = stylex.createTheme(tokens, LIGHT_COLORS);
 
 export const darkTheme = stylex.createTheme(tokens, DARK_COLORS);
 
-// ponytail: temporary aliases so plain CSS and Tailwind arbitrary values that still read the
-// older --color-memora-* names follow the theme. Remove each alias once its callers migrate.
-export const legacyColorAliases = stylex.create({
+// Plain CSS (index.css, streamdown.css, svg.css, select.css, dashboardMenu.css,
+// nativeDialog.css) cannot import StyleX tokens, so the document root also exposes them under
+// stable names. Values live only in the tables above; add a name here only for a plain CSS caller.
+// The --color-{background,text,border}-* names are the generated widget token contract that
+// svg.css shares with widget iframes (see widgetBase.css).
+export const cssColorVars = stylex.create({
   root: {
     "--color-memora-bg": tokens.background,
-    "--color-memora-shell": tokens.shell,
-    "--color-memora-canvas": tokens.canvas,
-    "--color-memora-rail": tokens.rail,
     "--color-memora-surface": tokens.surface,
-    "--color-memora-surface-soft": tokens.surfaceSoft,
     "--color-memora-surface-muted": tokens.surfaceMuted,
-    "--color-memora-sidebar": tokens.sidebar,
     "--color-memora-border": tokens.border,
     "--color-memora-border-soft": tokens.borderSoft,
-    "--color-memora-border-strong": tokens.borderStrong,
     "--color-memora-text": tokens.text,
     "--color-memora-text-strong": tokens.textStrong,
-    "--color-memora-text-muted": tokens.textMuted,
     "--color-memora-text-soft": tokens.textSoft,
     "--color-memora-hover": tokens.hover,
     "--color-memora-hover-strong": tokens.hoverStrong,
-    "--color-memora-card": tokens.card,
-    "--color-memora-primary": tokens.primaryBackground,
-    "--color-memora-primary-text": tokens.primaryText,
     "--color-memora-olive": tokens.olive,
     "--color-memora-olive-soft": tokens.oliveSoft,
-    "--color-memora-olive-text": tokens.oliveText,
-    "--color-memora-selection-bg": tokens.selectionBackground,
-    "--color-memora-warning-surface": tokens.warningSurface,
-    "--color-memora-warning-border": tokens.warningBorder,
-    "--color-memora-warning-text": tokens.warningText,
-    "--color-memora-file-audio": tokens.contentAudio,
-    "--color-memora-file-video": tokens.contentVideo,
-    "--color-memora-file-image": tokens.contentImage,
-    "--shadow-sm-soft": tokens.shadowSmall,
     "--shadow-md-soft": tokens.shadowMedium,
+    "--color-background-primary": tokens.surface,
+    "--color-background-secondary": tokens.surfaceMuted,
+    "--color-background-tertiary": tokens.surfaceSoft,
+    "--color-background-info": tokens.infoSurface,
+    "--color-background-danger": tokens.dangerSurface,
+    "--color-background-success": tokens.successSurface,
+    "--color-background-warning": tokens.warningSurface,
+    "--color-text-primary": tokens.text,
+    "--color-text-secondary": tokens.textMuted,
+    "--color-text-tertiary": tokens.textSoft,
+    "--color-text-info": tokens.infoText,
+    "--color-text-danger": tokens.dangerText,
+    "--color-text-success": tokens.successText,
+    "--color-text-warning": tokens.warningText,
+    "--color-border-primary": tokens.borderStrong,
+    "--color-border-secondary": tokens.border,
+    "--color-border-tertiary": tokens.borderSoft,
+    "--color-border-info": tokens.infoBorder,
+    "--color-border-danger": tokens.dangerBorder,
+    "--color-border-success": tokens.successBorder,
+    "--color-border-warning": tokens.warningBorder,
   },
 });
 

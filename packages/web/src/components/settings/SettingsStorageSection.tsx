@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/Progress";
 import { Switch } from "@/components/ui/Switch";
 import { useStorageSettings } from "@/hooks/settings/useStorageSettings";
 import { formatBytes } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 20 },
@@ -35,7 +36,7 @@ const styles = stylex.create({
   },
   heading: { display: "flex", flexDirection: "column", gap: 8 },
   bar: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     display: "flex",
     height: 10,
@@ -45,7 +46,7 @@ const styles = stylex.create({
   },
   segment: { height: "100%" },
   legend: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexWrap: "wrap",
     fontSize: 12,
@@ -54,12 +55,12 @@ const styles = stylex.create({
   },
   legendItem: { alignItems: "center", display: "flex", gap: 6 },
   dot: { borderRadius: 9999, height: 8, width: 8 },
-  soft: { color: "var(--color-memora-text-soft)", fontSize: 11 },
+  soft: { color: tokens.textSoft, fontSize: 11 },
   insetMargin: { marginTop: 20 },
   categoryList: { display: "flex", flexDirection: "column", gap: 16, marginTop: 20 },
   categoryHeader: {
     alignItems: "center",
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "flex",
     fontSize: 14,
     gap: 12,
@@ -67,9 +68,9 @@ const styles = stylex.create({
   },
   categoryLabel: { alignItems: "center", display: "flex", gap: 8 },
   categoryName: { fontWeight: 500 },
-  categorySize: { color: "var(--color-memora-text-soft)", fontSize: 12, fontWeight: 600 },
+  categorySize: { color: tokens.textSoft, fontSize: 12, fontWeight: 600 },
   categoryBar: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     height: 6,
     marginTop: 12,

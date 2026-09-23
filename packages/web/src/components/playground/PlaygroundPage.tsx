@@ -19,10 +19,11 @@ import VectorDbInspector from "./VectorDbInspector";
 import DatasetInstaller from "./DatasetInstaller";
 import AsrEvaluation from "./AsrEvaluation";
 import MascotShowcase from "./MascotShowcase";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   page: {
-    backgroundColor: "var(--color-memora-canvas)",
+    backgroundColor: tokens.canvas,
     minHeight: "100%",
     paddingBlock: { default: "1.75rem", "@media (min-width: 640px)": "2.25rem" },
     paddingInline: {
@@ -33,9 +34,9 @@ const styles = stylex.create({
   },
   content: { marginInline: "auto", maxWidth: "1480px", width: "100%" },
   header: { alignItems: "center", display: "flex", gap: "0.75rem", paddingBottom: "1.75rem" },
-  headerIcon: { color: "var(--color-memora-olive)", height: "1.25rem", width: "1.25rem" },
+  headerIcon: { color: tokens.olive, height: "1.25rem", width: "1.25rem" },
   title: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontFamily: '"IBM Plex Serif", serif',
     fontSize: { default: "1.5rem", "@media (min-width: 640px)": "1.875rem" },
     fontWeight: 500,
@@ -44,7 +45,7 @@ const styles = stylex.create({
   },
   tabs: { marginTop: "1.75rem" },
   tabList: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "1rem",
     display: "flex",
     gap: "0.25rem",
@@ -56,7 +57,7 @@ const styles = stylex.create({
   tab: {
     alignItems: "center",
     borderRadius: "0.75rem",
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
     display: "inline-flex",
     flexShrink: 0,
     fontSize: "0.875rem",
@@ -69,17 +70,17 @@ const styles = stylex.create({
     position: "relative",
     transition: "color 150ms",
     zIndex: 10,
-    "[data-active]": { color: "var(--color-memora-text)" },
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: -2 },
+    "[data-active]": { color: tokens.text },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: -2 },
   },
   tabIcon: { height: "1rem", width: "1rem" },
   indicator: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "0.75rem",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 1px 3px rgba(47,45,40,0.08)",
+    boxShadow: "0 1px 3px rgb(0 0 0 / 0.08)",
     height: "2.5rem",
     left: 0,
     position: "absolute",
@@ -92,7 +93,7 @@ const styles = stylex.create({
     marginTop: "1.75rem",
     outline: "none",
     "[data-hidden]": { display: "none" },
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
   },
 });
 

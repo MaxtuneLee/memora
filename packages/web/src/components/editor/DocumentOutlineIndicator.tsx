@@ -1,5 +1,6 @@
 import { useCallback, useState, type CSSProperties, type PointerEvent } from "react";
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   aside: {
@@ -27,7 +28,7 @@ const styles = stylex.create({
     width: "var(--outline-marker-width)",
   },
   frame: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 2,
     height: 28,
     position: "absolute",
@@ -36,7 +37,7 @@ const styles = stylex.create({
     width: 144,
   },
   title: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "block",
     fontSize: "0.75rem",
     fontWeight: 500,
@@ -57,7 +58,7 @@ const styles = stylex.create({
     inset: 0,
     outline: "none",
     position: "absolute",
-    ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
   },
   srOnly: {
     borderWidth: 0,
@@ -241,9 +242,7 @@ export function DocumentOutlineIndicator({
                   marginBottom:
                     index === headings.length - 1 ? "0px" : `${OUTLINE_ITEM_MARGIN_BOTTOM_PX}px`,
                   "--outline-marker-width": getMarkerWidth(heading.level),
-                  "--outline-marker-color": isActive
-                    ? "var(--color-memora-text-strong)"
-                    : "var(--color-memora-border-soft)",
+                  "--outline-marker-color": isActive ? tokens.textStrong : tokens.borderSoft,
                 } as CSSProperties
               }
             >

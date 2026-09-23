@@ -33,7 +33,7 @@ const styles = stylex.create({
     "[data-open=true]": {
       backgroundColor: tokens.surfaceSoft,
       borderColor: tokens.borderStrong,
-      boxShadow: "0 10px 24px rgba(34, 33, 29, 0.06)",
+      boxShadow: "0 10px 24px rgb(0 0 0 / 0.06)",
       opacity: 0,
       transitionDuration: "150ms",
     },

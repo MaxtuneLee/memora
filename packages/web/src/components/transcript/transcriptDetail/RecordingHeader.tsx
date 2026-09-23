@@ -4,6 +4,7 @@ import { PencilSimpleIcon, SpinnerGapIcon, SubtitlesIcon, TrashIcon } from "@pho
 import * as stylex from "@stylexjs/stylex";
 
 import type { RecordingItem } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
@@ -20,7 +21,7 @@ const styles = stylex.create({
     },
   },
   titleArea: { minWidth: 0 },
-  savedAt: { color: "var(--color-memora-text-soft)", fontSize: 11, lineHeight: "1rem" },
+  savedAt: { color: tokens.textSoft, fontSize: 11, lineHeight: "1rem" },
   titleFrame: { marginTop: "0.375rem" },
   renameForm: {
     display: "flex",
@@ -30,7 +31,7 @@ const styles = stylex.create({
   },
   renameInput: {
     backgroundColor: "transparent",
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     flex: 1,
     fontFamily: "var(--font-serif)",
     fontSize: "clamp(1.3rem, 2.8vw, 2rem)",
@@ -54,10 +55,10 @@ const styles = stylex.create({
     transitionProperty: "color",
   },
   saveAction: {
-    color: { default: "var(--color-memora-text)", ":hover": "var(--color-memora-text-strong)" },
+    color: { default: tokens.text, ":hover": tokens.textStrong },
   },
   cancelAction: {
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
   },
   titleButton: {
     alignItems: "flex-start",
@@ -68,9 +69,8 @@ const styles = stylex.create({
   },
   title: {
     color: {
-      default: "var(--color-memora-text-strong)",
-      ":hover":
-        "color-mix(in srgb, var(--color-memora-text-strong) 86%, var(--color-memora-olive) 14%)",
+      default: tokens.textStrong,
+      ":hover": `color-mix(in srgb, ${tokens.textStrong} 86%, ${tokens.olive} 14%)`,
     },
     fontFamily: "var(--font-serif)",
     fontSize: "clamp(1.35rem, 2.6vw, 2rem)",
@@ -83,7 +83,7 @@ const styles = stylex.create({
     transitionTimingFunction: "var(--ease-out-quart)",
   },
   pencil: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     flexShrink: 0,
     height: "1rem",
     marginTop: "0.375rem",
@@ -93,7 +93,7 @@ const styles = stylex.create({
     width: "1rem",
   },
   meta: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",
@@ -119,11 +119,11 @@ const styles = stylex.create({
     transitionProperty: "color, opacity",
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
-  activeTranscript: { color: "var(--color-memora-text-strong)" },
+  activeTranscript: { color: tokens.textStrong },
   inactiveTranscript: {
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
   },
-  deleteAction: { color: "var(--color-memora-warning-text)", ":hover": { opacity: 0.8 } },
+  deleteAction: { color: tokens.warningText, ":hover": { opacity: 0.8 } },
   icon: {
     height: "1rem",
     transitionDuration: "300ms",

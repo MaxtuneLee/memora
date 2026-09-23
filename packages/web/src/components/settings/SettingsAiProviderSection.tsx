@@ -18,6 +18,7 @@ import {
   getSelectedModelLabel,
   parseProviderModels,
 } from "@/lib/settings/dialogHelpers";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: "1rem" },
@@ -25,10 +26,10 @@ const styles = stylex.create({
   trigger: {
     alignItems: "center",
     backgroundColor: {
-      default: "var(--color-memora-surface-soft)",
-      ":hover": "var(--color-memora-hover-strong)",
+      default: tokens.surfaceSoft,
+      ":hover": tokens.hoverStrong,
     },
-    borderColor: "var(--color-memora-border)",
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -42,16 +43,16 @@ const styles = stylex.create({
     width: "100%",
   },
   triggerLabel: { display: "block", fontSize: "0.875rem", fontWeight: 500, lineHeight: "1.25rem" },
-  selectedLabel: { color: "var(--color-memora-text-strong)" },
-  placeholderLabel: { color: "var(--color-memora-text-soft)" },
-  caret: { color: "var(--color-memora-text-soft)", height: "1rem", width: "1rem" },
+  selectedLabel: { color: tokens.textStrong },
+  placeholderLabel: { color: tokens.textSoft },
+  caret: { color: tokens.textSoft, height: "1rem", width: "1rem" },
   dropdown: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1.4rem",
     borderStyle: "solid",
     borderWidth: 1,
-    boxShadow: "0 28px 70px -46px rgba(34,33,29,0.32)",
+    boxShadow: "0 28px 70px -46px rgb(0 0 0 / 0.32)",
     left: 0,
     marginTop: "0.5rem",
     position: "absolute",
@@ -60,7 +61,7 @@ const styles = stylex.create({
     zIndex: 20,
   },
   searchArea: {
-    borderBottomColor: "var(--color-memora-border-soft)",
+    borderBottomColor: tokens.borderSoft,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     padding: "0.75rem",
@@ -78,8 +79,8 @@ const styles = stylex.create({
   },
   searchField: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface-soft)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -88,7 +89,7 @@ const styles = stylex.create({
     paddingBlock: "0.5rem",
     paddingInline: "0.75rem",
   },
-  searchIcon: { color: "var(--color-memora-text-soft)", height: "0.875rem", width: "0.875rem" },
+  searchIcon: { color: tokens.textSoft, height: "0.875rem", width: "0.875rem" },
   searchInput: {
     backgroundColor: "transparent",
     borderColor: "transparent",
@@ -105,14 +106,14 @@ const styles = stylex.create({
     scrollbarGutter: "stable",
   },
   empty: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     paddingBlock: "1rem",
     paddingInline: "0.5rem",
   },
   providerLabel: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "0.75rem",
     fontWeight: 500,
     lineHeight: "1rem",
@@ -122,8 +123,8 @@ const styles = stylex.create({
   option: {
     alignItems: "center",
     color: {
-      default: "var(--color-memora-text-muted)",
-      ":hover": "var(--color-memora-text-muted)",
+      default: tokens.textMuted,
+      ":hover": tokens.textMuted,
     },
     display: "flex",
     fontSize: "0.875rem",
@@ -134,11 +135,11 @@ const styles = stylex.create({
     textAlign: "left",
     transition: "background-color 150ms",
     width: "100%",
-    ":hover": { backgroundColor: "var(--color-memora-hover-strong)" },
+    ":hover": { backgroundColor: tokens.hoverStrong },
   },
   selectedOption: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    color: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.surfaceSoft,
+    color: tokens.textStrong,
     fontWeight: 600,
   },
   checkSlot: {
@@ -149,7 +150,7 @@ const styles = stylex.create({
     justifyContent: "center",
     width: "1.25rem",
   },
-  checkIcon: { color: "var(--color-memora-olive)", height: "0.875rem", width: "0.875rem" },
+  checkIcon: { color: tokens.olive, height: "0.875rem", width: "0.875rem" },
   backdrop: { inset: 0, position: "fixed", zIndex: 10 },
   emptyProvider: { marginTop: "1rem" },
 });

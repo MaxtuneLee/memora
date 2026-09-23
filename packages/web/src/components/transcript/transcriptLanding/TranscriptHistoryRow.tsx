@@ -19,10 +19,11 @@ import { formatDateTime, formatDuration } from "@/lib/format";
 import type { RecordingItem } from "@/types/library";
 
 import type { TranscriptHistoryRowState } from "./transcriptLandingState";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    borderTopColor: "var(--color-memora-border-soft)",
+    borderTopColor: tokens.borderSoft,
     borderTopStyle: "solid",
     borderTopWidth: 1,
     ":first-child": { borderTopWidth: 0 },
@@ -35,7 +36,7 @@ const styles = stylex.create({
     transitionDuration: "300ms",
     transitionProperty: "background-color",
     transitionTimingFunction: "var(--ease-out-quart)",
-    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
+    ":hover": { backgroundColor: tokens.surfaceSoft },
     "@media (min-width: 640px)": {
       alignItems: "flex-start",
       gridTemplateColumns: "minmax(0, 1.4fr) auto",
@@ -51,8 +52,8 @@ const styles = stylex.create({
   },
   title: {
     color: {
-      default: "var(--color-memora-text)",
-      ":hover": "color-mix(in srgb, var(--color-memora-olive) 82%, var(--color-memora-text))",
+      default: tokens.text,
+      ":hover": `color-mix(in srgb, ${tokens.olive} 82%, ${tokens.text})`,
     },
     fontSize: 15,
     fontWeight: 600,
@@ -80,21 +81,19 @@ const styles = stylex.create({
     transitionTimingFunction: "var(--ease-out-quart)",
   },
   statusReady: {
-    backgroundColor:
-      "color-mix(in srgb, var(--color-memora-olive-soft) 10%, var(--color-memora-surface-soft))",
-    borderColor:
-      "color-mix(in srgb, var(--color-memora-olive-soft) 38%, var(--color-memora-border-soft))",
-    color: "color-mix(in srgb, var(--color-memora-olive) 82%, var(--color-memora-text))",
+    backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 10%, ${tokens.surfaceSoft})`,
+    borderColor: `color-mix(in srgb, ${tokens.oliveSoft} 38%, ${tokens.borderSoft})`,
+    color: `color-mix(in srgb, ${tokens.olive} 82%, ${tokens.text})`,
   },
   statusDefault: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    borderColor: "var(--color-memora-border-soft)",
-    color: "var(--color-memora-text-muted)",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.borderSoft,
+    color: tokens.textMuted,
   },
   statusIcon: { alignSelf: "center", flexShrink: 0, height: "0.75rem", width: "0.75rem" },
   statusText: { lineHeight: 1 },
   preview: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "-webkit-box",
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
@@ -106,7 +105,7 @@ const styles = stylex.create({
   },
   metadata: {
     alignItems: "center",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     columnGap: "0.75rem",
     display: "flex",
     flexWrap: "wrap",
@@ -116,7 +115,7 @@ const styles = stylex.create({
     rowGap: "0.25rem",
   },
   metadataItem: { alignItems: "center", display: "inline-flex", gap: "0.375rem" },
-  metadataIcon: { color: "var(--color-memora-text-soft)", height: "0.875rem", width: "0.875rem" },
+  metadataIcon: { color: tokens.textSoft, height: "0.875rem", width: "0.875rem" },
   actions: {
     alignItems: "center",
     display: "flex",
@@ -135,24 +134,23 @@ const styles = stylex.create({
     transitionDuration: "150ms",
   },
   deleteAction: {
-    backgroundColor: { default: "transparent", ":hover": "var(--color-memora-warning-surface)" },
+    backgroundColor: { default: "transparent", ":hover": tokens.warningSurface },
     color: {
-      default:
-        "color-mix(in srgb, var(--color-memora-warning-text) 75%, var(--color-memora-text-muted))",
-      ":hover": "var(--color-memora-warning-text)",
+      default: `color-mix(in srgb, ${tokens.warningText} 75%, ${tokens.textMuted})`,
+      ":hover": tokens.warningText,
     },
     fontWeight: 500,
     transitionProperty: "color, background-color",
   },
   openAction: {
     backgroundColor: {
-      default: "var(--color-memora-surface)",
-      ":hover": "var(--color-memora-hover-strong)",
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
     },
-    borderColor: "var(--color-memora-border-soft)",
+    borderColor: tokens.borderSoft,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontWeight: 600,
     transitionProperty: "background-color, border-color, color, transform",
   },

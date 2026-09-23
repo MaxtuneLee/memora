@@ -9,12 +9,13 @@ import type {
   Spread,
 } from "lexical";
 import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   container: { marginBlock: 16 },
   figure: {
-    backgroundColor: "var(--color-memora-surface-muted)",
-    borderColor: "var(--color-memora-border-soft)",
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.borderSoft,
     borderRadius: 16,
     borderStyle: "solid",
     borderWidth: 1,
@@ -32,13 +33,13 @@ const styles = stylex.create({
     objectFit: "contain",
   },
   caption: {
-    borderTop: "1px solid var(--color-memora-border-soft)",
-    color: "var(--color-memora-text-muted)",
+    borderTop: `1px solid ${tokens.borderSoft}`,
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     paddingBlock: 8,
     paddingInline: 12,
   },
-  link: { color: "var(--color-memora-olive-text)", display: "inline-block", maxWidth: "100%" },
+  link: { color: tokens.oliveText, display: "inline-block", maxWidth: "100%" },
   source: {
     alignItems: "flex-start",
     display: "flex",
@@ -48,12 +49,12 @@ const styles = stylex.create({
     maxWidth: "100%",
   },
   sourceCode: {
-    backgroundColor: "var(--color-memora-surface-muted)",
-    borderColor: "var(--color-memora-border-soft)",
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.borderSoft,
     borderRadius: 8,
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
     fontSize: "0.875rem",

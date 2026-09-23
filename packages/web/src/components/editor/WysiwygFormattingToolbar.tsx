@@ -232,8 +232,8 @@ export const isSafeFormattingLinkUrl = (value: string): boolean => {
 const styles = stylex.create({
   toolbar: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
     boxShadow: tokens.shadowLarge,
     display: "flex",
@@ -247,7 +247,7 @@ const styles = stylex.create({
     // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
     backgroundColor: "transparent",
     borderRadius: 8,
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "inline-flex",
     flexShrink: 0,
     height: 32,
@@ -255,14 +255,14 @@ const styles = stylex.create({
     outline: "none",
     transition: "color 150ms, background-color 150ms",
     width: 32,
-    ":hover": { backgroundColor: "var(--color-memora-hover)", color: "var(--color-memora-text)" },
-    ":focus-visible": { boxShadow: "0 0 0 2px var(--color-memora-olive-soft)" },
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
     "[aria-pressed=true]": {
-      backgroundColor: "var(--color-memora-surface-muted)",
-      color: "var(--color-memora-text-strong)",
+      backgroundColor: tokens.surfaceMuted,
+      color: tokens.textStrong,
     },
   },
-  divider: { backgroundColor: "var(--color-memora-border)", height: 20, marginInline: 2, width: 1 },
+  divider: { backgroundColor: tokens.border, height: 20, marginInline: 2, width: 1 },
 });
 
 export function WysiwygFormattingToolbar() {

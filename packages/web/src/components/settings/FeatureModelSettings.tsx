@@ -17,6 +17,7 @@ import {
 import { getLocalModelOptions } from "@/lib/local-model";
 import { readProviderApiKey } from "@/livestore/providerCredential";
 import type { provider } from "@/livestore/provider";
+import { tokens } from "../../styles/stylex.stylex";
 
 const LOCAL_MODELS = getLocalModelOptions();
 const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
@@ -28,7 +29,7 @@ const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
 
 const styles = stylex.create({
   row: {
-    borderBottomColor: "var(--color-memora-border)",
+    borderBottomColor: tokens.border,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     minWidth: 0,
@@ -42,7 +43,7 @@ const styles = stylex.create({
     },
   },
   legend: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     float: "left",
     fontSize: "0.875rem",
     fontWeight: 600,
@@ -52,7 +53,7 @@ const styles = stylex.create({
   },
   description: {
     clear: "both",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.5rem",
   },
@@ -78,13 +79,13 @@ const styles = stylex.create({
     },
   },
   label: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.75rem",
     lineHeight: "1rem",
   },
   catalogStatus: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: "0.75rem",
     gap: "0.75rem",
@@ -92,7 +93,7 @@ const styles = stylex.create({
     lineHeight: "1rem",
   },
   routeStatus: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.75rem",
     lineHeight: "1.25rem",
     marginTop: "0.75rem",

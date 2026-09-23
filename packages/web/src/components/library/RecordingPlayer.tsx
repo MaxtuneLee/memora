@@ -3,13 +3,14 @@ import { Slider } from "@base-ui/react/slider";
 import { Button } from "@base-ui/react/button";
 import * as stylex from "@stylexjs/stylex";
 import { formatDuration } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "#fff",
-    border: "1px solid #e4e4e7",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 12,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     display: "flex",
     flexDirection: "column",
     gap: 12,
@@ -19,23 +20,23 @@ const styles = stylex.create({
   row: { alignItems: "center", display: "flex", gap: 12 },
   playButton: {
     alignItems: "center",
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: 9999,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
-    color: "#fff",
+    boxShadow: tokens.shadowSmall,
+    color: tokens.primaryText,
     display: "flex",
     height: 40,
     justifyContent: "center",
     transition: "transform 150ms",
     width: 40,
     ":active": { transform: "scale(0.95)" },
-    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.focusRing}` },
   },
   icon: { height: 16, width: 16 },
   body: { flex: 1 },
   times: {
     alignItems: "center",
-    color: "#71717a",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 12,
     justifyContent: "space-between",
@@ -50,31 +51,31 @@ const styles = stylex.create({
     width: "100%",
   },
   track: {
-    backgroundColor: "#e4e4e7",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
-    boxShadow: "0 0 0 1px #e4e4e7 inset",
+    boxShadow: `0 0 0 1px ${tokens.border} inset`,
     height: 4,
     position: "relative",
     userSelect: "none",
     width: "100%",
   },
   indicator: {
-    backgroundColor: "#18181b",
+    backgroundColor: tokens.primaryBackground,
     borderRadius: 9999,
     height: "100%",
     transition: "width 200ms",
     userSelect: "none",
   },
   thumb: {
-    backgroundColor: "#fff",
-    border: "1px solid #d4d4d8",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.borderStrong}`,
     borderRadius: 9999,
-    boxShadow: "0 1px 2px rgb(0 0 0 / 0.05)",
+    boxShadow: tokens.shadowSmall,
     height: 12,
     outline: "none",
     userSelect: "none",
     width: 12,
-    ":focus-visible": { boxShadow: "0 0 0 2px #a1a1aa" },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.focusRing}` },
   },
 });
 

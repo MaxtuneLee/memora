@@ -44,8 +44,8 @@ import { tokens } from "../../styles/stylex.stylex";
 const styles = stylex.create({
   anchor: { zIndex: 30 },
   popup: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: 12,
     borderStyle: "solid",
     borderWidth: 1,
@@ -61,7 +61,7 @@ const styles = stylex.create({
     // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
     backgroundColor: "transparent",
     borderRadius: 8,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "flex",
     gap: 12,
     paddingBlock: 8,
@@ -71,15 +71,15 @@ const styles = stylex.create({
     width: "100%",
   },
   selectedOption: {
-    backgroundColor: "var(--color-memora-hover)",
-    color: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.hover,
+    color: tokens.textStrong,
   },
-  idleOption: { ":hover": { backgroundColor: "var(--color-memora-hover-strong)" } },
+  idleOption: { ":hover": { backgroundColor: tokens.hoverStrong } },
   icon: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 6,
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexShrink: 0,
     height: 28,
@@ -89,7 +89,7 @@ const styles = stylex.create({
   copy: { minWidth: 0 },
   label: { display: "block", fontSize: "0.875rem", fontWeight: 500 },
   description: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     display: "block",
     fontSize: "0.75rem",
     overflow: "hidden",
@@ -97,7 +97,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   empty: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "0.875rem",
     paddingBlock: 12,
     paddingInline: 10,

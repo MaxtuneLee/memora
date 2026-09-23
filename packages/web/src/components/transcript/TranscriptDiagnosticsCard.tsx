@@ -1,17 +1,18 @@
 import * as stylex from "@stylexjs/stylex";
 
 import type { TranscriptDiagnostics, TranscriptDiagnosticsIssueCode } from "@/types/library";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
-  metric: { borderTop: "1px solid var(--color-memora-border-soft)", paddingTop: 10 },
+  metric: { borderTop: `1px solid ${tokens.borderSoft}`, paddingTop: 10 },
   metricLabel: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "11px",
     letterSpacing: "0.16em",
     textTransform: "uppercase",
   },
   metricValue: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     fontWeight: 600,
     marginTop: 6,
@@ -25,21 +26,21 @@ const styles = stylex.create({
   },
   headerCopy: { minWidth: 0 },
   eyebrow: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "11px",
     letterSpacing: "0.18em",
     textTransform: "uppercase",
   },
   description: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: 1.5,
     marginTop: 8,
     maxWidth: "42rem",
   },
   status: { fontSize: "0.75rem", fontWeight: 500 },
-  warningStatus: { color: "var(--color-memora-warning-text)" },
-  successStatus: { color: "var(--color-memora-olive)" },
+  warningStatus: { color: tokens.warningText },
+  successStatus: { color: tokens.olive },
   grid: {
     display: "grid",
     columnGap: 24,
@@ -49,7 +50,7 @@ const styles = stylex.create({
     "@media (min-width: 1280px)": { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
   },
   issues: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 },
-  issue: { color: "var(--color-memora-text-muted)", fontSize: "11px" },
+  issue: { color: tokens.textMuted, fontSize: "11px" },
 });
 
 const ISSUE_LABELS: Record<TranscriptDiagnosticsIssueCode, string> = {

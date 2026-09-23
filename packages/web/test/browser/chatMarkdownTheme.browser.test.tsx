@@ -1,16 +1,13 @@
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
+import { page } from "vitest/browser";
 
 import { AssistantMessageContent } from "@/components/chat/chatMessage/AssistantMessageContent";
 import type { ChatMessageData } from "@/components/chat/chatMessage/types";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
 import { buildWidgetIframeSrcDoc } from "@/components/chat/chatWidget/constants";
-
-// tokens.css and streamdown.css are only reached through index.css in the app shell, which this
-// harness does not load (see sharedControlsTheme.browser.test.tsx) - pull them in directly so the
-// markdown rules under test are actually present.
-import "@/styles/tokens.css";
-import "@/styles/streamdown.css";
+import { textContrast } from "./colorContrast";
+import { DESKTOP_VIEWPORT, expectScreenshot, loadAppFonts, NARROW_VIEWPORT } from "./visual";
 
 const LONG_EN =
   "Memora keeps every note, transcript, and generated widget readable regardless of the theme the reader has chosen, even across long paragraphs that wrap across several lines of the composer and message list.";
@@ -46,38 +43,6 @@ const MESSAGE: ChatMessageData = {
 };
 
 // Computed-style checks only: no assertions on generated StyleX class names.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -105,8 +70,8 @@ describe.each(["light", "dark"] as const)("streamed markdown in %s", (theme) => 
     await mount(theme);
 
     const heading = host?.querySelector("h1");
-    const paragraph = [...(host?.querySelectorAll("p") ?? [])].find(
-      (node) => node.textContent?.includes("bold text"),
+    const paragraph = [...(host?.querySelectorAll("p") ?? [])].find((node) =>
+      node.textContent?.includes("bold text"),
     );
     const link = host?.querySelector('[data-streamdown="link"]');
     const blockquote = host?.querySelector("blockquote");
@@ -157,9 +122,7 @@ it("retains the rendered message node across a runtime theme change", async () =
   if (!heading || !lightColor) throw new Error("Missing heading");
 
   applyDocumentTheme("dark");
-  await expect
-    .poll(() => (heading ? getComputedStyle(heading).color : null))
-    .not.toBe(lightColor);
+  await expect.poll(() => (heading ? getComputedStyle(heading).color : null)).not.toBe(lightColor);
 
   // Same DOM node: the theme change restyled it in place instead of remounting the message.
   expect(host?.querySelector("h1")).toBe(heading);
@@ -173,6 +136,24 @@ describe("chat widget preview srcDoc", () => {
       const htmlOpenTag = srcDoc.slice(htmlStart, srcDoc.indexOf(">", htmlStart) + 1);
       expect(htmlOpenTag).toContain(`data-theme="${theme}"`);
       expect(htmlOpenTag).toContain(`color-scheme: ${theme}`);
+    }
+  });
+});
+
+describe.each(["light", "dark"] as const)("chat message references in %s", (theme) => {
+  it.each([
+    ["desktop", DESKTOP_VIEWPORT],
+    ["narrow", NARROW_VIEWPORT],
+  ] as const)("matches the %s reference", async (size, viewport) => {
+    await page.viewport(viewport.width, viewport.height);
+    try {
+      await mount(theme);
+      await loadAppFonts();
+      const message = host as HTMLElement;
+      expect(message.scrollWidth).toBeLessThanOrEqual(message.clientWidth + 1);
+      await expectScreenshot(message, `chat-${size}-${theme}`);
+    } finally {
+      await page.viewport(DESKTOP_VIEWPORT.width, DESKTOP_VIEWPORT.height);
     }
   });
 });

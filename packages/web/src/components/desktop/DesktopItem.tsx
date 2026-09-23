@@ -13,9 +13,7 @@ import { tokens } from "../../styles/stylex.stylex";
 import type { JSX } from "react";
 
 const styles = stylex.create({
-  // Folder icon color is a content-type brand color, not a semantic one; kept fixed like
-  // tokens.contentAudio/contentVideo/contentImage.
-  folderIcon: { color: "#3b82f6", height: 40, width: 40 },
+  folderIcon: { color: tokens.contentFolder, height: 40, width: 40 },
   trashIcon: { color: tokens.dangerText, height: 36, width: 36 },
   fileIcon: { color: tokens.textMuted, height: 32, width: 32 },
   item: {

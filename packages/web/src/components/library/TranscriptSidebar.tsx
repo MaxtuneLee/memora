@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import type { RecordingWord } from "@/types/library";
 import { formatDuration } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 const styles = stylex.create({
@@ -15,19 +16,19 @@ const styles = stylex.create({
       "color 200ms var(--ease-out-quart), background-color 200ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
   },
   activeWord: {
-    backgroundColor: "var(--color-memora-surface-muted)",
-    color: "var(--color-memora-text-strong)",
+    backgroundColor: tokens.surfaceMuted,
+    color: tokens.textStrong,
     fontWeight: 500,
   },
   pastWord: {
-    color: "var(--color-memora-text)",
-    ":hover": { backgroundColor: "var(--color-memora-surface-soft)" },
+    color: tokens.text,
+    ":hover": { backgroundColor: tokens.surfaceSoft },
   },
   futureWord: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     ":hover": {
-      backgroundColor: "var(--color-memora-surface-soft)",
-      color: "var(--color-memora-text-muted)",
+      backgroundColor: tokens.surfaceSoft,
+      color: tokens.textMuted,
     },
   },
   centered: {
@@ -43,17 +44,17 @@ const styles = stylex.create({
     animationDuration: "1s",
     animationIterationCount: "infinite",
     animationName: spin,
-    border: "2px solid var(--color-memora-border)",
+    border: `2px solid ${tokens.border}`,
     borderRadius: 9999,
-    borderTopColor: "var(--color-memora-olive)",
+    borderTopColor: tokens.olive,
     height: 24,
     width: 24,
   },
   textCenter: { textAlign: "center" },
-  title: { color: "var(--color-memora-text)", fontSize: 14, fontWeight: 500, margin: 0 },
-  detail: { color: "var(--color-memora-text-soft)", fontSize: 12, marginTop: 4 },
+  title: { color: tokens.text, fontSize: 14, fontWeight: 500, margin: 0 },
+  detail: { color: tokens.textSoft, fontSize: 12, marginTop: 4 },
   progress: {
-    backgroundColor: "var(--color-memora-border)",
+    backgroundColor: tokens.border,
     borderRadius: 9999,
     height: 4,
     marginInline: "auto",
@@ -62,7 +63,7 @@ const styles = stylex.create({
     width: 128,
   },
   progressFill: {
-    backgroundColor: "var(--color-memora-olive)",
+    backgroundColor: tokens.olive,
     borderRadius: 9999,
     height: "100%",
     transition: "width 300ms",
@@ -82,7 +83,7 @@ const styles = stylex.create({
     "@media (min-width: 768px)": { paddingBlock: 32, paddingInline: 24 },
   },
   plainText: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: 14,
     lineHeight: 2,
     margin: 0,
@@ -96,7 +97,7 @@ const styles = stylex.create({
     "@media (min-width: 768px)": { paddingInline: 20 },
   },
   header: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     marginBottom: 0,
     paddingBlockEnd: 16,
     paddingBlockStart: 12,
@@ -108,25 +109,25 @@ const styles = stylex.create({
   headerText: { minWidth: 0 },
   hint: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 12,
     gap: 8,
     margin: 0,
   },
   dot: {
-    backgroundColor: "var(--color-memora-olive-soft)",
+    backgroundColor: tokens.oliveSoft,
     borderRadius: 9999,
     height: 6,
     width: 6,
   },
   timestamp: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     flexShrink: 0,
     fontSize: 12,
     fontVariantNumeric: "tabular-nums",
   },
-  content: { color: "var(--color-memora-text)", fontSize: 16, lineHeight: 1.95, width: "100%" },
+  content: { color: tokens.text, fontSize: 16, lineHeight: 1.95, width: "100%" },
 });
 
 interface TranscriptSidebarProps {

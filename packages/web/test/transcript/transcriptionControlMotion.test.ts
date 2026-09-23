@@ -135,10 +135,14 @@ test("uses a restrained shadow for the idle start button", () => {
     "utf8",
   );
 
-  expect(controlsSource).toContain('boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)"');
+  expect(controlsSource).toContain("boxShadow: tokens.shadowSmall");
   expect(controlsSource).not.toContain("0 14px 30px rgb(220 38 38 / 0.24)");
-  expect(controlsSource).toContain('backgroundColor: "rgb(248 113 113 / 0.16)"');
-  expect(controlsSource).toContain('borderColor: "rgb(248 113 113 / 0.55)"');
+  expect(controlsSource).toContain(
+    "color-mix(in srgb, ${tokens.recordBackground} 16%, transparent)",
+  );
+  expect(controlsSource).toContain(
+    "color-mix(in srgb, ${tokens.recordBackground} 55%, transparent)",
+  );
 });
 
 test("does not let the overlay rail swallow clicks meant for settings", () => {

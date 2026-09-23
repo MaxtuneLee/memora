@@ -100,6 +100,7 @@ import {
   exportWysiwygMarkdown,
   importWysiwygMarkdown,
 } from "@/lib/editor/wysiwygMarkdownConfig";
+import { tokens } from "../../styles/stylex.stylex";
 
 export interface WysiwygDocumentEditorHandle {
   insertTable: () => void;
@@ -116,15 +117,14 @@ const PLACEHOLDER = "Start writing...";
 const CODE_BLOCK_WITH_FENCES_STYLE =
   "margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0.25rem; padding-bottom: 0.25rem;";
 
-const EDITABLE_LINK_LABEL_SOURCE_STYLE =
-  "color: var(--color-memora-olive-text); text-decoration-line: underline; text-decoration-color: color-mix(in srgb, var(--color-memora-olive-text) 58%, transparent); text-underline-offset: 2px;";
-const EDITABLE_LINK_MARKER_SOURCE_STYLE = "color: var(--color-memora-text-muted);";
+const EDITABLE_LINK_LABEL_SOURCE_STYLE = `color: ${tokens.oliveText}; text-decoration-line: underline; text-decoration-color: color-mix(in srgb, ${tokens.oliveText} 58%, transparent); text-underline-offset: 2px;`;
+const EDITABLE_LINK_MARKER_SOURCE_STYLE = `color: ${tokens.textMuted};`;
 
 const editorStyles = stylex.create({
   codeBlock: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "0.75rem",
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "block",
     fontFamily: "monospace",
     fontSize: "0.875rem",
@@ -135,7 +135,7 @@ const editorStyles = stylex.create({
     paddingInline: "1rem",
   },
   h1: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "2.25rem",
     fontWeight: 600,
     letterSpacing: "-0.03em",
@@ -144,7 +144,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h2: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1.5rem",
     fontWeight: 600,
     letterSpacing: "-0.02em",
@@ -154,7 +154,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h3: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1.25rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
@@ -163,7 +163,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h4: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1.125rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
@@ -172,7 +172,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h5: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1rem",
     fontWeight: 600,
     lineHeight: "1.5rem",
@@ -181,7 +181,7 @@ const editorStyles = stylex.create({
     scrollMarginTop: "1rem",
   },
   h6: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     fontWeight: 600,
     letterSpacing: "0.14em",
@@ -195,34 +195,34 @@ const editorStyles = stylex.create({
   horizontalRule: {
     borderBottomWidth: 0,
     borderInlineWidth: 0,
-    borderTopColor: "var(--color-memora-border-soft)",
+    borderTopColor: tokens.borderSoft,
     borderTopStyle: "solid",
     borderTopWidth: 1,
     marginBlock: "1.5rem",
   },
   link: {
-    color: "var(--color-memora-olive-text)",
-    textDecorationColor: "color-mix(in srgb, var(--color-memora-olive-text) 58%, transparent)",
+    color: tokens.oliveText,
+    textDecorationColor: `color-mix(in srgb, ${tokens.oliveText} 58%, transparent)`,
     textDecorationLine: "underline",
     textUnderlineOffset: 2,
   },
   list: { marginBlock: "1rem", marginLeft: "1.5rem" },
   checklist: { listStyleType: "none" },
-  listItem: { color: "var(--color-memora-text)", lineHeight: "1.75rem", marginBlock: "0.25rem" },
+  listItem: { color: tokens.text, lineHeight: "1.75rem", marginBlock: "0.25rem" },
   checkedItem: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     listStyleType: "none",
     paddingLeft: "1.75rem",
     position: "relative",
     textDecorationLine: "line-through",
     "::before": {
       alignItems: "center",
-      backgroundColor: "var(--color-memora-primary)",
-      borderColor: "var(--color-memora-border-soft)",
+      backgroundColor: tokens.primaryBackground,
+      borderColor: tokens.borderSoft,
       borderRadius: "0.375rem",
       borderStyle: "solid",
       borderWidth: 1,
-      color: "var(--color-memora-primary-text)",
+      color: tokens.primaryText,
       content: '"✓"',
       display: "flex",
       fontSize: "0.6875rem",
@@ -235,13 +235,13 @@ const editorStyles = stylex.create({
     },
   },
   uncheckedItem: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     listStyleType: "none",
     paddingLeft: "1.75rem",
     position: "relative",
     "::before": {
-      backgroundColor: "var(--color-memora-surface)",
-      borderColor: "var(--color-memora-border-soft)",
+      backgroundColor: tokens.surface,
+      borderColor: tokens.borderSoft,
       borderRadius: "0.375rem",
       borderStyle: "solid",
       borderWidth: 1,
@@ -256,29 +256,29 @@ const editorStyles = stylex.create({
   nestedList: { marginTop: "0.5rem" },
   orderedList: {
     listStyleType: "decimal",
-    "::marker": { color: "var(--color-memora-text-soft)" },
+    "::marker": { color: tokens.textSoft },
   },
   unorderedList: {
     listStyleType: "disc",
-    "::marker": { color: "var(--color-memora-text-soft)" },
+    "::marker": { color: tokens.textSoft },
   },
   paragraph: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     lineHeight: "1.75rem",
     marginBottom: "0.75rem",
   },
   quote: {
-    borderLeftColor: "var(--color-memora-border-soft)",
+    borderLeftColor: tokens.borderSoft,
     borderLeftStyle: "solid",
     borderLeftWidth: 2,
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontStyle: "italic",
     paddingLeft: "1rem",
   },
   editorRoot: { minHeight: 420, padding: 0, position: "relative" },
   table: { borderCollapse: "collapse", fontSize: "0.875rem", lineHeight: "1.25rem", width: "100%" },
   tableCell: {
-    borderColor: "var(--color-memora-border-soft)",
+    borderColor: tokens.borderSoft,
     borderStyle: "solid",
     borderWidth: 1,
     paddingBlock: "0.5rem",
@@ -286,15 +286,15 @@ const editorStyles = stylex.create({
     verticalAlign: "top",
   },
   tableHeader: {
-    backgroundColor: "var(--color-memora-surface-muted)",
-    color: "var(--color-memora-text)",
+    backgroundColor: tokens.surfaceMuted,
+    color: tokens.text,
     fontWeight: 600,
   },
   alignTop: { verticalAlign: "top" },
   horizontalScroll: { overflowX: "auto" },
   bold: { fontWeight: 600 },
   inlineCode: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "0.25rem",
     fontFamily: "monospace",
     fontSize: "0.92em",
@@ -307,13 +307,13 @@ const editorStyles = stylex.create({
   fullWidth: { width: "100%" },
   editorContainer: { position: "relative" },
   contentEditable: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     lineHeight: "1.75rem",
     minHeight: 420,
     outline: "none",
   },
   placeholder: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     left: 0,
     lineHeight: "1.75rem",
     pointerEvents: "none",
@@ -1067,7 +1067,7 @@ const activateEditableMarkdownSource = (node: LexicalNode): EditableMarkdownSour
     const sourceText = getImageMarkdownSourceText(node.getAltText(), node.getSrc(), node.getHref());
     const sourceTextNode = $createTextNode(sourceText);
     sourceTextNode.setFormat(IS_CODE);
-    sourceTextNode.setStyle("color: var(--color-memora-text);");
+    sourceTextNode.setStyle(`color: ${tokens.text};`);
     const paragraphNode = $createParagraphNode();
     paragraphNode.append(sourceTextNode);
     node.insertBefore(paragraphNode);
@@ -1135,7 +1135,7 @@ const activateEditableMarkdownSource = (node: LexicalNode): EditableMarkdownSour
     if (node.getDisplayMode()) {
       const sourceTextNode = $createTextNode(sourceText);
       sourceTextNode.setFormat(IS_CODE);
-      sourceTextNode.setStyle("color: var(--color-memora-text);");
+      sourceTextNode.setStyle(`color: ${tokens.text};`);
       const paragraphNode = $createParagraphNode();
       paragraphNode.append(sourceTextNode);
       node.insertBefore(paragraphNode);
@@ -1430,7 +1430,7 @@ export const prependMarkdownSourcePrefix = (
     ? getMarkdownHeadingPrefix(node)
     : getMarkdownListItemPrefix(node);
   const prefixNode = $createTextNode(prefix);
-  prefixNode.setStyle("color: var(--color-memora-text-muted);");
+  prefixNode.setStyle(`color: ${tokens.textMuted};`);
   const shouldSelectAfterPrefix =
     node.getTextContentSize() === 0 && getCollapsedSelectionTextOffsetInNode(node) === 0;
   const firstChild = node.getFirstChild();

@@ -15,17 +15,18 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panelStack: { display: "flex", flexDirection: "column", gap: 20 },
   heading: { display: "flex", flexDirection: "column", gap: 8 },
   warning: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    border: "1px solid var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    border: `1px solid ${tokens.warningBorder}`,
   },
   warningRow: { alignItems: "flex-start", display: "flex", gap: 12 },
   warningIcon: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     flexShrink: 0,
     height: 16,
     marginTop: 2,
@@ -33,13 +34,13 @@ const styles = stylex.create({
   },
   warningBody: { minWidth: 0 },
   warningTitle: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: 14,
     fontWeight: 600,
     margin: 0,
   },
   warningText: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: 14,
     lineHeight: "24px",
     marginTop: 4,
@@ -49,7 +50,7 @@ const styles = stylex.create({
   optionRow: { display: "flex", flexWrap: "wrap", gap: 8 },
   inputMargin: { marginTop: 8 },
   softHelp: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: 12,
     lineHeight: "20px",
     marginTop: 8,
@@ -63,8 +64,8 @@ const styles = stylex.create({
     },
   },
   inputRow: { alignItems: "center", display: "flex", gap: 8, marginTop: 8 },
-  unit: { color: "var(--color-memora-text-soft)", fontSize: 14 },
-  preview: { color: "var(--color-memora-text)", margin: 0 },
+  unit: { color: tokens.textSoft, fontSize: 14 },
+  preview: { color: tokens.text, margin: 0 },
 });
 
 const DEFAULT_NOTE_LOCATION_OPTIONS = [

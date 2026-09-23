@@ -3,11 +3,12 @@ import { Button } from "@base-ui/react/button";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router";
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   button: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     cursor: "pointer",
     display: "inline-flex",
     fontSize: 14,
@@ -17,7 +18,7 @@ const styles = stylex.create({
     paddingInline: 0,
     transition: "color 150ms",
     userSelect: "none",
-    ":hover": { color: "var(--color-memora-text-strong)" },
+    ":hover": { color: tokens.textStrong },
   },
   icon: { transition: "transform 200ms var(--ease-out-quart)" },
 });

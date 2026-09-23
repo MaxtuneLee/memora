@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/Input";
 import { usePersonalizationProfile } from "@/hooks/settings/usePersonalizationProfile";
 import { useMemorySettings } from "@/hooks/settings/useMemorySettings";
 import { formatMemoryTimestamp } from "@/lib/settings/dialogHelpers";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 16 },
@@ -29,10 +30,10 @@ const styles = stylex.create({
   fullColumn: { "@media (min-width: 640px)": { gridColumn: "span 2 / span 2" } },
   inputMargin: { marginTop: 8 },
   textarea: {
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 16,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: 14,
     marginTop: 20,
     outline: "none",
@@ -42,10 +43,10 @@ const styles = stylex.create({
     transitionProperty: "background-color, border-color, box-shadow",
     transitionTimingFunction: "var(--ease-out-quart)",
     width: "100%",
-    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    "::placeholder": { color: tokens.textSoft },
     ":focus": {
-      borderColor: "var(--color-memora-olive-soft)",
-      boxShadow: "0 0 0 1px var(--color-memora-olive-soft)",
+      borderColor: tokens.oliveSoft,
+      boxShadow: `0 0 0 1px ${tokens.oliveSoft}`,
     },
   },
   noticeHeader: {
@@ -62,8 +63,8 @@ const styles = stylex.create({
   notices: { display: "flex", flexDirection: "column", gap: 12, marginTop: 20 },
   notice: { alignItems: "flex-start", display: "flex", gap: 12 },
   noticeBody: { flex: 1, minWidth: 0 },
-  noticeText: { color: "var(--color-memora-text)", fontSize: 14, lineHeight: "24px", margin: 0 },
-  timestamp: { color: "var(--color-memora-text-soft)", fontSize: 11, marginTop: 8 },
+  noticeText: { color: tokens.text, fontSize: 14, lineHeight: "24px", margin: 0 },
+  timestamp: { color: tokens.textSoft, fontSize: 11, marginTop: 8 },
   icon: { height: 16, width: 16 },
   insetMargin: { marginTop: 20 },
 });

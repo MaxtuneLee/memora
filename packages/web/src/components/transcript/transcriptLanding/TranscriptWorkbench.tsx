@@ -6,17 +6,18 @@ import type { RecordingItem } from "@/types/library";
 
 import { TranscriptHistoryRow } from "./TranscriptHistoryRow";
 import type { TranscriptHistoryRowState } from "./transcriptLandingState";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: {
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border-soft)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.borderSoft}`,
     borderRadius: "1.55rem",
-    boxShadow: "var(--shadow-sm-soft)",
+    boxShadow: tokens.shadowSmall,
     overflow: "hidden",
   },
   header: { paddingBlock: 16, paddingInline: 20 },
-  title: { color: "var(--color-memora-text)", fontSize: "17px", fontWeight: 700 },
+  title: { color: tokens.text, fontSize: "17px", fontWeight: 700 },
   empty: {
     alignItems: "center",
     display: "flex",
@@ -26,8 +27,8 @@ const styles = stylex.create({
     paddingInline: 20,
   },
   emptyCopy: { display: "flex", flexDirection: "column", gap: 12, textAlign: "center" },
-  emptyIcon: { color: "var(--color-memora-text-soft)", fontSize: "1.95rem", lineHeight: 1 },
-  emptyTitle: { color: "var(--color-memora-text)", fontSize: "0.875rem", fontWeight: 600 },
+  emptyIcon: { color: tokens.textSoft, fontSize: "1.95rem", lineHeight: 1 },
+  emptyTitle: { color: tokens.text, fontSize: "0.875rem", fontWeight: 600 },
 });
 
 interface TranscriptWorkbenchItem {

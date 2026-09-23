@@ -1,25 +1,23 @@
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
+import { page } from "vitest/browser";
 
 import { TranscriptionControls } from "@/components/transcript/TranscriptionControls";
 import { TranscriptWords } from "@/components/library/TranscriptWords";
 import { WaveformCanvas } from "@/components/library/waveform/WaveformCanvas";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
 
+import { luminance, textContrast } from "./colorContrast";
+import {
+  DESKTOP_VIEWPORT,
+  emulateReducedMotion,
+  expectScreenshot,
+  loadAppFonts,
+  NARROW_VIEWPORT,
+} from "./visual";
+
 // Computed-style checks only, matching the sharedControlsTheme pattern: no assertions on
 // generated StyleX class names or exact hex values (those may be re-tuned independently).
-const luminance = (color: string): number => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  const [r, g, b] = channels.map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
 
 // The future word reuses the active word's hue faded toward transparent (color-mix), so it is
 // the alpha channel -- not the RGB -- that distinguishes it. rgb(...) has no 4th value (opaque).
@@ -129,4 +127,69 @@ describe.each(["light", "dark"] as const)("transcript and media theming in %s", 
     expect(alphaOf(getComputedStyle(activeWord).color)).toBeCloseTo(1, 1);
     expect(alphaOf(getComputedStyle(futureWord).color)).toBeLessThan(0.6);
   });
+});
+
+// ASR tokens carry their leading space.
+const REFERENCE_WORDS = [
+  "Quarterly-financial-planning-and-budget-review",
+  " keeps",
+  " every",
+  " recording",
+  "第一季度财务规划与预算审查会议记录",
+  "保存在本设备上",
+].map((text, index) => ({ text, timestamp: [index, index + 1] as [number, number] }));
+
+describe.each(["light", "dark"] as const)("transcript references in %s", (theme) => {
+  it.each([
+    ["desktop", DESKTOP_VIEWPORT],
+    ["narrow", NARROW_VIEWPORT],
+  ] as const)(
+    "matches the %s reference with recording controls, a waveform, and long words",
+    async (size, viewport) => {
+      await page.viewport(viewport.width, viewport.height);
+      await emulateReducedMotion(true);
+      try {
+        document.body.style.backgroundColor = "var(--color-memora-bg)";
+        mount(
+          theme,
+          <div>
+            <WaveformCanvas
+              peaks={[0.3, 0.8, 0.5, 1, 0.6, 0.4, 0.9, 0.2]}
+              progress={1}
+              height={40}
+            />
+            <TranscriptWords words={REFERENCE_WORDS} currentTime={2.5} onSeek={() => {}} />
+            {/* The idle record button pulses; the recording state is static. White on the record
+                color is covered by the semantic token contrast test. */}
+            <TranscriptionControls
+              controlMode="recording"
+              dockedRight={false}
+              showSecondaryControl={false}
+              paused={false}
+              onStart={() => {}}
+              onPause={() => {}}
+              onResume={() => {}}
+              onFinalize={() => {}}
+              isReady
+            />
+          </div>,
+        );
+        host!.style.width = size === "desktop" ? "640px" : "100%";
+        await nextFrame();
+        await loadAppFonts();
+
+        const pause = [...host!.querySelectorAll("button")].find((button) =>
+          button.textContent?.includes("Pause"),
+        );
+        expect(pause).toBeTruthy();
+        expect(textContrast(pause!)).toBeGreaterThanOrEqual(4.5);
+        expect(host!.scrollWidth).toBeLessThanOrEqual(host!.clientWidth + 1);
+        await expectScreenshot(host!, `transcript-${size}-${theme}`);
+      } finally {
+        document.body.removeAttribute("style");
+        await emulateReducedMotion(false);
+        await page.viewport(DESKTOP_VIEWPORT.width, DESKTOP_VIEWPORT.height);
+      }
+    },
+  );
 });

@@ -2,20 +2,21 @@ import type { JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import type { DataSourceCatalogEntry } from "@/lib/widgets/dataSourceCatalog";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   field: { display: "flex", flexDirection: "column", gap: 8 },
-  label: { color: "var(--color-memora-text)", fontSize: 14, fontWeight: 600 },
+  label: { color: tokens.text, fontSize: 14, fontWeight: 600 },
   input: {
-    backgroundColor: "var(--color-memora-surface-soft)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surfaceSoft,
+    border: `1px solid ${tokens.border}`,
     borderRadius: 10,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: 14,
     minHeight: 40,
     paddingBlock: 8,
     paddingInline: 10,
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
   },
 });
 

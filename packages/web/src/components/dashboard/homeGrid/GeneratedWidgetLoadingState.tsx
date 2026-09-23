@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const pulse = stylex.keyframes({
   "0%, 100%": { opacity: 0.32 },
@@ -14,7 +15,7 @@ const reducedPulse = stylex.keyframes({
 const styles = stylex.create({
   root: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexDirection: "column",
     fontSize: 13,
@@ -31,7 +32,7 @@ const styles = stylex.create({
     animationIterationCount: "infinite",
     animationName: pulse,
     animationTimingFunction: "cubic-bezier(0.77, 0, 0.175, 1)",
-    backgroundColor: "var(--color-memora-text-muted)",
+    backgroundColor: tokens.textMuted,
     borderRadius: 9999,
     height: 5,
     width: 5,

@@ -25,6 +25,7 @@ import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries"
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
 import { folderEvents } from "@/livestore/folder";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   missingPage: {
@@ -39,8 +40,8 @@ const styles = stylex.create({
     width: "100%",
   },
   missingCard: {
-    backgroundColor: "var(--color-memora-card)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.card,
+    borderColor: tokens.border,
     borderRadius: "1.5rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -49,13 +50,13 @@ const styles = stylex.create({
     textAlign: "center",
   },
   missingTitle: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1.5rem",
     fontWeight: 600,
     lineHeight: "2rem",
   },
   missingDescription: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",
@@ -63,13 +64,13 @@ const styles = stylex.create({
   backButton: {
     backgroundColor: {
       default: "transparent",
-      ":hover": "var(--color-memora-hover)",
+      ":hover": tokens.hover,
     },
-    borderColor: "var(--color-memora-border)",
+    borderColor: tokens.border,
     borderRadius: "0.5rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "1rem",
@@ -79,8 +80,8 @@ const styles = stylex.create({
     transitionProperty: "background-color",
   },
   page: {
-    backgroundColor: "var(--color-memora-canvas)",
-    color: "var(--color-memora-text)",
+    backgroundColor: tokens.canvas,
+    color: tokens.text,
     minHeight: "100vh",
     paddingBlock: "1rem",
     paddingInline: "1.25rem",
@@ -99,27 +100,27 @@ const styles = stylex.create({
     width: "100%",
   },
   loading: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     paddingBlock: "2.5rem",
     paddingInline: "0.25rem",
   },
   loadError: {
-    borderLeftColor: "var(--color-memora-warning-border)",
+    borderLeftColor: tokens.warningBorder,
     borderLeftStyle: "solid",
     borderLeftWidth: 1,
     paddingBlock: "1rem",
     paddingInline: "1.25rem",
   },
   loadErrorTitle: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1.125rem",
     fontWeight: 600,
     lineHeight: "1.75rem",
   },
   loadErrorDescription: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",
@@ -138,8 +139,8 @@ const styles = stylex.create({
     transitionDuration: "150ms",
   },
   retryButton: {
-    backgroundColor: "var(--color-memora-text)",
-    color: "var(--color-memora-canvas)",
+    backgroundColor: tokens.text,
+    color: tokens.canvas,
     transitionProperty: "opacity",
     ":hover": {
       opacity: 0.9,
@@ -148,11 +149,11 @@ const styles = stylex.create({
   errorBackButton: {
     backgroundColor: {
       default: "transparent",
-      ":hover": "var(--color-memora-hover)",
+      ":hover": tokens.hover,
     },
     color: {
-      default: "var(--color-memora-text-muted)",
-      ":hover": "var(--color-memora-text)",
+      default: tokens.textMuted,
+      ":hover": tokens.text,
     },
     transitionProperty: "color, background-color",
   },

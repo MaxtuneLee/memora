@@ -2,6 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 
 import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/MemoraMascot";
+import { tokens } from "../../styles/stylex.stylex";
 
 const STATES: MemoraMascotState[] = ["idle", "listening", "thinking", "speaking", "asleep"];
 
@@ -14,22 +15,22 @@ const MASCOT_FRAME_RING = "#ddd1c1";
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: "2rem" },
   section: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
     padding: "1.5rem",
   },
   title: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontFamily: '"IBM Plex Serif", serif',
     fontSize: "1.125rem",
     fontWeight: 500,
     lineHeight: "1.75rem",
   },
   description: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.25rem",
@@ -58,14 +59,14 @@ const styles = stylex.create({
   stateButton: {
     alignItems: "center",
     backgroundColor: {
-      default: "var(--color-memora-surface)",
-      ":hover": "var(--color-memora-hover)",
+      default: tokens.surface,
+      ":hover": tokens.hover,
     },
-    borderColor: "var(--color-memora-border)",
+    borderColor: tokens.border,
     borderRadius: "0.75rem",
     borderStyle: "solid",
     borderWidth: 1,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -75,9 +76,9 @@ const styles = stylex.create({
     paddingInline: "1rem",
     transition: "background-color 150ms, border-color 150ms, color 150ms",
     "[data-active]": {
-      backgroundColor: "color-mix(in srgb, var(--color-memora-olive-soft) 10%, transparent)",
-      borderColor: "var(--color-memora-olive-soft)",
-      color: "var(--color-memora-text-strong)",
+      backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 10%, transparent)`,
+      borderColor: tokens.oliveSoft,
+      color: tokens.textStrong,
     },
   },
   dashed: { borderStyle: "dashed" },
@@ -92,8 +93,8 @@ const styles = stylex.create({
   },
   stateCard: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "1rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -115,7 +116,7 @@ const styles = stylex.create({
   },
   stateMascot: { height: "4rem", width: "4rem" },
   stateLabel: {
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     fontSize: "0.875rem",
     fontWeight: 500,
     lineHeight: "1.25rem",

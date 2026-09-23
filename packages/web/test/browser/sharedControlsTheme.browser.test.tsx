@@ -11,42 +11,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
 import { TabSelect } from "@/components/ui/TabSelect";
+import { resolveThemeColors } from "@/hooks/theme/useThemeColorVars";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
+import { tokens } from "@/styles/stylex.stylex";
+import { luminance, contrast, backgroundOf, textContrast } from "./colorContrast";
 
 // Computed-style checks only: no assertions on generated StyleX class names.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-// Walks up to the first opaque background, the color the text is actually drawn on.
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 const ShowToast = () => {
   const { add } = Toast.useToastManager();
@@ -189,5 +159,57 @@ describe.each(["light", "dark"] as const)("shared controls in %s", (theme) => {
     expect(contrast(ring, getComputedStyle(document.body).backgroundColor)).toBeGreaterThanOrEqual(
       3,
     );
+  });
+});
+
+// Semantic pairs every component relies on, checked on the resolved tokens so a retuned value
+// cannot silently drop below target. Text and status text need 4.5:1; focus rings are non-text
+// indicators and need 3:1 against the surfaces they sit on. textSoft and the disabled control text
+// are for placeholders, metadata, and disabled states, and are not listed.
+const TEXT_PAIRS = [
+  ...(["text", "textStrong", "textMuted"] as const).flatMap((ink) =>
+    (["background", "surface", "surfaceSoft", "surfaceMuted", "card"] as const).map(
+      (surface) => [ink, surface] as const,
+    ),
+  ),
+  ["oliveText", "background"],
+  ["oliveText", "surface"],
+  ["oliveText", "selected"],
+  ["primaryText", "primaryBackground"],
+  ["selectionText", "selectionBackground"],
+  ["warningText", "warningSurface"],
+  ["dangerText", "dangerSurface"],
+  ["successText", "successSurface"],
+  ["infoText", "infoSurface"],
+  ["actionText", "recordBackground"],
+  ["actionText", "recordBackgroundHover"],
+  ["actionText", "confirmBackground"],
+  ["actionText", "confirmBackgroundHover"],
+] as const;
+
+const FOCUS_PAIRS = [
+  ["focusRing", "background"],
+  ["focusRing", "surface"],
+  ["focusRing", "card"],
+] as const;
+
+describe.each(["light", "dark"] as const)("semantic token contrast in %s", (theme) => {
+  it("keeps text, status, and action text at 4.5:1 and focus rings at 3:1", () => {
+    applyDocumentTheme(theme);
+    const names = [...new Set([...TEXT_PAIRS, ...FOCUS_PAIRS].flat())];
+    // Each token is a var(--name) string at runtime.
+    const colors = resolveThemeColors(
+      Object.fromEntries(names.map((name) => [name, String(tokens[name])])),
+    );
+    for (const [ink, surface] of TEXT_PAIRS) {
+      expect
+        .soft(contrast(colors[ink], colors[surface]), `${ink} on ${surface}`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    for (const [ring, surface] of FOCUS_PAIRS) {
+      expect
+        .soft(contrast(colors[ring], colors[surface]), `${ring} on ${surface}`)
+        .toBeGreaterThanOrEqual(3);
+    }
   });
 });

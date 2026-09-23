@@ -5,10 +5,11 @@ import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { normalizeLocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 import FeatureModelSettings from "./FeatureModelSettings";
 import { SETTINGS_PANEL_CLASS_NAME } from "./settingsClassNames";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   metrics: {
-    borderBottom: "1px solid var(--color-memora-border)",
+    borderBottom: `1px solid ${tokens.border}`,
     display: "flex",
     flexDirection: "column",
     gap: 8,
@@ -22,9 +23,9 @@ const styles = stylex.create({
     gap: 16,
     justifyContent: "space-between",
   },
-  label: { color: "var(--color-memora-text-muted)" },
+  label: { color: tokens.textMuted },
   value: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontVariantNumeric: "tabular-nums",
     fontWeight: 600,
   },

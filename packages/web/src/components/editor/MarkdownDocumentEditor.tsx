@@ -27,6 +27,7 @@ import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/componen
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
 import { getFileExtension } from "@/lib/editor/editableTextDocument";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
+import { tokens } from "../../styles/stylex.stylex";
 
 type EditorMode = "source" | "wysiwyg";
 
@@ -49,8 +50,8 @@ const styles = stylex.create({
   backButton: {
     alignItems: "center",
     color: {
-      default: "var(--color-memora-text-muted)",
-      ":hover": "var(--color-memora-text-strong)",
+      default: tokens.textMuted,
+      ":hover": tokens.textStrong,
     },
     display: "inline-flex",
     fontSize: "0.875rem",
@@ -63,9 +64,9 @@ const styles = stylex.create({
   },
   backIcon: { height: "1.125rem", width: "1.125rem" },
   modeSwitch: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "9999px",
-    boxShadow: "inset 0 0 0 1px var(--color-memora-border-soft)",
+    boxShadow: `inset 0 0 0 1px ${tokens.borderSoft}`,
     display: "inline-flex",
     justifySelf: { default: "start", "@media (min-width: 768px)": "center" },
     padding: "0.25rem",
@@ -73,7 +74,7 @@ const styles = stylex.create({
   modeButton: {
     alignItems: "center",
     borderRadius: "9999px",
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
     display: "inline-flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -82,12 +83,12 @@ const styles = stylex.create({
     lineHeight: "1.25rem",
     paddingInline: "0.75rem",
     transition: "background-color 200ms, color 200ms, box-shadow 200ms",
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
   },
   modeButtonActive: {
-    backgroundColor: "var(--color-memora-canvas)",
+    backgroundColor: tokens.canvas,
     boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-    color: "var(--color-memora-text)",
+    color: tokens.text,
   },
   icon: { height: "1rem", width: "1rem" },
   headerEnd: {
@@ -99,10 +100,10 @@ const styles = stylex.create({
   menuTrigger: {
     alignItems: "center",
     backgroundColor: {
-      default: "var(--color-memora-surface)",
-      ":hover": "var(--color-memora-hover)",
+      default: tokens.surface,
+      ":hover": tokens.hover,
     },
-    borderColor: "var(--color-memora-border)",
+    borderColor: tokens.border,
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: 1,
@@ -111,15 +112,15 @@ const styles = stylex.create({
     paddingBlock: "0.375rem",
     paddingInline: "0.625rem",
     "[data-open='true']": {
-      backgroundColor: "var(--color-memora-hover)",
-      borderColor: "var(--color-memora-border-strong)",
+      backgroundColor: tokens.hover,
+      borderColor: tokens.borderStrong,
     },
   },
   menuTriggerIconFrame: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "9999px",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexShrink: 0,
     height: "1.75rem",
@@ -129,13 +130,13 @@ const styles = stylex.create({
   },
   menuLargeIcon: { height: "18px", width: "18px" },
   menuTriggerLabel: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "0.875rem",
     fontWeight: 600,
     lineHeight: "1.25rem",
   },
   caret: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     flexShrink: 0,
     height: "0.875rem",
     width: "0.875rem",
@@ -144,7 +145,7 @@ const styles = stylex.create({
   menuItem: {
     alignItems: "center",
     borderRadius: "1rem",
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "flex",
     fontSize: "0.875rem",
     gap: "0.75rem",
@@ -152,14 +153,14 @@ const styles = stylex.create({
     textAlign: "left",
     transition: "background-color 300ms",
     width: "100%",
-    ":hover": { backgroundColor: "var(--color-memora-hover)" },
+    ":hover": { backgroundColor: tokens.hover },
     ":disabled": { cursor: "not-allowed", opacity: 0.4 },
   },
   menuItemIcon: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: "9999px",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexShrink: 0,
     height: "2.25rem",
@@ -168,7 +169,7 @@ const styles = stylex.create({
   },
   menuItemCopy: { minWidth: 0 },
   menuItemTitle: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     display: "block",
     fontSize: "14px",
     fontWeight: 600,
@@ -177,7 +178,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   menuItemDescription: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "block",
     fontSize: "13px",
     lineHeight: "1.25rem",
@@ -185,16 +186,16 @@ const styles = stylex.create({
   },
   saveStatus: {
     alignItems: "center",
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     display: "flex",
     fontSize: "0.875rem",
     gap: "0.75rem",
     lineHeight: "1.25rem",
   },
-  warningText: { color: "var(--color-memora-warning-text)" },
+  warningText: { color: tokens.warningText },
   titleInput: {
     backgroundColor: "transparent",
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "2.25rem",
     fontWeight: 600,
     letterSpacing: "-0.03em",
@@ -204,21 +205,21 @@ const styles = stylex.create({
     outline: "none",
     transition: "color 200ms",
     width: "100%",
-    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    "::placeholder": { color: tokens.textSoft },
     ":focus-visible": { outline: "none" },
   },
   titleError: {
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginTop: "0.5rem",
   },
   notice: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    borderLeftColor: "var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    borderLeftColor: tokens.warningBorder,
     borderLeftStyle: "solid",
     borderLeftWidth: 1,
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     paddingBlock: "0.75rem",

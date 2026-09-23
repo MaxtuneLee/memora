@@ -100,9 +100,7 @@ export function StorageWidget() {
               <span
                 {...stylex.props(styles.dot)}
                 style={{
-                  backgroundColor: isStoragePersistent
-                    ? "var(--color-memora-olive)"
-                    : "var(--color-memora-warning-text)",
+                  backgroundColor: isStoragePersistent ? tokens.olive : tokens.warningText,
                 }}
               />
               {isStoragePersistent ? "Persistent" : "Temporary"}

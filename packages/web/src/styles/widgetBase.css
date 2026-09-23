@@ -70,13 +70,13 @@
   --widget-focus-ring: 0 0 0 3px rgba(167, 175, 143, 0.28);
   --widget-range-track-height: 6px;
   --widget-range-thumb-size: 16px;
-  --widget-thumb-shadow: 0 1px 2px rgba(29, 28, 26, 0.12);
+  --widget-thumb-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
   --widget-button-background: #fffdfa;
   --widget-button-background-hover: #faf7f0;
   --widget-button-text: #1d1c1a;
   --widget-button-border: #eae6df;
   --widget-button-border-hover: #ded7cc;
-  --widget-button-shadow: 0 1px 1px rgba(29, 28, 26, 0.03);
+  --widget-button-shadow: 0 1px 1px rgb(0 0 0 / 0.03);
   --widget-range-track: #e8e1d5;
   --widget-range-fill: #7b875a;
   --widget-range-thumb-background: #fffdfa;

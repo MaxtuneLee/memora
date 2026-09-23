@@ -10,16 +10,17 @@ import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
 import type { JSX, KeyboardEvent, MouseEvent } from "react";
 import katex from "katex";
 import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   displayDom: { marginBlock: 16, overflowX: "auto", paddingBlock: 8, textAlign: "center" },
   inlineDom: { display: "inline-block", verticalAlign: "baseline" },
   sourceBlock: { display: "flex", flexDirection: "column", gap: 8, marginBlock: 16 },
   code: {
-    backgroundColor: "var(--color-memora-surface-muted)",
-    border: "1px solid var(--color-memora-border-soft)",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.borderSoft}`,
     borderRadius: 12,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "block",
     fontFamily: "monospace",
     fontSize: 14,
@@ -28,11 +29,11 @@ const styles = stylex.create({
     textAlign: "left",
     whiteSpace: "pre-wrap",
   },
-  text: { color: "var(--color-memora-text)" },
+  text: { color: tokens.text },
   inlineSource: {
-    backgroundColor: "var(--color-memora-surface-muted)",
+    backgroundColor: tokens.surfaceMuted,
     borderRadius: 6,
-    color: "var(--color-memora-text)",
+    color: tokens.text,
     display: "inline-block",
     fontFamily: "monospace",
     fontSize: "0.92em",

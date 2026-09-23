@@ -7,6 +7,7 @@ import type {
   Spread,
 } from "lexical";
 import { LinkNode, type LinkAttributes, type SerializedLinkNode } from "@lexical/link";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const MARKDOWN_LINK_PREFIX_ATTR = "data-markdown-link-prefix";
 const MARKDOWN_LINK_SUFFIX_ATTR = "data-markdown-link-suffix";
@@ -47,7 +48,7 @@ const updateMarkdownLinkDOM = (
   prefix.setAttribute(MARKDOWN_LINK_PREFIX_ATTR, "true");
   prefix.contentEditable = "false";
   prefix.textContent = "[";
-  prefix.style.color = "var(--color-memora-text-soft)";
+  prefix.style.color = tokens.textSoft;
   prefix.style.font = "inherit";
   prefix.style.letterSpacing = "inherit";
   prefix.style.lineHeight = "inherit";
@@ -60,7 +61,7 @@ const updateMarkdownLinkDOM = (
   suffix.setAttribute(MARKDOWN_LINK_SUFFIX_ATTR, "true");
   suffix.contentEditable = "false";
   suffix.textContent = getMarkdownLinkSuffixText(url, title);
-  suffix.style.color = "var(--color-memora-text-muted)";
+  suffix.style.color = tokens.textMuted;
   suffix.style.font = "inherit";
   suffix.style.letterSpacing = "inherit";
   suffix.style.lineHeight = "inherit";
@@ -77,7 +78,7 @@ const updateMarkdownLinkDOM = (
   }
 
   element.setAttribute("data-active-markdown-source", "true");
-  element.style.color = "var(--color-memora-olive-text)";
+  element.style.color = tokens.oliveText;
 };
 
 export type SerializedMarkdownLinkNode = Spread<

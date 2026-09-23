@@ -8,6 +8,7 @@ import {
   SETTINGS_SECTION_BODY_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import { listBuiltInSkills } from "@/lib/skills/builtInSkills";
+import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 16 },
@@ -23,14 +24,14 @@ const styles = stylex.create({
     },
   },
   detail: { flex: 1, minWidth: 0 },
-  title: { color: "var(--color-memora-text-strong)", fontSize: 14, fontWeight: 600, margin: 0 },
+  title: { color: tokens.textStrong, fontSize: 14, fontWeight: 600, margin: 0 },
   description: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: 14,
     lineHeight: "24px",
     marginTop: 4,
   },
-  count: { color: "var(--color-memora-text-soft)", flexShrink: 0, fontSize: 12 },
+  count: { color: tokens.textSoft, flexShrink: 0, fontSize: 12 },
 });
 
 export default function SettingsSkillsSection() {

@@ -18,6 +18,7 @@ import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 
 import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   frame: { minHeight: 128, position: "relative" },
@@ -34,10 +35,10 @@ const styles = stylex.create({
   iframeLoading: { pointerEvents: "none" },
   error: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-warning-surface)",
-    border: "1px solid var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    border: `1px solid ${tokens.warningBorder}`,
     borderRadius: 16,
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
     display: "flex",
     fontSize: 14,
     justifyContent: "center",

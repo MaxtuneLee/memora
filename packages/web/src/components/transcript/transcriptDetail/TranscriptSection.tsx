@@ -13,11 +13,12 @@ import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
 import { formatDuration } from "@/lib/format";
 import type { TranscriptSearchMatch } from "@/lib/transcript/transcriptSearchExport";
 import type { RecordingWord, TranscriptDiagnostics } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
     borderRadius: "2rem",
     borderStyle: "solid",
     borderWidth: 1,
@@ -37,9 +38,9 @@ const styles = stylex.create({
   },
   search: {
     alignItems: "center",
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "9999px",
-    boxShadow: "0 0 0 1px var(--color-memora-border-soft)",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
     display: "flex",
     flex: 1,
     fontSize: "0.875rem",
@@ -49,15 +50,15 @@ const styles = stylex.create({
     paddingBlock: "0.75rem",
     paddingInline: "1rem",
   },
-  searchIcon: { color: "var(--color-memora-text-soft)", height: "1rem", width: "1rem" },
+  searchIcon: { color: tokens.textSoft, height: "1rem", width: "1rem" },
   searchInput: {
     backgroundColor: "transparent",
-    color: { default: "var(--color-memora-text)", ":disabled": "var(--color-memora-text-soft)" },
+    color: { default: tokens.text, ":disabled": tokens.textSoft },
     cursor: { default: "text", ":disabled": "not-allowed" },
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     width: "100%",
-    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    "::placeholder": { color: tokens.textSoft },
     ":focus": { outline: "none" },
   },
   toolbarActions: {
@@ -70,7 +71,7 @@ const styles = stylex.create({
   textButton: {
     alignItems: "center",
     backgroundColor: "transparent",
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
     display: "flex",
     fontSize: "0.75rem",
     fontWeight: 500,
@@ -87,7 +88,7 @@ const styles = stylex.create({
   navigationButton: {
     alignItems: "center",
     backgroundColor: "transparent",
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
     display: "flex",
     height: "2rem",
     justifyContent: "center",
@@ -100,7 +101,7 @@ const styles = stylex.create({
   nextButton: { ":hover": { transform: "translateY(0.125rem)" } },
   searchStatus: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     flexWrap: "wrap",
     fontSize: "0.75rem",
@@ -108,7 +109,7 @@ const styles = stylex.create({
     lineHeight: "1rem",
   },
   truncated: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  hint: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem", lineHeight: "1rem" },
+  hint: { color: tokens.textSoft, fontSize: "0.75rem", lineHeight: "1rem" },
   emptyContent: {
     display: "flex",
     flex: 1,
@@ -117,10 +118,10 @@ const styles = stylex.create({
     paddingTop: "1rem",
   },
   warning: {
-    backgroundColor: "var(--color-memora-warning-surface)",
+    backgroundColor: tokens.warningSurface,
     borderRadius: "1.25rem",
-    boxShadow: "0 0 0 1px var(--color-memora-warning-border)",
-    color: "var(--color-memora-warning-text)",
+    boxShadow: `0 0 0 1px ${tokens.warningBorder}`,
+    color: tokens.warningText,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
     marginBottom: "1rem",
@@ -128,17 +129,17 @@ const styles = stylex.create({
     paddingInline: "1rem",
   },
   textarea: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "1.5rem",
-    boxShadow: "0 0 0 1px var(--color-memora-border-soft)",
-    color: "var(--color-memora-text)",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
+    color: tokens.text,
     flex: 1,
     fontSize: "0.875rem",
     lineHeight: "1.75rem",
     minHeight: "16rem",
     padding: "1rem",
     resize: "none",
-    "::placeholder": { color: "var(--color-memora-text-soft)" },
+    "::placeholder": { color: tokens.textSoft },
     ":focus": { outline: "none" },
   },
   emptyActions: {
@@ -152,7 +153,7 @@ const styles = stylex.create({
   },
   transcribeButton: {
     backgroundColor: "transparent",
-    color: { default: "var(--color-memora-text-muted)", ":hover": "var(--color-memora-text)" },
+    color: { default: tokens.textMuted, ":hover": tokens.text },
     fontSize: "0.875rem",
     fontWeight: 500,
     lineHeight: "1.25rem",
@@ -165,12 +166,11 @@ const styles = stylex.create({
   saveButton: {
     alignItems: "center",
     backgroundColor: {
-      default: "var(--color-memora-text-strong)",
-      ":hover":
-        "color-mix(in srgb, var(--color-memora-text-strong) 86%, var(--color-memora-surface))",
+      default: tokens.textStrong,
+      ":hover": `color-mix(in srgb, ${tokens.textStrong} 86%, ${tokens.surface})`,
     },
     borderRadius: "9999px",
-    color: "var(--color-memora-surface)",
+    color: tokens.surface,
     display: "flex",
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -180,14 +180,14 @@ const styles = stylex.create({
     paddingInline: "1rem",
     transitionDuration: "150ms",
     transitionProperty: "background-color, transform, box-shadow, opacity",
-    ":hover": { boxShadow: "var(--shadow-md-soft)" },
+    ":hover": { boxShadow: tokens.shadowMedium },
     ":disabled": { opacity: 0.5 },
   },
   transcriptContent: { flex: 1, minHeight: 0, paddingTop: "1rem" },
   transcriptSurface: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "1.5rem",
-    boxShadow: "0 0 0 1px var(--color-memora-border-soft)",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
     height: "100%",
     minHeight: 0,
     overflow: "hidden",

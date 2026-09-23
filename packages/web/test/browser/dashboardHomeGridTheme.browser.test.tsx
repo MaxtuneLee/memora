@@ -1,7 +1,7 @@
 import { type JSX, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
@@ -13,41 +13,19 @@ import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
 import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
 import { ChatCircleDotsIcon } from "@phosphor-icons/react";
+import { luminance, contrast, textContrast } from "./colorContrast";
+import { expectScreenshot, loadAppFonts } from "./visual";
+
+// A fixed start date keeps the calendar and relative times in the visual references stable; the
+// clock still advances in real time from there.
+vi.useFakeTimers({
+  toFake: ["Date"],
+  now: new Date("2026-09-15T10:00:00"),
+  shouldAdvanceTime: true,
+});
 
 // Computed-style checks only: no assertions on generated StyleX class names. Mirrors
 // test/browser/sharedControlsTheme.browser.test.tsx.
-const rgb = (color: string): number[] => {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length < 3) throw new Error(`Unparsed color: ${color}`);
-  return channels;
-};
-
-const luminance = (color: string): number => {
-  const [r, g, b] = rgb(color).map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
-};
-
-const backgroundOf = (element: Element): string => {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-const textContrast = (element: Element) =>
-  contrast(getComputedStyle(element).color, backgroundOf(element));
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const NARROW_VIEWPORT = { width: 375, height: 700 };
@@ -225,6 +203,12 @@ describe.each(["light", "dark"] as const)("Dashboard and Home Grid in %s", (them
     }
   });
 
+  it("matches the desktop reference", async () => {
+    await mount(theme);
+    await loadAppFonts();
+    await expectScreenshot(container as Element, `dashboard-desktop-${theme}`);
+  });
+
   it("shows a visible focus ring on the toolbar action", async () => {
     await mount(theme);
 
@@ -398,5 +382,9 @@ describe.each(["light", "dark"] as const)("Dashboard at a narrow viewport in %s"
     }
 
     expect(fitsWithoutOverflow(dashboard), "dashboard wrapper after adding tasks").toBe(true);
+    await loadAppFonts();
+    // Typing the tasks scrolls the page; capture from a fixed scroll position.
+    window.scrollTo(0, 0);
+    await expectScreenshot(dashboard, `dashboard-narrow-${theme}`);
   });
 });

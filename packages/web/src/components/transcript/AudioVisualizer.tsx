@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 
 import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { resolveThemeColors } from "@/hooks/theme/useThemeColorVars";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface AudioVisualizerProps {
   stream: MediaStream | null;
   className?: string;
 }
-
-const FALLBACK_BAR_COLOR = "rgb(161, 161, 170)";
 
 export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,14 +17,11 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
   const previousHeightsRef = useRef<number[]>([]);
   // Recording must not restart when the theme changes, so the bar color lives in a ref this
   // effect reads each frame instead of a prop the setup effect below depends on.
-  const barColorRef = useRef(FALLBACK_BAR_COLOR);
+  const barColorRef = useRef("");
   const resolvedTheme = useResolvedTheme();
 
   useEffect(() => {
-    barColorRef.current =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--color-memora-text-soft")
-        .trim() || FALLBACK_BAR_COLOR;
+    barColorRef.current = resolveThemeColors({ bar: tokens.textSoft }).bar;
   }, [resolvedTheme]);
 
   useEffect(() => {

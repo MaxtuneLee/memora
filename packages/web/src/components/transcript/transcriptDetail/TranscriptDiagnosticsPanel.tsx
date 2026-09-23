@@ -2,10 +2,11 @@ import * as stylex from "@stylexjs/stylex";
 
 import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import type { TranscriptDiagnostics } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   panel: {
-    backgroundColor: "var(--color-memora-surface-soft)",
+    backgroundColor: tokens.surfaceSoft,
     borderRadius: "1.5rem",
     overflow: "hidden",
     paddingBlock: 8,
@@ -13,7 +14,7 @@ const styles = stylex.create({
   },
   summary: { cursor: "pointer", listStyle: "none", paddingBlock: 8, textAlign: "left" },
   eyebrow: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "11px",
     letterSpacing: "0.18em",
     textTransform: "uppercase",
@@ -27,19 +28,19 @@ const styles = stylex.create({
     marginTop: 8,
   },
   title: {
-    color: "var(--color-memora-text-strong)",
+    color: tokens.textStrong,
     fontSize: "1rem",
     fontWeight: 600,
     letterSpacing: "-0.02em",
   },
   body: {
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     fontSize: "0.875rem",
     lineHeight: 1.5,
     marginTop: 4,
   },
   status: {
-    color: "var(--color-memora-text-soft)",
+    color: tokens.textSoft,
     fontSize: "11px",
     fontWeight: 500,
     letterSpacing: "0.16em",

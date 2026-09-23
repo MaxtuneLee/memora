@@ -10,11 +10,12 @@ import type { WritableReactiveWidgetStore } from "@/lib/widgets/widgetStore";
 
 import { GeneratedWidgetFrame } from "./GeneratedWidgetFrame";
 import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
+import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   card: {
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-border)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
     borderRadius: "inherit",
     display: "flex",
     flexDirection: "column",
@@ -28,7 +29,7 @@ const styles = stylex.create({
   body: { flex: 1, minHeight: 0, overflow: "auto" },
   status: {
     alignItems: "center",
-    color: "var(--color-memora-text-muted)",
+    color: tokens.textMuted,
     display: "flex",
     fontSize: 13,
     flex: 1,
@@ -39,10 +40,10 @@ const styles = stylex.create({
     textAlign: "center",
   },
   error: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    border: "1px solid var(--color-memora-warning-border)",
+    backgroundColor: tokens.warningSurface,
+    border: `1px solid ${tokens.warningBorder}`,
     borderRadius: 16,
-    color: "var(--color-memora-warning-text)",
+    color: tokens.warningText,
   },
 });
 

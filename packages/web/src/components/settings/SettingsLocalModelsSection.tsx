@@ -35,7 +35,7 @@ const styles = stylex.create({
     paddingInline: 12,
   },
   overviewBody: { marginTop: 16 },
-  metadata: { color: "var(--color-memora-text-soft)", fontSize: "0.75rem" },
+  metadata: { color: tokens.textSoft, fontSize: "0.75rem" },
 });
 
 interface SettingsLocalModelsSectionProps {

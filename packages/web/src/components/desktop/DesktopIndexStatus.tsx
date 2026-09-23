@@ -7,6 +7,7 @@ import {
 import * as stylex from "@stylexjs/stylex";
 
 import type { DesktopFileIndexStatus } from "@/types/desktop";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface IndexStatusMeta {
   label: string;
@@ -43,7 +44,7 @@ const styles = stylex.create({
     alignItems: "center",
     border: "1px solid",
     borderRadius: 9999,
-    boxShadow: "var(--shadow-sm-soft)",
+    boxShadow: tokens.shadowSmall,
     display: "flex",
     height: 20,
     justifyContent: "center",
@@ -53,7 +54,7 @@ const styles = stylex.create({
     transition: "color 150ms, background-color 150ms",
     width: 20,
     zIndex: 2,
-    ":focus-visible": { outline: "2px solid var(--color-memora-olive-soft)", outlineOffset: 2 },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
   },
   compactButton: { height: 18, width: 18 },
   label: {
@@ -68,19 +69,19 @@ const styles = stylex.create({
     paddingInline: 8,
   },
   default: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-border)",
-    color: "var(--color-memora-text-soft)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    color: tokens.textSoft,
   },
   olive: {
-    backgroundColor: "var(--color-memora-surface)",
-    borderColor: "var(--color-memora-olive-faint)",
-    color: "var(--color-memora-olive)",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.oliveSoft,
+    color: tokens.olive,
   },
   warning: {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    borderColor: "var(--color-memora-warning-border)",
-    color: "var(--color-memora-warning-text)",
+    backgroundColor: tokens.warningSurface,
+    borderColor: tokens.warningBorder,
+    color: tokens.warningText,
   },
   smallIcon: { height: 10, width: 10 },
   icon: { height: 12, width: 12 },
