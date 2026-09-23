@@ -349,7 +349,9 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
         unmountVectorDb();
         mountCount = Math.max(0, mountCount - 1);
         if (mountCount === 0) {
-          for (const pool of POOLS) disconnectPool(pool);
+          queueMicrotask(() => {
+            if (mountCount === 0) for (const pool of POOLS) disconnectPool(pool);
+          });
         }
       };
     },

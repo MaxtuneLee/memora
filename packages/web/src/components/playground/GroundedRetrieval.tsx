@@ -721,18 +721,6 @@ const styles = stylex.create({
     paddingInline: "1rem",
   },
 });
-const EMPTY_MODEL = {
-  id: "unconfigured",
-  name: "Unconfigured",
-  api: "memora-unconfigured",
-  provider: "memora-unconfigured",
-  baseUrl: "memora://unconfigured",
-  reasoning: false,
-  input: ["text"] as Array<"text">,
-  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  contextWindow: 1,
-  maxTokens: 1,
-};
 const GROUNDED_RETRIEVAL_PROMPT: PromptSegment = {
   id: "playground-grounded-retrieval",
   priority: 100,
@@ -924,10 +912,11 @@ export default function GroundedRetrieval() {
   const bgeEmbeddingCacheRef = useRef<Map<string, Float32Array>>(new Map());
   const hasInitializedTranscriptSelectionRef = useRef(false);
 
-  const { agentConfig, runtime, isConfigured, selectedModelInfo } = useChatModelConfig({
+  const [experimentSessionId] = useState(() => `experiment-${crypto.randomUUID()}`);
+  const { agentConfig, providerConfig, isConfigured, selectedModelInfo } = useChatModelConfig({
     providers,
     settings,
-    activeSessionId: "playground-grounded-retrieval",
+    activeSessionId: experimentSessionId,
   });
   const {
     messages,
@@ -937,15 +926,11 @@ export default function GroundedRetrieval() {
     abort,
     reset,
   } = useAgent({
-    sessionId: "playground-grounded-retrieval",
+    sessionId: experimentSessionId,
+    sessionStorage: "memory",
+    providerConfig,
     initialMessages: [],
     config: { ...agentConfig, maxIterations: 1 },
-    model: runtime?.model ?? EMPTY_MODEL,
-    stream:
-      runtime?.stream ??
-      (() => {
-        throw new Error("Select a configured provider and model before running this experiment.");
-      }),
     promptSegments: [GROUNDED_RETRIEVAL_PROMPT],
   });
   const answer = messages.at(-1)?.role === "assistant" ? messages.at(-1)?.content : "";

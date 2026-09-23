@@ -5,6 +5,7 @@ import { modelRoutingSchema, type StoredModelRouting } from "@/lib/models/modelR
 import type { LocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 
 export interface setting {
+  agentDeliveryMode?: "pending" | "steer";
   modelRouting?: StoredModelRouting;
   localModelTokenUsage?: LocalModelUsageTotals;
   theme: "light" | "dark" | "system";
@@ -35,6 +36,7 @@ export interface setting {
 }
 
 export const defaultSettings: setting = {
+  agentDeliveryMode: "pending",
   modelRouting: {},
   localModelTokenUsage: {
     inputTokens: 0,
@@ -71,6 +73,7 @@ export const defaultSettings: setting = {
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
+  agentDeliveryMode: Schema.optional(Schema.Literal("pending", "steer")),
   modelRouting: Schema.optional(modelRoutingSchema),
   localModelTokenUsage: Schema.optional(
     Schema.Struct({

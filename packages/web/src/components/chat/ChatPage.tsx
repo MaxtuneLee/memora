@@ -15,11 +15,7 @@ import {
   chatProvidersQuery$,
 } from "@/lib/chat/queries";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
-import {
-  DEFAULT_CHAT_SESSION_TITLE,
-  updateChatSession,
-  updateChatSessionMessages,
-} from "@/lib/chat/chatSessionStorage";
+import { DEFAULT_CHAT_SESSION_TITLE, updateChatSession } from "@/lib/chat/chatSessionStorage";
 import { generateChatSessionTitle } from "@/lib/chat/chatSessionTitleGenerator";
 import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
 import { consumePendingHomeGridPrompt } from "@/lib/widgets/homeGridPrompt";
@@ -34,7 +30,6 @@ import { useChatComposerImages } from "@/components/chat/chatPage/useChatCompose
 import { useChatReferences } from "@/components/chat/chatPage/useChatReferences";
 import { useChatSessions } from "@/components/chat/chatPage/useChatSessions";
 import { useChatTurnActions } from "@/components/chat/chatPage/useChatTurnActions";
-import { useChatWriteApproval } from "@/components/chat/chatPage/useChatWriteApproval";
 import { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 
@@ -53,10 +48,8 @@ export const Component = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const composerOverlayRef = useRef<HTMLDivElement>(null);
   const previousMessageCountRef = useRef(0);
-  const isStreamingRef = useRef(false);
   const isPreparingTurnRef = useRef(false);
   const titleGenerationSessionIdsRef = useRef<Set<string>>(new Set());
-  const abortStreamingRef = useRef<() => void>(() => {});
   const closeImagePickerRef = useRef<() => void>(() => {});
   const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
   const [memoryUpdatedNotice, setMemoryUpdatedNotice] = useState(false);
@@ -94,18 +87,8 @@ export const Component = () => {
     handleConfirmDeleteSession,
   } = useChatSessions({
     getIsPreparingTurn: () => isPreparingTurnRef.current,
-    getIsStreaming: () => isStreamingRef.current,
     inputRef,
-    onAbortStreaming: () => abortStreamingRef.current(),
   });
-  const {
-    pendingWriteApproval,
-    requestWriteApproval,
-    resolveWriteApproval,
-    handleAllowWriteOnce,
-    handleAllowWriteForSession,
-    handleDenyWrite,
-  } = useChatWriteApproval(activeSessionId);
 
   const references = useChatReferences({
     activeSessionId,
@@ -125,7 +108,7 @@ export const Component = () => {
     return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
   }, [activeSessionId]);
 
-  const { agentConfig, runtime, isConfigured, selectedModelInfo } = useChatModelConfig({
+  const { agentConfig, providerConfig, isConfigured, selectedModelInfo } = useChatModelConfig({
     providers,
     settings,
     activeSessionId,
@@ -139,16 +122,9 @@ export const Component = () => {
         onMemoryUpdated: () => {
           setMemoryUpdatedNotice(true);
         },
-        requestWriteApproval,
         showWidgetSkillTracker,
       }),
-    [
-      createRuntime,
-      references.getReferenceScope,
-      requestWriteApproval,
-      showWidgetSkillTracker,
-      store,
-    ],
+    [createRuntime, references.getReferenceScope, showWidgetSkillTracker, store],
   );
 
   const activePromptSegments = remotePromptSegments;
@@ -156,6 +132,9 @@ export const Component = () => {
 
   const {
     messages,
+    pendingCount,
+    pendingWriteApproval,
+    resolveWriteApproval,
     isStreaming,
     status,
     thinkingSteps,
@@ -172,34 +151,17 @@ export const Component = () => {
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
-    model: runtime?.model ?? {
-      id: "unconfigured",
-      name: "Unconfigured",
-      api: "memora-unconfigured",
-      provider: "memora-unconfigured",
-      baseUrl: "memora://unconfigured",
-      reasoning: false,
-      input: ["text"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 1,
-      maxTokens: 1,
-    },
-    stream:
-      runtime?.stream ??
-      (() => {
-        throw new Error("Select a configured provider and model before sending a message.");
-      }),
+    providerConfig,
+    getReferenceScope: references.getReferenceScope,
+    deliveryMode: settings.agentDeliveryMode ?? "pending",
     promptSegments: activePromptSegments,
     tools: activeTools,
     persistence,
   });
 
   const abort = useCallback(() => {
-    resolveWriteApproval("deny");
     abortAgent();
-  }, [abortAgent, resolveWriteApproval]);
-  abortStreamingRef.current = abort;
-  isStreamingRef.current = isStreaming;
+  }, [abortAgent]);
 
   const composerImages = useChatComposerImages({
     activeSessionId,
@@ -209,6 +171,16 @@ export const Component = () => {
     updateMessage,
   });
   closeImagePickerRef.current = composerImages.closeImagePicker;
+
+  const [deliveryOverride, setDeliveryOverride] = useState<"pending" | "steer" | null>(null);
+  const deliveryMode = deliveryOverride ?? settings.agentDeliveryMode ?? "pending";
+  const sendWithMode = useCallback<typeof send>(
+    async (input, options) => {
+      await send(input, { ...options, mode: deliveryMode });
+      setDeliveryOverride(null);
+    },
+    [send, deliveryMode],
+  );
 
   const turnActions = useChatTurnActions({
     activeSessionId,
@@ -226,7 +198,7 @@ export const Component = () => {
     closeImagePicker: composerImages.closeImagePicker,
     onComposerInputValueChange: references.handleComposerInputValueChange,
     prepareReferenceScopeForTurn: references.prepareReferenceScopeForTurn,
-    send,
+    send: sendWithMode,
     resetAgent,
     setActiveSessionInitialMessages,
     thinkingCollapsed,
@@ -235,6 +207,15 @@ export const Component = () => {
 
   useEffect(() => {
     setMemoryUpdatedNotice(false);
+    setDeliveryOverride(null);
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    const handleMemoryUpdated = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === activeSessionId) setMemoryUpdatedNotice(true);
+    };
+    window.addEventListener("memora-agent-memory-updated", handleMemoryUpdated);
+    return () => window.removeEventListener("memora-agent-memory-updated", handleMemoryUpdated);
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -340,9 +321,10 @@ export const Component = () => {
         return;
       }
 
-      void updateChatSessionMessages(activeSessionId, messages, {
+      void updateChatSession(activeSessionId, (record) => ({
+        ...record,
         references: activeReferences,
-      })
+      }))
         .then((record) => {
           commitPersistedSession(record, messages);
 
@@ -421,7 +403,7 @@ export const Component = () => {
   const greetingTitle = effectiveGreetingName
     ? `${timeGreeting}, ${effectiveGreetingName}. What can I help you with today?`
     : `${timeGreeting}. What can I help you with today?`;
-  const isHistoryPanelBusy = isStreaming || turnActions.isPreparingTurn;
+  const isHistoryPanelBusy = turnActions.isPreparingTurn;
 
   return (
     <ChatPageView
@@ -457,6 +439,9 @@ export const Component = () => {
       onOpenSettings={openSettingsPanel}
       onSuggestionClick={turnActions.handleSuggestionClick}
       composerPanelProps={{
+        pendingCount,
+        deliveryMode,
+        onDeliveryModeChange: setDeliveryOverride,
         composerFadeHeight,
         composerOverlayRef,
         isStreaming,
@@ -514,9 +499,9 @@ export const Component = () => {
       }}
       isHistoryDrawerOpen={isHistoryDrawerOpen}
       pendingWriteApproval={pendingWriteApproval}
-      onAllowWriteOnce={handleAllowWriteOnce}
-      onAllowWriteForSession={handleAllowWriteForSession}
-      onDenyWrite={handleDenyWrite}
+      onAllowWriteOnce={() => resolveWriteApproval("allow_once")}
+      onAllowWriteForSession={() => resolveWriteApproval("allow_session")}
+      onDenyWrite={() => resolveWriteApproval("deny")}
       pendingDeleteSessionId={pendingDeleteSessionId}
       onCreateSession={() => void handleCreateSession()}
       onSelectSession={(sessionId) => void handleSelectSession(sessionId)}

@@ -110,8 +110,11 @@ const stringifyResult = (result: unknown): string => {
   return typeof result === "string" ? result : JSON.stringify(result);
 };
 
-const toPiTool = (tool: ToolDefinition): Tool => {
-  const schema = toJsonSchema(tool.parameters) as Record<string, unknown>;
+export const toPiTool = (tool: ToolDefinition): Tool => {
+  const schema = { ...(tool.jsonSchema ?? toJsonSchema(tool.parameters)) } as Record<
+    string,
+    unknown
+  >;
   delete schema["$schema"];
   return {
     name: tool.name,

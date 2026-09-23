@@ -19,7 +19,10 @@ import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
 import { appShellStyles } from "@/styles/stylex.stylex";
 import * as stylex from "@stylexjs/stylex";
 
+import { useAgentToolHost } from "@/hooks/chat/useAgentToolHost";
+
 export default function AppLayout() {
+  useAgentToolHost();
   const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$);
   useDocumentTheme(settings.theme ?? "system");

@@ -1,3 +1,5 @@
+import { useAppStore } from "@/livestore/store";
+import { settingEvents } from "@/livestore/setting";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 
@@ -78,6 +80,7 @@ const ATTACHMENT_PLACEMENT_OPTIONS = [
 ] as const;
 
 export default function SettingsGeneralSection() {
+  const store = useAppStore();
   const {
     settings,
     folderOptions,
@@ -95,10 +98,9 @@ export default function SettingsGeneralSection() {
       className={`${SETTINGS_PANEL_CLASS_NAME} ${stylex.props(styles.panelStack).className}`}
     >
       <div {...stylex.props(styles.heading)}>
-        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Document editor</h3>
+        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>General</h3>
         <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-          Control where new Markdown notes and embedded images go, and keep the editor readable at a
-          consistent size.
+          Choose how chat messages are delivered and how the document editor behaves.
         </p>
       </div>
 
@@ -120,6 +122,29 @@ export default function SettingsGeneralSection() {
           ))}
         </div>
       ) : null}
+
+      <div className={SETTINGS_INSET_PANEL_CLASS_NAME}>
+        <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Messages during a task</h4>
+        <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+          Choose the default for all chats. Pending waits for the current task to finish. Steer adds
+          your message before the next model response.
+        </p>
+        <Select
+          aria-label="Default message delivery"
+          value={settings.agentDeliveryMode ?? "pending"}
+          onValueChange={(value) =>
+            store.commit(
+              settingEvents.settingsSet({
+                agentDeliveryMode: value === "steer" ? "steer" : "pending",
+              }),
+            )
+          }
+          options={[
+            { value: "pending", label: "Pending" },
+            { value: "steer", label: "Steer" },
+          ]}
+        />
+      </div>
 
       <div
         className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}

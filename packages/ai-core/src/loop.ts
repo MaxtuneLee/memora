@@ -118,6 +118,19 @@ export class Agent {
   readonly tools: ToolRegistry;
   readonly prompt: PromptComposer;
 
+  private steeringInputs: AgentMessage[] = [];
+  private acceptingInput = false;
+
+  steer(message: AgentMessage): boolean {
+    if (!this.acceptingInput || this.state.aborted) return false;
+    this.steeringInputs.push(structuredClone(message));
+    return true;
+  }
+
+  takeUnconsumedSteering(): AgentMessage[] {
+    return this.steeringInputs.splice(0);
+  }
+
   private hooks: AgentHooks;
   private model: Model<Api>;
   private stream: ModelStream;
@@ -176,6 +189,7 @@ export class Agent {
       aborted: false,
     };
     this.abortController = new AbortController();
+    this.acceptingInput = true;
 
     try {
       const inputMessage: AgentMessage =
@@ -228,6 +242,9 @@ export class Agent {
               : {}),
           };
           await this.context.append(assistantMessage);
+
+          if (this.steeringInputs.length > 0) continue;
+          this.acceptingInput = false;
 
           if (this.hooks.onComplete) {
             await this.hooks.onComplete(this.createHookContext(), assistantMessage);
@@ -351,6 +368,7 @@ export class Agent {
 
       yield { type: "error", error };
     } finally {
+      this.acceptingInput = false;
       this.abortController = null;
     }
   }
@@ -405,6 +423,12 @@ export class Agent {
       personalityText ?? "",
       notices,
     );
+    while (this.steeringInputs.length > 0) {
+      for (const message of this.takeUnconsumedSteering()) {
+        await this.context.append(message);
+        await this.hooks.onAfterInput?.(this.createHookContext(), message);
+      }
+    }
     const history = this.context.getMessages();
     const messages = this.fitToContextWindow(history, systemPrompt);
 

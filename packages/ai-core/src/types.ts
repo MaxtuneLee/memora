@@ -79,6 +79,8 @@ export interface ToolDefinition<TParams = unknown, TResult = unknown> {
   name: string;
   description: string;
   parameters: v.GenericSchema<TParams>;
+  /** Serialized schema for tools executed across a transport boundary. */
+  jsonSchema?: Record<string, unknown>;
   execute: (params: TParams) => MaybePromise<TResult>;
 }
 

@@ -287,7 +287,11 @@ const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
 
 const runSessionMutation = async <T>(sessionId: string, task: () => Promise<T>): Promise<T> => {
   const queue = sessionQueue.get(sessionId) ?? Promise.resolve();
-  const next = queue.then(task, task);
+  const lockedTask = async (): Promise<T> =>
+    typeof navigator !== "undefined" && navigator.locks
+      ? await navigator.locks.request(`memora-chat-session:${sessionId}`, task)
+      : await task();
+  const next = queue.then(lockedTask, lockedTask);
   sessionQueue.set(
     sessionId,
     next.then(

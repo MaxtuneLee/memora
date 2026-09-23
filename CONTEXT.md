@@ -23,3 +23,12 @@ Distinguishes how a Widget Definition executes. `builtin`: trusted first-party R
 
 **Data source catalog / Catalog entry**:
 The fixed, host-owned registry of named, queryable data sources (e.g. `recentFiles`, `todoProgress`, `storageStats`) that a Widget Definition's data binding can reference. Chat picks a Catalog Entry by name when generating a widget; it cannot author arbitrary queries. New kinds of dynamic data are added by extending this catalog, not by giving generated code its own query access.
+
+**Chat session**:
+An independent conversation with its own history and tasks. Opening or viewing another session does not stop its work.
+
+**Pending message**:
+A message submitted while a chat session is busy that waits until the current task ends. Pending messages execute in receipt order, including after a task fails or is stopped.
+
+**Steer message**:
+A message submitted while a chat session is busy that joins the current task before its next model call. Multiple steer messages retain receipt order and can take effect before earlier pending messages; a message arriving after execution ends starts ordinary new work.
