@@ -35,6 +35,13 @@ const styles = stylex.create({
   },
 });
 
+const STREAMDOWN_ANIMATION = {
+  animation: "blurIn",
+  sep: "word",
+  duration: 0.5,
+  easing: "ease-in-out",
+} as const;
+
 const formatTokenUsage = (usage: ChatMessageData["usage"]): string | null => {
   if (!usage) {
     return null;
@@ -120,15 +127,10 @@ export function AssistantMessageContent({
                 <Streamdown
                   key={`text-${index}`}
                   className={MEMORA_STREAMDOWN_CLASS_NAME}
-                  animated={{
-                    animation: "blurIn",
-                    sep: "word",
-                    duration: 0.5,
-                    easing: "ease-in-out",
-                  }}
+                  animated={STREAMDOWN_ANIMATION}
                   isAnimating={isStreaming}
                   controls={MEMORA_STREAMDOWN_CONTROLS}
-                  plugins={{ ...MEMORA_STREAMDOWN_PLUGINS }}
+                  plugins={MEMORA_STREAMDOWN_PLUGINS}
                   shikiTheme={MEMORA_STREAMDOWN_THEME}
                 >
                   {part.content}

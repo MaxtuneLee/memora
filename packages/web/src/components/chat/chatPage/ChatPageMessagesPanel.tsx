@@ -38,7 +38,9 @@ const styles = stylex.create({
     paddingBlock: 6,
     paddingInline: 12,
     transition: "background-color 150ms",
-    ":hover": { backgroundColor: `color-mix(in srgb, ${tokens.warningText} 85%, ${tokens.surface})` },
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.warningText} 85%, ${tokens.surface})`,
+    },
     ":disabled": { cursor: "not-allowed", opacity: 0.6 },
   },
   stopButton: {
@@ -78,7 +80,6 @@ interface ChatPageMessagesPanelProps {
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: { iterations: number } | null;
   error: Error | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
   greetingTitle: string;
   isConfigured: boolean;
   onSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
@@ -106,7 +107,6 @@ export const ChatPageMessagesPanel = ({
   savingAttachmentIds,
   iterationLimitPrompt,
   error,
-  messagesEndRef,
   greetingTitle,
   isConfigured,
   onSaveImageToLibrary,
@@ -197,7 +197,6 @@ export const ChatPageMessagesPanel = ({
           {error.message}
         </motion.div>
       )}
-      <div ref={messagesEndRef} />
     </div>
   );
 };

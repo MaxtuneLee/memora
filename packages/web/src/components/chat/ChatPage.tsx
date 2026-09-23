@@ -45,10 +45,11 @@ export const Component = () => {
     [openSettings],
   );
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContentRef = useRef<HTMLDivElement>(null);
+  const messagesScrollAreaRef = useRef<HTMLDivElement>(null);
   const composerOverlayRef = useRef<HTMLDivElement>(null);
-  const previousMessageCountRef = useRef(0);
   const isPreparingTurnRef = useRef(false);
+  const getIsPreparingTurn = useCallback(() => isPreparingTurnRef.current, []);
   const titleGenerationSessionIdsRef = useRef<Set<string>>(new Set());
   const closeImagePickerRef = useRef<() => void>(() => {});
   const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
@@ -86,9 +87,19 @@ export const Component = () => {
     handleCancelDeleteSession,
     handleConfirmDeleteSession,
   } = useChatSessions({
-    getIsPreparingTurn: () => isPreparingTurnRef.current,
+    getIsPreparingTurn,
     inputRef,
   });
+
+  const onCreateSession = useCallback(() => {
+    void handleCreateSession();
+  }, [handleCreateSession]);
+  const onSelectSession = useCallback(
+    (sessionId: string) => {
+      void handleSelectSession(sessionId);
+    },
+    [handleSelectSession],
+  );
 
   const references = useChatReferences({
     activeSessionId,
@@ -248,10 +259,28 @@ export const Component = () => {
   }, []);
 
   useEffect(() => {
-    const behavior = messages.length > previousMessageCountRef.current ? "smooth" : "auto";
-    previousMessageCountRef.current = messages.length;
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, [messages.length, isStreaming, thinkingSteps]);
+    const content = messagesContentRef.current;
+    const scrollArea = messagesScrollAreaRef.current;
+    if (!content || !scrollArea) return;
+
+    let frame = 0;
+    const scrollToBottom = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+      });
+    };
+
+    scrollToBottom();
+    const observer = new ResizeObserver(scrollToBottom);
+    observer.observe(content);
+
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [activeSessionId]);
 
   useEffect(() => {
     const overlayElement = composerOverlayRef.current;
@@ -426,7 +455,8 @@ export const Component = () => {
       savingAttachmentIds={composerImages.savingImageAttachmentIdSet}
       iterationLimitPrompt={iterationLimitPrompt}
       error={error}
-      messagesEndRef={messagesEndRef}
+      messagesContentRef={messagesContentRef}
+      messagesScrollAreaRef={messagesScrollAreaRef}
       greetingTitle={greetingTitle}
       isConfigured={isConfigured}
       onSaveImageToLibrary={composerImages.handleSaveImageToLibrary}
@@ -490,7 +520,7 @@ export const Component = () => {
         onPaste: composerImages.handleComposerPaste,
         onCompositionStart: turnActions.handleCompositionStart,
         onCompositionEnd: turnActions.handleCompositionEnd,
-        onCreateSession: () => void handleCreateSession(),
+        onCreateSession,
         onImageButtonClick: () =>
           composerImages.handleImageButtonClick(references.closeReferencePicker),
         onReferenceButtonClick: references.handleReferenceButtonClick,
@@ -503,8 +533,8 @@ export const Component = () => {
       onAllowWriteForSession={() => resolveWriteApproval("allow_session")}
       onDenyWrite={() => resolveWriteApproval("deny")}
       pendingDeleteSessionId={pendingDeleteSessionId}
-      onCreateSession={() => void handleCreateSession()}
-      onSelectSession={(sessionId) => void handleSelectSession(sessionId)}
+      onCreateSession={onCreateSession}
+      onSelectSession={onSelectSession}
       onDeleteSession={handlePromptDeleteSession}
       onCancelDeleteSession={handleCancelDeleteSession}
       onConfirmDeleteSession={(sessionId) => {

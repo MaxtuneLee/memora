@@ -43,7 +43,8 @@ export const ChatPageView = (props: {
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: Parameters<typeof ChatPageMessagesPanel>[0]["iterationLimitPrompt"];
   error: Error | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  messagesContentRef: React.RefObject<HTMLDivElement | null>;
+  messagesScrollAreaRef: React.RefObject<HTMLDivElement | null>;
   greetingTitle: string;
   isConfigured: boolean;
   onSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
@@ -90,7 +91,8 @@ export const ChatPageView = (props: {
     savingAttachmentIds,
     iterationLimitPrompt,
     error,
-    messagesEndRef,
+    messagesContentRef,
+    messagesScrollAreaRef,
     greetingTitle,
     isConfigured,
     onSaveImageToLibrary,
@@ -137,8 +139,9 @@ export const ChatPageView = (props: {
 
         <div {...stylex.props(styles.main)}>
           <div {...stylex.props(styles.content)}>
-            <div {...stylex.props(styles.scrollArea)}>
+            <div ref={messagesScrollAreaRef} {...stylex.props(styles.scrollArea)}>
               <div
+                ref={messagesContentRef}
                 {...stylex.props(styles.messages)}
                 style={{ paddingBottom: composerScrollInset }}
               >
@@ -156,7 +159,6 @@ export const ChatPageView = (props: {
                   savingAttachmentIds={savingAttachmentIds}
                   iterationLimitPrompt={iterationLimitPrompt}
                   error={error}
-                  messagesEndRef={messagesEndRef}
                   greetingTitle={greetingTitle}
                   isConfigured={isConfigured}
                   onSaveImageToLibrary={onSaveImageToLibrary}
