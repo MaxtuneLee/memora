@@ -15,6 +15,19 @@ const requests = new Map<
 >();
 const calls = new Map<string, AbortController>();
 const approvals = new Map<string, (decision: "allow_once" | "allow_session" | "deny") => void>();
+let runningSessionIds: ReadonlySet<string> = new Set();
+// ponytail: per-tab and in-memory; unread markers reset on reload.
+let unreadSessionIds: ReadonlySet<string> = new Set();
+const statusListeners = new Set<() => void>();
+const finishedListeners = new Set<(sessionId: string, title: string) => void>();
+const setSessionStatus = (
+  running: ReadonlySet<string>,
+  unread: ReadonlySet<string> = unreadSessionIds,
+): void => {
+  runningSessionIds = running;
+  unreadSessionIds = unread;
+  statusListeners.forEach((listener) => listener());
+};
 
 // postMessage clones every snapshot, so reuse unchanged branches of the previous one to keep
 // object identity stable for memoized consumers (e.g. only the streaming message changes).
@@ -89,6 +102,13 @@ function connection(): MessagePort {
     } else if (message.type === "approval-result") {
       approvals.get(message.callId)?.(message.decision);
       approvals.delete(message.callId);
+    } else if (message.type === "running") {
+      setSessionStatus(new Set(message.sessionIds));
+    } else if (message.type === "finished") {
+      // A session this tab is showing has already been read.
+      if (listeners.has(message.sessionId)) return;
+      setSessionStatus(runningSessionIds, new Set(unreadSessionIds).add(message.sessionId));
+      finishedListeners.forEach((listener) => listener(message.sessionId, message.title));
     } else if (message.type === "memory-updated") {
       window.dispatchEvent(
         new CustomEvent("memora-agent-memory-updated", { detail: message.sessionId }),
@@ -102,6 +122,7 @@ function connection(): MessagePort {
       request.reject(error);
     }
     requests.clear();
+    setSessionStatus(new Set());
     for (const [id, snapshot] of snapshots) {
       snapshots.set(id, {
         ...snapshot,
@@ -164,6 +185,11 @@ export function subscribe(sessionId: string, listener: () => void, storage?: "me
     listeners.set(sessionId, set);
   }
   set.add(listener);
+  if (unreadSessionIds.has(sessionId)) {
+    const unread = new Set(unreadSessionIds);
+    unread.delete(sessionId);
+    setSessionStatus(runningSessionIds, unread);
+  }
   void command({ type: "subscribe", sessionId, storage }).catch((error: unknown) => {
     snapshots.set(sessionId, {
       ...getSnapshot(sessionId),
@@ -178,6 +204,28 @@ export function subscribe(sessionId: string, listener: () => void, storage?: "me
       void command({ type: "unsubscribe", sessionId }).catch(console.error);
     }
   };
+}
+
+export function getRunningSessionIds(): ReadonlySet<string> {
+  return runningSessionIds;
+}
+
+export function getUnreadSessionIds(): ReadonlySet<string> {
+  return unreadSessionIds;
+}
+
+export function subscribeSessionStatus(listener: () => void): () => void {
+  connection();
+  statusListeners.add(listener);
+  return () => statusListeners.delete(listener);
+}
+
+export function onSessionFinished(
+  listener: (sessionId: string, title: string) => void,
+): () => void {
+  connection();
+  finishedListeners.add(listener);
+  return () => finishedListeners.delete(listener);
 }
 
 export function registerToolHost(host: ToolHost): () => void {

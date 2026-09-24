@@ -1,4 +1,3 @@
-import { CheckCircleIcon, FileTextIcon, PenNibIcon, SparkleIcon } from "@phosphor-icons/react";
 import type { PromptSegment } from "@memora/ai-core";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
@@ -15,31 +14,6 @@ import {
   type ChatSessionSummary,
 } from "@/lib/chat/chatSessionStorage";
 import { loadGlobalMemoryData, loadPersonalityDoc } from "@/lib/settings/personalityStorage";
-import type { SuggestionCard } from "./types";
-
-export const suggestions: SuggestionCard[] = [
-  {
-    icon: SparkleIcon,
-    title: "Summarize a file",
-    description: "Get a quick summary of any uploaded file",
-  },
-  {
-    icon: PenNibIcon,
-    title: "Draft a note",
-    description: "Write notes from your recordings",
-  },
-  {
-    icon: FileTextIcon,
-    title: "Search transcripts",
-    description: "Find specific moments in your audio",
-  },
-  {
-    icon: CheckCircleIcon,
-    title: "Create action items",
-    description: "Extract tasks from your meetings",
-  },
-];
-
 export const IS_DEV = import.meta.env.DEV;
 export const MAX_REFERENCED_FILES = 200;
 export const REFERENCE_MENTION_PATTERN = /@([^\s@]*)$/;
@@ -332,3 +306,8 @@ export const loadGreetingName = async (): Promise<string | null> => {
 export const hasAttachmentImages = (attachments: ChatImageAttachment[]): boolean => {
   return attachments.length > 0;
 };
+
+// The empty-state mascot and the first assistant avatar share this id so motion flies one into the other.
+export const CHAT_MASCOT_LAYOUT_ID = "chat-mascot";
+// Shared by the mascot flight and the composer's move from the center to the bottom.
+export const CHAT_LAYOUT_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] } as const;

@@ -65,4 +65,6 @@ export type AgentResponse =
     }
   | { type: "approval-result"; callId: string; decision: WriteApprovalDecision }
   | { type: "cancel-tool"; callId: string }
-  | { type: "memory-updated"; sessionId: string };
+  | { type: "memory-updated"; sessionId: string }
+  | { type: "running"; sessionIds: string[] }
+  | { type: "finished"; sessionId: string; title: string };

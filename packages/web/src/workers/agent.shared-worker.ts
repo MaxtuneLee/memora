@@ -36,7 +36,28 @@ const commands = new Map<string, Promise<void>>();
 const approvals = new Map<string, { callId: string; sessionId: string }>();
 const allowedSessions = new Set<string>();
 const post = (port: MessagePort, message: AgentResponse): void => port.postMessage(message);
+const running = new Set<string>();
+const postRunning = (port: MessagePort): void =>
+  post(port, { type: "running", sessionIds: [...running] });
 const publish = (snapshot: SessionSnapshot): void => {
+  const isRunning = Boolean(snapshot.activeRunId || snapshot.pending.length);
+  if (isRunning !== running.has(snapshot.sessionId)) {
+    if (isRunning) running.add(snapshot.sessionId);
+    else running.delete(snapshot.sessionId);
+    for (const port of ports.keys()) postRunning(port);
+    if (
+      !isRunning &&
+      snapshot.outcome === "completed" &&
+      !transientAdapters.has(snapshot.sessionId)
+    )
+      void loadChatSession(snapshot.sessionId)
+        .then((record) => {
+          if (!record) return;
+          for (const port of ports.keys())
+            post(port, { type: "finished", sessionId: snapshot.sessionId, title: record.title });
+        })
+        .catch(console.error);
+  }
   for (const [port, subscriptions] of ports) {
     if (subscriptions.has(snapshot.sessionId)) post(port, { type: "snapshot", snapshot });
   }
@@ -302,6 +323,7 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       else await deleteChatSession(request.sessionId);
       allowedSessions.delete(request.sessionId);
       sessions.delete(request.sessionId);
+      if (running.delete(request.sessionId)) for (const port of ports.keys()) postRunning(port);
       break;
   }
 }
@@ -311,6 +333,7 @@ scope.onconnect = (event) => {
   const port = event.ports[0];
   if (!port) return;
   ports.set(port, new Set());
+  postRunning(port);
   port.onmessage = (message: MessageEvent<AgentRequest>) => {
     const request = message.data;
     const sessionId = "sessionId" in request ? request.sessionId : undefined;

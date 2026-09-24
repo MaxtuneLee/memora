@@ -19,7 +19,7 @@ import {
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
 import { findMessageIndexById, findRetrySourceMessage } from "./helpers";
-import type { ComposerNotice, SuggestionCard } from "./types";
+import type { ComposerNotice } from "./types";
 
 interface SendFn {
   (
@@ -72,7 +72,6 @@ interface UseChatTurnActionsResult {
   handleToggleThinking: () => void;
   handleInputChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   handleSubmit: (event: FormEvent) => void;
-  handleSuggestionClick: (suggestion: SuggestionCard) => void;
   handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   handleCompositionStart: () => void;
   handleCompositionEnd: () => void;
@@ -385,17 +384,6 @@ export const useChatTurnActions = ({
     [submitMessage],
   );
 
-  const handleSuggestionClick = useCallback(
-    (suggestion: SuggestionCard) => {
-      if (inputRef.current) {
-        inputRef.current.value = suggestion.title;
-        inputRef.current.focus();
-      }
-      setComposerTextValue(suggestion.title);
-    },
-    [inputRef],
-  );
-
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
       if (
@@ -457,7 +445,6 @@ export const useChatTurnActions = ({
     handleToggleThinking,
     handleInputChange,
     handleSubmit,
-    handleSuggestionClick,
     handleKeyDown,
     handleCompositionStart,
     handleCompositionEnd,

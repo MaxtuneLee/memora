@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { ClockCounterClockwiseIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
@@ -10,9 +11,15 @@ const styles = stylex.create({
     display: "none",
     flexShrink: 0,
     height: "100%",
+    overflow: "hidden",
+    // Width only: the panel inside keeps its size, so its left edge stays put while the right folds in.
+    transition: "width 150ms ease-out",
     width: 280,
     "@media (min-width: 48rem)": { display: "block" },
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
   },
+  desktopHistoryCollapsed: { width: 48 },
+  panel: { height: "100%", width: 280 },
   mobileHeader: {
     borderBottom: `1px solid ${tokens.borderSoft}`,
     flexShrink: 0,
@@ -62,6 +69,16 @@ const styles = stylex.create({
   },
 });
 
+const COLLAPSED_STORAGE_KEY = "memora:chat-history-collapsed";
+
+const readCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
 interface ChatPageHistoryShellProps {
   sessions: ChatSessionSummary[];
   activeSessionId: string;
@@ -89,19 +106,39 @@ export const ChatPageHistoryShell = ({
   onDeleteSession,
   onOpenHistoryDrawer,
 }: ChatPageHistoryShellProps) => {
+  const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
+  const setCollapsed = useCallback((next: boolean) => {
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // Storage can be unavailable (private mode); the toggle still works for this visit.
+    }
+  }, []);
+  const toggleCollapsed = useCallback(
+    () => setCollapsed(!isCollapsed),
+    [isCollapsed, setCollapsed],
+  );
+
   return (
     <>
-      <aside {...stylex.props(styles.desktopHistory)}>
-        <ChatHistoryPanel
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          isStreaming={isHistoryPanelBusy}
-          deletingSessionId={deletingSessionId}
-          onCreateSession={onCreateSession}
-          onSelectSession={onSelectSession}
-          onDeleteSession={onDeleteSession}
-          isReady={sessionsReady}
-        />
+      <aside
+        {...stylex.props(styles.desktopHistory, isCollapsed && styles.desktopHistoryCollapsed)}
+      >
+        <div {...stylex.props(styles.panel)}>
+          <ChatHistoryPanel
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            isStreaming={isHistoryPanelBusy}
+            deletingSessionId={deletingSessionId}
+            onCreateSession={onCreateSession}
+            onSelectSession={onSelectSession}
+            onDeleteSession={onDeleteSession}
+            collapsed={isCollapsed}
+            onToggleCollapsed={toggleCollapsed}
+            isReady={sessionsReady}
+          />
+        </div>
       </aside>
 
       <div {...stylex.props(styles.mobileHeader)}>

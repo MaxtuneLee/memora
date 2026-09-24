@@ -94,9 +94,6 @@ export const Component = () => {
     inputRef,
   });
 
-  const onCreateSession = useCallback(() => {
-    void handleCreateSession();
-  }, [handleCreateSession]);
   const onSelectSession = useCallback(
     (sessionId: string) => {
       void handleSelectSession(sessionId);
@@ -172,6 +169,16 @@ export const Component = () => {
     tools: activeTools,
     persistence,
   });
+
+  const isActiveSessionEmpty = Boolean(activeSessionId) && messages.length === 0;
+  const onCreateSession = useCallback(() => {
+    // An empty session is already a new one; reuse it instead of piling up blank sessions.
+    if (isActiveSessionEmpty) {
+      inputRef.current?.focus();
+      return;
+    }
+    void handleCreateSession();
+  }, [handleCreateSession, inputRef, isActiveSessionEmpty]);
 
   const abort = useCallback(() => {
     abortAgent();
@@ -483,7 +490,6 @@ export const Component = () => {
         onContinueAfterIterationLimit={continueAfterIterationLimit}
         onDismissIterationLimitPrompt={dismissIterationLimitPrompt}
         onOpenSettings={openSettingsPanel}
-        onSuggestionClick={turnActions.handleSuggestionClick}
         composerPanelProps={{
           pendingCount,
           deliveryMode,

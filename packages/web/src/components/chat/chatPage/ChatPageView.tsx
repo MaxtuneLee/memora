@@ -1,10 +1,12 @@
 import { ConfirmDialog } from "@/components/desktop";
+import { MotionConfig, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
+import { CHAT_MASCOT_LAYOUT_ID } from "./helpers";
 
 const styles = stylex.create({
   root: { display: "flex", height: "100%", minHeight: 0 },
@@ -55,8 +57,7 @@ export const ChatPageView = (props: {
   onContinueAfterIterationLimit: () => Promise<void>;
   onDismissIterationLimitPrompt: () => void;
   onOpenSettings: (section?: string) => void;
-  onSuggestionClick: Parameters<typeof ChatPageMessagesPanel>[0]["onSuggestionClick"];
-  composerPanelProps: Parameters<typeof ChatPageComposerPanel>[0];
+  composerPanelProps: Omit<Parameters<typeof ChatPageComposerPanel>[0], "centered">;
   isHistoryDrawerOpen: boolean;
   pendingWriteApproval: Parameters<typeof ToolWriteApprovalDialog>[0]["request"];
   onAllowWriteOnce: () => void;
@@ -103,7 +104,6 @@ export const ChatPageView = (props: {
     onContinueAfterIterationLimit,
     onDismissIterationLimitPrompt,
     onOpenSettings,
-    onSuggestionClick,
     composerPanelProps,
     isHistoryDrawerOpen,
     pendingWriteApproval,
@@ -121,7 +121,7 @@ export const ChatPageView = (props: {
   } = props;
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <div {...stylex.props(styles.root)}>
         <ChatPageHistoryShell
           sessions={sessions}
@@ -139,13 +139,21 @@ export const ChatPageView = (props: {
 
         <div {...stylex.props(styles.main)}>
           <div {...stylex.props(styles.content)}>
-            <div ref={messagesScrollAreaRef} {...stylex.props(styles.scrollArea)}>
+            {/* layoutScroll lets the mascot flight measure through the auto-scroll to the bottom. */}
+            <motion.div
+              layoutScroll
+              ref={messagesScrollAreaRef}
+              {...stylex.props(styles.scrollArea)}
+            >
               <div
                 ref={messagesContentRef}
                 {...stylex.props(styles.messages)}
-                style={{ paddingBottom: composerScrollInset }}
+                style={{ paddingBottom: hasMessages ? composerScrollInset : 0 }}
               >
                 <ChatPageMessagesPanel
+                  // Scoped per session: the mascot flies from the empty state to the first
+                  // reply, but never between sessions when switching.
+                  mascotLayoutId={`${CHAT_MASCOT_LAYOUT_ID}:${activeSessionId}`}
                   messages={composerPanelProps.messages}
                   isStreaming={isStreaming}
                   status={status}
@@ -169,12 +177,11 @@ export const ChatPageView = (props: {
                   onContinueAfterIterationLimit={onContinueAfterIterationLimit}
                   onDismissIterationLimitPrompt={onDismissIterationLimitPrompt}
                   onOpenSettings={() => onOpenSettings("ai-provider")}
-                  onSuggestionClick={onSuggestionClick}
                 />
               </div>
-            </div>
+            </motion.div>
 
-            <ChatPageComposerPanel {...composerPanelProps} />
+            <ChatPageComposerPanel {...composerPanelProps} centered={!hasMessages} />
           </div>
         </div>
       </div>
@@ -214,6 +221,6 @@ export const ChatPageView = (props: {
           onConfirmDeleteSession(pendingDeleteSessionId);
         }}
       />
-    </>
+    </MotionConfig>
   );
 };

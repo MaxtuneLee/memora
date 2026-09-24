@@ -9,6 +9,7 @@ import { tokens } from "../../styles/stylex.stylex";
 import { AssistantMessageContent } from "./chatMessage/AssistantMessageContent";
 import { getAssistantAvatarState } from "./chatMessage/getAssistantAvatarState";
 import type { ChatMessageData } from "./chatMessage/types";
+import { CHAT_LAYOUT_TRANSITION } from "./chatPage/helpers";
 import { UserMessageContent } from "./chatMessage/UserMessageContent";
 
 const styles = stylex.create({
@@ -23,9 +24,7 @@ const styles = stylex.create({
     flexShrink: 0,
     height: 36,
     justifyContent: "center",
-    transition: "transform 150ms",
     width: 36,
-    ":hover": { transform: "scale(1.03)" },
     ":focus-visible": {
       outline: "none",
       boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`,
@@ -99,6 +98,7 @@ interface ChatMessageProps {
   onEditMessage?: (messageId: string, text: string) => Promise<void> | void;
   onRetryMessage?: (messageId: string) => Promise<void> | void;
   actionsDisabled?: boolean;
+  mascotLayoutId?: string;
 }
 
 function ChatMessageComponent({
@@ -114,6 +114,7 @@ function ChatMessageComponent({
   onEditMessage,
   onRetryMessage,
   actionsDisabled = false,
+  mascotLayoutId,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
@@ -207,7 +208,8 @@ function ChatMessageComponent({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      // The avatar carrying the mascot flies in from the empty state; fading it in would hide that.
+      initial={mascotLayoutId ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       {...stylex.props(styles.root, isUser ? styles.userRoot : styles.assistantRoot)}
@@ -221,9 +223,13 @@ function ChatMessageComponent({
       }}
     >
       {!isUser && (
-        <button
+        <motion.button
           type="button"
           onClick={triggerAvatarBurst}
+          layoutId={mascotLayoutId}
+          transition={CHAT_LAYOUT_TRANSITION}
+          // Hover scale through motion: a CSS transform transition would fight the layout flight.
+          whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
           {...stylex.props(styles.avatarButton)}
           aria-label="Animate assistant avatar"
         >
@@ -233,7 +239,7 @@ function ChatMessageComponent({
             decorative
             style={styles.avatar}
           />
-        </button>
+        </motion.button>
       )}
       <div
         {...stylex.props(
@@ -339,7 +345,8 @@ const areChatMessagePropsEqual = (
     previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt &&
     previousProps.onEditMessage === nextProps.onEditMessage &&
     previousProps.onRetryMessage === nextProps.onRetryMessage &&
-    previousProps.actionsDisabled === nextProps.actionsDisabled
+    previousProps.actionsDisabled === nextProps.actionsDisabled &&
+    previousProps.mascotLayoutId === nextProps.mascotLayoutId
   );
 };
 

@@ -8,7 +8,6 @@ import type {
 } from "@/hooks/chat/useAgent";
 import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageEmptyState } from "./ChatPageEmptyState";
-import type { SuggestionCard } from "./types";
 
 const styles = stylex.create({
   root: { display: "flex", flexDirection: "column", gap: 16, width: "100%" },
@@ -82,6 +81,7 @@ interface ChatPageMessagesPanelProps {
   error: Error | null;
   greetingTitle: string;
   isConfigured: boolean;
+  mascotLayoutId: string;
   onSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
   onSendWidgetPrompt: (text: string) => Promise<void>;
   onEditMessage: (messageId: string, nextText: string) => Promise<void>;
@@ -90,7 +90,6 @@ interface ChatPageMessagesPanelProps {
   onContinueAfterIterationLimit: () => Promise<void>;
   onDismissIterationLimitPrompt: () => void;
   onOpenSettings: () => void;
-  onSuggestionClick: (suggestion: SuggestionCard) => void;
 }
 
 export const ChatPageMessagesPanel = ({
@@ -109,6 +108,7 @@ export const ChatPageMessagesPanel = ({
   error,
   greetingTitle,
   isConfigured,
+  mascotLayoutId,
   onSaveImageToLibrary,
   onSendWidgetPrompt,
   onEditMessage,
@@ -117,19 +117,20 @@ export const ChatPageMessagesPanel = ({
   onContinueAfterIterationLimit,
   onDismissIterationLimitPrompt,
   onOpenSettings,
-  onSuggestionClick,
 }: ChatPageMessagesPanelProps) => {
   if (!hasMessages) {
     return (
       <ChatPageEmptyState
         greetingTitle={greetingTitle}
         isConfigured={isConfigured}
+        mascotLayoutId={mascotLayoutId}
         sessionsError={sessionsError}
         onOpenSettings={onOpenSettings}
-        onSuggestionClick={onSuggestionClick}
       />
     );
   }
+
+  const firstAssistantId = messages.find((message) => message.role === "assistant")?.id;
 
   return (
     <div {...stylex.props(styles.root)}>
@@ -154,6 +155,7 @@ export const ChatPageMessagesPanel = ({
                 : undefined
             }
             actionsDisabled={isStreaming || isPreparingTurn}
+            mascotLayoutId={message.id === firstAssistantId ? mascotLayoutId : undefined}
             onToggleThinking={isCurrentAssistant ? onToggleThinking : undefined}
           />
         );

@@ -8,7 +8,7 @@ import {
   StopIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
@@ -21,10 +21,15 @@ import type { ResolvedReferenceScope } from "@/lib/chat/tools";
 import type { ChatSessionReference } from "@/lib/chat/chatSessionStorage";
 import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageComposerAttachments } from "./ChatPageComposerAttachments";
+import { CHAT_LAYOUT_TRANSITION } from "./helpers";
 import type { ComposerNotice, ReferencePickerSource } from "./types";
 
 const styles = stylex.create({
   root: { bottom: 0, insetInline: 0, pointerEvents: "none", position: "absolute", zIndex: 10 },
+  // New chat: the composer starts on the midline, right under the greeting (see ChatPageEmptyState).
+  rootCentered: { bottom: "auto", top: "50%" },
+  fadeHidden: { display: "none" },
+  overlayCentered: { paddingTop: 0 },
   fade: {
     backgroundImage: `linear-gradient(to top, ${tokens.shell}, color-mix(in srgb, ${tokens.shell} 90%, transparent), transparent)`,
     bottom: 0,
@@ -249,6 +254,7 @@ interface ChatPageComposerPanelProps {
   deliveryMode: "pending" | "steer";
   onDeliveryModeChange: (mode: "pending" | "steer") => void;
   composerFadeHeight: number;
+  centered: boolean;
   composerOverlayRef: React.RefObject<HTMLDivElement | null>;
   isStreaming: boolean;
   status: AgentStatus;
@@ -311,6 +317,7 @@ export const ChatPageComposerPanel = ({
   deliveryMode,
   onDeliveryModeChange,
   composerFadeHeight,
+  centered,
   composerOverlayRef,
   isStreaming,
   status,
@@ -364,10 +371,21 @@ export const ChatPageComposerPanel = ({
   onRemoveComposerImage,
 }: ChatPageComposerPanelProps) => {
   return (
-    <div {...stylex.props(styles.root)}>
-      <div {...stylex.props(styles.fade)} style={{ height: composerFadeHeight }} />
-      <div ref={composerOverlayRef} {...stylex.props(styles.overlay)}>
-        <div {...stylex.props(styles.composerArea)}>
+    <div {...stylex.props(styles.root, centered && styles.rootCentered)}>
+      <div
+        {...stylex.props(styles.fade, centered && styles.fadeHidden)}
+        style={{ height: composerFadeHeight }}
+      />
+      <div
+        ref={composerOverlayRef}
+        {...stylex.props(styles.overlay, centered && styles.overlayCentered)}
+      >
+        <motion.div
+          layout="position"
+          layoutDependency={centered}
+          transition={CHAT_LAYOUT_TRANSITION}
+          {...stylex.props(styles.composerArea)}
+        >
           <AnimatePresence>
             {isStreaming && status.type !== "idle" && status.type !== "generating" && (
               <StatusBar status={status} />
@@ -626,7 +644,7 @@ export const ChatPageComposerPanel = ({
               </div>
             </div>
           </form>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

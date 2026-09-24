@@ -1,8 +1,18 @@
-import { memo, useMemo } from "react";
-import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
+import { memo, useMemo, useSyncExternalStore } from "react";
+import { PlusIcon, SidebarSimpleIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
+import {
+  getRunningSessionIds,
+  getUnreadSessionIds,
+  subscribeSessionStatus,
+} from "@/lib/agent-runtime/client";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { tokens } from "../../styles/stylex.stylex";
+
+const shimmer = stylex.keyframes({
+  "0%": { maskPosition: "100% 0" },
+  "100%": { maskPosition: "-100% 0" },
+});
 
 const styles = stylex.create({
   root: {
@@ -19,6 +29,7 @@ const styles = stylex.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
+  headingStart: { alignItems: "center", display: "flex", gap: 6, minWidth: 0 },
   headingCopy: { minWidth: 0 },
   heading: {
     color: tokens.textStrong,
@@ -46,6 +57,7 @@ const styles = stylex.create({
     width: 28,
     ":hover": { backgroundColor: tokens.hover, color: tokens.text },
   },
+  collapseButton: { flexShrink: 0, marginInlineStart: -2 },
   icon: { height: 14, width: 14 },
   newSession: {
     alignItems: "center",
@@ -60,11 +72,36 @@ const styles = stylex.create({
     justifyContent: "center",
     paddingBlock: 8,
     paddingInline: 12,
-    transition: "background-color 150ms",
+    overflow: "hidden",
+    transition:
+      "width 150ms ease-out, height 150ms ease-out, padding 150ms ease-out, gap 150ms ease-out, margin 150ms ease-out, background-color 150ms",
     width: "100%",
     ":hover": { backgroundColor: tokens.hover },
     ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+    "@media (prefers-reduced-motion: reduce)": { transition: "background-color 150ms" },
   },
+  // Folds into a square plus button under the toggle, lined up with it in the collapsed rail.
+  newSessionCollapsed: {
+    gap: 0,
+    height: 28,
+    marginInlineStart: -2,
+    paddingBlock: 0,
+    paddingInline: 0,
+    width: 28,
+  },
+  newSessionLabel: {
+    maxWidth: 120,
+    opacity: 1,
+    transition: "max-width 150ms ease-out, opacity 150ms ease-out",
+    whiteSpace: "nowrap",
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+  },
+  newSessionLabelCollapsed: { maxWidth: 0, opacity: 0 },
+  fades: {
+    transition: "opacity 150ms ease-out",
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+  },
+  hidden: { opacity: 0, pointerEvents: "none" },
   scrollArea: { flex: 1, minHeight: 0, overflowY: "auto", paddingBlock: 12, paddingInline: 8 },
   empty: {
     backgroundColor: `color-mix(in srgb, ${tokens.card} 60%, transparent)`,
@@ -152,7 +189,41 @@ const styles = stylex.create({
       color: tokens.primaryText,
     },
   },
-  deleting: { cursor: "not-allowed", opacity: 0.4 },
+  deleting: {
+    cursor: "not-allowed",
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 0.4,
+      [stylex.when.ancestor(":focus-within")]: 0.4,
+      "@media (hover: none)": 0.4,
+    },
+  },
+  revealOnHover: {
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 1,
+      [stylex.when.ancestor(":focus-within")]: 1,
+      "@media (hover: none)": 1,
+    },
+  },
+  titleRow: { alignItems: "center", display: "flex", gap: 6, minWidth: 0 },
+  unreadDot: {
+    backgroundColor: tokens.successText,
+    borderRadius: 9999,
+    flexShrink: 0,
+    height: 6,
+    width: 6,
+  },
+  titleRunning: {
+    animationDuration: "2s",
+    animationIterationCount: "infinite",
+    animationName: shimmer,
+    animationTimingFunction: "linear",
+    maskImage:
+      "linear-gradient(90deg, #000 35%, rgb(0 0 0 / 0.35) 50%, #000 65%)",
+    maskSize: "200% 100%",
+    "@media (prefers-reduced-motion: reduce)": { animationName: "none", maskImage: "none" },
+  },
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -203,6 +274,8 @@ export interface ChatHistoryPanelProps {
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
   onCloseMobileDrawer?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   isReady?: boolean;
 }
 
@@ -215,19 +288,36 @@ function ChatHistoryPanelComponent({
   onSelectSession,
   onDeleteSession,
   onCloseMobileDrawer,
+  collapsed = false,
+  onToggleCollapsed,
   isReady = true,
 }: ChatHistoryPanelProps) {
+  const runningSessionIds = useSyncExternalStore(subscribeSessionStatus, getRunningSessionIds);
+  const unreadSessionIds = useSyncExternalStore(subscribeSessionStatus, getUnreadSessionIds);
   const groups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-  const activeTitle =
-    sessions.find((session) => session.id === activeSessionId)?.title ?? "History";
 
   return (
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.header)}>
         <div {...stylex.props(styles.headingRow)}>
-          <div {...stylex.props(styles.headingCopy)}>
-            <h2 {...stylex.props(styles.heading)}>Chat History</h2>
-            <p {...stylex.props(styles.activeTitle)}>{activeTitle}</p>
+          <div {...stylex.props(styles.headingStart)}>
+            {onToggleCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                {...stylex.props(styles.iconButton, styles.collapseButton)}
+                aria-label={collapsed ? "Expand history panel" : "Collapse history panel"}
+                aria-expanded={!collapsed}
+              >
+                <SidebarSimpleIcon className={stylex.props(styles.icon).className} />
+              </button>
+            )}
+            <div
+              inert={collapsed}
+              {...stylex.props(styles.headingCopy, styles.fades, collapsed && styles.hidden)}
+            >
+              <h2 {...stylex.props(styles.heading)}>Chat History</h2>
+            </div>
           </div>
           {onCloseMobileDrawer && (
             <button
@@ -247,14 +337,22 @@ function ChatHistoryPanelComponent({
             onCloseMobileDrawer?.();
           }}
           disabled={!isReady}
-          {...stylex.props(styles.newSession)}
+          aria-label={collapsed ? "New session" : undefined}
+          {...stylex.props(styles.newSession, collapsed && styles.newSessionCollapsed)}
         >
           <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
-          New session
+          <span
+            {...stylex.props(styles.newSessionLabel, collapsed && styles.newSessionLabelCollapsed)}
+          >
+            New session
+          </span>
         </button>
       </div>
 
-      <div {...stylex.props(styles.scrollArea)}>
+      <div
+        inert={collapsed}
+        {...stylex.props(styles.scrollArea, styles.fades, collapsed && styles.hidden)}
+      >
         {groups.length === 0 ? (
           <div {...stylex.props(styles.empty)}>No saved sessions yet.</div>
         ) : (
@@ -267,10 +365,13 @@ function ChatHistoryPanelComponent({
                     const isActive = session.id === activeSessionId;
                     const selectDisabled = isStreaming && !isActive;
                     const deleteDisabled = isStreaming || deletingSessionId === session.id;
+                    const isRunning = runningSessionIds.has(session.id);
+                    const isUnread = !isActive && unreadSessionIds.has(session.id);
                     return (
                       <div
                         key={session.id}
                         {...stylex.props(
+                          stylex.defaultMarker(),
                           styles.session,
                           isActive && styles.sessionActive,
                           selectDisabled && styles.disabled,
@@ -285,8 +386,23 @@ function ChatHistoryPanelComponent({
                           disabled={selectDisabled}
                           {...stylex.props(styles.select)}
                         >
-                          <div {...stylex.props(styles.headingCopy)}>
-                            <p {...stylex.props(styles.sessionTitle)}>{session.title}</p>
+                          <div {...stylex.props(styles.titleRow)}>
+                            {isUnread && (
+                              <span
+                                role="img"
+                                aria-label="New reply"
+                                {...stylex.props(styles.unreadDot)}
+                              />
+                            )}
+                            <p
+                              aria-busy={isRunning}
+                              {...stylex.props(
+                                styles.sessionTitle,
+                                isRunning && styles.titleRunning,
+                              )}
+                            >
+                              {session.title}
+                            </p>
                           </div>
                           <p {...stylex.props(styles.preview, isActive && styles.previewActive)}>
                             {session.preview || "No messages yet"}
@@ -300,6 +416,7 @@ function ChatHistoryPanelComponent({
                           {...stylex.props(
                             styles.delete,
                             isActive && styles.deleteActive,
+                            styles.revealOnHover,
                             deleteDisabled && styles.deleting,
                           )}
                         >
@@ -331,6 +448,8 @@ const areChatHistoryPanelPropsEqual = (
     previousProps.onSelectSession === nextProps.onSelectSession &&
     previousProps.onDeleteSession === nextProps.onDeleteSession &&
     previousProps.onCloseMobileDrawer === nextProps.onCloseMobileDrawer &&
+    previousProps.collapsed === nextProps.collapsed &&
+    previousProps.onToggleCollapsed === nextProps.onToggleCollapsed &&
     previousProps.isReady === nextProps.isReady
   );
 };
