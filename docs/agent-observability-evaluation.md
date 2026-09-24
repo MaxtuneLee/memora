@@ -12,14 +12,14 @@ Store an append-only, versioned sequence per submission. Every record has `forma
 
 The minimum event families are:
 
-| Event | Required evidence |
-| --- | --- |
-| `submission.accepted` | Original input, selected delivery mode, admission order, parent run if steered, and reference scope |
-| `input.applied` | Input ID, whether it started a run or entered an existing run, and the model turn that first saw it |
-| `model.request` | The effective system prompt, messages after context-window trimming, tool definitions, model identity and inference settings, with stable content references |
-| `model.response` | Complete text, reasoning if retained by the product policy, tool calls, usage, finish reason, duration, and error |
-| `tool.started` / `tool.settled` | Tool name, call ID, validated arguments, effective result passed back to the model, duration, error, and `outcome: known | unknown` |
-| `submission.settled` | One terminal `completed`, `failed`, `aborted`, or `interrupted` outcome, error, and final message ID |
+| Event                           | Required evidence                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `submission.accepted`           | Original input, selected delivery mode, admission order, parent run if steered, and reference scope                                                          |
+| `input.applied`                 | Input ID, whether it started a run or entered an existing run, and the model turn that first saw it                                                          |
+| `model.request`                 | The effective system prompt, messages after context-window trimming, tool definitions, model identity and inference settings, with stable content references |
+| `model.response`                | Complete text, reasoning if retained by the product policy, tool calls, usage, finish reason, duration, and error                                            |
+| `tool.started` / `tool.settled` | Tool name, call ID, validated arguments, effective result passed back to the model, duration, error, and `outcome: known                                     | unknown` |
+| `submission.settled`            | One terminal `completed`, `failed`, `aborted`, or `interrupted` outcome, error, and final message ID                                                         |
 
 Capture `model.request` immediately before calling the model, after prompt assembly, memory insertion, steering, and context-window trimming. Recording earlier hook state would not answer what the model actually saw. Capture both the raw tool result and the truncated value inserted into model history, or mark a content reference as unavailable; a preview alone cannot explain a later answer. Streaming deltas are optional live events and cannot replace completed request/response records. A failed tool can be followed by a successful run, so tool failure and submission settlement remain separate.
 

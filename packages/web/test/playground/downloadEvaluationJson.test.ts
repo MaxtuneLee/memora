@@ -12,7 +12,9 @@ const result = {
 
 describe("downloadEvaluationJson", () => {
   beforeEach(() => {
-    const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
+    const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+      url: "http://localhost/",
+    });
     vi.stubGlobal("document", dom.window.document);
   });
 

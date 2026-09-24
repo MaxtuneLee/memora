@@ -44,7 +44,7 @@
 
 - Format workspace: `vp fmt .`
 - Check formatting: `vp fmt . --check`
-  - Oxfmt reads config from `.oxfmtrc.json`.
+  - Oxfmt reads config from the `fmt` block in the root `vite.config.ts`.
 
 ### Tests
 

@@ -121,7 +121,11 @@ const result = await runEvaluation({
 ## 6. 保存评测结果并在之后读取
 
 ```ts
-import { listEvaluationResults, readEvaluationResult, saveEvaluationResult } from "@memora/evaluation";
+import {
+  listEvaluationResults,
+  readEvaluationResult,
+  saveEvaluationResult,
+} from "@memora/evaluation";
 
 await saveEvaluationResult(result); // 单个 JSON 文档，写入 OPFS，以 result.runId 为文件名
 

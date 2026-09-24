@@ -17,7 +17,15 @@ test("strips credentials and contact details from plain text", () => {
     ].join("\n"),
   );
 
-  for (const secret of ["abc.def-123", "sk-proj", "secret123", "hunter2", "ada@example.com", "eyJhbGciOi", "iVBORw0KGgo"]) {
+  for (const secret of [
+    "abc.def-123",
+    "sk-proj",
+    "secret123",
+    "hunter2",
+    "ada@example.com",
+    "eyJhbGciOi",
+    "iVBORw0KGgo",
+  ]) {
     expect(text).not.toContain(secret);
   }
   expect(text).toContain("model=gpt");
@@ -27,7 +35,10 @@ test("strips credentials and contact details from plain text", () => {
 test("drops user content and credentials from logged objects but keeps structure", () => {
   const entry = formatLogEntry(
     "error",
-    ["Turn failed", { providerId: "p1", apiKey: "k", messages: [{ content: "private note" }], status: 500 }],
+    [
+      "Turn failed",
+      { providerId: "p1", apiKey: "k", messages: [{ content: "private note" }], status: 500 },
+    ],
     NOW,
   );
 
@@ -39,5 +50,7 @@ test("drops user content and credentials from logged objects but keeps structure
 test("keeps error name, message, and stack", () => {
   const error = new TypeError("boom");
   error.stack = "TypeError: boom\n    at run (app.js:1:2)";
-  expect(formatLogEntry("error", [error], NOW)).toContain("TypeError: boom\n    at run (app.js:1:2)");
+  expect(formatLogEntry("error", [error], NOW)).toContain(
+    "TypeError: boom\n    at run (app.js:1:2)",
+  );
 });

@@ -25,9 +25,7 @@ export interface RecentItem {
   tone: "recording" | "file" | "chat";
 }
 
-export const getFileHref = (
-  file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">,
-): string => {
+export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {
   if (file.type === "audio" || file.type === "video") {
     return `/transcript/file/${file.id}`;
   }

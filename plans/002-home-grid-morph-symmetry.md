@@ -65,7 +65,7 @@ const isToggleShowingDone = isHomeGridEditing || isHomeGridActionMorphing;
 
 ```ts
 /* target — 常量区 */
-const ACTION_SPLIT_EASE = [0.23, 1, 0.32, 1] as const;   // 保持不变，唯一的曲线
+const ACTION_SPLIT_EASE = [0.23, 1, 0.32, 1] as const; // 保持不变，唯一的曲线
 // ACTION_SPLIT_EASE_REVERSED 删除
 ```
 

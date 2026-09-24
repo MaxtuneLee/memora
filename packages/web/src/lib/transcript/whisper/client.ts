@@ -222,7 +222,8 @@ export const startStreamingTranscription = async (
       signal: controller.signal,
     },
     (event) => {
-      if (streaming) handleProviderEvent(localWorker, streaming.controller, streaming.segments, event);
+      if (streaming)
+        handleProviderEvent(localWorker, streaming.controller, streaming.segments, event);
     },
   );
   if (controller.signal.aborted) {

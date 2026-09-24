@@ -14,15 +14,24 @@ const TEXT_REDACTIONS: ReadonlyArray<[RegExp, string]> = [
   [/\bBearer\s+[\w.~+/=-]+/gi, `Bearer ${REDACTED}`],
   [/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED],
   [/\b(?:sk|pk|rk|ak)-[\w-]{8,}/gi, REDACTED],
-  [/([?&#][^=&#\s]*(?:key|token|secret|password|auth|signature|code|sig)[^=&#\s]*=)[^&#\s"']+/gi, `$1${REDACTED}`],
-  [/("[^"]*(?:key|token|secret|password|authorization|cookie)[^"]*"\s*:\s*)"[^"]*"/gi, `$1"${REDACTED}"`],
+  [
+    /([?&#][^=&#\s]*(?:key|token|secret|password|auth|signature|code|sig)[^=&#\s]*=)[^&#\s"']+/gi,
+    `$1${REDACTED}`,
+  ],
+  [
+    /("[^"]*(?:key|token|secret|password|authorization|cookie)[^"]*"\s*:\s*)"[^"]*"/gi,
+    `$1"${REDACTED}"`,
+  ],
   [/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]"],
   // Long unbroken runs are almost always keys, hashes, or encoded payloads.
   [/[A-Za-z0-9+_=-]{40,}/g, REDACTED],
 ];
 
 export const redactLogText = (text: string): string =>
-  TEXT_REDACTIONS.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), text);
+  TEXT_REDACTIONS.reduce(
+    (result, [pattern, replacement]) => result.replace(pattern, replacement),
+    text,
+  );
 
 const serializeObject = (value: object): string => {
   try {
@@ -39,13 +48,18 @@ const serializeObject = (value: object): string => {
 };
 
 const formatArg = (arg: unknown): string => {
-  if (arg instanceof Error) return `${arg.name}: ${arg.message}${arg.stack ? `\n${arg.stack}` : ""}`;
+  if (arg instanceof Error)
+    return `${arg.name}: ${arg.message}${arg.stack ? `\n${arg.stack}` : ""}`;
   if (typeof arg === "string") return arg;
   if (arg === null || typeof arg !== "object") return String(arg);
   return serializeObject(arg);
 };
 
-export const formatLogEntry = (level: string, args: readonly unknown[], now = new Date()): string => {
+export const formatLogEntry = (
+  level: string,
+  args: readonly unknown[],
+  now = new Date(),
+): string => {
   const text = redactLogText(args.map(formatArg).join(" "));
   const body = text.length > MAX_ENTRY_CHARS ? `${text.slice(0, MAX_ENTRY_CHARS)}…` : text;
   return `${now.toISOString()} [${level}] ${body}\n`;

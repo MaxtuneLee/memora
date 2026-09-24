@@ -51,9 +51,5 @@ export function useAppStore() {
 }
 
 export function useLiveStoreLoadingStatus(): LiveStoreLoadingStatus {
-  return useSyncExternalStore(
-    subscribeToLoadingStatus,
-    getLoadingStatus,
-    getLoadingStatus,
-  );
+  return useSyncExternalStore(subscribeToLoadingStatus, getLoadingStatus, getLoadingStatus);
 }

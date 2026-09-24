@@ -1,6 +1,8 @@
 import type { EvaluationResult } from "../src/types";
 
-export function sampleEvaluationResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
+export function sampleEvaluationResult(
+  overrides: Partial<EvaluationResult> = {},
+): EvaluationResult {
   return {
     formatVersion: 1,
     runId: "run-1",
@@ -40,8 +42,22 @@ export function sampleEvaluationResult(overrides: Partial<EvaluationResult> = {}
           },
           reference: { raw: "hello world", normalized: "hello world" },
           prediction: { raw: "hello world", normalized: "hello world" },
-          wer: { insertions: 0, deletions: 0, substitutions: 0, edits: 0, referenceUnits: 2, value: 0 },
-          cer: { insertions: 0, deletions: 0, substitutions: 0, edits: 0, referenceUnits: 10, value: 0 },
+          wer: {
+            insertions: 0,
+            deletions: 0,
+            substitutions: 0,
+            edits: 0,
+            referenceUnits: 2,
+            value: 0,
+          },
+          cer: {
+            insertions: 0,
+            deletions: 0,
+            substitutions: 0,
+            edits: 0,
+            referenceUnits: 10,
+            value: 0,
+          },
         },
         modelCallMs: 42,
         modelCallTiming: "includes-queue-wait",
@@ -53,7 +69,14 @@ export function sampleEvaluationResult(overrides: Partial<EvaluationResult> = {}
       failed: 0,
       canceled: false,
       wer: { insertions: 0, deletions: 0, substitutions: 0, edits: 0, referenceUnits: 2, value: 0 },
-      cer: { insertions: 0, deletions: 0, substitutions: 0, edits: 0, referenceUnits: 10, value: 0 },
+      cer: {
+        insertions: 0,
+        deletions: 0,
+        substitutions: 0,
+        edits: 0,
+        referenceUnits: 10,
+        value: 0,
+      },
     },
     ...overrides,
   };

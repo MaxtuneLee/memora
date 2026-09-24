@@ -235,7 +235,12 @@ export const fileMaterializers = {
         ...(event.durationSec !== undefined ? { durationSec: event.durationSec ?? null } : {}),
         ...(event.mimeType !== undefined ? { mimeType: event.mimeType } : {}),
         ...(event.sizeBytes !== undefined
-          ? { sizeBytes: event.sizeBytes, indexStatus: "pending", indexedAt: null, indexSummary: null }
+          ? {
+              sizeBytes: event.sizeBytes,
+              indexStatus: "pending",
+              indexedAt: null,
+              indexSummary: null,
+            }
           : {}),
         ...(event.storageType !== undefined ? { storageType: event.storageType } : {}),
         ...(event.storagePath !== undefined ? { storagePath: event.storagePath } : {}),

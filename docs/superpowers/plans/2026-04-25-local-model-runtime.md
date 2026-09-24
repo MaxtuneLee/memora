@@ -192,13 +192,7 @@ import type { AgentMessageContent } from "@memora/ai-core";
 export type LocalModelPoolKey = "asr" | "chat" | "embedding";
 export type LocalModelPriority = "interactive" | "background";
 export type LocalModelTaskStatus =
-  | "queued"
-  | "assigned"
-  | "loading-model"
-  | "running"
-  | "completed"
-  | "failed"
-  | "aborted";
+  "queued" | "assigned" | "loading-model" | "running" | "completed" | "failed" | "aborted";
 export type LocalModelRuntime = "transformers-js";
 export type LocalModelDevice = "webgpu" | "wasm";
 export type LocalModelModality = "text" | "image" | "audio" | "video";
@@ -278,8 +272,7 @@ export interface LocalToolDefinition {
 }
 
 export type LocalChatContent =
-  | AgentMessageContent
-  | { type: "audio"; mimeType: string; data: string };
+  AgentMessageContent | { type: "audio"; mimeType: string; data: string };
 
 export interface LocalChatMessage {
   role: "user" | "assistant" | "system" | "tool";
@@ -610,8 +603,7 @@ import { builtInLocalModelManifests } from "./manifests";
 import type { LocalChatRequest, LocalModelError, LocalModelManifest } from "./types";
 
 export type LocalModelValidationResult =
-  | { ok: true; manifest: LocalModelManifest }
-  | { ok: false; error: LocalModelError };
+  { ok: true; manifest: LocalModelManifest } | { ok: false; error: LocalModelError };
 
 export const getLocalModelManifest = (id: string): LocalModelManifest | undefined => {
   return builtInLocalModelManifests.find((manifest) => manifest.id === id);

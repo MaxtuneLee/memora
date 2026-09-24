@@ -209,12 +209,12 @@ export const createFileTools = (
         const results = await searchContent({
           query: payload.query,
           topK: payload.top_k,
-          fileIds:
-            referenceScope.isActive || requestedIds.length > 0 ? requestedIds : undefined,
+          fileIds: referenceScope.isActive || requestedIds.length > 0 ? requestedIds : undefined,
           files,
           vectorDb: modelWorkerFactory.vectorDb,
           semantic: readEmbeddingRuntime(store),
-          semanticMode: normalizeSettingsValue(store.query(settingsDocumentQuery$)).semanticSearchMode,
+          semanticMode: normalizeSettingsValue(store.query(settingsDocumentQuery$))
+            .semanticSearchMode,
         });
         return results.map((result) => ({
           fileId: result.fileId,
@@ -246,7 +246,8 @@ export const createFileTools = (
         const row = rows[0] as { id: string; name: string } | undefined;
         if (!row) return { error: "File not found." };
         const content = await readExtractedContent(payload.file_id);
-        if (content == null) return { error: "No extracted content is available for this file yet." };
+        if (content == null)
+          return { error: "No extracted content is available for this file yet." };
         const offset = payload.offset ?? 0;
         return {
           fileId: row.id,

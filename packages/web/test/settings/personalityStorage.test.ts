@@ -30,8 +30,12 @@ vi.mock("@memora/fs", () => ({
   write: testState.write,
 }));
 
-const { buildPersonalityMarkdown, loadGlobalMemoryData, saveGlobalMemoryData, savePersonalityProfile } =
-  await import("@/lib/settings/personalityStorage");
+const {
+  buildPersonalityMarkdown,
+  loadGlobalMemoryData,
+  saveGlobalMemoryData,
+  savePersonalityProfile,
+} = await import("@/lib/settings/personalityStorage");
 
 beforeEach(() => {
   testState.filesByPath.clear();

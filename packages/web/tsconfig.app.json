@@ -30,5 +30,5 @@
       "@memora/livestore-devtool": ["../livestore-devtool/dist/index.d.ts"]
     }
   },
-  "include": ["src", "test"],
+  "include": ["src", "test"]
 }

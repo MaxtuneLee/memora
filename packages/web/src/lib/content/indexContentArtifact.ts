@@ -43,15 +43,25 @@ export const indexContentArtifactSemantically = async (
   vectorDb: VectorDbIndexClient,
   artifact: ContentArtifact,
   runtime: EmbeddingRuntime,
-  options: { signal?: AbortSignal; onProgress?: (progress: { label: string; current?: number; total?: number }) => void } = {},
+  options: {
+    signal?: AbortSignal;
+    onProgress?: (progress: { label: string; current?: number; total?: number }) => void;
+  } = {},
 ): Promise<{ chunkCount: number }> => {
   options.signal?.throwIfAborted();
-  const chunks = await chunkContentArtifact(artifact, { size: runtime.indexConfig.chunkSize, overlap: runtime.indexConfig.chunkOverlap });
+  const chunks = await chunkContentArtifact(artifact, {
+    size: runtime.indexConfig.chunkSize,
+    overlap: runtime.indexConfig.chunkOverlap,
+  });
   const plan = {
     documentId: artifact.fileId,
     contentHash: artifact.sourceRevision,
     indexedAt: Date.now(),
-    chunks: chunks.map(({ chunkId, chunkIndex, contentHash }) => ({ chunkId, chunkIndex, contentHash })),
+    chunks: chunks.map(({ chunkId, chunkIndex, contentHash }) => ({
+      chunkId,
+      chunkIndex,
+      contentHash,
+    })),
   };
   const checkpoint = await vectorDb.prepareDocument(plan);
   if (checkpoint.complete) return { chunkCount: chunks.length };
@@ -60,13 +70,23 @@ export const indexContentArtifactSemantically = async (
   for (let offset = 0; offset < pending.length; offset += 8) {
     options.signal?.throwIfAborted();
     const batch = pending.slice(offset, offset + 8);
-    const embeddings = await runtime.embed(batch.map((chunk) => chunk.content), "document", options);
+    const embeddings = await runtime.embed(
+      batch.map((chunk) => chunk.content),
+      "document",
+      options,
+    );
     options.signal?.throwIfAborted();
     validateEmbeddings(embeddings, batch.length, runtime.indexConfig.dimensions);
-    await vectorDb.upsertChunkBatch({ documentId: artifact.fileId, contentHash: artifact.sourceRevision,
+    await vectorDb.upsertChunkBatch({
+      documentId: artifact.fileId,
+      contentHash: artifact.sourceRevision,
       chunks: batch.map((chunk, index) => ({ ...chunk, embedding: embeddings[index] })),
     });
-    options.onProgress?.({ label: "Indexing semantic content", current: chunks.length - pending.length + offset + batch.length, total: chunks.length });
+    options.onProgress?.({
+      label: "Indexing semantic content",
+      current: chunks.length - pending.length + offset + batch.length,
+      total: chunks.length,
+    });
   }
   options.signal?.throwIfAborted();
   await vectorDb.finalizeDocument(plan);

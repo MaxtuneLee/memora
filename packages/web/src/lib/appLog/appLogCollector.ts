@@ -52,7 +52,11 @@ const appendCapped = async (path: string, chunk: string): Promise<number> => {
   const size = origin.size + bytes.byteLength;
   if (size <= APP_LOG_MAX_BYTES) return size;
 
-  const tail = await (await opfsFile(path).getOriginFile()).slice(size - APP_LOG_MAX_BYTES / 2).text();
+  const tail = await (
+    await opfsFile(path).getOriginFile()
+  )
+    .slice(size - APP_LOG_MAX_BYTES / 2)
+    .text();
   const kept = tail.slice(tail.indexOf("\n") + 1);
   await opfsWrite(path, kept, { overwrite: true });
   return new TextEncoder().encode(kept).byteLength;
