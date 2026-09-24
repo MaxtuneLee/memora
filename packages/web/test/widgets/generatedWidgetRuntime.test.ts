@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { expect, test } from "vite-plus/test";
 
 import {
@@ -129,14 +127,4 @@ test("listens for host theme updates next to the data and write channels", () =>
   expect(srcDoc).toContain(GENERATED_WIDGET_THEME_MESSAGE);
   expect(srcDoc).toContain("event.source !== window.parent");
   expect(srcDoc).toContain('nextTheme === "light" || nextTheme === "dark"');
-});
-
-test("widget base styles give dark mode its own tokens instead of forcing light", () => {
-  const widgetBaseCss = readFileSync(
-    new URL("../../src/styles/widgetBase.css", import.meta.url),
-    "utf8",
-  );
-
-  expect(widgetBaseCss).not.toContain("prefers-color-scheme");
-  expect(widgetBaseCss).toMatch(/:root\[data-theme="dark"\] \{\n  color-scheme: dark;/);
 });

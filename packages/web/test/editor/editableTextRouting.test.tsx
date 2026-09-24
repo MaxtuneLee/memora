@@ -154,7 +154,7 @@ test("global search routes editable text documents directly to the editor", () =
   });
   expect(imageItem?.intent).toEqual({
     type: "desktop-intent",
-    to: "/",
+    to: "/desktop",
     desktopIntent: {
       type: "openPreview",
       fileId: "image-1",

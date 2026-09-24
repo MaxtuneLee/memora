@@ -65,6 +65,13 @@ const getRunMessage = (port: MockMessagePort) => {
   return message;
 };
 
+// The factory defers pool disconnects by a microtask so a StrictMode remount keeps its workers.
+const flushDeferredDisconnect = async (): Promise<void> => {
+  await Promise.resolve();
+};
+
+const workerNames = (): string[] => MockSharedWorker.instances.map((worker) => worker.name).sort();
+
 const emit = (
   port: MockMessagePort,
   requestId: string,
@@ -84,12 +91,12 @@ describe("model worker factory", () => {
     vi.unstubAllGlobals();
   });
 
-  test("mounts one named shared worker per independent model pool", () => {
+  test("mounts one named shared worker per independent model pool", async () => {
     const factory = createModelWorkerFactory();
     const unmountFirst = factory.mount();
     const unmountSecond = factory.mount();
 
-    expect(MockSharedWorker.instances.map((worker) => worker.name)).toEqual([
+    expect(workerNames()).toEqual([
       "memora-model-asr",
       "memora-model-chat",
       "memora-model-embedding",
@@ -98,14 +105,42 @@ describe("model worker factory", () => {
     ]);
 
     unmountFirst();
+    await flushDeferredDisconnect();
     expect(MockSharedWorker.instances.every((worker) => !worker.port.closed)).toBe(true);
     unmountSecond();
+    await flushDeferredDisconnect();
     expect(MockSharedWorker.instances.every((worker) => worker.port.closed)).toBe(true);
     expect(
       MockSharedWorker.instances
         .filter((worker) => worker.name !== "memora-vector-db")
         .every((worker) => worker.port.posted.some((message) => message.type === "disconnect")),
     ).toBe(true);
+  });
+
+  test("keeps pool workers through an immediate unmount and remount", async () => {
+    const factory = createModelWorkerFactory();
+    const unmount = factory.mount();
+    unmount();
+    const remount = factory.mount();
+    await flushDeferredDisconnect();
+
+    const modelWorkers = MockSharedWorker.instances.filter(
+      (worker) => worker.name !== "memora-vector-db",
+    );
+    expect(modelWorkers.map((worker) => worker.name).sort()).toEqual([
+      "memora-model-asr",
+      "memora-model-chat",
+      "memora-model-embedding",
+      "memora-model-formula",
+    ]);
+    expect(
+      modelWorkers.every(
+        (worker) =>
+          !worker.port.closed &&
+          !worker.port.posted.some((message) => message.type === "disconnect"),
+      ),
+    ).toBe(true);
+    remount();
   });
 
   test("reconnects an unfinished request and deduplicates replayed event sequences", async () => {
@@ -135,6 +170,8 @@ describe("model worker factory", () => {
 
     const secondEvent = iterator.next();
     unmount();
+    await flushDeferredDisconnect();
+    expect(firstChatWorker.port.closed).toBe(true);
     expect(firstChatWorker.port.posted.some((message) => message.type === "cancel")).toBe(false);
     const remount = factory.mount();
     const secondChatWorker = MockSharedWorker.instances.filter(

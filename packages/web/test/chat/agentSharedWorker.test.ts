@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type {
   AgentRequest,
   AgentCommand,
@@ -144,6 +144,15 @@ const submission = (text: string): AgentSubmission => ({
   },
 });
 let connect: () => Port;
+// The first import transforms a large module graph; keep that cost out of each test's budget.
+const COLD_IMPORT_TIMEOUT = 60_000;
+
+// Warms the transform cache so the per-test re-import after resetModules only re-evaluates.
+beforeAll(async () => {
+  vi.stubGlobal("self", {});
+  await import("@/workers/agent.shared-worker");
+  vi.unstubAllGlobals();
+}, COLD_IMPORT_TIMEOUT);
 beforeEach(async () => {
   vi.resetModules();
   state.records.clear();

@@ -220,7 +220,7 @@ const styles = stylex.create({
     animationName: shimmer,
     animationTimingFunction: "linear",
     maskImage:
-      "linear-gradient(90deg, #000 35%, rgb(0 0 0 / 0.35) 50%, #000 65%)",
+      "linear-gradient(90deg, rgb(0 0 0 / 1) 35%, rgb(0 0 0 / 0.35) 50%, rgb(0 0 0 / 1) 65%)",
     maskSize: "200% 100%",
     "@media (prefers-reduced-motion: reduce)": { animationName: "none", maskImage: "none" },
   },

@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JSDOM } from "jsdom";
-import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vite-plus/test";
 
 let WysiwygDocumentEditor: typeof import("@/components/editor/WysiwygDocumentEditor").WysiwygDocumentEditor;
 
@@ -87,9 +87,16 @@ const clickRenderedFormula = async (container: HTMLElement, index = 0): Promise<
   fireEvent.click(formula);
 };
 
-beforeEach(async () => {
+// The first import transforms a large module graph; keep that cost out of each test's budget.
+const COLD_IMPORT_TIMEOUT = 60_000;
+
+beforeAll(async () => {
   setupDom();
   ({ WysiwygDocumentEditor } = await import("@/components/editor/WysiwygDocumentEditor"));
+}, COLD_IMPORT_TIMEOUT);
+
+beforeEach(() => {
+  setupDom();
 });
 
 afterEach(() => {

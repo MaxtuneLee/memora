@@ -4,7 +4,7 @@ import { nemotron35AsrStreamingManifest } from "@memora/local-model-runtime";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import type { setting } from "@/livestore/setting";
@@ -95,6 +95,13 @@ beforeEach(() => {
   mocks.recording = null;
 });
 afterEach(cleanup);
+
+// The first import transforms a large module graph; keep that cost out of each test's budget.
+const COLD_IMPORT_TIMEOUT = 60_000;
+
+beforeAll(async () => {
+  await import("@/pages/onboarding/index");
+}, COLD_IMPORT_TIMEOUT);
 
 const renderOnboarding = async () => {
   const { Component } = await import("@/pages/onboarding/index");

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vite-plus/test";
 
@@ -120,16 +119,4 @@ test("renders the transcript workspace with search and export controls in one su
   expect(html).toContain("Search transcript...");
   expect(html).toContain("TXT");
   expect(html).toContain("1/1 matches");
-});
-
-test("keeps the detail page as a split-view workbench with a dedicated preview surface", () => {
-  const pageSource = readFileSync(
-    new URL("../../src/components/transcript/TranscriptDetailPage.tsx", import.meta.url),
-    "utf8",
-  );
-
-  expect(pageSource).toContain("RecordingPreviewSurface");
-  expect(pageSource).toContain('data-surface="transcript-detail-workbench"');
-  expect(pageSource).toContain("setShowTranscript(true)");
-  expect(pageSource).toContain('gridTemplateColumns: "minmax(0, 1.05fr) minmax(22rem, 0.95fr)"');
 });

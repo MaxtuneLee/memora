@@ -215,6 +215,8 @@ export function getUnreadSessionIds(): ReadonlySet<string> {
 }
 
 export function subscribeSessionStatus(listener: () => void): () => void {
+  // Background listeners stay inert without SharedWorker; only chat commands report it.
+  if (typeof SharedWorker === "undefined") return () => {};
   connection();
   statusListeners.add(listener);
   return () => statusListeners.delete(listener);
@@ -223,6 +225,7 @@ export function subscribeSessionStatus(listener: () => void): () => void {
 export function onSessionFinished(
   listener: (sessionId: string, title: string) => void,
 ): () => void {
+  if (typeof SharedWorker === "undefined") return () => {};
   connection();
   finishedListeners.add(listener);
   return () => finishedListeners.delete(listener);

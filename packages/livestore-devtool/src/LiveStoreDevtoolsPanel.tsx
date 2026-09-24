@@ -1015,14 +1015,8 @@ export function LiveStoreDevtoolsPanel({
         .map((column) => `${quoteIdentifier(column.name)} = ${sqlLiteral(targetRow[column.name])}`)
         .join(" AND ");
 
-      const internalStore = store as unknown as {
-        sqliteDbWrapper?: {
-          execute: (query: string, bindValues?: Record<string, unknown>) => { durationMs: number };
-        };
-      };
-      const execution = internalStore.sqliteDbWrapper?.execute(
+      const execution = executeSql?.(
         `UPDATE ${quoteIdentifier(selectedTableInfo.name)} SET ${setClause} WHERE ${whereClause}`,
-        {},
       );
 
       if (!execution) {
@@ -1031,7 +1025,7 @@ export function LiveStoreDevtoolsPanel({
 
       await runRefresh();
     },
-    [columns, resultMode, rowsState.rows, runRefresh, selectedTableInfo, store],
+    [columns, executeSql, resultMode, rowsState.rows, runRefresh, selectedTableInfo],
   );
 
   const activeRows = resultMode === "sql" ? sqlResult.rows : rowsState.rows;
