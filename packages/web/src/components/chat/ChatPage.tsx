@@ -6,6 +6,7 @@ import { type folder as LiveStoreFolder } from "@/livestore/folder";
 import { type setting } from "@/livestore/setting";
 import { useAgent } from "@/hooks/chat/useAgent";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
 import { createChatTools, SYSTEM_PROMPT } from "@/lib/chat/tools";
 import { createShowWidgetSkillTracker } from "@/lib/chat/showWidget";
@@ -44,6 +45,8 @@ export const Component = () => {
     },
     [openSettings],
   );
+  const [apiKeyPromptOpen, setApiKeyPromptOpen] = useState(false);
+  const promptForApiKey = useCallback(() => setApiKeyPromptOpen(true), []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContentRef = useRef<HTMLDivElement>(null);
   const messagesScrollAreaRef = useRef<HTMLDivElement>(null);
@@ -198,7 +201,7 @@ export const Component = () => {
     sessionsReady,
     isStreaming,
     isConfigured,
-    openSettings: openSettingsPanel,
+    openSettings: promptForApiKey,
     inputRef,
     messages,
     composerImages: composerImages.composerImages,
@@ -435,113 +438,127 @@ export const Component = () => {
   const isHistoryPanelBusy = turnActions.isPreparingTurn;
 
   return (
-    <ChatPageView
-      sessions={sessions}
-      activeSessionId={activeSessionId}
-      activeSessionTitle={activeSessionTitle}
-      isHistoryPanelBusy={isHistoryPanelBusy}
-      deletingSessionId={deletingSessionId}
-      sessionsReady={sessionsReady}
-      sessionsError={sessionsError}
-      composerScrollInset={composerScrollInset}
-      isStreaming={isStreaming}
-      status={status}
-      thinkingSteps={thinkingSteps}
-      panelCollapsed={turnActions.panelCollapsed}
-      hasMessages={hasMessages}
-      lastAssistantId={turnActions.lastAssistantId}
-      retryableAssistantIds={turnActions.retryableAssistantIds}
-      isPreparingTurn={turnActions.isPreparingTurn}
-      savingAttachmentIds={composerImages.savingImageAttachmentIdSet}
-      iterationLimitPrompt={iterationLimitPrompt}
-      error={error}
-      messagesContentRef={messagesContentRef}
-      messagesScrollAreaRef={messagesScrollAreaRef}
-      greetingTitle={greetingTitle}
-      isConfigured={isConfigured}
-      onSaveImageToLibrary={composerImages.handleSaveImageToLibrary}
-      onSendWidgetPrompt={turnActions.handleWidgetPrompt}
-      onEditMessage={turnActions.handleEditMessage}
-      onRetryMessage={turnActions.handleRetryMessage}
-      onToggleThinking={turnActions.handleToggleThinking}
-      onContinueAfterIterationLimit={continueAfterIterationLimit}
-      onDismissIterationLimitPrompt={dismissIterationLimitPrompt}
-      onOpenSettings={openSettingsPanel}
-      onSuggestionClick={turnActions.handleSuggestionClick}
-      composerPanelProps={{
-        pendingCount,
-        deliveryMode,
-        onDeliveryModeChange: setDeliveryOverride,
-        composerFadeHeight,
-        composerOverlayRef,
-        isStreaming,
-        status,
-        memoryUpdatedNotice,
-        composerNotice: composerImages.composerNotice,
-        referenceNotice: references.referenceNotice,
-        composerImages: composerImages.composerImages,
-        remainingImageSlots: composerImages.remainingImageSlots,
-        sessionsReady,
-        imagePickerOpen: composerImages.imagePickerOpen,
-        imagePickerQuery: composerImages.imagePickerQuery,
-        imagePickerOptions: composerImages.imagePickerOptions,
-        activeReferences,
-        resolvedReferenceScope: references.resolvedReferenceScope,
-        referencePickerOpen: references.referencePickerOpen,
-        referencePickerQuery: references.referencePickerQuery,
-        referencePickerOptions: references.referencePickerOptions,
-        referencePickerSource: references.referencePickerSource,
-        imageInputRef: composerImages.imageInputRef,
-        inputRef,
-        composerDragActive: composerImages.composerDragActive,
-        isPreparingTurn: turnActions.isPreparingTurn,
-        composerTextValue: turnActions.composerTextValue,
-        canSubmitMessage: turnActions.canSubmitMessage,
-        messages,
-        selectedModelInfo,
-        onOpenSettings: openSettingsPanel,
-        onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
-        onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,
-        onCloseImagePicker: composerImages.closeImagePicker,
-        onImagePickerQueryChange: composerImages.setImagePickerQuery,
-        onSelectLibraryImage: composerImages.handleSelectLibraryImage,
-        onClearReferences: references.handleClearReferences,
-        onRemoveReference: references.handleRemoveReference,
-        onReferencePickerQueryChange: references.setReferencePickerQuery,
-        onSelectReference: references.handleSelectReference,
-        onImageInputChange: composerImages.handleImageInputChange,
-        onSubmit: turnActions.handleSubmit,
-        onDragEnter: composerImages.handleComposerDragEnter,
-        onDragOver: composerImages.handleComposerDragOver,
-        onDragLeave: composerImages.handleComposerDragLeave,
-        onDrop: composerImages.handleComposerDrop,
-        onInputChange: turnActions.handleInputChange,
-        onKeyDown: turnActions.handleKeyDown,
-        onPaste: composerImages.handleComposerPaste,
-        onCompositionStart: turnActions.handleCompositionStart,
-        onCompositionEnd: turnActions.handleCompositionEnd,
-        onCreateSession,
-        onImageButtonClick: () =>
-          composerImages.handleImageButtonClick(references.closeReferencePicker),
-        onReferenceButtonClick: references.handleReferenceButtonClick,
-        onAbort: abort,
-        onRemoveComposerImage: composerImages.handleRemoveComposerImage,
-      }}
-      isHistoryDrawerOpen={isHistoryDrawerOpen}
-      pendingWriteApproval={pendingWriteApproval}
-      onAllowWriteOnce={() => resolveWriteApproval("allow_once")}
-      onAllowWriteForSession={() => resolveWriteApproval("allow_session")}
-      onDenyWrite={() => resolveWriteApproval("deny")}
-      pendingDeleteSessionId={pendingDeleteSessionId}
-      onCreateSession={onCreateSession}
-      onSelectSession={onSelectSession}
-      onDeleteSession={handlePromptDeleteSession}
-      onCancelDeleteSession={handleCancelDeleteSession}
-      onConfirmDeleteSession={(sessionId) => {
-        void handleConfirmDeleteSession(sessionId);
-      }}
-      onOpenHistoryDrawer={() => setIsHistoryDrawerOpen(true)}
-      onCloseHistoryDrawer={() => setIsHistoryDrawerOpen(false)}
-    />
+    <>
+      <ConfirmDialog
+        isOpen={apiKeyPromptOpen}
+        title="Add an API key to start chatting"
+        description="Chat runs on a cloud model. Add a provider and its API key in Settings. Your key stays on this device."
+        confirmLabel="Add API key"
+        cancelLabel="Not now"
+        onConfirm={() => {
+          setApiKeyPromptOpen(false);
+          openSettings("ai-provider");
+        }}
+        onCancel={() => setApiKeyPromptOpen(false)}
+      />
+      <ChatPageView
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        activeSessionTitle={activeSessionTitle}
+        isHistoryPanelBusy={isHistoryPanelBusy}
+        deletingSessionId={deletingSessionId}
+        sessionsReady={sessionsReady}
+        sessionsError={sessionsError}
+        composerScrollInset={composerScrollInset}
+        isStreaming={isStreaming}
+        status={status}
+        thinkingSteps={thinkingSteps}
+        panelCollapsed={turnActions.panelCollapsed}
+        hasMessages={hasMessages}
+        lastAssistantId={turnActions.lastAssistantId}
+        retryableAssistantIds={turnActions.retryableAssistantIds}
+        isPreparingTurn={turnActions.isPreparingTurn}
+        savingAttachmentIds={composerImages.savingImageAttachmentIdSet}
+        iterationLimitPrompt={iterationLimitPrompt}
+        error={error}
+        messagesContentRef={messagesContentRef}
+        messagesScrollAreaRef={messagesScrollAreaRef}
+        greetingTitle={greetingTitle}
+        isConfigured={isConfigured}
+        onSaveImageToLibrary={composerImages.handleSaveImageToLibrary}
+        onSendWidgetPrompt={turnActions.handleWidgetPrompt}
+        onEditMessage={turnActions.handleEditMessage}
+        onRetryMessage={turnActions.handleRetryMessage}
+        onToggleThinking={turnActions.handleToggleThinking}
+        onContinueAfterIterationLimit={continueAfterIterationLimit}
+        onDismissIterationLimitPrompt={dismissIterationLimitPrompt}
+        onOpenSettings={openSettingsPanel}
+        onSuggestionClick={turnActions.handleSuggestionClick}
+        composerPanelProps={{
+          pendingCount,
+          deliveryMode,
+          onDeliveryModeChange: setDeliveryOverride,
+          composerFadeHeight,
+          composerOverlayRef,
+          isStreaming,
+          status,
+          memoryUpdatedNotice,
+          composerNotice: composerImages.composerNotice,
+          referenceNotice: references.referenceNotice,
+          composerImages: composerImages.composerImages,
+          remainingImageSlots: composerImages.remainingImageSlots,
+          sessionsReady,
+          imagePickerOpen: composerImages.imagePickerOpen,
+          imagePickerQuery: composerImages.imagePickerQuery,
+          imagePickerOptions: composerImages.imagePickerOptions,
+          activeReferences,
+          resolvedReferenceScope: references.resolvedReferenceScope,
+          referencePickerOpen: references.referencePickerOpen,
+          referencePickerQuery: references.referencePickerQuery,
+          referencePickerOptions: references.referencePickerOptions,
+          referencePickerSource: references.referencePickerSource,
+          imageInputRef: composerImages.imageInputRef,
+          inputRef,
+          composerDragActive: composerImages.composerDragActive,
+          isPreparingTurn: turnActions.isPreparingTurn,
+          composerTextValue: turnActions.composerTextValue,
+          canSubmitMessage: turnActions.canSubmitMessage,
+          messages,
+          selectedModelInfo,
+          onOpenSettings: openSettingsPanel,
+          onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
+          onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,
+          onCloseImagePicker: composerImages.closeImagePicker,
+          onImagePickerQueryChange: composerImages.setImagePickerQuery,
+          onSelectLibraryImage: composerImages.handleSelectLibraryImage,
+          onClearReferences: references.handleClearReferences,
+          onRemoveReference: references.handleRemoveReference,
+          onReferencePickerQueryChange: references.setReferencePickerQuery,
+          onSelectReference: references.handleSelectReference,
+          onImageInputChange: composerImages.handleImageInputChange,
+          onSubmit: turnActions.handleSubmit,
+          onDragEnter: composerImages.handleComposerDragEnter,
+          onDragOver: composerImages.handleComposerDragOver,
+          onDragLeave: composerImages.handleComposerDragLeave,
+          onDrop: composerImages.handleComposerDrop,
+          onInputChange: turnActions.handleInputChange,
+          onKeyDown: turnActions.handleKeyDown,
+          onPaste: composerImages.handleComposerPaste,
+          onCompositionStart: turnActions.handleCompositionStart,
+          onCompositionEnd: turnActions.handleCompositionEnd,
+          onCreateSession,
+          onImageButtonClick: () =>
+            composerImages.handleImageButtonClick(references.closeReferencePicker),
+          onReferenceButtonClick: references.handleReferenceButtonClick,
+          onAbort: abort,
+          onRemoveComposerImage: composerImages.handleRemoveComposerImage,
+        }}
+        isHistoryDrawerOpen={isHistoryDrawerOpen}
+        pendingWriteApproval={pendingWriteApproval}
+        onAllowWriteOnce={() => resolveWriteApproval("allow_once")}
+        onAllowWriteForSession={() => resolveWriteApproval("allow_session")}
+        onDenyWrite={() => resolveWriteApproval("deny")}
+        pendingDeleteSessionId={pendingDeleteSessionId}
+        onCreateSession={onCreateSession}
+        onSelectSession={onSelectSession}
+        onDeleteSession={handlePromptDeleteSession}
+        onCancelDeleteSession={handleCancelDeleteSession}
+        onConfirmDeleteSession={(sessionId) => {
+          void handleConfirmDeleteSession(sessionId);
+        }}
+        onOpenHistoryDrawer={() => setIsHistoryDrawerOpen(true)}
+        onCloseHistoryDrawer={() => setIsHistoryDrawerOpen(false)}
+      />
+    </>
   );
 };
