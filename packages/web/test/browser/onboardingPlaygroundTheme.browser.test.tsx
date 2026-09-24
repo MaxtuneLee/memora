@@ -8,7 +8,6 @@ import OnboardingExperience from "@/components/onboarding/OnboardingExperience";
 import PlaygroundPage from "@/components/playground/PlaygroundPage";
 import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
-import type { provider as ProviderRow } from "@/livestore/provider";
 import { luminance, textContrast } from "./colorContrast";
 import { expectScreenshot, loadAppFonts } from "./visual";
 
@@ -63,8 +62,7 @@ const byButtonText = (text: string): HTMLButtonElement => {
 };
 
 // Minimal fixture covering only the fields OnboardingExperience reads while on steps 1
-// and 4 (welcome + personalize). Steps 2/3/5-7 (providers, model routing, the recording
-// trial) are exercised by their own dedicated unit/component tests, not here.
+// and 2 (welcome + personalize). Steps 3-5 (the recording trial) are exercised by their own dedicated unit/component tests, not here.
 const fakeTranscript: TranscriptSession = {
   status: null,
   saveStatus: "idle",
@@ -94,16 +92,9 @@ const OnboardingFixture = () => (
       <OnboardingExperience
         isSaving={false}
         errorMessage={null}
-        providers={[] as ProviderRow[]}
-        getProviderApiKey={() => ""}
-        requiredModelsReady
         transcript={fakeTranscript}
         transcriptionModelId="fixture-model"
         onSelectTranscriptionMode={() => {}}
-        onCreateProvider={() => {}}
-        onUpdateProvider={() => {}}
-        onDeleteProvider={() => {}}
-        onFetchProviderModels={() => {}}
         onComplete={async () => {}}
       />
     </Toast.Provider>
@@ -169,8 +160,7 @@ describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
   it("retains step progress and form values across a runtime theme change", async () => {
     await mount(theme, <OnboardingFixture />);
 
-    // Step 1 -> step 2 (no providers) -> auto-skip to step 4.
-    await userEvent.click(byButtonText("Continue"));
+    // Step 1 -> step 2.
     await userEvent.click(byButtonText("Continue"));
     expect(byText("Personalize Memora")).toBeTruthy();
 
@@ -195,8 +185,7 @@ describe.each(["light", "dark"] as const)("onboarding in %s", (theme) => {
     await page.viewport(NARROW_VIEWPORT.width, NARROW_VIEWPORT.height);
     await mount(theme, <OnboardingFixture />);
 
-    // Step 1 -> step 2 (no providers) -> auto-skip to step 4.
-    await userEvent.click(byButtonText("Continue"));
+    // Step 1 -> step 2.
     await userEvent.click(byButtonText("Continue"));
     expect(byText("Personalize Memora")).toBeTruthy();
 

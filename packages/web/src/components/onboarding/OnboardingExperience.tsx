@@ -1,4 +1,3 @@
-import { Toast } from "@base-ui/react/toast";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
 import {
   nemotron35AsrStreamingManifest,
@@ -9,8 +8,6 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 
-import ProviderManagementSection from "@/components/settings/ProviderManagementSection";
-import FeatureModelSettings from "@/components/settings/FeatureModelSettings";
 import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
 import { AudioVisualizer } from "@/components/transcript/AudioVisualizer";
 import { TranscriptionPanel } from "@/components/transcript/TranscriptionPanel";
@@ -23,10 +20,7 @@ import {
 import { useRecordingDetail } from "@/hooks/transcript/useRecordingDetail";
 import type { TranscriptSession } from "@/hooks/transcript/useTranscript";
 import { getLocalModelOptions } from "@/lib/local-model";
-import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
-import type { provider as ProviderRow } from "@/livestore/provider";
 import { tokens } from "../../styles/stylex.stylex";
-import type { ProviderFormState } from "@/types/settingsDialog";
 
 import {
   buildTailPath,
@@ -45,20 +39,13 @@ export interface OnboardingProfileInput {
 interface OnboardingExperienceProps {
   isSaving: boolean;
   errorMessage: string | null;
-  providers: ProviderRow[];
-  getProviderApiKey: (provider: ProviderRow) => string;
-  requiredModelsReady: boolean;
   transcript: TranscriptSession;
   transcriptionModelId: string;
   onSelectTranscriptionMode: (modelId: string) => void;
-  onCreateProvider: (providerForm: ProviderFormState) => void;
-  onUpdateProvider: (providerId: string, providerForm: ProviderFormState) => void;
-  onDeleteProvider: (providerId: string) => void;
-  onFetchProviderModels: (provider: ProviderRow) => void | Promise<void>;
   onComplete: (input: OnboardingProfileInput) => Promise<void>;
 }
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 6;
 const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
 // ponytail: the brand panel, its pattern marks, the tail artwork, and the mobile brand
@@ -176,19 +163,15 @@ const styles = stylex.create({
   },
   mobileBrandText: {
     color: BRAND_GREEN,
-    fontFamily: "monospace",
-    fontSize: "0.6875rem",
-    fontWeight: 900,
-    letterSpacing: "0.24em",
+    fontSize: "1rem",
+    fontWeight: 700,
   },
   intro: { marginBottom: "2.5rem" },
   step: {
     color: tokens.textSoft,
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    letterSpacing: "0.18em",
+    fontSize: "0.875rem",
+    fontWeight: 500,
     marginBottom: "1rem",
-    textTransform: "uppercase",
   },
   heading: {
     color: tokens.textStrong,
@@ -210,11 +193,9 @@ const styles = stylex.create({
   stack2: { display: "flex", flexDirection: "column", gap: "0.5rem" },
   label: { display: "flex", flexDirection: "column", gap: "0.625rem" },
   fieldLabel: {
-    color: tokens.textSoft,
-    fontSize: "0.75rem",
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
     fontWeight: 600,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
   },
   input: {
     backgroundColor: tokens.surface,
@@ -433,13 +414,6 @@ const TRANSCRIPTION_MODEL_OPTIONS = getLocalModelOptions().filter((option) =>
   TRANSCRIPTION_MODES.some((mode) => mode.modelId === option.id),
 );
 
-const emptyProviderForm = (): ProviderFormState => ({
-  name: "",
-  baseUrl: "",
-  apiKey: "",
-  apiFormat: "chat-completions",
-});
-
 const buildTagList = (selectedTags: string[], customTags: string): string => {
   const custom = customTags
     .split(",")
@@ -450,13 +424,11 @@ const buildTagList = (selectedTags: string[], customTags: string): string => {
 
 const getStepTitle = (step: number): string => {
   if (step === 1) return "Welcome to Memora";
-  if (step === 2) return "Connect a cloud provider";
-  if (step === 3) return "Choose where models run";
-  if (step === 4) return "Personalize Memora";
-  if (step === 5) return "Choose transcription model";
-  if (step === 6) return "Try real-time transcription";
-  if (step === 7) return "Review your recording";
-  return "Setup Complete";
+  if (step === 2) return "Personalize Memora";
+  if (step === 3) return "Choose transcription model";
+  if (step === 4) return "Try real-time transcription";
+  if (step === 5) return "Review your recording";
+  return "Setup complete";
 };
 
 const getStepDescription = (step: number): string => {
@@ -464,21 +436,15 @@ const getStepDescription = (step: number): string => {
     return "Memora is your personal knowledge base that lives in your browser. ";
   }
   if (step === 2) {
-    return "Chat uses cloud models. Add a provider now, or set up chat later. API keys will only stay on this device.";
-  }
-  if (step === 3) {
-    return "Choose the model for chat. Other features can be configured individually in Settings.";
-  }
-  if (step === 4) {
     return "These details shape how Memora addresses and responds to you. You can change them anytime in Settings.";
   }
-  if (step === 5) {
+  if (step === 3) {
     return "Fast models respond quicker; accurate models take longer but capture more detail. Download the one you want to try.";
   }
-  if (step === 6) {
+  if (step === 4) {
     return "Say something and watch Memora transcribe it live.";
   }
-  if (step === 7) {
+  if (step === 5) {
     return "Play back your recording and follow along with the transcript.";
   }
   return "All set! Memora is now ready to help you capture and organize your knowledge.";
@@ -597,27 +563,14 @@ function BrandPanel() {
 export default function OnboardingExperience({
   isSaving,
   errorMessage,
-  providers,
-  getProviderApiKey,
-  requiredModelsReady,
   transcript,
   transcriptionModelId,
   onSelectTranscriptionMode,
-  onCreateProvider,
-  onUpdateProvider,
-  onDeleteProvider,
-  onFetchProviderModels,
   onComplete,
 }: OnboardingExperienceProps) {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
-  const { add } = Toast.useToastManager();
   const [step, setStep] = useState(1);
-  const [providerForm, setProviderForm] = useState<ProviderFormState>(emptyProviderForm());
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
-  const [isAddingProvider, setIsAddingProvider] = useState(false);
-  const [fetchingProviderId, setFetchingProviderId] = useState<string | null>(null);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [name, setName] = useState("");
   const [selectedUseCaseTags, setSelectedUseCaseTags] = useState<string[]>(["research notes"]);
   const [customUseCaseTags, setCustomUseCaseTags] = useState("");
@@ -640,38 +593,26 @@ export default function OnboardingExperience({
   );
   const primaryUseCase = buildTagList(selectedUseCaseTags, customUseCaseTags);
   const assistantStyle = buildTagList(selectedStyleTags, customStyleTags);
-  const isProviderFormOpen = isAddingProvider || editingProviderId !== null;
   const canContinue = useMemo(() => {
-    if (step === 2) return !isProviderFormOpen;
-    if (step === 3) return requiredModelsReady;
-    if (step === 4) {
+    if (step === 2) {
       return !!name.trim() && !!primaryUseCase.trim() && !!assistantStyle.trim();
     }
-    if (step === 5) return transcript.status === "ready";
-    if (step === 6) return transcript.saveStatus === "success";
+    if (step === 3) return transcript.status === "ready";
+    if (step === 4) return transcript.saveStatus === "success";
     return true;
-  }, [
-    assistantStyle,
-    isProviderFormOpen,
-    name,
-    primaryUseCase,
-    requiredModelsReady,
-    step,
-    transcript.saveStatus,
-    transcript.status,
-  ]);
+  }, [assistantStyle, name, primaryUseCase, step, transcript.saveStatus, transcript.status]);
 
   useEffect(() => {
-    if (step !== 5) return;
+    if (step !== 3) return;
     // Re-check whenever the mode changes AND whenever the download card's own
     // state moves (e.g. to "cached") — otherwise a completed download never
     // gets noticed here, since nothing else in this effect's deps changes
-    // while the user sits on step 5 downloading.
+    // while the user sits on step 3 downloading.
     void transcript.checkModelCache();
   }, [step, transcriptionModelId, transcriptionDownloadState?.status, transcript.checkModelCache]);
 
   useEffect(() => {
-    if (step !== 5) return;
+    if (step !== 3) return;
     if (transcript.status !== null) return;
     if (transcript.isCheckingCache) return;
     if (!transcript.isModelCached) return;
@@ -685,9 +626,9 @@ export default function OnboardingExperience({
   ]);
 
   useEffect(() => {
-    if (step !== 6) return;
+    if (step !== 4) return;
     if (transcript.saveStatus !== "success" || !transcript.lastSavedId) return;
-    setStep(7);
+    setStep(5);
   }, [step, transcript.saveStatus, transcript.lastSavedId]);
 
   useEffect(() => {
@@ -697,70 +638,6 @@ export default function OnboardingExperience({
     }, 650);
     return () => window.clearTimeout(timeoutId);
   }, [step, navigate]);
-
-  const handleOpenAddProvider = (): void => {
-    setIsAddingProvider(true);
-    setEditingProviderId(null);
-    setProviderForm(emptyProviderForm());
-    setShowApiKey(false);
-  };
-
-  const handleOpenEditProvider = (provider: ProviderRow): void => {
-    setEditingProviderId(provider.id);
-    setIsAddingProvider(false);
-    setProviderForm({
-      name: provider.name,
-      baseUrl: provider.baseUrl,
-      apiKey: getProviderApiKey(provider),
-      apiFormat: provider.apiFormat,
-    });
-    setShowApiKey(false);
-  };
-
-  const handleCancelProviderForm = (): void => {
-    setIsAddingProvider(false);
-    setEditingProviderId(null);
-    setShowApiKey(false);
-  };
-
-  const handleSaveProvider = (): void => {
-    if (!providerForm.name.trim() || !providerForm.baseUrl.trim()) {
-      add({
-        title: "Missing fields",
-        description: "Name and base URL are required.",
-        type: "error",
-      });
-      return;
-    }
-
-    try {
-      normalizeProviderEndpoint(providerForm.baseUrl);
-    } catch (error) {
-      add({
-        title: "Check the base URL",
-        description: error instanceof Error ? error.message : "Invalid endpoint.",
-        type: "error",
-      });
-      return;
-    }
-    if (isAddingProvider) {
-      onCreateProvider(providerForm);
-      add({ title: "Provider added", type: "success" });
-    } else if (editingProviderId) {
-      onUpdateProvider(editingProviderId, providerForm);
-      add({ title: "Provider updated", type: "success" });
-    }
-
-    handleCancelProviderForm();
-  };
-
-  const handleDeleteExistingProvider = (providerId: string): void => {
-    onDeleteProvider(providerId);
-    if (editingProviderId === providerId) {
-      handleCancelProviderForm();
-    }
-    add({ title: "Provider removed", type: "success" });
-  };
 
   const handleToggleStyleTag = (tag: string): void => {
     setSelectedStyleTags((current) =>
@@ -788,12 +665,7 @@ export default function OnboardingExperience({
   const handleContinue = async (): Promise<void> => {
     if (!canContinue || isSaving) return;
 
-    if (step === 2 && providers.length === 0) {
-      setStep(4);
-      return;
-    }
-
-    if (step === 4) {
+    if (step === 2) {
       try {
         await onComplete({
           name: name.trim().replace(/\s+/g, " "),
@@ -803,7 +675,7 @@ export default function OnboardingExperience({
       } catch {
         return;
       }
-      setStep(transcript.isWebGpuAvailable ? 5 : TOTAL_STEPS);
+      setStep(transcript.isWebGpuAvailable ? 3 : TOTAL_STEPS);
       return;
     }
 
@@ -818,7 +690,7 @@ export default function OnboardingExperience({
       <main {...stylex.props(styles.main)}>
         <section {...stylex.props(styles.content)}>
           <div {...stylex.props(styles.mobileBrand)}>
-            <p {...stylex.props(styles.mobileBrandText)}>MEMORA</p>
+            <p {...stylex.props(styles.mobileBrandText)}>Memora</p>
           </div>
           <div {...stylex.props(styles.intro)}>
             <p {...stylex.props(styles.step)}>
@@ -838,48 +710,7 @@ export default function OnboardingExperience({
             }}
             className={stylex.props(styles.stack8).className}
           >
-            {step === 3 ? (
-              <div {...stylex.props(styles.stack5)}>
-                <FeatureModelSettings
-                  features={["assistant"]}
-                  disabled={isSaving}
-                  autoSelectFirstProvider
-                />
-              </div>
-            ) : null}
-
             {step === 2 ? (
-              <div {...stylex.props(styles.stack4)}>
-                <ProviderManagementSection
-                  title="Configured providers"
-                  providers={providers}
-                  editingProviderId={editingProviderId}
-                  isAddingProvider={isAddingProvider}
-                  providerForm={providerForm}
-                  showApiKey={showApiKey}
-                  fetchingModels={fetchingProviderId}
-                  onProviderFormChange={(patch) => {
-                    setProviderForm((current) => ({ ...current, ...patch }));
-                  }}
-                  onAddProvider={handleOpenAddProvider}
-                  onEditProvider={handleOpenEditProvider}
-                  onCancelProviderForm={handleCancelProviderForm}
-                  onSaveProvider={handleSaveProvider}
-                  onDeleteProvider={handleDeleteExistingProvider}
-                  onFetchProviderModels={async (provider) => {
-                    setFetchingProviderId(provider.id);
-                    try {
-                      await onFetchProviderModels(provider);
-                    } finally {
-                      setFetchingProviderId(null);
-                    }
-                  }}
-                  onToggleApiKey={() => setShowApiKey((current) => !current)}
-                />
-              </div>
-            ) : null}
-
-            {step === 4 ? (
               <div {...stylex.props(styles.stack4)}>
                 <label {...stylex.props(styles.label)}>
                   <span {...stylex.props(styles.fieldLabel)}>Your name</span>
@@ -970,7 +801,7 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {step === 5 ? (
+            {step === 3 ? (
               <div {...stylex.props(styles.stack5)}>
                 <div {...stylex.props(styles.modeGrid)}>
                   {TRANSCRIPTION_MODES.map((mode) => {
@@ -1032,7 +863,7 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {step === 6 ? (
+            {step === 4 ? (
               <div {...stylex.props(styles.stack5)}>
                 <div {...stylex.props(styles.recordingCard)}>
                   <AudioVisualizer
@@ -1099,7 +930,7 @@ export default function OnboardingExperience({
               </div>
             ) : null}
 
-            {step === 7 ? (
+            {step === 5 ? (
               <div {...stylex.props(styles.stack5)}>
                 {trialRecording ? (
                   <>
@@ -1137,12 +968,7 @@ export default function OnboardingExperience({
                 <motion.button
                   type="button"
                   disabled={step === 1 || isSaving}
-                  onClick={() =>
-                    setStep((current) => {
-                      if (current === 4 && providers.length === 0) return 2;
-                      return Math.max(1, current - 1);
-                    })
-                  }
+                  onClick={() => setStep((current) => Math.max(1, current - 1))}
                   whileHover={
                     prefersReducedMotion || step === 1 || isSaving
                       ? undefined
