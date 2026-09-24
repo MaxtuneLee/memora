@@ -11,6 +11,19 @@ export interface BadgeProps extends ComponentProps<"span"> {
 }
 
 const styles = stylex.create({
+  base: {
+    alignItems: "center",
+    borderRadius: 9999,
+    display: "inline-flex",
+    flexShrink: 0,
+    fontSize: 11,
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 500,
+    lineHeight: "16px",
+    paddingBlock: 2,
+    paddingInline: 8,
+    whiteSpace: "nowrap",
+  },
   neutral: { backgroundColor: tokens.surfaceMuted, color: tokens.textMuted },
   olive: { backgroundColor: tokens.selected, color: tokens.oliveText },
   warning: { backgroundColor: tokens.warningSurface, color: tokens.warningText },
@@ -19,11 +32,7 @@ const styles = stylex.create({
 export function Badge({ variant = "neutral", className, ...props }: BadgeProps) {
   return (
     <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium",
-        stylex.props(styles[variant]).className,
-        className,
-      )}
+      className={cn(stylex.props(styles.base, styles[variant]).className, className)}
       {...props}
     />
   );
