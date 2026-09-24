@@ -1,5 +1,4 @@
 import { Tooltip } from "@base-ui/react/tooltip";
-import { file as opfsFile } from "@memora/fs";
 import { queryDb } from "@livestore/livestore";
 import { ArrowCounterClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useAppStore } from "@/livestore/store";
@@ -13,21 +12,17 @@ import {
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { Switch } from "@/components/ui/Switch";
 import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
-import { formatBytes } from "@/lib/format";
 import { summarizeBackgroundTasks } from "@/lib/background-tasks";
 import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
-import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import {
   normalizeSettingsValue,
   settingEvents,
   settingsTable,
   type setting,
 } from "@/livestore/setting";
-import { getVectorDbIndexId } from "@/lib/vector-db";
 import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
@@ -152,15 +147,6 @@ const indexingFilesQuery$ = queryDb(
   { label: "settings:indexing-files" },
 );
 
-const getIndexDatabaseSize = async (): Promise<number> => {
-  const indexId = await getVectorDbIndexId(LEXICAL_INDEX_CONFIG);
-  const database = opfsFile(`/search-indexes/${indexId}.sqlite3`);
-  if (!(await database.exists())) {
-    return 0;
-  }
-  return database.getSize?.() ?? 0;
-};
-
 export default function SettingsIndexingSection() {
   const store = useAppStore();
   const { getTasks, indexUnindexed, reindexAll, reindexSemantic, subscribeTasks } =
@@ -171,7 +157,6 @@ export default function SettingsIndexingSection() {
   );
   const files = store.useQuery(indexingFilesQuery$) as LiveStoreFile[];
   const [tasks, setTasks] = useState(() => getTasks());
-  const [databaseSize, setDatabaseSize] = useState(0);
   const [isIndexingUnindexed, setIsIndexingUnindexed] = useState(false);
   const [isReindexingAll, setIsReindexingAll] = useState(false);
   const indexedFileCount = useMemo(
@@ -203,18 +188,6 @@ export default function SettingsIndexingSection() {
     return subscribeTasks(() => setTasks(getTasks()));
   }, [getTasks, subscribeTasks]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void getIndexDatabaseSize().then((size) => {
-      if (!cancelled) {
-        setDatabaseSize(size);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [indexedFileCount]);
-
   const handleStartIndexing = useCallback(async (): Promise<void> => {
     setIsIndexingUnindexed(true);
     try {
@@ -240,7 +213,6 @@ export default function SettingsIndexingSection() {
       >
         <div {...stylex.props(styles.row)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Indexing</h3>
-          <Badge>Index database · {formatBytes(databaseSize)}</Badge>
         </div>
 
         <div

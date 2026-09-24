@@ -19,7 +19,6 @@ import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 16 },
-  endRow: { display: "flex", justifyContent: "flex-end" },
   heading: { display: "flex", flexDirection: "column", gap: 8 },
   twoColumn: {
     display: "grid",
@@ -77,7 +76,6 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
   const {
     memoryData,
     isMemoryLoading,
-    refreshMemoryData,
     handleDeleteNotice,
     handleClearNotices,
     handleClearAllMemory,
@@ -99,16 +97,6 @@ export default function SettingsMemorySection({ open }: SettingsMemorySectionPro
 
   return (
     <div {...stylex.props(styles.stack)}>
-      <div {...stylex.props(styles.endRow)}>
-        <Button
-          variant="secondary"
-          onClick={() => void refreshMemoryData()}
-          disabled={isMemoryLoading}
-        >
-          {isMemoryLoading ? "Refreshing..." : "Refresh"}
-        </Button>
-      </div>
-
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <div {...stylex.props(styles.heading)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Personality</h3>

@@ -18,7 +18,7 @@ test("indexing settings show real pipeline status and provide a manual start act
   expect(source).toContain('variant="oliveGhost"');
   expect(source).toContain("Indexed files");
   expect(source).toContain("Awaiting index");
-  expect(source).toContain("Index database");
+  expect(source).not.toContain("Index database");
   expect(source).toContain("Start indexing");
   expect(source).toContain("Reindex all");
   expect(source).toContain("All files indexed");

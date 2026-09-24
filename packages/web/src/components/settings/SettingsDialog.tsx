@@ -7,7 +7,6 @@ import {
   HardDrivesIcon,
   InfoIcon,
   ListMagnifyingGlassIcon,
-  KeyboardIcon,
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -20,11 +19,6 @@ import SettingsModelRoutingSection from "@/components/settings/SettingsModelRout
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
 import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
-import {
-  SETTINGS_PANEL_CLASS_NAME,
-  SETTINGS_SECTION_BODY_CLASS_NAME,
-  SETTINGS_SECTION_TITLE_CLASS_NAME,
-} from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
@@ -50,7 +44,6 @@ const SETTINGS_NAV_HIGHLIGHT_TRANSITION = {
 } as const;
 
 const styles = stylex.create({
-  bodyMargin: { marginTop: 8 },
   sectionStack: { display: "flex", flexDirection: "column", gap: 20 },
   navButton: {
     alignItems: "center",
@@ -208,7 +201,6 @@ const styles = stylex.create({
 
 const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   general: GearSixIcon,
-  hotkeys: KeyboardIcon,
   "ai-provider": CpuIcon,
   "model-routing": CpuIcon,
   "local-models": HardDrivesIcon,
@@ -218,33 +210,6 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "data-storage": DatabaseIcon,
   about: InfoIcon,
 };
-
-const SETTINGS_PLACEHOLDER_COPY: Partial<
-  Record<
-    "hotkeys",
-    {
-      summary: string;
-    }
-  >
-> = {
-  hotkeys: {
-    summary:
-      "Keyboard workflows and command habits will live in one place instead of being scattered.",
-  },
-};
-
-function SettingsPlaceholderSection({ summary, title }: { summary: string; title: string }) {
-  return (
-    <section className={SETTINGS_PANEL_CLASS_NAME}>
-      <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>{title}</h3>
-      <p
-        className={`${SETTINGS_SECTION_BODY_CLASS_NAME} ${stylex.props(styles.bodyMargin).className}`}
-      >
-        {summary}
-      </p>
-    </section>
-  );
-}
 
 function SettingsNavItem({
   activeSection,
@@ -385,22 +350,7 @@ export default function SettingsDialog({
       return <SettingsStorageSection open={open} />;
     }
 
-    if (activeSection === "about") {
-      return <SettingsAboutSection />;
-    }
-
-    return (
-      <SettingsPlaceholderSection
-        title={activeSectionData?.label ?? "Settings"}
-        summary={
-          (activeSection === "hotkeys"
-            ? SETTINGS_PLACEHOLDER_COPY[activeSection]?.summary
-            : undefined) ??
-          activeSectionData?.description ??
-          "Manage your workspace preferences."
-        }
-      />
-    );
+    return <SettingsAboutSection />;
   };
 
   return (

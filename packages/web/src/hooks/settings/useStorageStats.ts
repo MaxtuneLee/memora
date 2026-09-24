@@ -36,6 +36,7 @@ export const STORAGE_CONTENT_CATEGORY_CONFIG = [
 const STORAGE_BREAKDOWN_SEGMENT_CONFIG = [
   { id: "user-content", label: "User content", color: tokens.text },
   { id: "internal-data", label: "Internal data", color: tokens.textSoft },
+  { id: "index-database", label: "Index database", color: tokens.olive },
   { id: "browser-cache", label: "Browser cache", color: "#c39a5b" },
   { id: "service-workers", label: "Service workers", color: "#879a4f" },
   { id: "other", label: "Other", color: "#8c7b6a" },
@@ -82,6 +83,7 @@ interface StorageStatsSnapshot {
   isStorageSupported: boolean;
   contentCategorySizes: Record<StorageContentCategoryId, number>;
   modelCacheUsage: number;
+  indexDatabaseUsage: number;
   storageUsageDetails?: StorageUsageDetails;
 }
 
@@ -100,6 +102,7 @@ const createInitialStorageStatsSnapshot = (): StorageStatsSnapshot => ({
   isStorageSupported: true,
   contentCategorySizes: createEmptyCategorySizes(),
   modelCacheUsage: 0,
+  indexDatabaseUsage: 0,
   storageUsageDetails: undefined,
 });
 
@@ -221,49 +224,66 @@ const getStorageBreakdown = async () => {
 
   await collectSizes(FILES_DIR, sizes);
   const transformersCacheUsage = await getDirectorySize("/transformers-cache");
+  const indexDatabaseUsage = await getDirectorySize("/search-indexes");
   return {
     contentCategorySizes: sizes,
     modelCacheUsage: transformersCacheUsage,
+    indexDatabaseUsage,
   };
 };
 
 const buildBreakdownSegmentSizes = ({
   contentUsage,
   modelCacheUsage,
+  indexDatabaseUsage,
   storageUsage,
   usageDetails,
 }: {
   contentUsage: number;
   modelCacheUsage: number;
+  indexDatabaseUsage: number;
   storageUsage: number;
   usageDetails?: StorageUsageDetails;
 }): Record<StorageBreakdownSegmentId, number> => {
   const totalUsage = toNonNegativeNumber(storageUsage);
   const normalizedContentUsage = toNonNegativeNumber(contentUsage);
   const normalizedModelCacheUsage = toNonNegativeNumber(modelCacheUsage);
+  const normalizedIndexUsage = toNonNegativeNumber(indexDatabaseUsage);
 
   if (!usageDetails) {
     const internalDataUsage = Math.max(0, normalizedModelCacheUsage);
     return {
       "user-content": normalizedContentUsage,
       "internal-data": internalDataUsage,
+      "index-database": normalizedIndexUsage,
       "browser-cache": 0,
       "service-workers": 0,
       other: 0,
-      "unclassified-storage": Math.max(0, totalUsage - normalizedContentUsage - internalDataUsage),
+      "unclassified-storage": Math.max(
+        0,
+        totalUsage - normalizedContentUsage - internalDataUsage - normalizedIndexUsage,
+      ),
     };
   }
 
   const fileSystemUsage = toNonNegativeNumber(usageDetails.fileSystem);
   const browserCacheUsage = toNonNegativeNumber(usageDetails.caches);
   const serviceWorkerUsage = toNonNegativeNumber(usageDetails.serviceWorkerRegistrations);
-  const internalDataUsage = Math.max(0, fileSystemUsage - normalizedContentUsage);
+  const internalDataUsage = Math.max(
+    0,
+    fileSystemUsage - normalizedContentUsage - normalizedIndexUsage,
+  );
   const knownUsage =
-    normalizedContentUsage + internalDataUsage + browserCacheUsage + serviceWorkerUsage;
+    normalizedContentUsage +
+    internalDataUsage +
+    normalizedIndexUsage +
+    browserCacheUsage +
+    serviceWorkerUsage;
 
   return {
     "user-content": normalizedContentUsage,
     "internal-data": internalDataUsage,
+    "index-database": normalizedIndexUsage,
     "browser-cache": browserCacheUsage,
     "service-workers": serviceWorkerUsage,
     other: Math.max(0, totalUsage - knownUsage),
@@ -297,6 +317,7 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
         isStorageSupported: true,
         contentCategorySizes: breakdown.contentCategorySizes,
         modelCacheUsage: breakdown.modelCacheUsage,
+        indexDatabaseUsage: breakdown.indexDatabaseUsage,
       });
     } catch {
       publishStorageStatsSnapshot({
@@ -337,11 +358,18 @@ export const useStorageStats = (options?: { autoRefresh?: boolean }) => {
       buildBreakdownSegmentSizes({
         contentUsage,
         modelCacheUsage: snapshot.modelCacheUsage,
+        indexDatabaseUsage: snapshot.indexDatabaseUsage,
         storageUsage: snapshot.storageUsage,
         usageDetails: snapshot.storageUsageDetails,
       }),
     ) as StorageBreakdownSegment[];
-  }, [contentUsage, snapshot.modelCacheUsage, snapshot.storageUsage, snapshot.storageUsageDetails]);
+  }, [
+    contentUsage,
+    snapshot.indexDatabaseUsage,
+    snapshot.modelCacheUsage,
+    snapshot.storageUsage,
+    snapshot.storageUsageDetails,
+  ]);
   const usagePercentageLabel = useMemo(() => {
     return buildUsagePercentageLabel(snapshot.storageUsage, snapshot.storageQuota);
   }, [snapshot.storageQuota, snapshot.storageUsage]);

@@ -5,11 +5,6 @@ export const SETTINGS_SECTIONS = [
     description: "Profile, workspace, and appearance settings.",
   },
   {
-    id: "hotkeys",
-    label: "Hotkeys",
-    description: "Shortcuts and command palette preferences.",
-  },
-  {
     id: "model-routing",
     label: "Models by feature",
     description: "Choose where each feature runs on this device. Chat always uses a cloud model.",
