@@ -23,6 +23,7 @@ const contentPipelineFilesQuery$ = queryDb(
   () => fileTable.where({ deletedAt: null, purgedAt: null }).orderBy("updatedAt", "desc"),
   { label: "content-pipeline:files" },
 );
+import { isAppLogFile } from "@/lib/appLog/appLogCollector";
 import { createContentTaskHandlers } from "./contentTaskHandlers";
 import { readContentArtifact } from ".";
 
@@ -56,7 +57,9 @@ export const useContentPipeline = (): ContentPipelineContextValue => {
 
 export function ContentPipelineRoot({ children }: { children: ReactNode }) {
   const store = useAppStore();
-  const rows = store.useQuery(contentPipelineFilesQuery$) as LiveStoreFile[];
+  const allRows = store.useQuery(contentPipelineFilesQuery$) as LiveStoreFile[];
+  // The debug log changes constantly and holds nothing worth searching.
+  const rows = useMemo(() => allRows.filter((row) => !isAppLogFile(row)), [allRows]);
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
       settingsTable.default.value,
@@ -123,8 +126,13 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     await queue.cancel((task) => task.kind === "content.index.semantic");
     for (const row of rows) {
       if (row.deletedAt || row.purgedAt || row.indexStatus !== "indexed") continue;
-      await queue.enqueue({ kind: "content.index.semantic", payload: { fileId: row.id, indexId },
-        dedupeKey: `semantic-rebuild:${row.id}:${indexId}:${Date.now()}`, priority: "user", resourceGroup: "embedding" });
+      await queue.enqueue({
+        kind: "content.index.semantic",
+        payload: { fileId: row.id, indexId },
+        dedupeKey: `semantic-rebuild:${row.id}:${indexId}:${Date.now()}`,
+        priority: "user",
+        resourceGroup: "embedding",
+      });
     }
   }, [ensureStarted, queue, rows, store]);
 

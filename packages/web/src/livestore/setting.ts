@@ -33,6 +33,7 @@ export interface setting {
   customInstructions?: string;
   homeGridSeeded?: boolean;
   widgetFoldersSeeded?: boolean;
+  logCollectionEnabled?: boolean;
 }
 
 export const defaultSettings: setting = {
@@ -70,6 +71,7 @@ export const defaultSettings: setting = {
   customInstructions: "",
   homeGridSeeded: false,
   widgetFoldersSeeded: false,
+  logCollectionEnabled: false,
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
@@ -111,6 +113,7 @@ export const settingsStoredValueSchema = Schema.Struct({
   customInstructions: Schema.optional(Schema.String),
   homeGridSeeded: Schema.optional(Schema.Boolean),
   widgetFoldersSeeded: Schema.optional(Schema.Boolean),
+  logCollectionEnabled: Schema.optional(Schema.Boolean),
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {

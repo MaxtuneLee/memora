@@ -12,6 +12,7 @@ import {
 } from "@/hooks/search/useSearchPalette";
 import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialog";
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
+import { startAppLogCollection } from "@/lib/appLog/appLogCollector";
 import type { SettingsSectionId } from "@/types/settings";
 import { useAppStore } from "@/livestore/store";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
@@ -26,6 +27,10 @@ export default function AppLayout() {
   const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$);
   useDocumentTheme(settings.theme ?? "system");
+  useEffect(() => {
+    if (!settings.logCollectionEnabled) return;
+    return startAppLogCollection(store);
+  }, [settings.logCollectionEnabled, store]);
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
