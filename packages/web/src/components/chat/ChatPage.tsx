@@ -432,7 +432,8 @@ export const Component = () => {
 
   const displayedMessages = messages;
   const hasMessages = displayedMessages.length > 0;
-  const composerScrollInset = composerOverlayHeight > 0 ? composerOverlayHeight : 320;
+  // Extra room so the last message clears the composer instead of sitting flush against it.
+  const composerScrollInset = (composerOverlayHeight > 0 ? composerOverlayHeight : 320) + 24;
   const composerFadeHeight = Math.min(Math.max(composerOverlayHeight + 40, 160), 320);
   const activeSessionTitle =
     sessions.find((session) => session.id === activeSessionId)?.title ?? "Select a session";

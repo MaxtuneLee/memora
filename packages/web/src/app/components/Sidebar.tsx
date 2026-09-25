@@ -132,10 +132,8 @@ const styles = stylex.create({
   },
   sectionTitle: {
     color: tokens.textMuted,
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: "0.18em",
-    textTransform: "uppercase",
+    fontSize: 12,
+    fontWeight: 600,
     userSelect: "none",
   },
   list: { display: "flex", flexDirection: "column", gap: 2 },
@@ -238,12 +236,10 @@ const styles = stylex.create({
     justifyContent: "space-between",
   },
   storageLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: "0.18em",
-    textTransform: "uppercase",
+    fontSize: 12,
+    fontWeight: 600,
   },
-  storagePercent: { fontSize: 10, fontWeight: 700 },
+  storagePercent: { fontSize: 12, fontWeight: 600 },
   storageTrack: {
     backgroundColor: tokens.border,
     borderRadius: 9999,

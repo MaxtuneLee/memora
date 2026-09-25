@@ -29,6 +29,8 @@ const createEmptyState = (toolCallId: string): ShowWidgetDebugState => ({
   events: [],
 });
 
+const NO_ID_STATE = createEmptyState("");
+
 const emitChange = () => {
   listeners.forEach((listener) => {
     listener();
@@ -52,10 +54,18 @@ const appendEvent = (
 
 export const getShowWidgetDebugState = (toolCallId: string): ShowWidgetDebugState => {
   if (!toolCallId) {
-    return createEmptyState("");
+    return NO_ID_STATE;
   }
 
-  return debugStore.get(toolCallId) ?? createEmptyState(toolCallId);
+  // useSyncExternalStore needs a stable snapshot: a fresh object per call loops forever (React
+  // #185). In production nothing ever writes debugStore, so cache the empty state on first read.
+  // ponytail: one small object per widget stays for the session in prod; clear it if that matters.
+  let state = debugStore.get(toolCallId);
+  if (!state) {
+    state = createEmptyState(toolCallId);
+    debugStore.set(toolCallId, state);
+  }
+  return state;
 };
 
 export const subscribeShowWidgetDebug = (listener: () => void): (() => void) => {

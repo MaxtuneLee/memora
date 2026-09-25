@@ -62,7 +62,8 @@ const styles = stylex.create({
   },
   actionsVisible: { opacity: 1, pointerEvents: "auto" },
   userActions: { marginRight: 12, right: "100%" },
-  assistantActions: { left: "100%", marginLeft: 12 },
+  // Assistant content spans the full row, so anything past its right edge scrolls the container.
+  assistantActions: { right: 0, top: 0 },
   actionButton: {
     alignItems: "center",
     backgroundColor: tokens.surfaceMuted,
