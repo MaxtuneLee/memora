@@ -1,4 +1,5 @@
 import {
+  ArrowClockwiseIcon,
   ArrowUpRightIcon,
   CheckCircleIcon,
   GithubLogoIcon,
@@ -11,6 +12,7 @@ import { useAppStore } from "@/livestore/store";
 import { settingEvents } from "@/livestore/setting";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { downloadAppLog } from "@/lib/appLog/appLogCollector";
+import { checkForAppUpdate, type AppUpdateCheckResult } from "@/lib/app/appUpdate";
 import { Switch } from "@/components/ui/Switch";
 
 import {
@@ -38,6 +40,8 @@ const styles = stylex.create({
   },
   version: { color: tokens.textSoft, fontSize: "0.75rem" },
   githubIcon: { height: 16, width: 16 },
+  actions: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: 12 },
+  updateStatus: { color: tokens.textMuted, fontSize: "0.8125rem" },
   externalIcon: { height: 14, width: 14 },
   checks: { display: "flex", flexDirection: "column", gap: 8, marginTop: 12 },
   checkRow: { alignItems: "flex-start", display: "flex", gap: 16, justifyContent: "space-between" },
@@ -65,6 +69,14 @@ const formatBuildChannel = (channel: string): string => {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+};
+
+const UPDATE_STATUS_TEXT: Record<AppUpdateCheckResult, string> = {
+  ready: "A new version is ready.",
+  downloading: "Downloading the new version. You'll be asked to reload when it's ready.",
+  latest: "You're on the latest version.",
+  unavailable: "Updates aren't available in this build.",
+  failed: "Couldn't check for updates. Check your connection and try again.",
 };
 
 type CheckStatus = "checking" | "supported" | "missing";
@@ -183,6 +195,15 @@ function LogCollectionSection() {
 export default function SettingsAboutSection() {
   const store = useAppStore();
   const buildChannel = formatBuildChannel(import.meta.env.MODE);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateResult, setUpdateResult] = useState<AppUpdateCheckResult | null>(null);
+
+  const handleCheckForUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateResult(null);
+    setUpdateResult(await checkForAppUpdate());
+    setIsCheckingUpdate(false);
+  };
 
   return (
     <div {...stylex.props(styles.stack)}>
@@ -195,22 +216,33 @@ export default function SettingsAboutSection() {
           <p {...stylex.props(styles.version)}>
             Version {__APP_VERSION__} · Build {buildChannel}
           </p>
-          <Button
-            variant="primary"
-            render={
-              <a
-                href={SUPPORT_URL}
-                target="_blank"
-                rel="noreferrer"
-                // The link opens natively; the log download runs alongside it.
-                onClick={() => void downloadAppLog(store).catch(() => false)}
-              />
-            }
-          >
-            <GithubLogoIcon {...stylex.props(styles.githubIcon)} weight="fill" />
-            <span>Report an issue</span>
-            <ArrowUpRightIcon {...stylex.props(styles.externalIcon)} />
-          </Button>
+          <div {...stylex.props(styles.actions)}>
+            <Button
+              variant="primary"
+              render={
+                <a
+                  href={SUPPORT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  // The link opens natively; the log download runs alongside it.
+                  onClick={() => void downloadAppLog(store).catch(() => false)}
+                />
+              }
+            >
+              <GithubLogoIcon {...stylex.props(styles.githubIcon)} weight="fill" />
+              <span>Report an issue</span>
+              <ArrowUpRightIcon {...stylex.props(styles.externalIcon)} />
+            </Button>
+            <Button onClick={() => void handleCheckForUpdate()} disabled={isCheckingUpdate}>
+              <ArrowClockwiseIcon {...stylex.props(styles.githubIcon)} />
+              <span>{isCheckingUpdate ? "Checking…" : "Check for updates"}</span>
+            </Button>
+          </div>
+          {updateResult && (
+            <p role="status" {...stylex.props(styles.updateStatus)}>
+              {UPDATE_STATUS_TEXT[updateResult]}
+            </p>
+          )}
         </div>
       </section>
 

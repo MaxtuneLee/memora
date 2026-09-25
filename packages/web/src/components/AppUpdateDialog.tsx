@@ -3,6 +3,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import { SHOW_APP_UPDATE_EVENT } from "@/lib/app/appUpdate";
 import {
   isReleaseNotesManifest,
   releaseNotesSince,
@@ -103,6 +104,12 @@ export default function AppUpdateDialog() {
       setInterval(() => void registration.update(), UPDATE_CHECK_INTERVAL_MS);
     },
   });
+
+  useEffect(() => {
+    const show = () => setNeedRefresh(true);
+    window.addEventListener(SHOW_APP_UPDATE_EVENT, show);
+    return () => window.removeEventListener(SHOW_APP_UPDATE_EVENT, show);
+  }, [setNeedRefresh]);
 
   useEffect(() => {
     if (!needRefresh) return;
