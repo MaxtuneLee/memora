@@ -38,7 +38,6 @@ export const appStoreOptions = storeOptions({
   schema,
   adapter,
   storeId: "main",
-  syncPayload: { authToken: "insecure-token-change-me" },
   onBootStatus: updateLoadingStatus,
 });
 
