@@ -409,7 +409,11 @@ export class Agent {
       }
       // ponytail: drop oldest turns, keeping the opening message. Summarising them into a
       // compaction message would preserve more, add that when losing early turns bites.
-      candidate = [candidate[0], ...candidate.slice(2)] as AgentMessage[];
+      // A tool result must follow the assistant turn that called it, so the results of a
+      // dropped assistant turn go with it — otherwise providers reject the orphaned output.
+      let dropUntil = 2;
+      while (candidate[dropUntil]?.role === "tool") dropUntil++;
+      candidate = [candidate[0], ...candidate.slice(dropUntil)] as AgentMessage[];
       trimmed = true;
     }
   }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import type { AgentConfig } from "@memora/ai-core";
 import type { provider as ProviderRow } from "@/livestore/provider";
-import { parseProviderModels } from "@/lib/settings/dialogHelpers";
+import { DEFAULT_MODEL_CONTEXT_WINDOW, parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { useProviderCredentials } from "@/hooks/settings/useProviderCredentials";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { IS_DEV } from "./helpers";
@@ -40,7 +40,7 @@ export const useChatModelConfig = ({
           reasoning: false,
           input: ["text"] as Array<"text" | "image">,
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          contextWindow: 32768,
+          contextWindow: DEFAULT_MODEL_CONTEXT_WINDOW,
           maxTokens: 4096,
         })
       : null;

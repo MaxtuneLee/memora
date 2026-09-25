@@ -1,7 +1,7 @@
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ModelInfo, ProviderModelGroup, ProviderModelOption } from "@/types/settingsDialog";
 
-const DEFAULT_MODEL_CONTEXT_WINDOW = 32768;
+export const DEFAULT_MODEL_CONTEXT_WINDOW = 131072;
 const DEFAULT_MODEL_MAX_TOKENS = 4096;
 const ZERO_MODEL_COST: ModelInfo["cost"] = {
   input: 0,

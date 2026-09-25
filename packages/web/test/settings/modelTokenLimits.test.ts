@@ -33,9 +33,9 @@ describe("model token limit resolution", () => {
   });
   test("the defaults apply only when neither source knows the model", () => {
     const model = parseProviderModel({ id: "mystery-model" }, lookup);
-    expect(model?.contextWindow).toBe(32768);
+    expect(model?.contextWindow).toBe(131072);
     expect(model?.maxTokens).toBe(4096);
-    expect(parseProviderModel({ id: "mystery-model" })?.contextWindow).toBe(32768);
+    expect(parseProviderModel({ id: "mystery-model" })?.contextWindow).toBe(131072);
   });
   test("pi's catalog reports real limits", async () => {
     const piLookup = await loadPiModelLimits();

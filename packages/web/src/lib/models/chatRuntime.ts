@@ -7,7 +7,7 @@ import { getLocalModelManifest } from "@memora/local-model-runtime";
 
 import { localModelClient } from "@/lib/local-model";
 import { trackLocalTokenUsage, type LocalTokenUsage } from "./localTokenUsage";
-import { parseProviderModels } from "@/lib/settings/dialogHelpers";
+import { DEFAULT_MODEL_CONTEXT_WINDOW, parseProviderModels } from "@/lib/settings/dialogHelpers";
 import type { provider } from "@/livestore/provider";
 import { readProviderApiKey, type providerCredentialTable } from "@/livestore/providerCredential";
 import {
@@ -72,7 +72,7 @@ export const createFeatureChatRuntime = (
         reasoning: false,
         input: requiresImage ? ["text", "image"] : ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 32768,
+        contextWindow: DEFAULT_MODEL_CONTEXT_WINDOW,
         maxTokens: 4096,
       },
     ],

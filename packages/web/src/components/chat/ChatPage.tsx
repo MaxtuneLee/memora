@@ -34,6 +34,12 @@ import { useChatTurnActions } from "@/components/chat/chatPage/useChatTurnAction
 import { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 
+// While streaming, the chat follows new output unless the user scrolled away from the bottom;
+// it then waits this long before following again, or resumes as soon as they return to it.
+const CHAT_FOLLOW_PAUSE_MS = 5_000;
+const CHAT_FOLLOW_BOTTOM_THRESHOLD_PX = 48;
+const CHAT_USER_SCROLL_INPUT_WINDOW_MS = 250;
+
 export const Component = () => {
   const store = useAppStore();
   const { createRuntime } = useFeatureModels();
@@ -274,20 +280,53 @@ export const Component = () => {
     if (!content || !scrollArea) return;
 
     let frame = 0;
+    let hasScrolledInitially = false;
+    // Only scroll events right after wheel/touch/key/pointer input count as the user's; our own
+    // smooth scroll fires scroll events too and must not pause following.
+    let lastUserInputAt = 0;
+    let followPausedUntil = 0;
+
+    const markUserInput = () => {
+      lastUserInputAt = Date.now();
+    };
+    const handleScroll = () => {
+      const distanceFromBottom =
+        scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+      if (distanceFromBottom <= CHAT_FOLLOW_BOTTOM_THRESHOLD_PX) {
+        followPausedUntil = 0;
+      } else if (Date.now() - lastUserInputAt < CHAT_USER_SCROLL_INPUT_WINDOW_MS) {
+        followPausedUntil = Date.now() + CHAT_FOLLOW_PAUSE_MS;
+      }
+    };
     const scrollToBottom = () => {
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
-        scrollArea.scrollTop = scrollArea.scrollHeight;
+        if (Date.now() < followPausedUntil) return;
+        // Jump on session open so it doesn't glide through the whole history; glide afterwards.
+        scrollArea.scrollTo({
+          top: scrollArea.scrollHeight,
+          behavior: hasScrolledInitially ? "smooth" : "auto",
+        });
+        hasScrolledInitially = true;
       });
     };
 
+    const userInputEvents = ["wheel", "touchmove", "keydown", "pointerdown"] as const;
+    for (const eventName of userInputEvents) {
+      scrollArea.addEventListener(eventName, markUserInput, { passive: true });
+    }
+    scrollArea.addEventListener("scroll", handleScroll, { passive: true });
     scrollToBottom();
     const observer = new ResizeObserver(scrollToBottom);
     observer.observe(content);
 
     return () => {
       observer.disconnect();
+      for (const eventName of userInputEvents) {
+        scrollArea.removeEventListener(eventName, markUserInput);
+      }
+      scrollArea.removeEventListener("scroll", handleScroll);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [activeSessionId]);

@@ -83,3 +83,56 @@ test("leaves room for a reply once a turn reports a context-filling usage", asyn
   const ceiling = clampMaxTokensToContext(fakeModel, requests[0], fakeModel.maxTokens);
   assert.ok(ceiling >= 512, `response ceiling collapsed to ${ceiling} tokens`);
 });
+
+test("drops a trimmed tool call's results along with it", async () => {
+  const requests = [];
+  const agent = createAgent({
+    config: { id: "fake-agent", maxIterations: 1 },
+    model: fakeModel,
+    stream: (model, context) => {
+      requests.push(context);
+      return (async function* stream() {
+        yield { type: "text_delta", delta: "hello" };
+      })();
+    },
+    persistence: createInMemoryAdapter(),
+  });
+
+  await agent.init();
+  await agent.replaceHistory([
+    userTurn("u1"),
+    {
+      id: "a2",
+      role: "assistant",
+      content: [
+        { type: "text", text: "y".repeat(120000) },
+        { type: "tool_call", id: "call_1", name: "search", arguments: {} },
+      ],
+      createdAt: 2,
+    },
+    {
+      id: "t3",
+      role: "tool",
+      content: [{ type: "tool_result", id: "call_1", name: "search", result: "found" }],
+      createdAt: 3,
+    },
+    userTurn("u4"),
+  ]);
+
+  for await (const _event of agent.run("Hi")) {
+    // drain
+  }
+
+  assert.equal(requests.length, 1);
+  const callIds = new Set();
+  for (const message of requests[0].messages) {
+    if (message.role === "assistant") {
+      for (const block of message.content) {
+        if (block.type === "toolCall") callIds.add(block.id);
+      }
+    }
+    if (message.role === "toolResult") {
+      assert.ok(callIds.has(message.toolCallId), `orphaned tool result ${message.toolCallId}`);
+    }
+  }
+});
