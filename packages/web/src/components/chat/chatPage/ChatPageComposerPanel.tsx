@@ -21,7 +21,7 @@ import type { ResolvedReferenceScope } from "@/lib/chat/tools";
 import type { ChatSessionReference } from "@/lib/chat/chatSessionStorage";
 import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageComposerAttachments } from "./ChatPageComposerAttachments";
-import { CHAT_LAYOUT_TRANSITION } from "./helpers";
+import { CHAT_LAYOUT_TRANSITION } from "./layout";
 import type { ComposerNotice, ReferencePickerSource } from "./types";
 
 const styles = stylex.create({

@@ -9,7 +9,7 @@ import { tokens } from "../../styles/stylex.stylex";
 import { AssistantMessageContent } from "./chatMessage/AssistantMessageContent";
 import { getAssistantAvatarState } from "./chatMessage/getAssistantAvatarState";
 import type { ChatMessageData } from "./chatMessage/types";
-import { CHAT_LAYOUT_TRANSITION } from "./chatPage/helpers";
+import { CHAT_LAYOUT_TRANSITION } from "./chatPage/layout";
 import { UserMessageContent } from "./chatMessage/UserMessageContent";
 
 const styles = stylex.create({

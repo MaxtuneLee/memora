@@ -3,7 +3,7 @@ import { GearIcon } from "@phosphor-icons/react";
 import * as stylex from "@stylexjs/stylex";
 import { Persona } from "@/components/assistant/Persona";
 import { tokens } from "../../../styles/stylex.stylex";
-import { CHAT_LAYOUT_TRANSITION } from "./helpers";
+import { CHAT_LAYOUT_TRANSITION } from "./layout";
 
 const styles = stylex.create({
   root: { flex: 1 },

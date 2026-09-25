@@ -6,7 +6,7 @@ import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
-import { CHAT_MASCOT_LAYOUT_ID } from "./helpers";
+import { CHAT_MASCOT_LAYOUT_ID } from "./layout";
 
 const styles = stylex.create({
   root: { display: "flex", height: "100%", minHeight: 0 },

@@ -306,8 +306,3 @@ export const loadGreetingName = async (): Promise<string | null> => {
 export const hasAttachmentImages = (attachments: ChatImageAttachment[]): boolean => {
   return attachments.length > 0;
 };
-
-// The empty-state mascot and the first assistant avatar share this id so motion flies one into the other.
-export const CHAT_MASCOT_LAYOUT_ID = "chat-mascot";
-// Shared by the mascot flight and the composer's move from the center to the bottom.
-export const CHAT_LAYOUT_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] } as const;

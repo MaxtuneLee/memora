@@ -64,6 +64,11 @@ export default defineConfig({
         find: /^@\/livestore\/store$/,
         replacement: path.resolve(siteDir, "src/stubs/livestoreStore.ts"),
       },
+      // Read from source so the site builds without building workspace packages first.
+      {
+        find: /^@memora\/fs$/,
+        replacement: path.resolve(siteDir, "../fs/src/index.ts"),
+      },
       { find: /^@web\//, replacement: `${webSrc}/` },
       { find: /^@\//, replacement: `${webSrc}/` },
     ],
