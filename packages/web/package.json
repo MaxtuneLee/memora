@@ -86,7 +86,8 @@
     "sqlite-vec-wasm": "0.1.0",
     "streamdown": "^2.4.0",
     "tesseract.js": "^7.0.0",
-    "vite-plugin-route-builder": "^0.4.1"
+    "vite-plugin-route-builder": "^0.4.1",
+    "workbox-window": "^7.4.0"
   },
   "devDependencies": {
     "@react-grab/mcp": "^0.1.28",

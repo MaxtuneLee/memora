@@ -1,6 +1,8 @@
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import stylex from "@stylexjs/unplugin";
 import { routeBuilderPlugin } from "vite-plugin-route-builder";
@@ -11,13 +13,34 @@ import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
 import { voidPlugin } from "void";
 import path from "node:path";
 
+import { parseReleaseNotes } from "./src/lib/app/releaseNotes";
+
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
-const APP_VERSION =
+const readGitVersion = (): string => {
+  try {
+    return execSync("git describe --always --dirty", { encoding: "utf8" }).trim();
+  } catch {
+    return "unknown";
+  }
+};
+// The short commit hash of the build, with -dirty when tracked files had uncommitted changes.
+const APP_VERSION = readGitVersion();
+const RELEASE_NOTES = parseReleaseNotes(
+  readFileSync(new URL("./RELEASE_NOTES.md", import.meta.url), "utf8"),
+);
+const packageVersion = (name: string): string =>
   (
-    JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
-      version?: string;
-    }
-  ).version ?? "0.0.0";
+    JSON.parse(
+      readFileSync(new URL(`./node_modules/${name}/package.json`, import.meta.url), "utf8"),
+    ) as { version: string }
+  ).version;
+// Third-party runtime files are served from fixed, unhashed names and cached CacheFirst by the
+// service worker, so each gets a directory per package version: an upgrade changes the URL.
+const VENDOR_ASSETS = {
+  onnxRuntimeWeb: `vendor/onnxruntime-web@${packageVersion("onnxruntime-web")}`,
+  sqliteVec: `vendor/sqlite-vec-wasm@${packageVersion("sqlite-vec-wasm")}`,
+  vadWeb: `vendor/vad-web@${packageVersion("@ricky0123/vad-web")}`,
+};
 const isVitest = process.env.VITEST === "true" || process.env.VITEST === "1";
 const nanoBeirProxy = {
   target: "https://datasets-server.huggingface.co",
@@ -28,6 +51,10 @@ const nanoBeirProxy = {
 const config = {
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __RELEASE_NOTE_ID__: JSON.stringify(RELEASE_NOTES[0]?.id ?? ""),
+    __VENDOR_ASSETS__: JSON.stringify(
+      Object.fromEntries(Object.entries(VENDOR_ASSETS).map(([key, dir]) => [key, `/${dir}/`])),
+    ),
   },
   plugins: [
     voidPlugin(),
@@ -79,34 +106,48 @@ const config = {
             targets: [
               {
                 src: "node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js",
-                dest: "./",
+                dest: VENDOR_ASSETS.vadWeb,
               },
               {
                 src: "node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx",
-                dest: "./",
+                dest: VENDOR_ASSETS.vadWeb,
               },
               {
                 src: "node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx",
-                dest: "./",
+                dest: VENDOR_ASSETS.vadWeb,
               },
               {
                 src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
-                dest: "./",
+                dest: VENDOR_ASSETS.onnxRuntimeWeb,
               },
               {
                 src: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
-                dest: "./",
+                dest: VENDOR_ASSETS.onnxRuntimeWeb,
               },
               {
                 src: "node_modules/sqlite-vec-wasm/dist/sqlite3.wasm",
-                dest: "sqlite-vec",
+                dest: VENDOR_ASSETS.sqliteVec,
               },
             ],
           }),
         ]),
+    {
+      // The update dialog fetches this from the network to show what the new build changes.
+      name: "memora-release-notes",
+      apply: "build",
+      generateBundle() {
+        if (this.environment.name !== "client") return;
+        this.emitFile({
+          type: "asset",
+          fileName: "release-notes.json",
+          source: JSON.stringify({ version: APP_VERSION, notes: RELEASE_NOTES }),
+        });
+      },
+    } satisfies Plugin,
     VitePWA({
-      injectRegister: "auto",
-      registerType: "autoUpdate",
+      // Registered by src/lib/app/serviceWorkerUpdates.ts, which asks before activating an update.
+      injectRegister: false,
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         id: "/",

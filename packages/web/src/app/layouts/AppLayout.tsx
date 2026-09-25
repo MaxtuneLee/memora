@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "@/app/components/Sidebar";
 import SearchPalette from "@/components/search/SearchPalette";
 import ToastStack from "@/components/ToastStack";
+import AppUpdateDialog from "@/components/AppUpdateDialog";
 import ChatFinishedToasts from "@/components/chat/ChatFinishedToasts";
 import SettingsDialog from "@/components/settings/SettingsDialog";
 import { LocalModelDevtoolsPanel } from "@/components/devtools/LocalModelDevtoolsPanel";
@@ -235,6 +236,7 @@ export default function AppLayout() {
           {import.meta.env.DEV && <LocalModelDevtoolsPanel currentPath={location.pathname} />}
           <ToastStack />
           <ChatFinishedToasts />
+          <AppUpdateDialog />
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
     </Toast.Provider>
