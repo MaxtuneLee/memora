@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build && find dist/client/assets -maxdepth 1 -iname 'ort-wasm-simd-threaded.jsep-*.wasm' -delete",
-    "deploy": "void deploy --project memora",
+    "build": "vp build && find dist/assets -maxdepth 1 -iname 'ort-wasm-simd-threaded.jsep-*.wasm' -delete",
     "lint": "vp lint .",
     "test": "vp test test",
     "test:browser": "vp test --config vite.browser.config.ts --run",
@@ -113,7 +112,6 @@
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-static-copy": "^3.1.4",
     "vite-plus": "catalog:",
-    "vitest": "^4.1.10",
-    "void": "^0.10.12"
+    "vitest": "^4.1.10"
   }
 }

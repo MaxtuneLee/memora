@@ -560,7 +560,7 @@ export const DOCS: DocPage[] = [
                 Build command: <code>pnpm run build</code>
               </li>
               <li>
-                Output directory: <code>packages/web/dist/client</code>
+                Output directory: <code>packages/web/dist</code>
               </li>
             </ul>
           </>

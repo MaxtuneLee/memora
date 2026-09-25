@@ -42,9 +42,6 @@ node_modules/
 jspm_packages/
 
 # Local deployment and browser-automation artifacts
-.void/
-packages/web/.void/
-packages/web/.wrangler/
 .playwright-mcp/
 
 # Snowpack dependency directory (https://snowpack.dev/)

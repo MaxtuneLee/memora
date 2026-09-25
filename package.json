@@ -10,7 +10,6 @@
   "scripts": {
     "dev": "vp run -t --parallel @memora/web#dev",
     "build": "vp run -t @memora/web#build",
-    "deploy": "vp run -t @memora/web#build && vp run @memora/web#deploy",
     "lint:web": "pnpm --filter @memora/web lint",
     "test:web": "pnpm --filter @memora/web test",
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
