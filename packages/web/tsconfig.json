@@ -1,6 +1,5 @@
 {
-  "extends": "./.void/tsconfig.json",
-  "files": ["./.void/routes.d.ts", "./.void/db.d.ts"],
+  "files": [],
   "references": [
     {
       "path": "./tsconfig.app.json"
@@ -8,14 +7,5 @@
     {
       "path": "./tsconfig.node.json"
     }
-  ],
-  "compilerOptions": {
-    "types": ["void/env"],
-    "paths": {
-      "void/db": ["./.void/db.d.ts"],
-      "@schema": ["./db/schema.ts"],
-      "@schema/*": ["./db/schema/*"],
-      "void/routes": ["./.void/routes.d.ts"]
-    }
-  }
+  ]
 }

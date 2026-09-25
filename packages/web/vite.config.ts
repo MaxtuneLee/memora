@@ -10,7 +10,6 @@ import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { configDefaults } from "vitest/config";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
-import { voidPlugin } from "void";
 import path from "node:path";
 
 import { parseReleaseNotes } from "./src/lib/app/releaseNotes";
@@ -57,7 +56,6 @@ const config = {
     ),
   },
   plugins: [
-    voidPlugin(),
     ...(isVitest
       ? []
       : [

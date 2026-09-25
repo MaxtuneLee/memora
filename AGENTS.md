@@ -24,7 +24,6 @@
 - Run the marketing site (`@memora/site`, port `9004`): `vp run @memora/site#dev`
   - It renders real `@memora/web` components from source on mock data; `@/livestore/store` is aliased to a stub, so only embed components that don't need the store.
 - Build the web app with workspace dependencies: `vp run -t @memora/web#build`
-- Deploy after building: `vp run -t @memora/web#build && vp run @memora/web#deploy`
 
 ### Development
 
