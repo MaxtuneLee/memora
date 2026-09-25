@@ -9,11 +9,11 @@ import {
   SidebarIcon,
 } from "@phosphor-icons/react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Button } from "@base-ui/react/button";
 import * as stylex from "@stylexjs/stylex";
 import { useAppStore } from "@/livestore/store";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 import { formatBytes } from "@/lib/format";
 import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
@@ -24,6 +24,7 @@ import { useStorageStats } from "@/hooks/settings/useStorageStats";
 import { activeFilesQuery$ } from "@/lib/library/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import type { FileMeta } from "@/types/library";
+import type { SearchNavigationState } from "@/types/search";
 import { tokens } from "../../styles/stylex.stylex";
 
 const MAX_RECENT_FILES = 4;
@@ -393,12 +394,27 @@ function SidebarSection({ title, children, action }: SidebarSectionProps) {
 export function Sidebar() {
   const store = useAppStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const reducedMotion = useReducedMotion() ?? false;
   const currentPath = location.pathname;
   const fileRows = store.useQuery(activeFilesQuery$);
   const { openSettings, isSettingsOpen, activeSection } = useSettingsDialog();
   const { openSearch, isSearchOpen } = useSearchPalette();
   const { storageQuota, storageUsage } = useStorageStats();
+
+  const openFilePreview = useCallback(
+    (fileId: string) => {
+      // A fresh request id per click: Desktop ignores an intent it has already handled.
+      const state: SearchNavigationState = {
+        searchDesktopIntent: {
+          requestId: crypto.randomUUID(),
+          intent: { type: "openPreview", fileId },
+        },
+      };
+      void navigate("/desktop", { state });
+    },
+    [navigate],
+  );
 
   const recentFiles = useMemo(() => {
     return fileRows
@@ -474,18 +490,29 @@ export function Sidebar() {
           </LayoutGroup>
         </SidebarSection>
 
-        <SidebarSection title="Recent Files">
+        <SidebarSection title="Recent files">
           {recentFiles.length > 0 ? (
             <div {...stylex.props(styles.list)}>
               {recentFiles.map((file) => {
                 const href = getFileHref(file);
                 const Icon = getFileIcon(file);
-                const isActive = currentPath === href;
+                // Files without their own page open as a preview on Desktop, so being on
+                // Desktop does not mean this file is the one open.
+                const opensOnDesktop = href === "/desktop";
+                const isActive = !opensOnDesktop && currentPath === href;
 
                 return (
                   <Link
                     key={file.id}
                     to={href}
+                    onClick={
+                      opensOnDesktop
+                        ? (event) => {
+                            event.preventDefault();
+                            openFilePreview(file.id);
+                          }
+                        : undefined
+                    }
                     {...stylex.props(styles.recentItem, isActive && styles.recentItemActive)}
                   >
                     <Icon
