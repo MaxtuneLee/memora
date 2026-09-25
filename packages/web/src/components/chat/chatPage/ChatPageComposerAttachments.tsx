@@ -1,5 +1,132 @@
 import { ImageIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import type { file as LiveStoreFile } from "@/livestore/file";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 95%, transparent)`,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 16,
+    boxShadow: tokens.shadowSmall,
+    marginBottom: 8,
+    overflow: "hidden",
+    position: "relative",
+    zIndex: 10,
+  },
+  header: {
+    alignItems: "center",
+    borderBottom: `1px solid ${tokens.border}`,
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    paddingBlock: 12,
+    paddingInline: 14,
+  },
+  title: { color: tokens.textStrong, fontSize: 14, fontWeight: 600 },
+  description: { color: tokens.textMuted, fontSize: 12 },
+  actions: { alignItems: "center", display: "flex", gap: 8 },
+  action: {
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 9999,
+    color: tokens.textStrong,
+    fontSize: 11,
+    fontWeight: 600,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "border-color 150ms, background-color 150ms",
+    ":hover": { backgroundColor: tokens.hover, borderColor: tokens.borderStrong },
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  close: {
+    backgroundColor: tokens.surfaceMuted,
+    color: tokens.textMuted,
+    fontWeight: 500,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
+  },
+  body: { padding: 12 },
+  search: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    display: "flex",
+    gap: 8,
+    paddingBlock: 10,
+    paddingInline: 12,
+  },
+  icon: { color: tokens.textSoft, height: 16, width: 16 },
+  input: {
+    backgroundColor: "transparent",
+    color: tokens.text,
+    flex: 1,
+    fontSize: 14,
+    height: 28,
+    minWidth: 0,
+    outline: "none",
+    "::placeholder": { color: tokens.textSoft },
+  },
+  list: {
+    display: "grid",
+    gap: 8,
+    marginTop: 12,
+    "@media (min-width: 40rem)": { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+  },
+  empty: {
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px dashed ${tokens.border}`,
+    borderRadius: 12,
+    color: tokens.textMuted,
+    fontSize: 12,
+    paddingBlock: 24,
+    paddingInline: 16,
+    textAlign: "center",
+    "@media (min-width: 40rem)": { gridColumn: "span 2 / span 2" },
+  },
+  item: {
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 16,
+    color: tokens.textStrong,
+    padding: 12,
+    textAlign: "left",
+    transition: "border-color 150ms, background-color 150ms",
+    ":hover": { backgroundColor: tokens.hover, borderColor: tokens.borderStrong },
+    ":disabled": { cursor: "not-allowed", opacity: 0.55 },
+  },
+  itemSelected: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+  },
+  itemHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  itemCopy: { minWidth: 0 },
+  itemName: {
+    fontSize: 14,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  itemSize: { color: tokens.textMuted, fontSize: 11, marginTop: 4 },
+  itemSizeSelected: { color: `color-mix(in srgb, ${tokens.primaryText} 80%, transparent)` },
+  selectedBadge: {
+    backgroundColor: `color-mix(in srgb, ${tokens.primaryText} 10%, transparent)`,
+    border: `1px solid color-mix(in srgb, ${tokens.primaryText} 20%, transparent)`,
+    borderRadius: 9999,
+    color: tokens.primaryText,
+    fontSize: 10,
+    fontWeight: 600,
+    paddingBlock: 4,
+    paddingInline: 8,
+  },
+});
 
 interface ChatPageComposerAttachmentsProps {
   remainingImageSlots: number;
@@ -30,48 +157,46 @@ export const ChatPageComposerAttachments = ({
   return (
     <>
       {imagePickerOpen && (
-        <div className="relative z-10 mb-2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-3.5 py-3">
+        <div {...stylex.props(styles.panel)}>
+          <div {...stylex.props(styles.header)}>
             <div>
-              <p className="text-sm font-semibold text-zinc-900">Add images</p>
-              <p className="text-xs text-zinc-500">
+              <p {...stylex.props(styles.title)}>Add images</p>
+              <p {...stylex.props(styles.description)}>
                 Paste, drop, upload, or pick from your library. {remainingImageSlots} slot
                 {remainingImageSlots === 1 ? "" : "s"} left.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div {...stylex.props(styles.actions)}>
               <button
                 type="button"
                 onClick={onOpenLocalImagePicker}
                 disabled={!sessionsReady || remainingImageSlots === 0}
-                className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                {...stylex.props(styles.action)}
               >
                 Upload image
               </button>
               <button
                 type="button"
                 onClick={onCloseImagePicker}
-                className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+                {...stylex.props(styles.action, styles.close)}
               >
                 Close
               </button>
             </div>
           </div>
-          <div className="p-3">
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-              <ImageIcon className="size-4 text-zinc-400" />
+          <div {...stylex.props(styles.body)}>
+            <div {...stylex.props(styles.search)}>
+              <ImageIcon className={stylex.props(styles.icon).className} />
               <input
                 value={imagePickerQuery}
                 onChange={(event) => onImagePickerQueryChange(event.target.value)}
                 placeholder="Search library images..."
-                className="h-7 min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
+                {...stylex.props(styles.input)}
               />
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div {...stylex.props(styles.list)}>
               {imagePickerOptions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-xs text-zinc-500 sm:col-span-2">
-                  No matching images in your library.
-                </div>
+                <div {...stylex.props(styles.empty)}>No matching images in your library.</div>
               ) : (
                 imagePickerOptions.map(({ file, isSelected }) => (
                   <button
@@ -79,28 +204,18 @@ export const ChatPageComposerAttachments = ({
                     type="button"
                     onClick={() => onSelectLibraryImage(file)}
                     disabled={isSelected || remainingImageSlots === 0}
-                    className={`rounded-2xl border px-3 py-3 text-left transition ${
-                      isSelected
-                        ? "border-zinc-900 bg-zinc-900 text-white"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
-                    } disabled:cursor-not-allowed disabled:opacity-55`}
+                    {...stylex.props(styles.item, isSelected && styles.itemSelected)}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{file.name}</p>
+                    <div {...stylex.props(styles.itemHeader)}>
+                      <div {...stylex.props(styles.itemCopy)}>
+                        <p {...stylex.props(styles.itemName)}>{file.name}</p>
                         <p
-                          className={`mt-1 text-[11px] ${
-                            isSelected ? "text-zinc-200" : "text-zinc-500"
-                          }`}
+                          {...stylex.props(styles.itemSize, isSelected && styles.itemSizeSelected)}
                         >
                           {(file.sizeBytes / 1024 / 1024).toFixed(1)} MB
                         </p>
                       </div>
-                      {isSelected && (
-                        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white">
-                          Added
-                        </span>
-                      )}
+                      {isSelected && <span {...stylex.props(styles.selectedBadge)}>Added</span>}
                     </div>
                   </button>
                 ))

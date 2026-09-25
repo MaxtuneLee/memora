@@ -4,14 +4,11 @@ import { nemotron35AsrStreamingManifest } from "@memora/local-model-runtime";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vite-plus/test";
 
-import { providerCredentialsQuery$ } from "@/livestore/providerCredential";
-import { settingsDocumentQuery$, settingsProvidersQuery$ } from "@/lib/settings/queries";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import type { setting } from "@/livestore/setting";
 
-vi.mock("@/components/settings/FeatureModelSettings", () => ({ default: () => null }));
-vi.mock("@/components/settings/ProviderManagementSection", () => ({ default: () => null }));
 vi.mock("@/lib/settings/personalityStorage", () => ({
   savePersonalityProfile: vi.fn(async () => {}),
 }));
@@ -65,7 +62,6 @@ vi.mock("@/hooks/transcript/useRecordingDetail", () => ({
 
 const state = vi.hoisted(() => ({
   settings: {} as Partial<setting>,
-  providers: [] as { id: string; baseUrl: string }[],
   commit: vi.fn(),
   useQuery: vi.fn(),
 }));
@@ -79,12 +75,11 @@ vi.mock("@/livestore/store", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  state.settings = { selectedProviderId: "p", selectedModel: "chat-model" };
-  state.providers = [{ id: "p", baseUrl: "https://example.test/v1" }];
+  // jsdom has no scrollIntoView; the live transcript auto-scrolls with it.
+  Element.prototype.scrollIntoView = vi.fn();
+  state.settings = {};
   state.useQuery.mockImplementation((query: unknown) => {
     if (query === settingsDocumentQuery$) return state.settings;
-    if (query === settingsProvidersQuery$) return state.providers;
-    if (query === providerCredentialsQuery$) return [];
     return undefined;
   });
   state.commit.mockImplementation((event: { args: { value: Partial<setting> } }) => {
@@ -101,6 +96,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+// The first import transforms a large module graph; keep that cost out of each test's budget.
+const COLD_IMPORT_TIMEOUT = 60_000;
+
+beforeAll(async () => {
+  await import("@/pages/onboarding/index");
+}, COLD_IMPORT_TIMEOUT);
+
 const renderOnboarding = async () => {
   const { Component } = await import("@/pages/onboarding/index");
   return {
@@ -115,10 +117,8 @@ const renderOnboarding = async () => {
   };
 };
 
-const goToStep5 = async (user: ReturnType<typeof userEvent.setup>) => {
+const goToTranscriptionStep = async (user: ReturnType<typeof userEvent.setup>) => {
   const { Component, view } = await renderOnboarding();
-  await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(screen.getByPlaceholderText("What should Memora call you?"), "Ada");
   await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -127,7 +127,7 @@ const goToStep5 = async (user: ReturnType<typeof userEvent.setup>) => {
 
 test("shows the transcription mode step and gates Continue until the model is ready", async () => {
   const user = userEvent.setup();
-  await goToStep5(user);
+  await goToTranscriptionStep(user);
 
   expect(screen.getByRole("heading", { name: "Choose transcription model" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
@@ -135,14 +135,14 @@ test("shows the transcription mode step and gates Continue until the model is re
 
 test("shows download details for the selected model, defaulting to Fast", async () => {
   const user = userEvent.setup();
-  await goToStep5(user);
+  await goToTranscriptionStep(user);
 
   expect(screen.getByRole("heading", { name: "Nemotron 3.5 ASR Streaming 0.6B" })).toBeTruthy();
 }, 30000);
 
 test("selecting a mode commits it to the transcription routing", async () => {
   const user = userEvent.setup();
-  await goToStep5(user);
+  await goToTranscriptionStep(user);
 
   await user.click(screen.getByRole("button", { name: /^Fast/ }));
 
@@ -162,7 +162,7 @@ test("selecting a mode commits it to the transcription routing", async () => {
 test("continues to the live trial once the model is ready", async () => {
   mocks.transcript.status = "ready";
   const user = userEvent.setup();
-  await goToStep5(user);
+  await goToTranscriptionStep(user);
 
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("heading", { name: "Try real-time transcription" })).toBeTruthy();
@@ -170,16 +170,16 @@ test("continues to the live trial once the model is ready", async () => {
 
 test("skip for now jumps straight to setup complete", async () => {
   const user = userEvent.setup();
-  await goToStep5(user);
+  await goToTranscriptionStep(user);
 
   await user.click(screen.getByRole("button", { name: "Skip for now" }));
-  expect(screen.getByRole("heading", { name: "Setup Complete" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Setup complete" })).toBeTruthy();
 }, 30000);
 
 test("auto-advances to playback once the trial recording is saved", async () => {
   mocks.transcript.status = "ready";
   const user = userEvent.setup();
-  const { Component, view } = await goToStep5(user);
+  const { Component, view } = await goToTranscriptionStep(user);
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("heading", { name: "Try real-time transcription" })).toBeTruthy();
 

@@ -1,6 +1,44 @@
 import { motion, useReducedMotion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 
-import { cn } from "@/lib/cn";
+const styles = stylex.create({
+  root: {
+    alignItems: "center",
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 64,
+    isolation: "isolate",
+    justifyContent: "center",
+    position: "relative",
+    width: 64,
+  },
+  aura: {
+    borderRadius: 9999,
+    filter: "blur(24px)",
+    inset: "16%",
+    pointerEvents: "none",
+    position: "absolute",
+  },
+  listeningAura: { backgroundColor: "rgb(135 154 79 / 0.2)" },
+  thinkingAura: { backgroundColor: "rgb(209 177 112 / 0.24)" },
+  speakingAura: { backgroundColor: "rgb(214 159 99 / 0.22)" },
+  asleepAura: { backgroundColor: "rgb(183 170 139 / 0.12)" },
+  idleAura: { backgroundColor: "rgb(198 179 143 / 0.16)" },
+  shadow: {
+    backgroundColor: "rgb(84 72 61 / 0.18)",
+    borderRadius: 9999,
+    bottom: "11%",
+    filter: "blur(16px)",
+    height: "8%",
+    left: "50%",
+    pointerEvents: "none",
+    position: "absolute",
+    transform: "translateX(-50%)",
+    width: "56%",
+  },
+  body: { height: "100%", position: "relative", width: "100%", zIndex: 10 },
+  svg: { height: "100%", width: "100%" },
+});
 
 import {
   BASE_EYE_STROKE_WIDTH,
@@ -16,16 +54,18 @@ import type { MemoraMascotState } from "./memoraMascot/types";
 
 export type { MemoraMascotState } from "./memoraMascot/types";
 
+export type MascotStyle = stylex.StyleXStyles;
+
 interface MemoraMascotProps {
   state: MemoraMascotState;
-  className?: string;
+  style?: MascotStyle;
   animated?: boolean;
   decorative?: boolean;
 }
 
 export default function MemoraMascot({
   state,
-  className,
+  style,
   animated = true,
   decorative = false,
 }: MemoraMascotProps) {
@@ -43,44 +83,41 @@ export default function MemoraMascot({
 
   return (
     <div
-      className={cn(
-        "relative isolate inline-flex size-16 shrink-0 items-center justify-center",
-        className,
-      )}
+      className={stylex.props(styles.root, style).className}
       aria-hidden={decorative ? true : undefined}
       aria-label={decorative ? undefined : `Memora assistant is ${state}`}
       role={decorative ? undefined : "img"}
     >
       <motion.div
-        className={cn(
-          "pointer-events-none absolute inset-[16%] rounded-full blur-2xl",
+        {...stylex.props(
+          styles.aura,
           state === "listening"
-            ? "bg-[#879a4f]/20"
+            ? styles.listeningAura
             : state === "thinking"
-              ? "bg-[#d1b170]/24"
+              ? styles.thinkingAura
               : state === "speaking"
-                ? "bg-[#d69f63]/22"
+                ? styles.speakingAura
                 : state === "asleep"
-                  ? "bg-[#b7aa8b]/12"
-                  : "bg-[#c6b38f]/16",
+                  ? styles.asleepAura
+                  : styles.idleAura,
         )}
         animate={auraMotion.animate}
         transition={auraMotion.transition}
       />
 
       <motion.div
-        className="pointer-events-none absolute bottom-[11%] left-1/2 h-[8%] w-[56%] -translate-x-1/2 rounded-full bg-[#54483d]/18 blur-xl"
+        {...stylex.props(styles.shadow)}
         animate={shadowMotion.animate}
         transition={shadowMotion.transition}
       />
 
       <motion.div
-        className="relative z-10 size-full"
+        {...stylex.props(styles.body)}
         animate={bodyMotion.animate}
         transition={bodyMotion.transition}
       >
         <svg
-          className="size-full"
+          className={stylex.props(styles.svg).className}
           viewBox="0 0 377 382"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"

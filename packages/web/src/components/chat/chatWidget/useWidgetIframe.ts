@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { readRootTheme, useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import type { ResolvedTheme } from "@/lib/theme/documentTheme";
+
+// The preview document is same-origin, so the theme is set on its root directly — no reload,
+// reparse, or script rerun, and the widget's DOM and state stay intact.
+// Before the srcDoc parses (and while React reconnects a hidden subtree) the iframe can expose
+// an empty document with no root; skip it, the load handler rebinds once the root exists.
+const applyIframeTheme = (iframeDocument: Document, theme: ResolvedTheme): void => {
+  const root = iframeDocument.documentElement;
+  if (!root) return;
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+};
+
 export const useWidgetIframe = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeDocumentRef = useRef<Document | null>(null);
@@ -8,6 +22,7 @@ export const useWidgetIframe = () => {
   const [iframeReady, setIframeReady] = useState(false);
   const [iframeHeight, setIframeHeight] = useState(1);
   const [hasRuntimeDom, setHasRuntimeDom] = useState(false);
+  const theme = useResolvedTheme();
 
   const syncIframeHeight = useCallback(() => {
     const iframe = iframeRef.current;
@@ -42,6 +57,7 @@ export const useWidgetIframe = () => {
     }
 
     iframeDocumentRef.current = iframeDocument;
+    applyIframeTheme(iframeDocument, readRootTheme());
     userStyleRef.current = iframeDocument.querySelector<HTMLStyleElement>(
       "[data-widget-user-style]",
     );
@@ -55,6 +71,12 @@ export const useWidgetIframe = () => {
   useEffect(() => {
     bindIframeDocument();
   }, [bindIframeDocument]);
+
+  useEffect(() => {
+    if (iframeReady && iframeDocumentRef.current) {
+      applyIframeTheme(iframeDocumentRef.current, theme);
+    }
+  }, [iframeReady, theme]);
 
   useEffect(() => {
     const content = contentRef.current;

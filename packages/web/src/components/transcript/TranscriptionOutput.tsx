@@ -1,5 +1,43 @@
 import { motion } from "motion/react";
 import { memo, useEffect, useRef } from "react";
+import * as stylex from "@stylexjs/stylex";
+
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { height: "100%", minHeight: 0, position: "relative" },
+  content: {
+    color: tokens.textStrong,
+    fontSize: 16,
+    height: "100%",
+    lineHeight: 1.625,
+    overflowY: "auto",
+    paddingBlock: 8,
+    paddingInline: 4,
+    whiteSpace: "pre-wrap",
+    "@media (min-width: 768px)": { paddingBlock: 12, paddingInline: 8 },
+  },
+  current: { color: tokens.textMuted, fontStyle: "italic" },
+  empty: { color: tokens.textSoft, fontStyle: "italic" },
+  scrollEnd: { scrollMarginBottom: 112, "@media (min-width: 768px)": { scrollMarginBottom: 128 } },
+  rate: {
+    backdropFilter: "blur(4px)",
+    backgroundColor: `color-mix(in srgb, ${tokens.surfaceSoft} 92%, transparent)`,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 9999,
+    bottom: 16,
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textMuted,
+    fontSize: 12,
+    fontVariantNumeric: "tabular-nums",
+    paddingBlock: 4,
+    paddingInline: 10,
+    position: "absolute",
+    right: 16,
+  },
+});
 
 interface TranscriptionOutputProps {
   accumulatedText: string;
@@ -88,16 +126,13 @@ export const TranscriptionOutput = ({
   }, [visibleAccumulatedText, currentSegment]);
 
   return (
-    <div className="relative h-full min-h-0">
-      <div
-        ref={containerRef}
-        className="h-full overflow-y-auto px-1 py-2 text-base leading-relaxed text-zinc-900 whitespace-pre-wrap md:px-2 md:py-3"
-      >
+    <div {...stylex.props(styles.root)}>
+      <div ref={containerRef} {...stylex.props(styles.content)}>
         {visibleAccumulatedText || currentSegment ? (
           <>
             {visibleAccumulatedText && <span>{visibleAccumulatedText}</span>}
             {currentSegment && (
-              <span className="text-zinc-500 italic">
+              <span {...stylex.props(styles.current)}>
                 {visibleAccumulatedText ? " " : ""}
                 {settledSegment}
                 {splitChars(newSegment).map((char, index) => (
@@ -107,18 +142,14 @@ export const TranscriptionOutput = ({
             )}
           </>
         ) : (
-          <span className="italic text-zinc-400">Start recording to see transcription...</span>
+          <span {...stylex.props(styles.empty)}>Start recording to see transcription...</span>
         )}
         {/* Keeps scrollIntoView from landing flush against the bottom of the page,
             where the sticky recording-control widget (~6.25rem/6.75rem tall) would
             cover the newest text. */}
-        <div ref={scrollEndRef} className="scroll-mb-28 md:scroll-mb-32" />
+        <div ref={scrollEndRef} {...stylex.props(styles.scrollEnd)} />
       </div>
-      {tps && (
-        <span className="absolute bottom-4 right-4 rounded-full border border-zinc-200 bg-[rgba(250,248,243,0.92)] px-2.5 py-1 text-xs text-zinc-500 shadow-sm tabular-nums backdrop-blur-sm">
-          {tps.toFixed(2)} tok/s
-        </span>
-      )}
+      {tps && <span {...stylex.props(styles.rate)}>{tps.toFixed(2)} tok/s</span>}
     </div>
   );
 };

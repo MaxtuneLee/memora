@@ -49,25 +49,42 @@ export const searchContent = async (input: {
   if (!query) return [];
   input.signal?.throwIfAborted();
   // Always retain the complete lexical index while the semantic index is being built.
-  const activeFiles = input.files.filter((file) => !file.deletedAt && !file.purgedAt && (!input.fileIds || input.fileIds.includes(file.id)));
+  const activeFiles = input.files.filter(
+    (file) =>
+      !file.deletedAt && !file.purgedAt && (!input.fileIds || input.fileIds.includes(file.id)),
+  );
   if (!activeFiles.length) return [];
   const scope = { kind: "documents" as const, documentIds: activeFiles.map((file) => file.id) };
   const topK = Math.max(1, input.topK ?? 8);
-  const lexical = input.semanticMode === "bge"
-    ? []
-    : await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).search({
-        query, scope, topK: 40, lexicalCandidateK: 40, semanticCandidateK: 0, semanticWeight: 0,
-      });
+  const lexical =
+    input.semanticMode === "bge"
+      ? []
+      : await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).search({
+          query,
+          scope,
+          topK: 40,
+          lexicalCandidateK: 40,
+          semanticCandidateK: 0,
+          semanticWeight: 0,
+        });
   input.signal?.throwIfAborted();
   const semantic: VectorDbSearchHit[] = [];
   if (input.semantic) {
     const embeddings = await input.semantic.embed([query], "query", { signal: input.signal });
     input.signal?.throwIfAborted();
     validateEmbeddings(embeddings, 1, input.semantic.indexConfig.dimensions);
-    semantic.push(...await input.vectorDb.forIndex(input.semantic.indexConfig).search({
-      query, scope, topK: 40, lexicalCandidateK: 0, semanticCandidateK: 40,
-      lexicalWeight: 0, semanticWeight: 1, queryEmbedding: embeddings[0],
-    }));
+    semantic.push(
+      ...(await input.vectorDb.forIndex(input.semantic.indexConfig).search({
+        query,
+        scope,
+        topK: 40,
+        lexicalCandidateK: 0,
+        semanticCandidateK: 40,
+        lexicalWeight: 0,
+        semanticWeight: 1,
+        queryEmbedding: embeddings[0],
+      })),
+    );
   }
   input.signal?.throwIfAborted();
   const merged = new Map<string, VectorDbSearchHit>();

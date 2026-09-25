@@ -1,4 +1,3 @@
-import { Toast } from "@base-ui/react/toast";
 import {
   BrainIcon,
   CaretDownIcon,
@@ -8,33 +7,27 @@ import {
   HardDrivesIcon,
   InfoIcon,
   ListMagnifyingGlassIcon,
-  KeyboardIcon,
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 
 import SettingsAiProviderSection from "@/components/settings/SettingsAiProviderSection";
 import SettingsModelRoutingSection from "@/components/settings/SettingsModelRoutingSection";
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
+import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
-import {
-  SETTINGS_PANEL_CLASS_NAME,
-  SETTINGS_SECTION_BODY_CLASS_NAME,
-  SETTINGS_SECTION_TITLE_CLASS_NAME,
-} from "@/components/settings/settingsClassNames";
 import { Button } from "@/components/ui/Button";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
-import ToastStack from "@/components/ToastStack";
 import { NativeDialog } from "@/components/ui/NativeDialog";
-import { cn } from "@/lib/cn";
-import { toastIconColor } from "@/lib/settings/dialogHelpers";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/types/settings";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -50,9 +43,164 @@ const SETTINGS_NAV_HIGHLIGHT_TRANSITION = {
   mass: 0.72,
 } as const;
 
+const styles = stylex.create({
+  sectionStack: { display: "flex", flexDirection: "column", gap: 20 },
+  navButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    display: "flex",
+    fontSize: 14,
+    fontWeight: 500,
+    gap: 10,
+    justifyContent: "flex-start",
+    outline: "none",
+    paddingBlock: 8,
+    paddingInline: 10,
+    position: "relative",
+    textAlign: "left",
+    transitionDuration: "150ms",
+    transitionProperty: "color, background-color",
+    userSelect: "none",
+    width: "100%",
+    ":focus-visible": {
+      boxShadow: `0 0 0 2px ${tokens.surfaceSoft}, 0 0 0 4px ${tokens.focusRing}`,
+    },
+  },
+  navActive: { color: tokens.textStrong },
+  navIdle: {
+    color: tokens.textMuted,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
+  },
+  navHighlight: {
+    backgroundColor: tokens.card,
+    borderColor: tokens.borderSoft,
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowSmall,
+    inset: 0,
+    pointerEvents: "none",
+    position: "absolute",
+  },
+  navIcon: {
+    flexShrink: 0,
+    height: 16,
+    position: "relative",
+    transition: "color 150ms",
+    width: 16,
+    zIndex: 10,
+  },
+  navActiveIcon: { color: tokens.textStrong },
+  navIdleIcon: { color: tokens.textSoft },
+  navLabel: {
+    minWidth: 0,
+    overflow: "hidden",
+    position: "relative",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    zIndex: 10,
+  },
+  navStack: { display: "flex", flexDirection: "column", gap: 2 },
+  viewport: {
+    padding: 12,
+    "@media (min-width: 640px)": { padding: 20 },
+    "@media (min-width: 768px)": { padding: 32 },
+  },
+  panel: {
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 24,
+    boxShadow: tokens.shadowLarge,
+    overflow: "hidden",
+  },
+  layout: {
+    display: "flex",
+    flexDirection: "column",
+    height: "min(88vh, 720px)",
+    overflow: "hidden",
+    "@media (min-width: 768px)": { display: "grid", gridTemplateColumns: "13.5rem minmax(0, 1fr)" },
+  },
+  aside: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRight: `1px solid ${tokens.border}`,
+    display: "none",
+    "@media (min-width: 768px)": { display: "block" },
+  },
+  asidePadding: { paddingBlock: 16, paddingInline: 12 },
+  main: {
+    backgroundColor: tokens.canvas,
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    minHeight: 0,
+  },
+  header: {
+    borderBottom: `1px solid ${tokens.border}`,
+    padding: 16,
+    "@media (min-width: 640px)": { paddingInline: 24 },
+    "@media (min-width: 768px)": { paddingInline: 28 },
+  },
+  headerRow: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  headerText: { flex: 1, minWidth: 0 },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "1.65rem",
+    fontWeight: 600,
+    lineHeight: 1.25,
+    margin: 0,
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: 14,
+    lineHeight: "24px",
+    marginTop: 6,
+    maxWidth: "42rem",
+  },
+  headerActions: { alignItems: "center", display: "flex", gap: 8 },
+  mobileButton: { "@media (min-width: 768px)": { display: "none" } },
+  chevron: { height: 14, transition: "transform 300ms var(--ease-out-quart)", width: 14 },
+  rotated: { transform: "rotate(180deg)" },
+  icon: { height: 16, width: 16 },
+  mobileDirectory: {
+    overflow: "hidden",
+    transition:
+      "grid-template-rows 300ms var(--ease-out-quart), opacity 300ms var(--ease-out-quart), margin 300ms var(--ease-out-quart)",
+    "@media (min-width: 768px)": { display: "none" },
+  },
+  directoryOpen: { display: "grid", gridTemplateRows: "1fr", marginTop: 16, opacity: 1 },
+  directoryClosed: { display: "grid", gridTemplateRows: "0fr", opacity: 0 },
+  directoryInner: { minHeight: 0 },
+  directorySurface: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: 16,
+    padding: 8,
+  },
+  scroll: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    paddingBlock: 20,
+    paddingInline: 16,
+    "@media (min-width: 640px)": { paddingInline: 24 },
+    "@media (min-width: 768px)": { paddingBlock: 24, paddingInline: 28 },
+  },
+  content: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    marginInline: "auto",
+    maxWidth: "44rem",
+    width: "100%",
+  },
+});
+
 const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   general: GearSixIcon,
-  hotkeys: KeyboardIcon,
   "ai-provider": CpuIcon,
   "model-routing": CpuIcon,
   "local-models": HardDrivesIcon,
@@ -62,29 +210,6 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "data-storage": DatabaseIcon,
   about: InfoIcon,
 };
-
-const SETTINGS_PLACEHOLDER_COPY: Partial<
-  Record<
-    "hotkeys",
-    {
-      summary: string;
-    }
-  >
-> = {
-  hotkeys: {
-    summary:
-      "Keyboard workflows and command habits will live in one place instead of being scattered.",
-  },
-};
-
-function SettingsPlaceholderSection({ summary, title }: { summary: string; title: string }) {
-  return (
-    <section className={SETTINGS_PANEL_CLASS_NAME}>
-      <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>{title}</h3>
-      <p className={cn(SETTINGS_SECTION_BODY_CLASS_NAME, "mt-2")}>{summary}</p>
-    </section>
-  );
-}
 
 function SettingsNavItem({
   activeSection,
@@ -110,27 +235,26 @@ function SettingsNavItem({
       variant="plain"
       type="button"
       onClick={() => onSectionChange(sectionId)}
-      className={cn(
-        "group relative flex w-full items-center justify-start gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1 select-none",
-        isActive ? "text-zinc-900" : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900",
-      )}
+      className={
+        stylex.props(styles.navButton, isActive ? styles.navActive : styles.navIdle).className
+      }
     >
       {isActive ? (
         <motion.div
           layoutId={layoutId}
-          className="pointer-events-none absolute inset-0 rounded-xl border border-[#e7e1d8] bg-[rgba(255,255,255,0.72)] shadow-sm"
+          className={stylex.props(styles.navHighlight).className}
           transition={reducedMotion ? { duration: 0.12 } : SETTINGS_NAV_HIGHLIGHT_TRANSITION}
         />
       ) : null}
 
       <Icon
         weight={isActive ? "fill" : "regular"}
-        className={cn(
-          "relative z-10 size-4 shrink-0 transition-colors",
-          isActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600",
-        )}
+        className={
+          stylex.props(styles.navIcon, isActive ? styles.navActiveIcon : styles.navIdleIcon)
+            .className
+        }
       />
-      <span className="relative z-10 min-w-0 truncate">{label}</span>
+      <span {...stylex.props(styles.navLabel)}>{label}</span>
     </Button>
   );
 }
@@ -151,7 +275,7 @@ function SettingsSectionNav({
   return (
     <nav aria-label="Settings sections">
       <LayoutGroup id={layoutGroupId}>
-        <div className="space-y-0.5">
+        <div {...stylex.props(styles.navStack)}>
           {SETTINGS_SECTIONS.map((section) => (
             <SettingsNavItem
               key={section.id}
@@ -176,7 +300,6 @@ export default function SettingsDialog({
   activeSection,
   onSectionChange,
 }: SettingsDialogProps) {
-  const { close } = Toast.useToastManager();
   const titleId = useId();
   const descriptionId = useId();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
@@ -195,7 +318,12 @@ export default function SettingsDialog({
   const renderSectionContent = () => {
     if (activeSection === "model-routing") return <SettingsModelRoutingSection />;
     if (activeSection === "general") {
-      return <SettingsGeneralSection />;
+      return (
+        <div {...stylex.props(styles.sectionStack)}>
+          <SettingsAppearanceSection />
+          <SettingsGeneralSection />
+        </div>
+      );
     }
 
     if (activeSection === "ai-provider") {
@@ -222,22 +350,7 @@ export default function SettingsDialog({
       return <SettingsStorageSection open={open} />;
     }
 
-    if (activeSection === "about") {
-      return <SettingsAboutSection />;
-    }
-
-    return (
-      <SettingsPlaceholderSection
-        title={activeSectionData?.label ?? "Settings"}
-        summary={
-          (activeSection === "hotkeys"
-            ? SETTINGS_PLACEHOLDER_COPY[activeSection]?.summary
-            : undefined) ??
-          activeSectionData?.description ??
-          "Manage your workspace preferences."
-        }
-      />
-    );
+    return <SettingsAboutSection />;
   };
 
   return (
@@ -247,13 +360,13 @@ export default function SettingsDialog({
         onOpenChange={onOpenChange}
         labelledBy={titleId}
         describedBy={descriptionId}
-        viewportClassName="p-3 sm:p-5 md:p-8"
-        panelClassName="overflow-hidden rounded-[1.5rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] shadow-[0_32px_80px_-56px_rgba(34,33,29,0.42)]"
+        viewportClassName={stylex.props(styles.viewport).className}
+        panelClassName={stylex.props(styles.panel).className}
         panelStyle={{ width: "min(96vw, 980px)" }}
       >
-        <div className="flex h-[min(88vh,720px)] flex-col overflow-hidden md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]">
-          <aside className="hidden border-r border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] md:block">
-            <div className="px-3 py-4">
+        <div {...stylex.props(styles.layout)}>
+          <aside {...stylex.props(styles.aside)}>
+            <div {...stylex.props(styles.asidePadding)}>
               <SettingsSectionNav
                 activeSection={activeSection}
                 layoutGroupId="settings-section-navigation-desktop"
@@ -263,40 +376,37 @@ export default function SettingsDialog({
             </div>
           </aside>
 
-          <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-memora-canvas)]">
-            <div className="border-b border-[var(--color-memora-border)] px-4 py-4 sm:px-6 md:px-7">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
+          <div {...stylex.props(styles.main)}>
+            <div {...stylex.props(styles.header)}>
+              <div {...stylex.props(styles.headerRow)}>
+                <div {...stylex.props(styles.headerText)}>
                   <h2
                     id={titleId}
-                    className="text-[1.65rem] leading-tight font-semibold text-[var(--color-memora-text-strong)]"
+                    {...stylex.props(styles.title)}
                     style={{ fontFamily: "var(--font-serif)" }}
                   >
                     {activeSectionData?.label ?? "Settings"}
                   </h2>
-                  <p
-                    id={descriptionId}
-                    className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--color-memora-text-muted)]"
-                  >
+                  <p id={descriptionId} {...stylex.props(styles.description)}>
                     {activeSectionData?.description ?? "Manage your workspace preferences."}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div {...stylex.props(styles.headerActions)}>
                   <Button
                     variant="secondary"
                     type="button"
-                    className="md:hidden"
+                    className={stylex.props(styles.mobileButton).className}
                     aria-expanded={isMobileNavigationOpen}
                     aria-controls="settings-section-directory"
                     onClick={() => setIsMobileNavigationOpen((current) => !current)}
                   >
                     <span>Sections</span>
                     <CaretDownIcon
-                      className={cn(
-                        "size-3.5 transition-transform duration-300 ease-[var(--ease-out-quart)]",
-                        isMobileNavigationOpen ? "rotate-180" : "",
-                      )}
+                      className={
+                        stylex.props(styles.chevron, isMobileNavigationOpen && styles.rotated)
+                          .className
+                      }
                     />
                   </Button>
                   <Button
@@ -305,22 +415,20 @@ export default function SettingsDialog({
                     onClick={() => onOpenChange(false)}
                     aria-label="Close settings"
                   >
-                    <XIcon className="size-4" />
+                    <XIcon className={stylex.props(styles.icon).className} />
                   </Button>
                 </div>
               </div>
 
               <div
                 id="settings-section-directory"
-                className={cn(
-                  "overflow-hidden transition-[grid-template-rows,opacity,margin] duration-300 ease-[var(--ease-out-quart)] md:hidden",
-                  isMobileNavigationOpen
-                    ? "mt-4 grid grid-rows-[1fr] opacity-100"
-                    : "grid grid-rows-[0fr] opacity-0",
+                {...stylex.props(
+                  styles.mobileDirectory,
+                  isMobileNavigationOpen ? styles.directoryOpen : styles.directoryClosed,
                 )}
               >
-                <div className="min-h-0">
-                  <div className="rounded-[1rem] bg-[var(--color-memora-surface-soft)] p-2">
+                <div {...stylex.props(styles.directoryInner)}>
+                  <div {...stylex.props(styles.directorySurface)}>
                     <SettingsSectionNav
                       activeSection={activeSection}
                       layoutGroupId="settings-section-navigation-mobile"
@@ -332,36 +440,12 @@ export default function SettingsDialog({
               </div>
             </div>
 
-            <div className="memora-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-7 md:py-6">
-              <div className="mx-auto w-full max-w-[44rem] space-y-4">{renderSectionContent()}</div>
+            <div className="memora-scrollbar" {...stylex.props(styles.scroll)}>
+              <div {...stylex.props(styles.content)}>{renderSectionContent()}</div>
             </div>
           </div>
         </div>
       </NativeDialog>
-
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content className="flex items-start gap-3 rounded-[1.15rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-4 py-3 shadow-[0_24px_60px_-42px_rgba(34,33,29,0.3)] transition">
-            <span className={cn("mt-1 size-2 rounded-full", toastIconColor(toast.type))} />
-            <div className="space-y-1">
-              <Toast.Title className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
-                {toast.title}
-              </Toast.Title>
-              {toast.description ? (
-                <Toast.Description className="text-xs leading-5 text-[var(--color-memora-text-muted)]">
-                  {toast.description}
-                </Toast.Description>
-              ) : null}
-            </div>
-            <Toast.Close
-              className="ml-auto text-[var(--color-memora-text-soft)] transition hover:text-[var(--color-memora-text)]"
-              onClick={() => close(toast.id)}
-            >
-              <XIcon className="size-3" />
-            </Toast.Close>
-          </Toast.Content>
-        )}
-      />
     </>
   );
 }

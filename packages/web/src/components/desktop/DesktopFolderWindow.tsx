@@ -1,10 +1,66 @@
 import { RowsIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { useDroppable } from "@dnd-kit/core";
 import { useCallback, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSurface } from "./DesktopSurface";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  dragOver: {
+    backgroundColor: tokens.selected,
+    boxShadow: `inset 0 0 0 2px ${tokens.oliveSoft}`,
+  },
+  windowBody: { display: "flex", flexDirection: "column", height: "100%" },
+  toolbar: {
+    alignItems: "center",
+    borderBottom: `1px solid ${tokens.border}`,
+    display: "flex",
+    justifyContent: "space-between",
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  breadcrumbs: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: 4,
+  },
+  breadcrumb: { color: tokens.textMuted, ":hover": { color: tokens.text } },
+  activeBreadcrumb: { color: tokens.text, fontWeight: 500 },
+  separator: { color: tokens.textSoft, marginInline: 4 },
+  viewSwitcher: {
+    alignItems: "center",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 8,
+    display: "flex",
+    gap: 4,
+    padding: 4,
+  },
+  viewButton: {
+    alignItems: "center",
+    borderRadius: 6,
+    color: tokens.textMuted,
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "background-color 150ms, color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover },
+  },
+  activeViewButton: {
+    backgroundColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    ":hover": { backgroundColor: tokens.primaryBackground },
+  },
+  viewIcon: { height: 16, width: 16 },
+  content: { backgroundColor: tokens.surfaceSoft, flex: 1, overflow: "auto" },
+});
 
 export const FOLDER_WINDOW_DROP_PREFIX = "folder-window:";
 
@@ -34,7 +90,7 @@ function FolderWindowDropZone({
   return (
     <div
       ref={setNodeRef}
-      className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-blue-400/70 bg-blue-50/30" : ""}`}
+      className={`${className ?? ""} ${isOver ? stylex.props(styles.dragOver).className : ""}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -178,20 +234,19 @@ export function DesktopFolderWindow({
       onMove={onMove}
       onResize={onResize}
     >
-      <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2">
-          <div className="flex items-center gap-1 text-xs text-zinc-500">
+      <div {...stylex.props(styles.windowBody)}>
+        <div {...stylex.props(styles.toolbar)}>
+          <div {...stylex.props(styles.breadcrumbs)}>
             {breadcrumbItems
               .map((crumb, index) => (
                 <button
                   key={`${crumb.id ?? "root"}-${index}`}
                   type="button"
                   onClick={() => onOpenBreadcrumb(crumb.id)}
-                  className={
-                    index === breadcrumbItems.length - 1
-                      ? "text-zinc-700 font-medium"
-                      : "text-zinc-500 hover:text-zinc-700"
-                  }
+                  {...stylex.props(
+                    styles.breadcrumb,
+                    index === breadcrumbItems.length - 1 && styles.activeBreadcrumb,
+                  )}
                 >
                   {crumb.name}
                 </button>
@@ -199,7 +254,7 @@ export function DesktopFolderWindow({
               .reduce<React.ReactNode[]>((acc, node, idx) => {
                 if (idx > 0) {
                   acc.push(
-                    <span key={`sep-${idx}`} className="mx-1 text-zinc-300">
+                    <span key={`sep-${idx}`} {...stylex.props(styles.separator)}>
                       /
                     </span>,
                   );
@@ -208,33 +263,29 @@ export function DesktopFolderWindow({
                 return acc;
               }, [])}
           </div>
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1">
+          <div {...stylex.props(styles.viewSwitcher)}>
             <button
               type="button"
               onClick={() => onToggleView(id, "grid")}
-              className={`flex size-7 items-center justify-center rounded-md transition ${
-                viewMode === "grid" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
-              }`}
+              {...stylex.props(styles.viewButton, viewMode === "grid" && styles.activeViewButton)}
               aria-label="Grid view"
             >
-              <SquaresFourIcon className="size-4" />
+              <SquaresFourIcon {...stylex.props(styles.viewIcon)} />
             </button>
             <button
               type="button"
               onClick={() => onToggleView(id, "list")}
-              className={`flex size-7 items-center justify-center rounded-md transition ${
-                viewMode === "list" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
-              }`}
+              {...stylex.props(styles.viewButton, viewMode === "list" && styles.activeViewButton)}
               aria-label="List view"
             >
-              <RowsIcon className="size-4" />
+              <RowsIcon {...stylex.props(styles.viewIcon)} />
             </button>
           </div>
         </div>
 
         <FolderWindowDropZone
           folderId={folderId}
-          className={`flex-1 overflow-auto bg-zinc-50/70 ${nativeDragOver ? "ring-2 ring-inset ring-blue-400/70 bg-blue-50/30" : ""}`}
+          className={stylex.props(styles.content, nativeDragOver && styles.dragOver).className}
           onDragEnter={handleFolderNativeDragEnter}
           onDragOver={handleFolderNativeDragOver}
           onDragLeave={handleFolderNativeDragLeave}

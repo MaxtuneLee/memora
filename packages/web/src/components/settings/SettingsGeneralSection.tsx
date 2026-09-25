@@ -1,4 +1,7 @@
+import { useAppStore } from "@/livestore/store";
+import { settingEvents } from "@/livestore/setting";
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   SETTINGS_FIELD_LABEL_CLASS_NAME,
@@ -12,7 +15,58 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
-import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  panelStack: { display: "flex", flexDirection: "column", gap: 20 },
+  heading: { display: "flex", flexDirection: "column", gap: 8 },
+  warning: {
+    backgroundColor: tokens.warningSurface,
+    border: `1px solid ${tokens.warningBorder}`,
+  },
+  warningRow: { alignItems: "flex-start", display: "flex", gap: 12 },
+  warningIcon: {
+    color: tokens.warningText,
+    flexShrink: 0,
+    height: 16,
+    marginTop: 2,
+    width: 16,
+  },
+  warningBody: { minWidth: 0 },
+  warningTitle: {
+    color: tokens.warningText,
+    fontSize: 14,
+    fontWeight: 600,
+    margin: 0,
+  },
+  warningText: {
+    color: tokens.warningText,
+    fontSize: 14,
+    lineHeight: "24px",
+    marginTop: 4,
+  },
+  insetStack: { display: "flex", flexDirection: "column", gap: 16 },
+  fieldLabelMargin: { marginBottom: 8 },
+  optionRow: { display: "flex", flexWrap: "wrap", gap: 8 },
+  inputMargin: { marginTop: 8 },
+  softHelp: {
+    color: tokens.textSoft,
+    fontSize: 12,
+    lineHeight: "20px",
+    marginTop: 8,
+  },
+  previewGrid: {
+    display: "grid",
+    gap: 16,
+    "@media (min-width: 640px)": {
+      alignItems: "flex-start",
+      gridTemplateColumns: "minmax(0, 12rem) minmax(0, 1fr)",
+    },
+  },
+  inputRow: { alignItems: "center", display: "flex", gap: 8, marginTop: 8 },
+  unit: { color: tokens.textSoft, fontSize: 14 },
+  preview: { color: tokens.text, margin: 0 },
+});
 
 const DEFAULT_NOTE_LOCATION_OPTIONS = [
   { id: "root", label: "Desktop root" },
@@ -27,6 +81,7 @@ const ATTACHMENT_PLACEMENT_OPTIONS = [
 ] as const;
 
 export default function SettingsGeneralSection() {
+  const store = useAppStore();
   const {
     settings,
     folderOptions,
@@ -40,34 +95,28 @@ export default function SettingsGeneralSection() {
   } = useDocumentEditorSettings();
 
   return (
-    <section className={cn(SETTINGS_PANEL_CLASS_NAME, "space-y-5")}>
-      <div className="space-y-2">
-        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Document editor</h3>
+    <section
+      className={`${SETTINGS_PANEL_CLASS_NAME} ${stylex.props(styles.panelStack).className}`}
+    >
+      <div {...stylex.props(styles.heading)}>
+        <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>General</h3>
         <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-          Control where new Markdown notes and embedded images go, and keep the editor readable at a
-          consistent size.
+          Choose how chat messages are delivered and how the document editor behaves.
         </p>
       </div>
 
       {warnings.length > 0 ? (
-        <div className="space-y-2">
+        <div {...stylex.props(styles.heading)}>
           {warnings.map((warning) => (
             <div
               key={warning.id}
-              className={cn(
-                SETTINGS_ROW_CLASS_NAME,
-                "border border-[var(--color-memora-warning-border)] bg-[var(--color-memora-warning-surface)]",
-              )}
+              className={`${SETTINGS_ROW_CLASS_NAME} ${stylex.props(styles.warning).className}`}
             >
-              <div className="flex items-start gap-3">
-                <WarningCircleIcon className="mt-0.5 size-4 shrink-0 text-[var(--color-memora-warning-text)]" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--color-memora-warning-text)]">
-                    {warning.title}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-[var(--color-memora-warning-text)]">
-                    {warning.description}
-                  </p>
+              <div {...stylex.props(styles.warningRow)}>
+                <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
+                <div {...stylex.props(styles.warningBody)}>
+                  <p {...stylex.props(styles.warningTitle)}>{warning.title}</p>
+                  <p {...stylex.props(styles.warningText)}>{warning.description}</p>
                 </div>
               </div>
             </div>
@@ -75,8 +124,33 @@ export default function SettingsGeneralSection() {
         </div>
       ) : null}
 
-      <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "space-y-4")}>
-        <div className="space-y-2">
+      <div className={SETTINGS_INSET_PANEL_CLASS_NAME}>
+        <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Messages during a task</h4>
+        <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+          Choose the default for all chats. Pending waits for the current task to finish. Steer adds
+          your message before the next model response.
+        </p>
+        <Select
+          aria-label="Default message delivery"
+          value={settings.agentDeliveryMode ?? "pending"}
+          onValueChange={(value) =>
+            store.commit(
+              settingEvents.settingsSet({
+                agentDeliveryMode: value === "steer" ? "steer" : "pending",
+              }),
+            )
+          }
+          options={[
+            { value: "pending", label: "Pending" },
+            { value: "steer", label: "Steer" },
+          ]}
+        />
+      </div>
+
+      <div
+        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      >
+        <div {...stylex.props(styles.heading)}>
           <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>New notes</h4>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             Choose where dashboard note creation should place new Markdown files by default.
@@ -84,8 +158,12 @@ export default function SettingsGeneralSection() {
         </div>
 
         <div>
-          <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>Default location</p>
-          <div className="flex flex-wrap gap-2">
+          <p
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.fieldLabelMargin).className}`}
+          >
+            Default location
+          </p>
+          <div {...stylex.props(styles.optionRow)}>
             {DEFAULT_NOTE_LOCATION_OPTIONS.map((option) => (
               <Button
                 variant="segment"
@@ -114,10 +192,10 @@ export default function SettingsGeneralSection() {
               value={settings.defaultNoteFolderId}
               onValueChange={(value) => handleDefaultNoteFolderIdChange(value ?? "")}
               placeholder="Choose a folder"
-              triggerClassName="mt-2"
+              triggerClassName={stylex.props(styles.inputMargin).className}
               options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
             />
-            <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
+            <p {...stylex.props(styles.softHelp)}>
               {folderOptions.length > 0
                 ? "If this folder becomes unavailable later, note creation falls back to Desktop root."
                 : "No folders are available yet. New notes will fall back to Desktop root until you create one."}
@@ -126,8 +204,10 @@ export default function SettingsGeneralSection() {
         ) : null}
       </div>
 
-      <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "space-y-4")}>
-        <div className="space-y-2">
+      <div
+        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      >
+        <div {...stylex.props(styles.heading)}>
           <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Attachments</h4>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             Decide where the editor stores local images when you insert them into a document.
@@ -135,8 +215,12 @@ export default function SettingsGeneralSection() {
         </div>
 
         <div>
-          <p className={cn(SETTINGS_FIELD_LABEL_CLASS_NAME, "mb-2")}>Placement strategy</p>
-          <div className="flex flex-wrap gap-2">
+          <p
+            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.fieldLabelMargin).className}`}
+          >
+            Placement strategy
+          </p>
+          <div {...stylex.props(styles.optionRow)}>
             {ATTACHMENT_PLACEMENT_OPTIONS.map((option) => (
               <Button
                 variant="segment"
@@ -165,10 +249,10 @@ export default function SettingsGeneralSection() {
               value={settings.attachmentFolderId}
               onValueChange={(value) => handleAttachmentFolderIdChange(value ?? "")}
               placeholder="Choose a folder"
-              triggerClassName="mt-2"
+              triggerClassName={stylex.props(styles.inputMargin).className}
               options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
             />
-            <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
+            <p {...stylex.props(styles.softHelp)}>
               {folderOptions.length > 0
                 ? "If this folder becomes unavailable later, attachments fall back to Desktop root."
                 : "No folders are available yet. Attachments will fall back to Desktop root until you create one."}
@@ -190,29 +274,31 @@ export default function SettingsGeneralSection() {
               value={settings.attachmentSubfolderName}
               onChange={(event) => handleAttachmentSubfolderNameChange(event.target.value)}
               placeholder="images"
-              className="mt-2"
+              className={stylex.props(styles.inputMargin).className}
             />
-            <p className="mt-2 text-xs leading-5 text-[var(--color-memora-text-soft)]">
+            <p {...stylex.props(styles.softHelp)}>
               Memora creates this folder relative to the current document folder when needed.
             </p>
           </div>
         ) : null}
       </div>
 
-      <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "space-y-4")}>
-        <div className="space-y-2">
+      <div
+        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      >
+        <div {...stylex.props(styles.heading)}>
           <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Editor appearance</h4>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             Use one shared text size for both source mode and WYSIWYG mode.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start">
+        <div {...stylex.props(styles.previewGrid)}>
           <div>
             <label htmlFor="document-editor-font-size" className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
               Font size
             </label>
-            <div className="mt-2 flex items-center gap-2">
+            <div {...stylex.props(styles.inputRow)}>
               <Input
                 id="document-editor-font-size"
                 type="number"
@@ -221,13 +307,13 @@ export default function SettingsGeneralSection() {
                 value={settings.editorFontSizePx}
                 onChange={(event) => handleEditorFontSizePxChange(event.target.value)}
               />
-              <span className="text-sm text-[var(--color-memora-text-soft)]">px</span>
+              <span {...stylex.props(styles.unit)}>px</span>
             </div>
           </div>
 
           <div className={SETTINGS_ROW_CLASS_NAME}>
             <p
-              className="text-[var(--color-memora-text)]"
+              {...stylex.props(styles.preview)}
               style={{ fontSize: `${settings.editorFontSizePx}px`, lineHeight: 1.6 }}
             >
               The quick brown fox jumps over the lazy dog. This preview matches the base text size

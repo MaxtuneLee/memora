@@ -7,7 +7,10 @@ import {
 } from "@memora/livestore-devtool";
 import LiveStoreLoadingScreen from "@/app/components/LiveStoreLoadingScreen";
 import { appStoreRegistry, useAppStore, useLiveStoreLoadingStatus } from "@/livestore/store";
+import { applyDocumentTheme, isSystemDark } from "@/lib/theme/documentTheme";
 import "@/index.css";
+
+applyDocumentTheme(isSystemDark() ? "dark" : "light");
 
 type DevtoolsRenderProps = Omit<LiveStoreDevtoolsPanelProps, "querySql" | "executeSql">;
 

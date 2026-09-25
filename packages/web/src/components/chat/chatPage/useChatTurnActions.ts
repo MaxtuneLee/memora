@@ -19,7 +19,7 @@ import {
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
 import { findMessageIndexById, findRetrySourceMessage } from "./helpers";
-import type { ComposerNotice, SuggestionCard } from "./types";
+import type { ComposerNotice } from "./types";
 
 interface SendFn {
   (
@@ -72,7 +72,6 @@ interface UseChatTurnActionsResult {
   handleToggleThinking: () => void;
   handleInputChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   handleSubmit: (event: FormEvent) => void;
-  handleSuggestionClick: (suggestion: SuggestionCard) => void;
   handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   handleCompositionStart: () => void;
   handleCompositionEnd: () => void;
@@ -238,7 +237,7 @@ export const useChatTurnActions = ({
 
     const trimmed = inputRef.current?.value.trim() ?? "";
     const nextComposerImages = composerImagesRef.current;
-    if ((trimmed.length === 0 && nextComposerImages.length === 0) || isStreaming) {
+    if (trimmed.length === 0 && nextComposerImages.length === 0) {
       return;
     }
 
@@ -282,6 +281,14 @@ export const useChatTurnActions = ({
 
     try {
       await startAgentTurn(turnInput);
+    } catch (error) {
+      setComposerTextValue(trimmed);
+      if (inputRef.current) inputRef.current.value = trimmed;
+      setComposerImages(nextComposerImages);
+      setComposerNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Could not send message.",
+      });
     } finally {
       setIsPreparingTurn(false);
     }
@@ -293,7 +300,6 @@ export const useChatTurnActions = ({
     inputRef,
     isConfigured,
     isPreparingTurn,
-    isStreaming,
     openSettings,
     prepareReferenceScopeForTurn,
     sessionsReady,
@@ -304,7 +310,7 @@ export const useChatTurnActions = ({
 
   const handleWidgetPrompt = useCallback(
     async (text: string) => {
-      if (!sessionsReady || !activeSessionId || isPreparingTurn || isStreaming) {
+      if (!sessionsReady || !activeSessionId || isPreparingTurn) {
         return;
       }
 
@@ -326,7 +332,6 @@ export const useChatTurnActions = ({
       activeSessionId,
       isConfigured,
       isPreparingTurn,
-      isStreaming,
       openSettings,
       prepareReferenceScopeForTurn,
       sessionsReady,
@@ -379,17 +384,6 @@ export const useChatTurnActions = ({
     [submitMessage],
   );
 
-  const handleSuggestionClick = useCallback(
-    (suggestion: SuggestionCard) => {
-      if (inputRef.current) {
-        inputRef.current.value = suggestion.title;
-        inputRef.current.focus();
-      }
-      setComposerTextValue(suggestion.title);
-    },
-    [inputRef],
-  );
-
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
       if (
@@ -436,9 +430,7 @@ export const useChatTurnActions = ({
   }, [messages]);
 
   const canSubmitMessage =
-    !isStreaming &&
-    !isPreparingTurn &&
-    (composerTextValue.trim().length > 0 || composerImages.length > 0);
+    !isPreparingTurn && (composerTextValue.trim().length > 0 || composerImages.length > 0);
   const panelCollapsed = userToggled ? !thinkingCollapsed : thinkingCollapsed;
 
   return {
@@ -453,7 +445,6 @@ export const useChatTurnActions = ({
     handleToggleThinking,
     handleInputChange,
     handleSubmit,
-    handleSuggestionClick,
     handleKeyDown,
     handleCompositionStart,
     handleCompositionEnd,

@@ -1,10 +1,92 @@
 import { motion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 
-import { cn } from "@/lib/cn";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import type { GlobalSearchItem } from "@/types/search";
 
 import { CATEGORY_LABELS, SEARCH_ITEM_ICONS } from "./constants";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  row: {
+    alignItems: "flex-start",
+    backgroundColor: "transparent",
+    borderRadius: 14,
+    display: "flex",
+    gap: 12,
+    outline: "none",
+    paddingBlock: 12,
+    paddingInline: 16,
+    position: "relative",
+    textAlign: "left",
+    transition: "background-color 150ms",
+    width: "100%",
+  },
+  inactive: { ":hover": { backgroundColor: tokens.hover } },
+  activeSurface: {
+    backgroundColor: tokens.pressed,
+    borderColor: tokens.borderSoft,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 14,
+    inset: 0,
+    position: "absolute",
+  },
+  iconWrap: {
+    alignItems: "center",
+    color: tokens.textSoft,
+    display: "flex",
+    flexShrink: 0,
+    height: 32,
+    justifyContent: "center",
+    marginTop: 2,
+    position: "relative",
+    transition: "color 150ms",
+    width: 32,
+    zIndex: 10,
+  },
+  activeIcon: { color: tokens.text },
+  icon: { height: 20, width: 20 },
+  body: { flex: 1, minWidth: 0, position: "relative", zIndex: 10 },
+  heading: {
+    alignItems: "baseline",
+    columnGap: 8,
+    display: "flex",
+    flexWrap: "wrap",
+    minWidth: 0,
+    rowGap: 2,
+  },
+  title: {
+    color: tokens.textStrong,
+    fontSize: 15,
+    fontWeight: 600,
+    margin: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  separator: { color: tokens.textSoft, flexShrink: 0, fontSize: 14 },
+  description: {
+    color: tokens.textMuted,
+    fontSize: 14,
+    margin: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  preview: {
+    color: tokens.textMuted,
+    display: "-webkit-box",
+    fontSize: 12,
+    lineClamp: 1,
+    lineHeight: "20px",
+    marginTop: 4,
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+    "@media (min-width: 640px)": { lineClamp: 2 },
+  },
+  activePreview: { color: tokens.text },
+});
 
 export function SearchResultRow({
   item,
@@ -38,15 +120,12 @@ export function SearchResultRow({
       }}
       onMouseEnter={onHover}
       onClick={onSelect}
-      className={cn(
-        "group relative flex w-full items-start gap-3 rounded-[14px] px-4 py-3 text-left outline-none transition-colors duration-150",
-        isActive ? "bg-transparent" : "bg-transparent hover:bg-[#f5f4f2]",
-      )}
+      {...stylex.props(styles.row, !isActive && styles.inactive)}
     >
       {isActive ? (
         <motion.div
           layoutId="search-active-result"
-          className="absolute inset-0 rounded-[14px] border border-[#e7e1d8] bg-[#f1f0ee]"
+          {...stylex.props(styles.activeSurface)}
           transition={
             reducedMotion
               ? { duration: 0.12 }
@@ -60,31 +139,19 @@ export function SearchResultRow({
         />
       ) : null}
 
-      <div
-        className={cn(
-          "relative z-10 mt-0.5 flex size-8 shrink-0 items-center justify-center transition-colors",
-          isActive ? "text-zinc-700" : "text-zinc-400 group-hover:text-zinc-600",
-        )}
-      >
-        <Icon className="size-5" weight="regular" />
+      <div {...stylex.props(styles.iconWrap, isActive && styles.activeIcon)}>
+        <Icon className={stylex.props(styles.icon).className} weight="regular" />
       </div>
 
-      <div className="relative z-10 min-w-0 flex-1">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="truncate text-[15px] font-semibold text-zinc-800">{item.title}</p>
-          <span className="shrink-0 text-sm text-zinc-300">-</span>
-          <p className="truncate text-sm text-zinc-400">
+      <div {...stylex.props(styles.body)}>
+        <div {...stylex.props(styles.heading)}>
+          <p {...stylex.props(styles.title)}>{item.title}</p>
+          <span {...stylex.props(styles.separator)}>-</span>
+          <p {...stylex.props(styles.description)}>
             {item.description || CATEGORY_LABELS[item.kind]}
           </p>
         </div>
-        <p
-          className={cn(
-            "mt-1 text-xs leading-5 text-pretty line-clamp-1 sm:line-clamp-2",
-            isActive ? "text-zinc-500" : "text-zinc-400",
-          )}
-        >
-          {item.preview}
-        </p>
+        <p {...stylex.props(styles.preview, isActive && styles.activePreview)}>{item.preview}</p>
       </div>
     </motion.button>
   );

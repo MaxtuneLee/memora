@@ -89,3 +89,79 @@ test("executes Pi tool calls through the runtime registry", async () => {
   const toolResult = events.find((event) => event.type === "tool-result");
   assert.deepStrictEqual(toolResult?.result, { text: "ok" });
 });
+
+test("steering messages enter the next model request in order, including after a final answer", async () => {
+  const requests = [];
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const agent = createAgent({
+    config: { id: "steering", maxIterations: 3 },
+    model: fakeModel,
+    persistence: createInMemoryAdapter(),
+    stream: (_model, context) => {
+      requests.push(structuredClone(context));
+      const call = requests.length;
+      return (async function* () {
+        if (call === 1) await gate;
+        yield { type: "text_delta", delta: call === 1 ? "initial" : "revised" };
+      })();
+    },
+  });
+  await agent.init();
+  const events = [];
+  const running = (async () => {
+    for await (const event of agent.run("start")) events.push(event);
+  })();
+  while (requests.length === 0) await new Promise((resolve) => setImmediate(resolve));
+  for (const [id, text] of [
+    ["s1", "add timestamps"],
+    ["s2", "use Chinese"],
+  ]) {
+    assert.equal(
+      agent.steer({ id, role: "user", content: [{ type: "text", text }], createdAt: 1 }),
+      true,
+    );
+  }
+  release();
+  await running;
+  assert.equal(requests.length, 2);
+  assert.deepEqual(
+    requests[1].messages
+      .slice(-2)
+      .map((message) =>
+        typeof message.content === "string" ? message.content : message.content[0].text,
+      ),
+    ["add timestamps", "use Chinese"],
+  );
+  assert.equal(events.filter((event) => event.type === "done").length, 1);
+  assert.equal(agent.steer({ id: "late", role: "user", content: [], createdAt: 2 }), false);
+});
+
+test("abort preserves steering that has not reached a model call", async () => {
+  const agent = createAgent({
+    config: { id: "abort-steering" },
+    model: fakeModel,
+    persistence: createInMemoryAdapter(),
+    stream: () =>
+      (async function* () {
+        yield { type: "text_delta", delta: "partial" };
+      })(),
+  });
+  await agent.init();
+  const iterator = agent.run("start");
+  await iterator.next();
+  agent.steer({
+    id: "followup",
+    role: "user",
+    content: [{ type: "text", text: "keep this" }],
+    createdAt: 1,
+  });
+  agent.abort();
+  while (!(await iterator.next()).done) {}
+  assert.deepEqual(
+    agent.takeUnconsumedSteering().map((message) => message.id),
+    ["followup"],
+  );
+});

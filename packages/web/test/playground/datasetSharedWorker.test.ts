@@ -97,7 +97,11 @@ describe("dataset shared worker reservations", () => {
     send(port, { id: "delete-1", type: "delete", selection });
     await vi.waitFor(() => expect(port.messages).toHaveLength(4));
 
-    expect(port.messages[3]).toMatchObject({ id: "delete-1", type: "error", code: "dataset-in-use" });
+    expect(port.messages[3]).toMatchObject({
+      id: "delete-1",
+      type: "error",
+      code: "dataset-in-use",
+    });
   });
 
   it("does not confuse a different split with a reserved one", async () => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useAppStore } from "@/livestore/store";
 import { Toast } from "@base-ui/react/toast";
 import { useLocation, useNavigate } from "react-router";
@@ -14,14 +15,23 @@ import {
 } from "@/lib/library/fileService";
 import type { FileType, RecordingMeta } from "@/types/library";
 import type { PendingDesktopIntent, SearchNavigationState } from "@/types/search";
-import ToastStack from "@/components/ToastStack";
+
+const styles = stylex.create({
+  root: {
+    height: "100%",
+    width: "100%",
+  },
+  fileInput: {
+    display: "none",
+  },
+});
 
 export const Component = () => {
   const store = useAppStore();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const location = useLocation();
   const navigate = useNavigate();
-  const { add, close } = Toast.useToastManager();
+  const { add } = Toast.useToastManager();
 
   const {
     audioInputRef,
@@ -222,19 +232,8 @@ export const Component = () => {
     });
   }, [location.pathname, location.search, location.state, navigate]);
 
-  const toastIconColor = (type?: string) => {
-    switch (type) {
-      case "success":
-        return "bg-emerald-500";
-      case "error":
-        return "bg-rose-500";
-      default:
-        return "bg-zinc-400";
-    }
-  };
-
   return (
-    <div className="h-full w-full">
+    <div {...stylex.props(styles.root)}>
       <Desktop
         externalIntent={externalIntent}
         onExternalIntentHandled={handleExternalIntentHandled}
@@ -247,7 +246,7 @@ export const Component = () => {
         ref={audioInputRef}
         type="file"
         accept="audio/*,video/*,image/*,text/*,application/pdf,.md,.pdf,.doc,.docx"
-        className="hidden"
+        {...stylex.props(styles.fileInput)}
         onChange={handleInputChange}
       />
 
@@ -259,32 +258,6 @@ export const Component = () => {
         isUploading={isUploading}
         onCancel={handleCancel}
         onConfirm={handleUploadConfirm}
-      />
-
-      <ToastStack
-        render={(toast) => (
-          <Toast.Content className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-lg transition">
-            <span
-              className={`mt-1 block size-2 shrink-0 rounded-full ${toastIconColor(toast.type as string)}`}
-            />
-            <div className="min-w-0 flex-1">
-              <Toast.Title className="text-sm font-medium text-zinc-900">
-                {toast.title as string}
-              </Toast.Title>
-              {toast.description && (
-                <Toast.Description className="mt-0.5 text-xs text-zinc-500">
-                  {toast.description as string}
-                </Toast.Description>
-              )}
-            </div>
-            <Toast.Close
-              className="shrink-0 text-zinc-400 transition hover:text-zinc-700"
-              onClick={() => close(toast.id)}
-            >
-              <span className="text-xs">&#10005;</span>
-            </Toast.Close>
-          </Toast.Content>
-        )}
       />
     </div>
   );

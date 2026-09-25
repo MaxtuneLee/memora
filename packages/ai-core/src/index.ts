@@ -29,3 +29,5 @@ export type {
 } from "./types";
 
 export { AgentConfigSchema, AgentMessageSchema } from "./types";
+
+export { toPiTool } from "./pi";

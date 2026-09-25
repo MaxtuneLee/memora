@@ -1,8 +1,41 @@
 import { useCallback, useMemo, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import type { DesktopItem as DesktopItemData } from "@/types/desktop";
 import type { DesktopWindowPosition, DesktopWindowSize } from "./DesktopWindow";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSurface } from "./DesktopSurface";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  actionButton: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: 8,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+    fontSize: "0.75rem",
+    paddingBlock: 4,
+    paddingInline: 10,
+    transition: "background-color 150ms",
+    ":disabled": { opacity: 0.5 },
+    ":hover": { backgroundColor: tokens.hoverStrong },
+  },
+  headerAction: { fontWeight: 500 },
+  body: { display: "flex", flexDirection: "column", height: "100%" },
+  toolbar: {
+    alignItems: "center",
+    borderBottom: `1px solid ${tokens.border}`,
+    display: "flex",
+    justifyContent: "space-between",
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  status: { color: tokens.textMuted, fontSize: "0.75rem" },
+  actions: { alignItems: "center", display: "flex", gap: 8 },
+  content: { backgroundColor: tokens.surfaceSoft, flex: 1, overflow: "auto" },
+});
 
 interface TrashWindowProps {
   id: string;
@@ -87,7 +120,7 @@ export function TrashWindow({
       headerActions={
         <button
           type="button"
-          className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+          {...stylex.props(styles.actionButton, styles.headerAction)}
           onClick={onEmptyTrash}
         >
           Empty Trash
@@ -98,15 +131,15 @@ export function TrashWindow({
       onMove={onMove}
       onResize={onResize}
     >
-      <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2">
-          <span className="text-xs text-zinc-500">
+      <div {...stylex.props(styles.body)}>
+        <div {...stylex.props(styles.toolbar)}>
+          <span {...stylex.props(styles.status)}>
             {items.length === 0 ? "Trash is empty" : `${items.length} items`}
           </span>
-          <div className="flex items-center gap-2">
+          <div {...stylex.props(styles.actions)}>
             <button
               type="button"
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              {...stylex.props(styles.actionButton)}
               onClick={() => selectedItem && onRestore(selectedItem)}
               disabled={!selectedItem}
             >
@@ -114,7 +147,7 @@ export function TrashWindow({
             </button>
             <button
               type="button"
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              {...stylex.props(styles.actionButton)}
               onClick={() => selectedItem && onDeletePermanently(selectedItem)}
               disabled={!selectedItem}
             >
@@ -122,7 +155,7 @@ export function TrashWindow({
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-zinc-50/70">
+        <div {...stylex.props(styles.content)}>
           <DesktopSurface
             items={items}
             layout="list"

@@ -59,6 +59,7 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 - Read \`README.md\`, then the closest module guideline, then that module's required section files before calling \`show_widget\`.
 - Keep explanatory prose in the normal assistant response. Use \`show_widget\` only for the rendered widget fragment.
 - DO NOT use Mathematical expressions in \`show_widget\` content.
+- If the widget should show the user's own data (recent files, to-do progress, storage, chat session count) rather than static content, set \`data_source\` (and \`data_source_params\` if it takes any) on \`show_widget\` — see README.md's "Data source catalog" for entry names, payload shapes, and the \`onData\`/\`getData\` bindings that deliver the result.
 
 ## Transcript format (at transcriptPath)
 { "text": "full transcript", "words": [{ "text": "word", "timestamp": [startSec, endSec] }] }

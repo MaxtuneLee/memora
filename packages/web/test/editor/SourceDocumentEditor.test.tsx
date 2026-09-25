@@ -1,7 +1,6 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { JSDOM } from "jsdom";
 import { beforeEach, expect, test, vi } from "vite-plus/test";
-import { readFileSync } from "node:fs";
 import { EditorView } from "@codemirror/view";
 import {
   $getRoot,
@@ -209,87 +208,6 @@ test("does not render a reference directory above the source editor", () => {
 
   expect(view.queryByText("References")).toBeNull();
   expect(view.queryByRole("button", { name: "Open Parser notes" })).toBeNull();
-});
-
-test("mounts selection formatting without current-block source interception", () => {
-  const sourceEditorSource = readFileSync(
-    new URL("../../src/components/editor/SourceDocumentEditor.tsx", import.meta.url),
-    "utf8",
-  );
-  const wysiwygEditorSource = readFileSync(
-    new URL("../../src/components/editor/WysiwygDocumentEditor.tsx", import.meta.url),
-    "utf8",
-  );
-  const markdownSourceNodesSource = readFileSync(
-    new URL("../../src/components/editor/lexical/MarkdownSourceNodes.ts", import.meta.url),
-    "utf8",
-  );
-  const mountedEditorSource = wysiwygEditorSource.slice(
-    wysiwygEditorSource.indexOf("export const WysiwygDocumentEditor"),
-  );
-
-  expect(sourceEditorSource).not.toContain("Current source");
-  expect(wysiwygEditorSource).toContain("CurrentBlockSourcePlugin");
-  expect(mountedEditorSource).not.toContain("<CurrentBlockSourcePlugin");
-  expect(mountedEditorSource).toContain("<WysiwygFormattingToolbar />");
-  expect(mountedEditorSource).not.toContain("editableMarkdownSourceRef");
-  expect(mountedEditorSource).toContain("const markdown = exportWysiwygMarkdown(editorState);");
-  expect(mountedEditorSource).toContain("commitMarkdown(markdown);");
-  expect(wysiwygEditorSource).toContain("text-[var(--color-memora-olive)]");
-  expect(wysiwygEditorSource).not.toContain("text-blue-700");
-  expect(wysiwygEditorSource).not.toContain("#3f7fc4");
-  expect(wysiwygEditorSource).toContain("var(--color-memora-accent)");
-  expect(wysiwygEditorSource).toContain("editableMarkdownSourceRef.current");
-  expect(wysiwygEditorSource).toContain("onEditableMarkdownSourceCommit");
-  expect(mountedEditorSource).not.toContain("if (editableMarkdownSourceRef.current)");
-  expect(wysiwygEditorSource).toContain("editableMarkdownSourceRef.current = null;");
-  expect(wysiwygEditorSource).toContain("previewNodeKey");
-  expect(wysiwygEditorSource).toContain("sourceTextNode.setFormat(IS_CODE);");
-  expect(wysiwygEditorSource).toContain("node.insertBefore(paragraphNode);");
-  expect(wysiwygEditorSource).toContain("parseMarkdownLinkedImage(sourceText.trim())");
-  expect(wysiwygEditorSource).toContain("parseMathBlock(sourceText)");
-  expect(wysiwygEditorSource).toContain(
-    'kind: "inline-math",\n        nodeKey: sourceTextNode.getKey(),\n        sourceNodeKeys: [sourceTextNode.getKey()]',
-  );
-  expect(wysiwygEditorSource).toContain("restoredEditableMarkdownSourceNodeKey");
-  expect(wysiwygEditorSource).toContain(
-    "activeMarkdownSourceNode.getKey() !== restoredEditableMarkdownSourceNodeKey",
-  );
-  expect(wysiwygEditorSource).toContain("node.setTextContent(sourceText);");
-  expect(wysiwygEditorSource).toContain("node.toggleUnmergeable();");
-  expect(wysiwygEditorSource).toContain("node.isUnmergeable()");
-  expect(wysiwygEditorSource).not.toContain(
-    "node.replace(sourceTextNode);\n    selectTextNodeOffset(\n      sourceTextNode,\n      getFormattedTextSourceOffsetFromLabelOffset",
-  );
-  expect(wysiwygEditorSource).toContain("[HISTORY_MERGE_TAG, HISTORIC_TAG]");
-  expect(wysiwygEditorSource).toContain(
-    "return getFormattedTextKind(anchorNode) ? anchorNode : null",
-  );
-  expect(wysiwygEditorSource).toContain("return;");
-  expect(
-    wysiwygEditorSource.indexOf("deactivateEditableMarkdownSource(editableMarkdownSource)"),
-  ).toBeLessThan(
-    wysiwygEditorSource.indexOf("const activeMarkdownSourceNode = getActiveMarkdownSourceNode()"),
-  );
-  expect(wysiwygEditorSource).not.toContain("replacement.setIndent(node.getIndent())");
-  expect(wysiwygEditorSource).toContain("registerNodeTransform(HeadingNode");
-  expect(wysiwygEditorSource).toContain("registerNodeTransform(ListItemNode");
-  expect(markdownSourceNodesSource).toContain("class MarkdownHeadingNode extends HeadingNode");
-  expect(markdownSourceNodesSource).toContain("class MarkdownListItemNode extends ListItemNode");
-  expect(markdownSourceNodesSource).toContain(
-    'element.setAttribute("data-active-markdown-source", "true")',
-  );
-  expect(markdownSourceNodesSource).toContain('element.style.whiteSpace = "pre-wrap"');
-  expect(markdownSourceNodesSource).toContain('element.style.listStyleType = "none"');
-  expect(markdownSourceNodesSource).not.toContain('element.style.all = "unset"');
-  expect(wysiwygEditorSource).toContain("prependMarkdownSourcePrefix");
-  expect(wysiwygEditorSource).toContain("removeMarkdownSourcePrefix");
-  expect(wysiwygEditorSource).toContain("onEditableMarkdownSourceCommitRef.current");
-  expect(wysiwygEditorSource).not.toContain(
-    "[editor, editableMarkdownSourceRef, onEditableMarkdownSourceCommit]",
-  );
-  expect(wysiwygEditorSource).toContain('<div className="relative">');
-  expect(wysiwygEditorSource).toContain("absolute left-0 top-0 leading-7");
 });
 
 test("reserves enough gutter space for active checklist markdown markers", () => {

@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { Streamdown } from "streamdown";
+import * as stylex from "@stylexjs/stylex";
 import "streamdown/styles.css";
 import "katex/dist/katex.min.css";
 
@@ -13,10 +14,33 @@ import {
   MEMORA_STREAMDOWN_THEME,
 } from "@/lib/streamdown";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
-import { cn } from "@/lib/cn";
+import { tokens } from "../../../styles/stylex.stylex";
 
 import { MediaJumpCard } from "./MediaJumpCard";
 import type { ChatMessageData } from "./types";
+
+const styles = stylex.create({
+  widgetList: { display: "flex", flexDirection: "column", gap: 12 },
+  content: { display: "flex", flexDirection: "column", gap: 12 },
+  contentWithWidgets: { marginTop: 12 },
+  loading: { alignItems: "center", display: "flex", gap: 4, paddingBlock: 2 },
+  loadingDot: { backgroundColor: tokens.textSoft, borderRadius: 9999, height: 6, width: 6 },
+  tokenUsage: {
+    borderTop: `1px solid ${tokens.border}`,
+    color: tokens.textSoft,
+    fontSize: 11,
+    fontWeight: 500,
+    marginTop: 12,
+    paddingTop: 8,
+  },
+});
+
+const STREAMDOWN_ANIMATION = {
+  animation: "blurIn",
+  sep: "word",
+  duration: 0.5,
+  easing: "ease-in-out",
+} as const;
 
 const formatTokenUsage = (usage: ChatMessageData["usage"]): string | null => {
   if (!usage) {
@@ -80,14 +104,19 @@ export function AssistantMessageContent({
         />
       )}
       {message.widgets && message.widgets.length > 0 && (
-        <div className="space-y-3">
+        <div {...stylex.props(styles.widgetList)}>
           {message.widgets.map((widget) => (
             <ChatWidget key={widget.toolCallId} widget={widget} onSendPrompt={onSendWidgetPrompt} />
           ))}
         </div>
       )}
       {parsedContent.length > 0 ? (
-        <div className={cn("space-y-3", message.widgets && message.widgets.length > 0 && "mt-3")}>
+        <div
+          {...stylex.props(
+            styles.content,
+            message.widgets && message.widgets.length > 0 && styles.contentWithWidgets,
+          )}
+        >
           {parsedContent.map((part, index) => {
             if (part.type === "text") {
               if (!part.content.trim()) {
@@ -98,15 +127,10 @@ export function AssistantMessageContent({
                 <Streamdown
                   key={`text-${index}`}
                   className={MEMORA_STREAMDOWN_CLASS_NAME}
-                  animated={{
-                    animation: "blurIn",
-                    sep: "word",
-                    duration: 0.5,
-                    easing: "ease-in-out",
-                  }}
+                  animated={STREAMDOWN_ANIMATION}
                   isAnimating={isStreaming}
                   controls={MEMORA_STREAMDOWN_CONTROLS}
-                  plugins={{ ...MEMORA_STREAMDOWN_PLUGINS }}
+                  plugins={MEMORA_STREAMDOWN_PLUGINS}
                   shikiTheme={MEMORA_STREAMDOWN_THEME}
                 >
                   {part.content}
@@ -123,11 +147,11 @@ export function AssistantMessageContent({
           })}
         </div>
       ) : hasStreamingSpinner ? (
-        <div className="flex items-center gap-1 py-0.5">
+        <div {...stylex.props(styles.loading)}>
           {[0, 1, 2].map((index) => (
             <motion.div
               key={index}
-              className="size-1.5 rounded-full bg-zinc-400"
+              {...stylex.props(styles.loadingDot)}
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{
                 duration: 1.2,
@@ -138,11 +162,7 @@ export function AssistantMessageContent({
           ))}
         </div>
       ) : null}
-      {tokenUsageText && (
-        <div className="mt-3 border-t border-zinc-200/70 pt-2 text-[11px] font-medium text-zinc-400">
-          {tokenUsageText}
-        </div>
-      )}
+      {tokenUsageText && <div {...stylex.props(styles.tokenUsage)}>{tokenUsageText}</div>}
     </>
   );
 }

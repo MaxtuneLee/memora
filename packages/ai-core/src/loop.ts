@@ -13,7 +13,13 @@ import type {
   ToolDefinition,
   PromptSegment,
 } from "./types";
-import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+import {
+  normalizeContext,
+  type Api,
+  type AssistantMessage,
+  type Model,
+} from "@earendil-works/pi-ai";
+import { clampMaxTokensToContext } from "@earendil-works/pi-ai/api/simple-options";
 
 import {
   getAssistantReasoning,
@@ -35,34 +41,25 @@ const truncateResult = (result: unknown, maxChars: number): unknown => {
   return truncated + `\n\n[Truncated: showing ${maxChars} of ${str.length} characters]`;
 };
 
-const estimateChars = (messages: AgentMessage[]): number => {
-  let total = 0;
-  for (const msg of messages) {
-    for (const c of msg.content) {
-      if (c.type === "text") total += c.text.length;
-      else if (c.type === "tool_result") {
-        total += typeof c.result === "string" ? c.result.length : JSON.stringify(c.result).length;
-      } else if (c.type === "tool_call") {
-        total += JSON.stringify(c.arguments).length;
-      }
-    }
-  }
-  return total;
-};
+/** Below this a response is too short to be worth sending, so we fail loudly instead. */
+const MIN_OUTPUT_TOKENS = 512;
 
-const trimContext = (messages: AgentMessage[], maxChars: number): AgentMessage[] => {
-  if (estimateChars(messages) <= maxChars) return messages;
-  const first = messages[0];
-  const last = messages[messages.length - 1];
-  if (messages.length <= 2) return messages;
-  let trimmed = [...messages];
-  while (trimmed.length > 2 && estimateChars(trimmed) > maxChars) {
-    trimmed = [first, ...trimmed.slice(2)];
-  }
-  if (estimateChars(trimmed) > maxChars && trimmed.length > 1) {
-    trimmed = [first, last];
-  }
-  return trimmed;
+/**
+ * Pi subtracts this margin from the context window before clamping the response ceiling, so a
+ * window at or below it always reports zero room no matter how short the history is. The clamp
+ * carries no signal for those models, so we leave them alone instead of refusing every turn.
+ */
+const CONTEXT_SAFETY_TOKENS = 4096;
+
+/**
+ * Pi estimates the next prompt from the newest assistant message's real usage plus every
+ * message after it. That baseline already counts the messages we just dropped, so a trimmed
+ * history keeps the old, larger estimate and the response ceiling stays clamped. Dropping
+ * providerMessage makes toPiMessage rebuild the turn with zero usage, which sends pi back to
+ * counting the characters we actually kept.
+ */
+const dropStaleUsage = (messages: AgentMessage[]): AgentMessage[] => {
+  return messages.map(({ providerMessage: _providerMessage, ...message }) => message);
 };
 
 const PERSONALITY_MEMORY_KEY = "personality";
@@ -120,6 +117,19 @@ export class Agent {
   readonly context: ContextManager;
   readonly tools: ToolRegistry;
   readonly prompt: PromptComposer;
+
+  private steeringInputs: AgentMessage[] = [];
+  private acceptingInput = false;
+
+  steer(message: AgentMessage): boolean {
+    if (!this.acceptingInput || this.state.aborted) return false;
+    this.steeringInputs.push(structuredClone(message));
+    return true;
+  }
+
+  takeUnconsumedSteering(): AgentMessage[] {
+    return this.steeringInputs.splice(0);
+  }
 
   private hooks: AgentHooks;
   private model: Model<Api>;
@@ -179,6 +189,7 @@ export class Agent {
       aborted: false,
     };
     this.abortController = new AbortController();
+    this.acceptingInput = true;
 
     try {
       const inputMessage: AgentMessage =
@@ -231,6 +242,9 @@ export class Agent {
               : {}),
           };
           await this.context.append(assistantMessage);
+
+          if (this.steeringInputs.length > 0) continue;
+          this.acceptingInput = false;
 
           if (this.hooks.onComplete) {
             await this.hooks.onComplete(this.createHookContext(), assistantMessage);
@@ -354,6 +368,7 @@ export class Agent {
 
       yield { type: "error", error };
     } finally {
+      this.acceptingInput = false;
       this.abortController = null;
     }
   }
@@ -366,6 +381,39 @@ export class Agent {
     };
   }
 
+  /**
+   * Drop the oldest messages until pi's own clamp leaves room for a usable response. Using
+   * clampMaxTokensToContext as the predicate keeps this in step with the ceiling the provider
+   * will actually apply, instead of a character budget that never saw the context window.
+   */
+  private fitToContextWindow(history: AgentMessage[], systemPrompt: string): AgentMessage[] {
+    if (this.model.contextWindow <= CONTEXT_SAFETY_TOKENS) return history;
+
+    const tools = this.tools.list();
+    const desiredMaxTokens = this.config.maxTokens ?? this.model.maxTokens;
+    const requiredTokens = Math.min(MIN_OUTPUT_TOKENS, desiredMaxTokens);
+
+    let candidate = history;
+    let trimmed = false;
+
+    for (;;) {
+      const messages = trimmed ? dropStaleUsage(candidate) : candidate;
+      const context = normalizeContext(toPiContext({ systemPrompt, messages, tools }));
+      if (clampMaxTokensToContext(this.model, context, desiredMaxTokens) >= requiredTokens) {
+        return messages;
+      }
+      if (candidate.length <= 2) {
+        throw new Error(
+          `Context window (${this.model.contextWindow} tokens) is full: no room left for a reply. Start a new conversation or switch to a model with a larger window.`,
+        );
+      }
+      // ponytail: drop oldest turns, keeping the opening message. Summarising them into a
+      // compaction message would preserve more, add that when losing early turns bites.
+      candidate = [candidate[0], ...candidate.slice(2)] as AgentMessage[];
+      trimmed = true;
+    }
+  }
+
   private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
     const baseSystemPrompt = await this.prompt.compose();
     const personalityText = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
@@ -375,9 +423,14 @@ export class Agent {
       personalityText ?? "",
       notices,
     );
+    while (this.steeringInputs.length > 0) {
+      for (const message of this.takeUnconsumedSteering()) {
+        await this.context.append(message);
+        await this.hooks.onAfterInput?.(this.createHookContext(), message);
+      }
+    }
     const history = this.context.getMessages();
-    const maxContextChars = this.config.maxContextChars ?? 100000;
-    const messages = trimContext(history, maxContextChars);
+    const messages = this.fitToContextWindow(history, systemPrompt);
 
     let text = "";
     let reasoning = "";

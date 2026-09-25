@@ -2,6 +2,7 @@ import {
   Type,
   type AssistantMessage,
   type Context,
+  type JsonObject,
   type Message,
   type Tool,
 } from "@earendil-works/pi-ai";
@@ -75,7 +76,8 @@ const toPiMessage = (message: AgentMessage): Message[] => {
         type: "toolCall" as const,
         id: toolCall.id,
         name: toolCall.name,
-        arguments: toolCall.arguments,
+        // Tool arguments are validated as a record of unknown, but only ever hold parsed JSON.
+        arguments: toolCall.arguments as JsonObject,
       })),
     ];
     return [
@@ -108,8 +110,11 @@ const stringifyResult = (result: unknown): string => {
   return typeof result === "string" ? result : JSON.stringify(result);
 };
 
-const toPiTool = (tool: ToolDefinition): Tool => {
-  const schema = toJsonSchema(tool.parameters) as Record<string, unknown>;
+export const toPiTool = (tool: ToolDefinition): Tool => {
+  const schema = { ...(tool.jsonSchema ?? toJsonSchema(tool.parameters)) } as Record<
+    string,
+    unknown
+  >;
   delete schema["$schema"];
   return {
     name: tool.name,

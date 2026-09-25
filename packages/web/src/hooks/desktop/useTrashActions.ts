@@ -4,9 +4,11 @@ import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import { fileEvents } from "@/livestore/file";
 import { folderEvents } from "@/livestore/folder";
+import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
 import type { DesktopItem } from "@/types/desktop";
 import { collectFolderDescendants } from "@/lib/tree/folderTree";
 import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
+import { deleteWidgetDefinition } from "@/lib/widgets/widgetDefinitions";
 
 type ConfirmAction =
   | { kind: "trash"; item: DesktopItem }
@@ -17,6 +19,10 @@ interface UseTrashActionsOptions {
   store: { commit: (event: unknown) => void };
   allFileRows: readonly LiveStoreFile[];
   allFolderRows: readonly LiveStoreFolder[];
+  // Used only to cascade a Widget Definition folder's trash to its Definition and Instances;
+  // the Widgets root itself is kept undeletable upstream, in Desktop.tsx's handleDelete.
+  widgetDefinitions: readonly widgetDefinition[];
+  widgetInstances: readonly widgetInstance[];
   trashedFileItems: { fileMeta: RecordingMeta; id: string }[];
   trashedFolderItems: { id: string }[];
   mapToMeta: (file: LiveStoreFile) => RecordingMeta;
@@ -28,6 +34,8 @@ export function useTrashActions({
   store,
   allFileRows,
   allFolderRows,
+  widgetDefinitions,
+  widgetInstances,
   trashedFileItems,
   trashedFolderItems,
   mapToMeta,
@@ -74,10 +82,24 @@ export function useTrashActions({
             }),
           );
         });
+
+        // A Widget Definition folder's own file/folder descendants are already covered above —
+        // this only cascades to the Definition row and its Instances, which live outside the
+        // folder tree. The Widgets root never gets here: it's rejected before requestTrash is
+        // called (Desktop.tsx's handleDelete).
+        if (item.reservedKind === "widgetDefinition") {
+          const definition = widgetDefinitions.find(
+            (row) => row.folderId === item.id && !row.deletedAt,
+          );
+          if (definition) {
+            deleteWidgetDefinition({ store, id: definition.id, instances: widgetInstances });
+          }
+        }
+
         removeItem(item.id);
       }
     },
-    [collectFolderDescendantsForTrash, removeItem, store],
+    [collectFolderDescendantsForTrash, removeItem, store, widgetDefinitions, widgetInstances],
   );
 
   const restoreItem = useCallback(

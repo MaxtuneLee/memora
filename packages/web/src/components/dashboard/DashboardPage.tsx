@@ -1,341 +1,179 @@
 import { useAppStore } from "@/livestore/store";
+import { Toast } from "@base-ui/react/toast";
 import {
   CaretDownIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
   ChatCircleDotsIcon,
   CheckIcon,
   FileTextIcon,
   MicrophoneIcon,
-  SlidersHorizontalIcon,
+  PaintBrushBroadIcon,
+  PlusIcon,
   UploadSimpleIcon,
-  VideoCameraIcon,
 } from "@phosphor-icons/react";
-import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
-import type { ComponentType, ReactElement } from "react";
-import { Link, useNavigate } from "react-router";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
+import type { ComponentType, ReactElement, ReactNode } from "react";
+import { useNavigate } from "react-router";
 
-import {
-  CALENDAR_MOTION_EASE,
-  getCalendarGridMotion,
-  getCalendarHeaderMotion,
-  type CalendarMotionDirection,
-} from "@/components/dashboard/calendarMotion";
-import {
-  getPrimaryWidgetOrder,
-  PRIMARY_WIDGET_GRID_CLASS,
-} from "@/components/dashboard/dashboardLayout";
 import { DashboardWelcomeHeading } from "@/components/dashboard/DashboardWelcomeHeading";
-import { cn } from "@/lib/cn";
+import { DashboardToolbarButton } from "@/components/dashboard/DashboardToolbarButton";
+import {
+  AddWidgetDrawer,
+  type PlaceWidgetInput,
+} from "@/components/dashboard/homeGrid/AddWidgetDrawer";
+import { renderBuiltinWidget } from "@/components/dashboard/homeGrid/builtinWidgetPreview";
+import { GeneratedWidgetTile } from "@/components/dashboard/homeGrid/GeneratedWidgetTile";
+import { HomeGrid } from "@/components/dashboard/homeGrid/HomeGrid";
+import { getHomeGridTileViewTransitionName } from "@/components/dashboard/homeGrid/HomeGridTile";
+import {
+  runHomeGridViewTransition,
+  type SharedViewTransitionElement,
+} from "@/components/dashboard/homeGrid/homeGridViewTransition";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
+import { buildRecentItems } from "@/components/dashboard/recentItems";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
-import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
-import { getFileIcon } from "@/lib/library/fileIcon";
+import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
-import { formatBytes, formatDuration } from "@/lib/format";
 import { listChatSessions, type ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { deleteWidgetDefinition, updateWidgetDefinition } from "@/lib/widgets/widgetDefinitions";
+import {
+  createWidgetInstance,
+  deleteWidgetInstance,
+  nextWidgetInstanceSortOrder,
+  reorderWidgetInstances,
+  resizeWidgetInstance,
+  restoreWidgetInstance,
+} from "@/lib/widgets/widgetInstances";
+import {
+  activeWidgetDefinitionsQuery$,
+  activeWidgetInstancesQuery$,
+} from "@/lib/widgets/widgetQueries";
+import { seedHomeGrid } from "@/lib/widgets/seedHomeGrid";
+import { setPendingHomeGridPrompt } from "@/lib/widgets/homeGridPrompt";
 import { fileEvents } from "@/livestore/file";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
+import type { widgetDefinition, widgetInstance } from "@/livestore/widget";
+import { tokens } from "../../styles/stylex.stylex";
 import type { SearchNavigationState } from "@/types/search";
-import type { FileMeta } from "@/types/library";
 
-import { TodoPanel } from "./TodoPanel";
 import { DEFAULT_WELCOME_COPY, getWelcomeCopy } from "./welcomeCopy";
 
 type IconWeight = "regular" | "fill" | "duotone" | "bold";
-type WidgetKey = "calendar" | "todo" | "recent";
-
-interface WidgetVisibility {
-  calendar: boolean;
-  todo: boolean;
-  recent: boolean;
-}
-
-interface RecentItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  href: string;
-  updatedAt: number;
-  icon: ComponentType<{ className?: string; weight?: IconWeight }>;
-  iconWeight?: IconWeight;
-  shellClassName: string;
-  iconClassName: string;
-}
-
-interface CalendarDay {
-  key: string;
-  label: string;
-  muted: boolean;
-  active: boolean;
-  hasActivity: boolean;
-}
 
 const DASHBOARD_FONT_FAMILY = '"Inter", ui-sans-serif, sans-serif';
-const WIDGETS_STORAGE_KEY = "memora:dashboard:widgets";
-const DEFAULT_WIDGET_VISIBILITY: WidgetVisibility = {
-  calendar: true,
-  todo: true,
-  recent: true,
-};
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const CALENDAR_MOTION_EASE = [0.22, 1, 0.36, 1] as const;
+const ACTION_SPLIT_EASE = [0.23, 1, 0.32, 1] as const;
+const ACTION_LAYOUT_EASE = [0.77, 0, 0.175, 1] as const;
+const ACTION_MORPH_DURATION = 0.8;
+const ACTION_MORPH_GAP = 10;
+// Collapsed width of the Add widget pill, matched to the button's 2.75rem min-height. Square is
+// what lets the maxed border-radius resolve to a full circle: the browser clamps radius to half
+// the shorter side, so a narrower nub would render as a lozenge with straight vertical edges.
+// Must stay under the toggle's own width so the parked nub sits entirely within its silhouette;
+// the matching negative margin is what puts it there.
+const ACTION_MORPH_TUCK = 44;
+// Fraction of the morph the label takes. On the way in it runs first, so on the way out it runs
+// last: the retract is the same timeline played backwards.
+const ACTION_MORPH_LABEL_RATIO = 0.3;
+const ACTION_REDUCED_MOTION_DURATION = 0.16;
 
-const readWidgetVisibility = (): WidgetVisibility => {
-  if (typeof window === "undefined") {
-    return DEFAULT_WIDGET_VISIBILITY;
-  }
+// Retract is the extrude played backwards: same targets, same curve, no exit-only timing. Anything
+// that runs on one direction but not the other shows up as a stutter at the seam.
+const ACTION_PILL_TUCKED = { marginRight: -ACTION_MORPH_TUCK, width: ACTION_MORPH_TUCK };
+const ACTION_PILL_OPEN = { marginRight: ACTION_MORPH_GAP, width: "auto" };
+const ACTION_LABEL_HIDDEN = { filter: "blur(8px)", opacity: 0 };
+const ACTION_LABEL_SHOWN = { filter: "blur(0px)", opacity: 1 };
 
-  try {
-    const raw = window.localStorage.getItem(WIDGETS_STORAGE_KEY);
-    if (!raw) {
-      return DEFAULT_WIDGET_VISIBILITY;
-    }
+const MotionToolbarButton = motion.create(DashboardToolbarButton);
 
-    const parsed = JSON.parse(raw) as Partial<WidgetVisibility>;
-
-    return {
-      calendar: parsed.calendar ?? true,
-      todo: parsed.todo ?? true,
-      recent: parsed.recent ?? true,
-    };
-  } catch {
-    return DEFAULT_WIDGET_VISIBILITY;
-  }
-};
-
-const formatRelativeTimestamp = (timestamp: number): string => {
-  if (!Number.isFinite(timestamp)) {
-    return "Just now";
-  }
-
-  const deltaMs = Date.now() - timestamp;
-  const minutes = Math.max(0, Math.floor(deltaMs / 60000));
-
-  if (minutes < 1) {
-    return "Just now";
-  }
-
-  if (minutes < 60) {
-    return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  }
-
-  const days = Math.floor(hours / 24);
-
-  if (days < 7) {
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-  }
-
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const formatChatTimestamp = (timestamp: number): string => {
-  if (!Number.isFinite(timestamp)) {
-    return "No messages yet";
-  }
-
-  return new Date(timestamp).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
-
-export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {
-  if (file.type === "audio" || file.type === "video") {
-    return `/transcript/file/${file.id}`;
-  }
-
-  if (isEditableTextDocument(file)) {
-    return getDocumentEditorHref(file.id);
-  }
-
-  return "/desktop";
-};
-
-const createUploadNavigationState = (): SearchNavigationState => {
-  return {
-    searchDesktopIntent: {
-      requestId: crypto.randomUUID(),
-      intent: {
-        type: "uploadFile",
-        parentId: null,
-      },
-    },
-  };
-};
-
-const buildFileRecentItem = (file: FileMeta): RecentItem => {
-  if (file.type === "audio" || file.type === "video") {
-    return {
-      id: `file:${file.id}`,
-      title: file.name,
-      subtitle: [
-        "Recording",
-        file.transcriptPath
-          ? "Transcript ready"
-          : `Updated ${formatRelativeTimestamp(file.updatedAt)}`,
-        file.durationSec ? `${formatDuration(file.durationSec)} long` : null,
-      ]
-        .filter(Boolean)
-        .join(" • "),
-      href: getFileHref(file),
-      updatedAt: file.updatedAt,
-      icon: file.type === "video" ? VideoCameraIcon : MicrophoneIcon,
-      iconWeight: file.type === "video" ? "fill" : "regular",
-      shellClassName: "bg-[#f5f0e8]",
-      iconClassName: "text-[#8a7e6c]",
-    };
-  }
-
-  return {
-    id: `file:${file.id}`,
-    title: file.name,
-    subtitle: `File • ${formatBytes(file.sizeBytes)} • Updated ${formatRelativeTimestamp(file.updatedAt)}`,
-    href: getFileHref(file),
-    updatedAt: file.updatedAt,
-    icon: getFileIcon(file),
-    iconWeight: "fill",
-    shellClassName: "bg-[#f4f1ea]",
-    iconClassName: "text-[#6b655d]",
-  };
-};
-
-const buildChatRecentItem = (session: ChatSessionSummary): RecentItem => {
-  return {
-    id: `chat:${session.id}`,
-    title: session.title,
-    subtitle: `Chat • Last message ${formatChatTimestamp(session.updatedAt)}`,
-    href: `/chat?session=${encodeURIComponent(session.id)}`,
-    updatedAt: session.updatedAt,
-    icon: ChatCircleDotsIcon,
-    iconWeight: "fill",
-    shellClassName: "bg-[#f2efe6]",
-    iconClassName: "text-[#65704e]",
-  };
-};
-
-const buildRecentItems = (files: FileMeta[], chatSessions: ChatSessionSummary[]): RecentItem[] => {
-  const fileItems = files.map(buildFileRecentItem);
-  const chatItems = chatSessions.map(buildChatRecentItem);
-  const merged = [...fileItems, ...chatItems]
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, 5);
-
-  if (merged.length > 0) {
-    return merged;
-  }
-
-  return [
-    {
-      id: "empty:recording",
-      title: "Start your first recording",
-      subtitle: "Capture an idea and it will show up here.",
-      href: "/transcript/live",
-      updatedAt: 0,
-      icon: MicrophoneIcon,
-      iconWeight: "regular",
-      shellClassName: "bg-[#f5f0e8]",
-      iconClassName: "text-[#8a7e6c]",
-    },
-    {
-      id: "empty:upload",
-      title: "Upload reference material",
-      subtitle: "Bring in notes, slides, or PDFs for later.",
-      href: "/desktop",
-      updatedAt: 0,
-      icon: UploadSimpleIcon,
-      iconWeight: "regular",
-      shellClassName: "bg-[#f4f1ea]",
-      iconClassName: "text-[#6b655d]",
-    },
-    {
-      id: "empty:chat",
-      title: "Open a fresh chat",
-      subtitle: "Use Chat when you want to reason across your material.",
-      href: "/chat",
-      updatedAt: 0,
-      icon: ChatCircleDotsIcon,
-      iconWeight: "fill",
-      shellClassName: "bg-[#f2efe6]",
-      iconClassName: "text-[#65704e]",
-    },
-  ];
-};
-
-const createCalendarDays = (monthDate: Date, activityTimestamps: number[]): CalendarDay[] => {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstWeekday = (firstDay.getDay() + 6) % 7;
-  const previousMonthDays = new Date(year, month, 0).getDate();
-  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
-  const today = new Date();
-  const activitySet = new Set(
-    activityTimestamps
-      .filter((timestamp) => {
-        const value = new Date(timestamp);
-        return value.getFullYear() === year && value.getMonth() === month;
-      })
-      .map((timestamp) => new Date(timestamp).getDate()),
-  );
-
-  return Array.from({ length: totalCells }, (_, index) => {
-    const dayNumber = index - firstWeekday + 1;
-    const isCurrentMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
-
-    if (isCurrentMonth) {
-      const isToday =
-        today.getFullYear() === year && today.getMonth() === month && today.getDate() === dayNumber;
-
-      return {
-        key: `${year}-${month + 1}-${dayNumber}`,
-        label: String(dayNumber),
-        muted: false,
-        active: isToday,
-        hasActivity: activitySet.has(dayNumber),
-      };
-    }
-
-    if (dayNumber < 1) {
-      return {
-        key: `prev-${index}`,
-        label: String(previousMonthDays + dayNumber),
-        muted: true,
-        active: false,
-        hasActivity: false,
-      };
-    }
-
-    return {
-      key: `next-${index}`,
-      label: String(dayNumber - daysInMonth),
-      muted: true,
-      active: false,
-      hasActivity: false,
-    };
-  });
-};
-
-const getMonthLabel = (monthDate: Date): string => {
-  return monthDate.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-};
+const styles = stylex.create({
+  icon: { height: 16, width: 16 },
+  menuAction: {
+    alignItems: "center",
+    borderRadius: 16,
+    cursor: "pointer",
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "2rem minmax(0, 1fr)",
+    outline: "none",
+    paddingBlock: 10,
+    paddingInline: 12,
+    textAlign: "left",
+    transition: "background-color 150ms",
+    width: "100%",
+    "[data-highlighted]": { backgroundColor: tokens.hoverStrong },
+  },
+  menuIconShell: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: 9999,
+    color: tokens.textMuted,
+    display: "flex",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  menuIcon: { height: 18, width: 18 },
+  menuCopy: { minWidth: 0 },
+  menuTitle: { color: tokens.text, fontSize: 14, fontWeight: 600 },
+  menuNote: { color: tokens.textMuted, fontSize: 11, lineHeight: "16px", marginTop: 2 },
+  page: { backgroundColor: tokens.background, color: tokens.text, minHeight: "100%" },
+  pageContent: {
+    marginInline: "auto",
+    // Wide enough for the Home Grid's four ~280px square columns plus gaps at 40px page padding.
+    maxWidth: 1480,
+    paddingBlock: 32,
+    paddingInline: 24,
+    width: "100%",
+    "@media (min-width: 48rem)": { paddingBlock: 40, paddingInline: 40 },
+  },
+  hero: { paddingBottom: 28, "@media (min-width: 48rem)": { paddingBottom: 32 } },
+  welcomeHeader: { borderBottom: `1px solid ${tokens.border}`, paddingBottom: 16 },
+  widgetsArea: { marginTop: 24 },
+  menuRow: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "flex-end",
+    marginBottom: 24,
+  },
+  actionMorph: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "flex-end",
+    overflow: "visible",
+    position: "relative",
+  },
+  actionFilterDefinition: { height: 0, position: "absolute", width: 0 },
+  // The gap between the pill and the toggle lives on the pill's own margin, not on actionMorph, so
+  // it can go negative and carry the pill underneath the toggle.
+  actionMotionPill: { flexShrink: 0, overflow: "hidden", whiteSpace: "nowrap" },
+  // Lifts the toggle into its own stacking level so the retracting pill passes beneath it.
+  actionToggle: { position: "relative", zIndex: 1 },
+  actionButtonContent: { alignItems: "center", display: "flex", gap: "0.5rem" },
+  menuMotionItem: { display: "flex" },
+  triggerIconShell: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: 9999,
+    color: tokens.textMuted,
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  primaryTriggerIconShell: {
+    backgroundColor: `color-mix(in srgb, ${tokens.surface} 14%, transparent)`,
+    color: tokens.textInverse,
+  },
+  triggerCaret: { color: tokens.textSoft, height: 14, width: 14 },
+  menuContentNarrow: { width: 224 },
+});
 
 function MenuActionItem({
   title,
@@ -351,115 +189,113 @@ function MenuActionItem({
   onSelect: () => void;
 }): ReactElement {
   return (
-    <AppMenuItem
-      onClick={onSelect}
-      className="grid w-full cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left outline-none transition data-[highlighted]:bg-[#faf7f0]"
-    >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-        <Icon className="size-[18px]" weight={iconWeight} />
+    <AppMenuItem onClick={onSelect} className={stylex.props(styles.menuAction).className}>
+      <div {...stylex.props(styles.menuIconShell)}>
+        <Icon className={stylex.props(styles.menuIcon).className} weight={iconWeight} />
       </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-memora-text">{title}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
+      <div {...stylex.props(styles.menuCopy)}>
+        <div {...stylex.props(styles.menuTitle)}>{title}</div>
+        <div {...stylex.props(styles.menuNote)}>{note}</div>
       </div>
     </AppMenuItem>
   );
 }
 
-function WidgetToggleItem({
-  checked,
-  label,
-  note,
-  onSelect,
-}: {
-  checked: boolean;
-  label: string;
-  note: string;
-  onSelect: () => void;
-}): ReactElement {
-  return (
-    <AppMenuItem
-      onClick={onSelect}
-      className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-2xl px-3 py-2.5 text-left outline-none transition data-[highlighted]:bg-[#faf7f0]"
-    >
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-memora-text">{label}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-[#7a7369]">{note}</div>
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border transition",
-          checked
-            ? "border-[#7b875a] bg-[#7b875a] text-[#fffdfa]"
-            : "border-[#d8d1c5] bg-white text-transparent",
-        )}
-      >
-        <CheckIcon className="size-3.5" weight="bold" />
-      </div>
-    </AppMenuItem>
-  );
-}
-
-function RecentRow({ item }: { item: RecentItem }): ReactElement {
-  const Icon = item.icon;
-
-  return (
-    <Link
-      to={item.href}
-      className="group grid grid-cols-[2.625rem_minmax(0,1fr)_auto] items-center gap-3 border-t border-[#ece5d9] px-5 py-3.5 transition-colors first:border-t-0 hover:bg-[#fcfaf5]"
-    >
-      <div
-        className={cn(
-          "flex h-[42px] w-[42px] items-center justify-center rounded-[14px]",
-          item.shellClassName,
-        )}
-      >
-        <Icon className={cn("size-5", item.iconClassName)} weight={item.iconWeight ?? "regular"} />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-semibold text-memora-text">{item.title}</p>
-        <p className="mt-1 truncate text-xs text-[#716c64]">{item.subtitle}</p>
-      </div>
-      <CaretRightIcon className="size-4 text-[#9a948a] transition-transform group-hover:translate-x-0.5" />
-    </Link>
-  );
-}
-
-function EmptyWidgetsState({ onReset }: { onReset: () => void }): ReactElement {
-  return (
-    <div className="rounded-[1.75rem] border border-[#e9e5dc] bg-[#fffdf8] px-6 py-8 text-center">
-      <p className="text-sm font-semibold text-memora-text">All widgets are hidden.</p>
-      <p className="mt-1 text-sm text-[#716c64]">
-        Turn a few back on to rebuild your workspace view.
-      </p>
-      <button
-        type="button"
-        onClick={onReset}
-        className="mt-4 inline-flex min-h-11 items-center rounded-full border border-[#e7e1d7] bg-[#fffdfa] px-4 text-sm font-semibold text-memora-text transition hover:bg-[#fffcf6]"
-      >
-        Reset widgets
-      </button>
-    </div>
-  );
-}
+const createUploadNavigationState = (): SearchNavigationState => {
+  return {
+    searchDesktopIntent: {
+      requestId: crypto.randomUUID(),
+      intent: {
+        type: "uploadFile",
+        parentId: null,
+      },
+    },
+  };
+};
 
 export const Component = (): ReactElement => {
   const store = useAppStore();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion() ?? false;
+  const { add: addToast, close: closeToast } = Toast.useToastManager();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
+  const widgetInstanceRows = store.useQuery(
+    activeWidgetInstancesQuery$,
+  ) as readonly widgetInstance[];
+  const widgetDefinitionRows = store.useQuery(
+    activeWidgetDefinitionsQuery$,
+  ) as readonly widgetDefinition[];
   const documentEditorSettings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
       settingsTable.default.value,
   );
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
-  const [calendarOffset, setCalendarOffset] = useState(0);
-  const [calendarDirection, setCalendarDirection] = useState<CalendarMotionDirection>(0);
-  const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(() =>
-    readWidgetVisibility(),
+  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+  const [isHomeGridEditing, setIsHomeGridEditing] = useState(false);
+  const [isHomeGridActionMorphing, setIsHomeGridActionMorphing] = useState(false);
+  const [pendingWidgetLinkUrl, setPendingWidgetLinkUrl] = useState<string | null>(null);
+  const [pendingDeleteDefinitionId, setPendingDeleteDefinitionId] = useState<string | null>(null);
+  // Placing/removing a widget instance round-trips through the LiveStore worker before
+  // `widgetInstanceRows` reflects it, so its timing does not align with the browser's snapshot
+  // window. These optimistic overrides update the grid inside the transition callback; each is
+  // reconciled away once the store's own query confirms the change.
+  const [optimisticInstances, setOptimisticInstances] = useState<
+    { instance: widgetInstance; definition: widgetDefinition }[]
+  >([]);
+  const [optimisticallyRemovedIds, setOptimisticallyRemovedIds] = useState<ReadonlySet<string>>(
+    new Set(),
   );
+  const editToggleRef = useRef<HTMLButtonElement | null>(null);
+  const previousHomeGridEditingRef = useRef(isHomeGridEditing);
+
+  useEffect(() => {
+    setOptimisticInstances((current) => {
+      const stillPending = current.filter(
+        (optimistic) => !widgetInstanceRows.some((row) => row.id === optimistic.instance.id),
+      );
+      return stillPending.length === current.length ? current : stillPending;
+    });
+    setOptimisticallyRemovedIds((current) => {
+      const stillRelevant = new Set(
+        [...current].filter((id) => widgetInstanceRows.some((row) => row.id === id)),
+      );
+      return stillRelevant.size === current.size ? current : stillRelevant;
+    });
+  }, [widgetInstanceRows]);
+
+  const runOptimisticViewTransition = useCallback(
+    (update: () => void, sharedElement?: SharedViewTransitionElement, afterUpdate?: () => void) => {
+      runHomeGridViewTransition({ update, afterUpdate, reducedMotion, sharedElement });
+    },
+    [reducedMotion],
+  );
+
+  const handleWidgetSendPrompt = useCallback(
+    (text: string) => {
+      setPendingHomeGridPrompt(text);
+      void navigate("/chat");
+    },
+    [navigate],
+  );
+
+  const handleWidgetOpenLink = useCallback((url: string) => {
+    setPendingWidgetLinkUrl(url);
+  }, []);
+
+  const handleConfirmWidgetLink = useCallback(() => {
+    if (pendingWidgetLinkUrl) {
+      window.open(pendingWidgetLinkUrl, "_blank", "noopener,noreferrer");
+    }
+    setPendingWidgetLinkUrl(null);
+  }, [pendingWidgetLinkUrl]);
+
+  useEffect(() => {
+    void seedHomeGrid({ store }).catch((error) => {
+      console.error("Failed to seed the Home Grid:", error);
+    });
+  }, [store]);
 
   useEffect(() => {
     let cancelled = false;
@@ -486,14 +322,6 @@ export const Component = (): ReactElement => {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(WIDGETS_STORAGE_KEY, JSON.stringify(widgetVisibility));
-  }, [widgetVisibility]);
-
   const files = useMemo(() => {
     return fileRows.map(mapLiveStoreFileToMeta);
   }, [fileRows]);
@@ -505,6 +333,10 @@ export const Component = (): ReactElement => {
   const recentActivityCount = useMemo(() => {
     return recentItems.filter((item) => item.updatedAt > 0).length;
   }, [recentItems]);
+
+  const placedDefinitionIds = useMemo(() => {
+    return new Set(widgetInstanceRows.map((instance) => instance.definitionId));
+  }, [widgetInstanceRows]);
 
   const welcomeCopy = useMemo(() => {
     if (!chatSessionsLoaded) {
@@ -519,20 +351,216 @@ export const Component = (): ReactElement => {
     });
   }, [chatSessions.length, chatSessionsLoaded, files.length, recentActivityCount]);
 
-  const visibleMonth = useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + calendarOffset, 1);
-  }, [calendarOffset]);
-
-  const calendarDays = useMemo(() => {
-    return createCalendarDays(
-      visibleMonth,
-      recentItems.map((item) => item.updatedAt).filter((timestamp) => timestamp > 0),
+  const homeGridTiles = useMemo(() => {
+    const definitionsById = new Map(
+      widgetDefinitionRows.map((definition) => [definition.id, definition]),
     );
-  }, [recentItems, visibleMonth]);
+    const persisted = widgetInstanceRows
+      .filter((instance) => !optimisticallyRemovedIds.has(instance.id))
+      .map((instance) => ({
+        instance,
+        definition: definitionsById.get(instance.definitionId) ?? null,
+      }));
+    const pending = optimisticInstances.filter(
+      (optimistic) => !widgetInstanceRows.some((row) => row.id === optimistic.instance.id),
+    );
+    return [...persisted, ...pending].sort((a, b) => a.instance.sortOrder - b.instance.sortOrder);
+  }, [widgetDefinitionRows, widgetInstanceRows, optimisticInstances, optimisticallyRemovedIds]);
 
-  const hasVisibleWidgets =
-    widgetVisibility.calendar || widgetVisibility.todo || widgetVisibility.recent;
+  const hasHomeGridTiles = homeGridTiles.some((tile) => tile.definition !== null);
+
+  const isToggleShowingDone = isHomeGridEditing;
+
+  useEffect(() => {
+    if (!hasHomeGridTiles) {
+      setIsHomeGridEditing(false);
+    }
+  }, [hasHomeGridTiles]);
+
+  useEffect(() => {
+    if (previousHomeGridEditingRef.current === isHomeGridEditing) {
+      return;
+    }
+
+    previousHomeGridEditingRef.current = isHomeGridEditing;
+    // The toggle drives the metaball filter, not Motion's animation callbacks: those only report
+    // on targets defined in `animate`, so the retract ran without any goo. Keying off the toggle
+    // covers both directions. reducedMotion is handled where the filter is applied, so it stays
+    // out of the deps and this can never early-return with the filter stuck on.
+    setIsHomeGridActionMorphing(true);
+    const morphTimer = window.setTimeout(() => {
+      setIsHomeGridActionMorphing(false);
+    }, ACTION_MORPH_DURATION * 1000);
+    // Long-pressing a tile can enter edit mode without the toggle being focused; move focus
+    // there so the way out is reachable. A no-op when the toggle was clicked.
+    const frame = requestAnimationFrame(() => {
+      editToggleRef.current?.focus();
+    });
+
+    return () => {
+      window.clearTimeout(morphTimer);
+      cancelAnimationFrame(frame);
+    };
+  }, [isHomeGridEditing]);
+
+  const renderHomeGridWidget = useCallback(
+    (definition: widgetDefinition, instance: widgetInstance): ReactNode => {
+      if (definition.kind === "generated") {
+        return (
+          <GeneratedWidgetTile
+            store={store}
+            definition={definition}
+            instance={instance}
+            onSendPrompt={handleWidgetSendPrompt}
+            onOpenLink={handleWidgetOpenLink}
+          />
+        );
+      }
+
+      if (definition.kind !== "builtin") {
+        return null;
+      }
+
+      return renderBuiltinWidget({ definition, store, files, recentItems });
+    },
+    [files, handleWidgetOpenLink, handleWidgetSendPrompt, recentItems, store],
+  );
+
+  const handleReorderWidgets = useCallback(
+    (orderedIds: string[]) => {
+      reorderWidgetInstances({ store, orderedIds });
+    },
+    [store],
+  );
+
+  const handleResizeWidget = useCallback(
+    (instanceId: string, columnSpan: number, rowSpan: number) => {
+      const current = homeGridTiles.find((tile) => tile.instance.id === instanceId)?.instance;
+      if (!current) {
+        return;
+      }
+      resizeWidgetInstance({ store, id: instanceId, columnSpan, rowSpan, current });
+    },
+    [homeGridTiles, store],
+  );
+
+  const handleRemoveWidget = useCallback(
+    (instanceId: string) => {
+      const removedTile = homeGridTiles.find((tile) => tile.instance.id === instanceId);
+      const title = removedTile?.definition?.name ?? "Widget";
+      const toastId = crypto.randomUUID();
+
+      runOptimisticViewTransition(() => {
+        setOptimisticallyRemovedIds((current) => new Set(current).add(instanceId));
+      });
+      deleteWidgetInstance({ store, id: instanceId });
+
+      addToast({
+        id: toastId,
+        title: `${title} removed`,
+        actionProps: {
+          children: "Undo",
+          onClick: () => {
+            runOptimisticViewTransition(() => {
+              setOptimisticallyRemovedIds((current) => {
+                const next = new Set(current);
+                next.delete(instanceId);
+                return next;
+              });
+            });
+            restoreWidgetInstance({ store, id: instanceId });
+            closeToast(toastId);
+          },
+        },
+      });
+    },
+    [addToast, closeToast, homeGridTiles, runOptimisticViewTransition, store],
+  );
+
+  const handlePlaceWidget = useCallback(
+    (input: PlaceWidgetInput, sourceElement: HTMLElement | null) => {
+      const sortOrder = nextWidgetInstanceSortOrder(widgetInstanceRows);
+      const definition = widgetDefinitionRows.find((row) => row.id === input.definitionId);
+
+      runOptimisticViewTransition(
+        () => {
+          if (definition) {
+            const optimisticInstance: widgetInstance = {
+              id: input.id,
+              definitionId: input.definitionId,
+              sortOrder,
+              params: JSON.stringify(input.params),
+              columnSpan: 1,
+              rowSpan: 1,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deletedAt: null,
+            };
+            setOptimisticInstances((current) => [
+              ...current,
+              { instance: optimisticInstance, definition },
+            ]);
+          }
+          // Closing the drawer exposes the destination slot while the preview travels to it.
+          setIsAddWidgetOpen(false);
+        },
+        sourceElement
+          ? {
+              element: sourceElement,
+              name: getHomeGridTileViewTransitionName(input.id),
+            }
+          : undefined,
+        () => {
+          createWidgetInstance({
+            store,
+            input: {
+              id: input.id,
+              definitionId: input.definitionId,
+              sortOrder,
+              params: input.params,
+            },
+          });
+        },
+      );
+    },
+    [runOptimisticViewTransition, store, widgetDefinitionRows, widgetInstanceRows],
+  );
+
+  const handleRenameDefinition = useCallback(
+    (id: string, name: string) => {
+      const definition = widgetDefinitionRows.find((row) => row.id === id);
+      updateWidgetDefinition({ store, input: { id, name }, definition, files: fileRows });
+    },
+    [fileRows, store, widgetDefinitionRows],
+  );
+
+  const handleDeleteDefinition = useCallback((id: string) => {
+    setPendingDeleteDefinitionId(id);
+  }, []);
+
+  const handleConfirmDeleteDefinition = useCallback(() => {
+    if (!pendingDeleteDefinitionId) {
+      return;
+    }
+
+    const definition = widgetDefinitionRows.find((row) => row.id === pendingDeleteDefinitionId);
+    deleteWidgetDefinition({
+      store,
+      id: pendingDeleteDefinitionId,
+      folderId: definition?.folderId ?? null,
+      folders: folderRows,
+      files: fileRows,
+      instances: widgetInstanceRows,
+    });
+    setPendingDeleteDefinitionId(null);
+  }, [
+    fileRows,
+    folderRows,
+    pendingDeleteDefinitionId,
+    store,
+    widgetDefinitionRows,
+    widgetInstanceRows,
+  ]);
 
   const heroAnimations = reducedMotion
     ? {}
@@ -580,151 +608,11 @@ export const Component = (): ReactElement => {
     }
   };
 
-  const handleCalendarNavigation = (direction: Exclude<CalendarMotionDirection, 0>) => {
-    setCalendarDirection(direction);
-    setCalendarOffset((current) => current + direction);
-  };
-
-  const toggleWidget = (widget: WidgetKey) => {
-    setWidgetVisibility((current) => ({
-      ...current,
-      [widget]: !current[widget],
-    }));
-  };
-
-  const resetWidgets = () => {
-    setWidgetVisibility(DEFAULT_WIDGET_VISIBILITY);
-  };
-
-  const calendarMonthKey = `${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}`;
-  const calendarHeaderMotion = getCalendarHeaderMotion(calendarDirection, reducedMotion);
-  const calendarGridMotion = getCalendarGridMotion(calendarDirection, reducedMotion);
-  const primaryWidgetOrder = getPrimaryWidgetOrder({
-    calendar: widgetVisibility.calendar,
-    todo: widgetVisibility.todo,
-  });
-  const calendarWidget = (
-    <div key="calendar" className="rounded-[1.7rem] border border-[#e9e5dc] bg-white p-5 md:p-6">
-      <div className="mb-4 grid grid-cols-[2rem_1fr_2rem] items-center gap-2">
-        <motion.button
-          type="button"
-          onClick={() => handleCalendarNavigation(-1)}
-          whileHover={reducedMotion ? undefined : { y: -1, scale: 1.03 }}
-          whileTap={reducedMotion ? undefined : { scale: 0.97 }}
-          transition={{
-            duration: 0.16,
-            ease: CALENDAR_MOTION_EASE,
-          }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[#9aa28d] transition hover:bg-[#f5f1e8] hover:text-[#6c7654] focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-white outline-none"
-          aria-label="Previous month"
-        >
-          <CaretLeftIcon className="size-4" weight="bold" />
-        </motion.button>
-        <div className="relative h-6 overflow-hidden">
-          <motion.h2
-            key={`calendar-label-${calendarMonthKey}`}
-            initial={calendarHeaderMotion.initial}
-            animate={calendarHeaderMotion.animate}
-            transition={calendarHeaderMotion.transition}
-            className="absolute inset-0 text-center text-[15px] font-bold text-[#4f5742]"
-          >
-            {getMonthLabel(visibleMonth)}
-          </motion.h2>
-        </div>
-        <motion.button
-          type="button"
-          onClick={() => handleCalendarNavigation(1)}
-          whileHover={reducedMotion ? undefined : { y: -1, scale: 1.03 }}
-          whileTap={reducedMotion ? undefined : { scale: 0.97 }}
-          transition={{
-            duration: 0.16,
-            ease: CALENDAR_MOTION_EASE,
-          }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[#9aa28d] transition hover:bg-[#f5f1e8] hover:text-[#6c7654] focus-visible:ring-2 focus-visible:ring-[#a7af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-white outline-none"
-          aria-label="Next month"
-        >
-          <CaretRightIcon className="size-4" weight="bold" />
-        </motion.button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-x-1 gap-y-2">
-        {WEEKDAY_LABELS.map((label) => (
-          <div
-            key={label}
-            className="text-center text-[10px] font-bold tracking-[0.12em] text-[#9aa28d] uppercase"
-          >
-            {label}
-          </div>
-        ))}
-
-        <motion.div
-          key={`calendar-grid-${calendarMonthKey}`}
-          initial={calendarGridMotion.initial}
-          animate={calendarGridMotion.animate}
-          transition={calendarGridMotion.transition}
-          className="col-span-7 grid grid-cols-7 gap-x-1 gap-y-2"
-        >
-          {calendarDays.map((day) => (
-            <motion.div
-              key={day.key}
-              whileHover={reducedMotion || day.muted ? undefined : { y: -1, scale: 1.02 }}
-              className={cn(
-                "relative flex aspect-square items-center justify-center rounded-full text-sm transition-transform",
-                day.muted
-                  ? "text-[#c9c4bb]"
-                  : day.active
-                    ? "bg-[#7b875a] font-bold text-[#fffdfa]"
-                    : "text-[#565b4f]",
-              )}
-            >
-              {day.active && !reducedMotion ? (
-                <motion.span
-                  initial={{ opacity: 0, scale: 0.82 }}
-                  animate={{ opacity: 1, scale: 1.1 }}
-                  transition={{
-                    delay: 0.08,
-                    duration: 0.34,
-                    ease: CALENDAR_MOTION_EASE,
-                  }}
-                  className="absolute inset-0 rounded-full border border-[#aab48a]/55"
-                />
-              ) : null}
-              <span className="relative z-10">{day.label}</span>
-              {day.hasActivity && (
-                <motion.span
-                  initial={
-                    reducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4, y: 2 }
-                  }
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{
-                    delay: reducedMotion ? 0 : 0.1,
-                    duration: reducedMotion ? 0.12 : 0.22,
-                    ease: CALENDAR_MOTION_EASE,
-                  }}
-                  className={cn(
-                    "absolute bottom-1.5 h-1.5 w-1.5 rounded-full",
-                    day.active ? "bg-[#fffdfa]" : "bg-[#74824d]",
-                  )}
-                />
-              )}
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </div>
-  );
-
   return (
-    <div
-      className="min-h-full bg-memora-bg text-memora-text"
-      style={{ fontFamily: DASHBOARD_FONT_FAMILY }}
-    >
-      <motion.div
-        {...heroAnimations}
-        className="mx-auto w-full max-w-[1080px] px-6 py-8 md:px-10 md:py-10"
-      >
-        <div className="pb-7 md:pb-8">
-          <header className="border-b border-[#e9e5dc] pb-4">
+    <div {...stylex.props(styles.page)} style={{ fontFamily: DASHBOARD_FONT_FAMILY }}>
+      <motion.div {...heroAnimations} {...stylex.props(styles.pageContent)}>
+        <div {...stylex.props(styles.hero)}>
+          <header {...stylex.props(styles.welcomeHeader)}>
             <DashboardWelcomeHeading
               title={welcomeCopy.title}
               description={welcomeCopy.description}
@@ -733,117 +621,256 @@ export const Component = (): ReactElement => {
             />
           </header>
 
-          <div className="mt-6">
-            <div className="mb-6 flex flex-wrap justify-end gap-2.5">
-              <AppMenu>
-                <AppMenuTrigger>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-                    <UploadSimpleIcon className="size-[18px]" weight="regular" />
-                  </span>
-                  <span>New file</span>
-                  <CaretDownIcon
-                    data-dashboard-menu-caret=""
-                    className="size-3.5 text-[#9a948a]"
-                    weight="bold"
-                  />
-                </AppMenuTrigger>
-                <AppMenuContent className="w-[224px]">
-                  <MenuActionItem
-                    title="New note"
-                    note="Start a blank markdown note"
-                    icon={FileTextIcon}
-                    onSelect={() => {
-                      void handleCreateNote();
-                    }}
-                  />
-                  <MenuActionItem
-                    title="Start recording"
-                    note="Capture a thought quickly"
-                    icon={MicrophoneIcon}
-                    onSelect={() => navigate("/transcript/live")}
-                  />
-                  <MenuActionItem
-                    title="Upload file"
-                    note="Bring in notes or PDFs"
-                    icon={UploadSimpleIcon}
-                    onSelect={handleUpload}
-                  />
-                  <MenuActionItem
-                    title="New chat"
-                    note="Open a fresh thread"
-                    icon={ChatCircleDotsIcon}
-                    iconWeight="fill"
-                    onSelect={() => navigate("/chat")}
-                  />
-                </AppMenuContent>
-              </AppMenu>
-
-              <AppMenu>
-                <AppMenuTrigger>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265]">
-                    <SlidersHorizontalIcon className="size-[18px]" />
-                  </span>
-                  <span>Edit widgets</span>
-                </AppMenuTrigger>
-                <AppMenuContent className="w-[240px]">
-                  <WidgetToggleItem
-                    checked={widgetVisibility.calendar}
-                    label="Calendar"
-                    note="Keep your month in view"
-                    onSelect={() => toggleWidget("calendar")}
-                  />
-                  <WidgetToggleItem
-                    checked={widgetVisibility.todo}
-                    label="Todo"
-                    note="Keep your markdown task note in reach"
-                    onSelect={() => toggleWidget("todo")}
-                  />
-                  <WidgetToggleItem
-                    checked={widgetVisibility.recent}
-                    label="Recent"
-                    note="Return to recordings, chats, and files"
-                    onSelect={() => toggleWidget("recent")}
-                  />
-                </AppMenuContent>
-              </AppMenu>
+          <div {...stylex.props(styles.widgetsArea)}>
+            <div {...stylex.props(styles.menuRow)}>
+              <LayoutGroup id="dashboard-home-actions">
+                <motion.div
+                  layout={reducedMotion ? false : "position"}
+                  transition={{
+                    layout: {
+                      duration: ACTION_MORPH_DURATION,
+                      ease: ACTION_LAYOUT_EASE,
+                    },
+                  }}
+                  {...stylex.props(styles.menuMotionItem)}
+                >
+                  <AppMenu>
+                    <AppMenuTrigger>
+                      <span {...stylex.props(styles.triggerIconShell)}>
+                        <UploadSimpleIcon
+                          className={stylex.props(styles.menuIcon).className}
+                          weight="regular"
+                        />
+                      </span>
+                      <span>New file</span>
+                      <CaretDownIcon
+                        data-dashboard-menu-caret=""
+                        className={stylex.props(styles.triggerCaret).className}
+                        weight="bold"
+                      />
+                    </AppMenuTrigger>
+                    <AppMenuContent className={stylex.props(styles.menuContentNarrow).className}>
+                      <MenuActionItem
+                        title="New note"
+                        note="Start a blank markdown note"
+                        icon={FileTextIcon}
+                        onSelect={() => {
+                          void handleCreateNote();
+                        }}
+                      />
+                      <MenuActionItem
+                        title="Start recording"
+                        note="Capture a thought quickly"
+                        icon={MicrophoneIcon}
+                        onSelect={() => navigate("/transcript/live")}
+                      />
+                      <MenuActionItem
+                        title="Upload file"
+                        note="Bring in notes or PDFs"
+                        icon={UploadSimpleIcon}
+                        onSelect={handleUpload}
+                      />
+                      <MenuActionItem
+                        title="New chat"
+                        note="Open a fresh thread"
+                        icon={ChatCircleDotsIcon}
+                        iconWeight="fill"
+                        onSelect={() => navigate("/chat")}
+                      />
+                    </AppMenuContent>
+                  </AppMenu>
+                </motion.div>
+                {hasHomeGridTiles && (
+                  <div
+                    {...stylex.props(styles.actionMorph)}
+                    style={
+                      isHomeGridActionMorphing && !reducedMotion
+                        ? { filter: "url(#home-grid-action-metaball)" }
+                        : undefined
+                    }
+                  >
+                    <svg
+                      aria-hidden="true"
+                      focusable="false"
+                      {...stylex.props(styles.actionFilterDefinition)}
+                    >
+                      <defs>
+                        <filter
+                          id="home-grid-action-metaball"
+                          x="-50%"
+                          y="-50%"
+                          width="200%"
+                          height="200%"
+                          colorInterpolationFilters="sRGB"
+                        >
+                          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                          <feColorMatrix
+                            in="blur"
+                            mode="matrix"
+                            values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7"
+                            result="goo"
+                          />
+                          <feBlend in="SourceGraphic" in2="goo" />
+                        </filter>
+                      </defs>
+                    </svg>
+                    {/* Add widget really travels under the toggle rather than being clipped at its
+                        edge: it collapses to a nub narrower than the toggle, and a negative margin
+                        equal to that nub parks it exactly on the toggle's left edge, where the
+                        toggle's own stacking level hides it before it unmounts. The pill never
+                        fades, because the metaball threshold (18a - 7) drops anything under ~0.4
+                        alpha and would kill the bridge right as the two overlap. The label fades
+                        well before the pill is narrow enough to let it spill past the toggle. */}
+                    <AnimatePresence initial={false}>
+                      {isHomeGridEditing && (
+                        <MotionToolbarButton
+                          key="home-grid-add-widget-action"
+                          className={stylex.props(styles.actionMotionPill).className}
+                          initial={reducedMotion ? { opacity: 0 } : ACTION_PILL_TUCKED}
+                          animate={reducedMotion ? { opacity: 1 } : ACTION_PILL_OPEN}
+                          exit={reducedMotion ? { opacity: 0 } : ACTION_PILL_TUCKED}
+                          transition={{
+                            duration: reducedMotion
+                              ? ACTION_REDUCED_MOTION_DURATION
+                              : ACTION_MORPH_DURATION,
+                            ease: ACTION_SPLIT_EASE,
+                          }}
+                          onClick={() => setIsAddWidgetOpen(true)}
+                        >
+                          <motion.span
+                            initial={reducedMotion ? { opacity: 0 } : ACTION_LABEL_HIDDEN}
+                            animate={reducedMotion ? { opacity: 1 } : ACTION_LABEL_SHOWN}
+                            exit={reducedMotion ? { opacity: 0 } : ACTION_LABEL_HIDDEN}
+                            transition={{
+                              duration: reducedMotion
+                                ? ACTION_REDUCED_MOTION_DURATION
+                                : ACTION_MORPH_DURATION * ACTION_MORPH_LABEL_RATIO,
+                              ease: ACTION_SPLIT_EASE,
+                            }}
+                            {...stylex.props(styles.actionButtonContent, styles.actionMotionPill)}
+                          >
+                            <span {...stylex.props(styles.triggerIconShell)}>
+                              <PlusIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="regular"
+                              />
+                            </span>
+                            <span>Add widget</span>
+                          </motion.span>
+                        </MotionToolbarButton>
+                      )}
+                    </AnimatePresence>
+                    <DashboardToolbarButton
+                      ref={editToggleRef}
+                      className={stylex.props(styles.actionToggle).className}
+                      tone="primary"
+                      onClick={() => setIsHomeGridEditing(!isHomeGridEditing)}
+                    >
+                      {/* Done blurs in when edit mode starts; Edit renders at its final state as
+                          soon as edit mode ends. No AnimatePresence: the button is not a positioned
+                          ancestor, so an exiting label would be placed against the container. */}
+                      <motion.span
+                        key={isToggleShowingDone ? "done" : "edit"}
+                        initial={
+                          !isToggleShowingDone
+                            ? false
+                            : reducedMotion
+                              ? { opacity: 0 }
+                              : { opacity: 0, filter: "blur(6px)" }
+                        }
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        transition={{
+                          duration: reducedMotion
+                            ? ACTION_REDUCED_MOTION_DURATION
+                            : ACTION_MORPH_DURATION,
+                          ease: ACTION_SPLIT_EASE,
+                        }}
+                        {...stylex.props(styles.actionButtonContent)}
+                      >
+                        {isToggleShowingDone ? (
+                          <>
+                            <span
+                              {...stylex.props(
+                                styles.triggerIconShell,
+                                styles.primaryTriggerIconShell,
+                              )}
+                            >
+                              <CheckIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="bold"
+                              />
+                            </span>
+                            <span>Done</span>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              {...stylex.props(
+                                styles.triggerIconShell,
+                                styles.primaryTriggerIconShell,
+                              )}
+                            >
+                              <PaintBrushBroadIcon
+                                className={stylex.props(styles.menuIcon).className}
+                                weight="regular"
+                              />
+                            </span>
+                            <span>Edit</span>
+                          </>
+                        )}
+                      </motion.span>
+                    </DashboardToolbarButton>
+                  </div>
+                )}
+              </LayoutGroup>
             </div>
 
-            {!hasVisibleWidgets ? (
-              <EmptyWidgetsState onReset={resetWidgets} />
-            ) : (
-              <div className="space-y-6">
-                {(widgetVisibility.calendar || widgetVisibility.todo) && (
-                  <motion.section {...getSectionMotion(0.08)} className={PRIMARY_WIDGET_GRID_CLASS}>
-                    {primaryWidgetOrder.map((widget) => {
-                      if (widget === "todo") {
-                        return <TodoPanel key="todo" files={files} store={store} />;
-                      }
-
-                      return calendarWidget;
-                    })}
-                  </motion.section>
-                )}
-
-                {widgetVisibility.recent && (
-                  <motion.section
-                    {...getSectionMotion(0.16)}
-                    className="overflow-hidden rounded-[1.45rem] border border-[#ebe4d8] bg-white"
-                  >
-                    <div className="px-5 py-4">
-                      <h2 className="text-[17px] font-bold text-memora-text">Recent</h2>
-                    </div>
-                    <div>
-                      {recentItems.map((item) => (
-                        <RecentRow key={item.id} item={item} />
-                      ))}
-                    </div>
-                  </motion.section>
-                )}
-              </div>
-            )}
+            <motion.div {...getSectionMotion(0.08)}>
+              <HomeGrid
+                tiles={homeGridTiles}
+                renderWidget={renderHomeGridWidget}
+                onReorder={handleReorderWidgets}
+                onRemove={handleRemoveWidget}
+                onResize={handleResizeWidget}
+                onAddWidget={() => setIsAddWidgetOpen(true)}
+                isEditing={isHomeGridEditing}
+                onEditingChange={setIsHomeGridEditing}
+                showToolbar={false}
+                reducedMotion={reducedMotion}
+              />
+            </motion.div>
           </div>
         </div>
       </motion.div>
+      <AddWidgetDrawer
+        open={isAddWidgetOpen}
+        definitions={widgetDefinitionRows}
+        placedDefinitionIds={placedDefinitionIds}
+        store={store}
+        files={files}
+        recentItems={recentItems}
+        onOpenChange={setIsAddWidgetOpen}
+        onPlace={handlePlaceWidget}
+        onRename={handleRenameDefinition}
+        onDelete={handleDeleteDefinition}
+      />
+      <ConfirmDialog
+        isOpen={pendingWidgetLinkUrl !== null}
+        title="Open this link?"
+        description={pendingWidgetLinkUrl ?? ""}
+        confirmLabel="Open link"
+        onConfirm={handleConfirmWidgetLink}
+        onCancel={() => setPendingWidgetLinkUrl(null)}
+      />
+      <ConfirmDialog
+        isOpen={pendingDeleteDefinitionId !== null}
+        title="Delete this widget?"
+        description="This removes the saved definition and any places it's currently on your Home Grid. This action cannot be undone."
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={handleConfirmDeleteDefinition}
+        onCancel={() => setPendingDeleteDefinitionId(null)}
+      />
     </div>
   );
 };

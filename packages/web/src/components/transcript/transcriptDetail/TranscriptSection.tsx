@@ -6,12 +6,193 @@ import {
   FloppyDiskIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import type { MutableRefObject } from "react";
 
 import { TranscriptSidebar } from "@/components/library/TranscriptSidebar";
 import { formatDuration } from "@/lib/format";
 import type { TranscriptSearchMatch } from "@/lib/transcript/transcriptSearchExport";
 import type { RecordingWord, TranscriptDiagnostics } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "2rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    height: "min(72vh, 44rem)",
+    minHeight: "22rem",
+    padding: "1.25rem",
+    "@media (min-width: 768px)": { paddingInline: "1.5rem" },
+  },
+  toolbar: { display: "flex", flexDirection: "column", gap: "0.75rem", paddingBottom: "1rem" },
+  toolbarRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+    "@media (min-width: 1280px)": { alignItems: "center", flexDirection: "row" },
+  },
+  search: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "9999px",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
+    display: "flex",
+    flex: 1,
+    fontSize: "0.875rem",
+    gap: "0.5rem",
+    lineHeight: "1.25rem",
+    minWidth: 0,
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  searchIcon: { color: tokens.textSoft, height: "1rem", width: "1rem" },
+  searchInput: {
+    backgroundColor: "transparent",
+    color: { default: tokens.text, ":disabled": tokens.textSoft },
+    cursor: { default: "text", ":disabled": "not-allowed" },
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    width: "100%",
+    "::placeholder": { color: tokens.textSoft },
+    ":focus": { outline: "none" },
+  },
+  toolbarActions: {
+    alignItems: "center",
+    columnGap: "1rem",
+    display: "flex",
+    flexWrap: "wrap",
+    rowGap: "0.5rem",
+  },
+  textButton: {
+    alignItems: "center",
+    backgroundColor: "transparent",
+    color: { default: tokens.textMuted, ":hover": tokens.text },
+    display: "flex",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    gap: "0.375rem",
+    lineHeight: "1rem",
+    minHeight: "2.5rem",
+    paddingInline: 0,
+    transitionDuration: "150ms",
+    transitionProperty: "color, opacity",
+    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
+  },
+  smallIcon: { height: "0.875rem", width: "0.875rem" },
+  matchNavigation: { alignItems: "center", display: "flex", gap: "0.25rem" },
+  navigationButton: {
+    alignItems: "center",
+    backgroundColor: "transparent",
+    color: { default: tokens.textMuted, ":hover": tokens.text },
+    display: "flex",
+    height: "2rem",
+    justifyContent: "center",
+    transitionDuration: "150ms",
+    transitionProperty: "color, opacity, transform",
+    width: "2rem",
+    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
+  },
+  previousButton: { ":hover": { transform: "translateY(-0.125rem)" } },
+  nextButton: { ":hover": { transform: "translateY(0.125rem)" } },
+  searchStatus: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    gap: "0.5rem",
+    lineHeight: "1rem",
+  },
+  truncated: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  hint: { color: tokens.textSoft, fontSize: "0.75rem", lineHeight: "1rem" },
+  emptyContent: {
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    minHeight: 0,
+    paddingTop: "1rem",
+  },
+  warning: {
+    backgroundColor: tokens.warningSurface,
+    borderRadius: "1.25rem",
+    boxShadow: `0 0 0 1px ${tokens.warningBorder}`,
+    color: tokens.warningText,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginBottom: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  textarea: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "1.5rem",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
+    color: tokens.text,
+    flex: 1,
+    fontSize: "0.875rem",
+    lineHeight: "1.75rem",
+    minHeight: "16rem",
+    padding: "1rem",
+    resize: "none",
+    "::placeholder": { color: tokens.textSoft },
+    ":focus": { outline: "none" },
+  },
+  emptyActions: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    justifyContent: "space-between",
+    marginTop: "1rem",
+    paddingTop: "0.5rem",
+  },
+  transcribeButton: {
+    backgroundColor: "transparent",
+    color: { default: tokens.textMuted, ":hover": tokens.text },
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: 0,
+    transitionDuration: "150ms",
+    transitionProperty: "color, opacity",
+    ":disabled": { opacity: 0.5 },
+  },
+  saveButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.textStrong,
+      ":hover": `color-mix(in srgb, ${tokens.textStrong} 86%, ${tokens.surface})`,
+    },
+    borderRadius: "9999px",
+    color: tokens.surface,
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.375rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.625rem",
+    paddingInline: "1rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color, transform, box-shadow, opacity",
+    ":hover": { boxShadow: tokens.shadowMedium },
+    ":disabled": { opacity: 0.5 },
+  },
+  transcriptContent: { flex: 1, minHeight: 0, paddingTop: "1rem" },
+  transcriptSurface: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "1.5rem",
+    boxShadow: `0 0 0 1px ${tokens.borderSoft}`,
+    height: "100%",
+    minHeight: 0,
+    overflow: "hidden",
+  },
+});
 
 interface TranscriptSectionProps {
   showTranscript: boolean;
@@ -75,69 +256,69 @@ export const TranscriptSection = ({
   return (
     <section
       data-surface="transcript-detail-panel"
-      className="memora-surface-glow flex h-[min(72vh,44rem)] min-h-[22rem] flex-col rounded-[2rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-5 py-5 md:px-6"
+      className={`memora-surface-glow ${stylex.props(styles.panel).className ?? ""}`}
     >
-      <div className="space-y-3 pb-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <label className="memora-surface-glow flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[var(--color-memora-surface-soft)] px-4 py-3 text-sm ring-1 ring-[var(--color-memora-border-soft)]">
-            <MagnifyingGlassIcon className="size-4 text-[var(--color-memora-text-soft)]" />
+      <div {...stylex.props(styles.toolbar)}>
+        <div {...stylex.props(styles.toolbarRow)}>
+          <label className={`memora-surface-glow ${stylex.props(styles.search).className ?? ""}`}>
+            <MagnifyingGlassIcon {...stylex.props(styles.searchIcon)} />
             <input
               value={searchQuery}
               onChange={(event) => onSearchQueryChange(event.target.value)}
               placeholder="Search transcript..."
               disabled={!canSearch}
-              className="w-full bg-transparent text-sm text-[var(--color-memora-text)] placeholder:text-[var(--color-memora-text-soft)] focus:outline-none disabled:cursor-not-allowed disabled:text-[var(--color-memora-text-soft)]"
+              {...stylex.props(styles.searchInput)}
             />
           </label>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div {...stylex.props(styles.toolbarActions)}>
             <Button
               onClick={onExportTxt}
               disabled={!hasSearchableTranscript}
-              className="memora-interactive flex min-h-10 items-center gap-1.5 px-0 text-xs font-medium text-[var(--color-memora-text-muted)] transition-colors hover:text-[var(--color-memora-text)] disabled:cursor-not-allowed disabled:opacity-40"
+              className={`memora-interactive ${stylex.props(styles.textButton).className ?? ""}`}
             >
-              <DownloadSimpleIcon className="size-3.5" />
+              <DownloadSimpleIcon {...stylex.props(styles.smallIcon)} />
               TXT
             </Button>
             <Button
               onClick={onExportSrt}
               disabled={!canExportSrt}
               title={canExportSrt ? "Export SRT" : "SRT export needs word-level timestamps"}
-              className="memora-interactive flex min-h-10 items-center gap-1.5 px-0 text-xs font-medium text-[var(--color-memora-text-muted)] transition-colors hover:text-[var(--color-memora-text)] disabled:cursor-not-allowed disabled:opacity-40"
+              className={`memora-interactive ${stylex.props(styles.textButton).className ?? ""}`}
             >
-              <DownloadSimpleIcon className="size-3.5" />
+              <DownloadSimpleIcon {...stylex.props(styles.smallIcon)} />
               SRT
             </Button>
-            <div className="flex items-center gap-1">
+            <div {...stylex.props(styles.matchNavigation)}>
               <Button
                 onClick={() => onJumpToMatch(activeMatchIndex - 1)}
                 disabled={searchMatches.length === 0}
-                className="memora-interactive flex size-8 items-center justify-center text-[var(--color-memora-text-muted)] transition-colors hover:-translate-y-0.5 hover:text-[var(--color-memora-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                className={`memora-interactive ${stylex.props(styles.navigationButton, styles.previousButton).className ?? ""}`}
                 title="Previous match"
               >
-                <CaretUpIcon className="size-3.5" />
+                <CaretUpIcon {...stylex.props(styles.smallIcon)} />
               </Button>
               <Button
                 onClick={() => onJumpToMatch(activeMatchIndex + 1)}
                 disabled={searchMatches.length === 0}
-                className="memora-interactive flex size-8 items-center justify-center text-[var(--color-memora-text-muted)] transition-colors hover:translate-y-0.5 hover:text-[var(--color-memora-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                className={`memora-interactive ${stylex.props(styles.navigationButton, styles.nextButton).className ?? ""}`}
                 title="Next match"
               >
-                <CaretDownIcon className="size-3.5" />
+                <CaretDownIcon {...stylex.props(styles.smallIcon)} />
               </Button>
             </div>
           </div>
         </div>
 
         {searchQuery.trim().length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-memora-text-muted)]">
+          <div {...stylex.props(styles.searchStatus)}>
             <span>
               {searchMatches.length === 0
                 ? "No matches"
                 : `${activeMatchIndex + 1}/${searchMatches.length} matches`}
             </span>
             {searchMatches.length > 0 ? (
-              <span className="truncate">
+              <span {...stylex.props(styles.truncated)}>
                 {searchMatches[activeMatchIndex]?.startSec != null
                   ? formatDuration(searchMatches[activeMatchIndex].startSec ?? 0)
                   : "Text match"}
@@ -147,16 +328,14 @@ export const TranscriptSection = ({
         ) : null}
 
         {!canExportSrt && hasTranscript ? (
-          <p className="text-xs text-[var(--color-memora-text-soft)]">
-            SRT export needs word-level timestamps.
-          </p>
+          <p {...stylex.props(styles.hint)}>SRT export needs word-level timestamps.</p>
         ) : null}
       </div>
 
       {!hasSearchableTranscript && !isTranscribing ? (
-        <div className="flex min-h-0 flex-1 flex-col pt-4">
+        <div {...stylex.props(styles.emptyContent)}>
           {transcriptDiagnostics?.dropped ? (
-            <div className="mb-4 rounded-[1.25rem] bg-[var(--color-memora-warning-surface)] px-4 py-3 text-sm text-[var(--color-memora-warning-text)] ring-1 ring-[var(--color-memora-warning-border)]">
+            <div {...stylex.props(styles.warning)}>
               The last auto-transcription was filtered. Retry it or save a manual draft.
             </div>
           ) : null}
@@ -165,30 +344,32 @@ export const TranscriptSection = ({
             value={manualTranscript}
             onChange={(event) => onManualTranscriptChange(event.target.value)}
             placeholder="Type or paste your transcript here..."
-            className="memora-surface-glow min-h-[16rem] flex-1 resize-none rounded-[1.5rem] bg-[var(--color-memora-surface-soft)] px-4 py-4 text-sm leading-7 text-[var(--color-memora-text)] placeholder:text-[var(--color-memora-text-soft)] ring-1 ring-[var(--color-memora-border-soft)] focus:outline-none"
+            className={`memora-surface-glow ${stylex.props(styles.textarea).className ?? ""}`}
           />
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 pt-2">
+          <div {...stylex.props(styles.emptyActions)}>
             <Button
               onClick={onTranscriptToggle}
               disabled={isTranscribing}
-              className="memora-interactive px-0 py-2 text-sm font-medium text-[var(--color-memora-text-muted)] transition-colors hover:text-[var(--color-memora-text)] disabled:opacity-50"
+              className={`memora-interactive ${stylex.props(styles.transcribeButton).className ?? ""}`}
             >
               {transcriptDiagnostics ? "Retry auto transcribe" : "Auto transcribe"}
             </Button>
             <Button
               onClick={onSaveManualTranscript}
               disabled={!manualTranscript.trim() || isSavingManual}
-              className="memora-interactive flex items-center gap-1.5 rounded-full bg-[var(--color-memora-text-strong)] px-4 py-2.5 text-sm font-medium text-[var(--color-memora-surface)] transition-[background-color,transform,box-shadow] hover:bg-[#2f2d27] hover:shadow-[0_10px_24px_-18px_rgba(34,33,29,0.95)] disabled:opacity-50"
+              className={`memora-interactive ${stylex.props(styles.saveButton).className ?? ""}`}
             >
-              <FloppyDiskIcon className="size-3.5" />
+              <FloppyDiskIcon {...stylex.props(styles.smallIcon)} />
               {isSavingManual ? "Saving..." : "Save transcript"}
             </Button>
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 pt-4">
-          <div className="memora-surface-glow h-full min-h-0 overflow-hidden rounded-[1.5rem] bg-[var(--color-memora-surface-soft)] ring-1 ring-[var(--color-memora-border-soft)]">
+        <div {...stylex.props(styles.transcriptContent)}>
+          <div
+            className={`memora-surface-glow ${stylex.props(styles.transcriptSurface).className ?? ""}`}
+          >
             <TranscriptSidebar
               words={transcriptWords}
               text={transcriptText}

@@ -1,6 +1,8 @@
 import type { SkillStore } from "@memora/ai-extension-skills";
 import { Allow, parse as parsePartialJson } from "partial-json";
 
+import { DATA_SOURCE_NAMES, type DataSourceName } from "@/livestore/widget";
+
 export const SHOW_WIDGET_TOOL_NAME = "show_widget";
 export const SHOW_WIDGET_SKILL_NAME = "show-widget-skills";
 export const SHOW_WIDGET_README_PATH = "README.md";
@@ -37,6 +39,12 @@ export interface ShowWidgetArguments {
   title: string;
   loading_messages: string[];
   widget_code: string;
+  data_source?: DataSourceName;
+  data_source_params?: Record<string, unknown>;
+  // File names the widget intends to write with writeData(name, content) (see ADR 0008). Carried
+  // through to the save dialog and, on save, into widget.json — writes to any other name are
+  // refused by the host once saved.
+  data_files?: string[];
 }
 
 export type ChatWidgetPhase = "streaming" | "ready" | "error";
@@ -48,6 +56,9 @@ export interface ChatWidget {
   widgetCode: string;
   phase: ChatWidgetPhase;
   errorMessage?: string;
+  dataSourceName?: DataSourceName;
+  dataSourceParams?: Record<string, unknown>;
+  dataFiles?: string[];
 }
 
 export interface ShowWidgetSkillTurnState {
@@ -103,6 +114,17 @@ const toStringArray = (value: unknown): string[] => {
     .filter(Boolean);
 };
 
+const isDataSourceName = (value: unknown): value is DataSourceName => {
+  return typeof value === "string" && (DATA_SOURCE_NAMES as readonly string[]).includes(value);
+};
+
+const toParamsRecord = (value: unknown): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+};
+
 export const sanitizeShowWidgetArguments = (
   value: Partial<Record<keyof ShowWidgetArguments, unknown>>,
 ): Partial<ShowWidgetArguments> => {
@@ -122,6 +144,19 @@ export const sanitizeShowWidgetArguments = (
 
   if (typeof value.widget_code === "string") {
     result.widget_code = value.widget_code;
+  }
+
+  if (isDataSourceName(value.data_source)) {
+    result.data_source = value.data_source;
+  }
+
+  const paramsRecord = toParamsRecord(value.data_source_params);
+  if (paramsRecord) {
+    result.data_source_params = paramsRecord;
+  }
+
+  if (value.data_files !== undefined) {
+    result.data_files = toStringArray(value.data_files);
   }
 
   return result;
@@ -164,6 +199,11 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     typeof candidate.errorMessage === "string" && candidate.errorMessage.trim()
       ? candidate.errorMessage.trim()
       : undefined;
+  const dataSourceName = isDataSourceName(candidate.dataSourceName)
+    ? candidate.dataSourceName
+    : undefined;
+  const dataSourceParams = toParamsRecord(candidate.dataSourceParams);
+  const dataFiles = toStringArray(candidate.dataFiles);
 
   if (
     !toolCallId ||
@@ -179,6 +219,9 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     widgetCode,
     phase: candidate.phase,
     ...(errorMessage ? { errorMessage } : {}),
+    ...(dataSourceName ? { dataSourceName } : {}),
+    ...(dataSourceParams ? { dataSourceParams } : {}),
+    ...(dataFiles.length > 0 ? { dataFiles } : {}),
   };
 };
 

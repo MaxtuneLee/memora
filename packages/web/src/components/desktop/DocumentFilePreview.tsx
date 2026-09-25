@@ -1,6 +1,39 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { getSupportedDocumentKind } from "@/lib/playground/documentParsing";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  docx: {
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: 8,
+    height: "100%",
+    overflow: "auto",
+    padding: 12,
+  },
+  docxBody: { minHeight: "100%" },
+  message: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: 14,
+    height: "100%",
+    justifyContent: "center",
+  },
+  error: {
+    alignItems: "center",
+    color: tokens.dangerText,
+    display: "flex",
+    fontSize: 14,
+    height: "100%",
+    justifyContent: "center",
+    paddingInline: 24,
+    textAlign: "center",
+  },
+  // PDF/DOCX pages render as literal paper, like media artwork; kept white in both themes.
+  pdf: { backgroundColor: "#fff", borderRadius: 8, height: "100%", width: "100%" },
+});
 
 const PptxDocumentPreview = lazy(() =>
   import("./PptxDocumentPreview").then(({ PptxDocumentPreview: Preview }) => ({
@@ -47,25 +80,19 @@ function DocxPreview({ file }: { file: File }) {
 
   if (error) return <PreviewError message={`DOCX preview could not be rendered: ${error}`} />;
   return (
-    <div className="h-full overflow-auto rounded-lg bg-zinc-100 p-3">
+    <div {...stylex.props(styles.docx)}>
       <div ref={stylesRef} />
-      <div ref={bodyRef} className="min-h-full" />
+      <div ref={bodyRef} {...stylex.props(styles.docxBody)} />
     </div>
   );
 }
 
 function PreviewMessage({ children }: { children: string }) {
-  return (
-    <div className="flex h-full items-center justify-center text-sm text-zinc-500">{children}</div>
-  );
+  return <div {...stylex.props(styles.message)}>{children}</div>;
 }
 
 function PreviewError({ message }: { message: string }) {
-  return (
-    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">
-      {message}
-    </div>
-  );
+  return <div {...stylex.props(styles.error)}>{message}</div>;
 }
 
 export function DocumentFilePreview({ file }: { file: File }) {
@@ -86,13 +113,7 @@ export function DocumentFilePreview({ file }: { file: File }) {
 
   if (error) return <PreviewError message={error} />;
   if (kind === "pdf" && pdfUrl) {
-    return (
-      <iframe
-        title={`${file.name} preview`}
-        src={pdfUrl}
-        className="h-full w-full rounded-lg bg-white"
-      />
-    );
+    return <iframe title={`${file.name} preview`} src={pdfUrl} {...stylex.props(styles.pdf)} />;
   }
   if (kind === "docx") return <DocxPreview file={file} />;
   if (kind === "pptx") {

@@ -1,3 +1,4 @@
+import { command as agentCommand } from "@/lib/agent-runtime/client";
 import {
   useCallback,
   useEffect,
@@ -13,7 +14,6 @@ import { useLocation, useNavigate } from "react-router";
 import type { ChatMessage as AgentChatMessage } from "@/hooks/chat/useAgent";
 import {
   createChatSession,
-  deleteChatSession,
   listChatSessions,
   loadChatSession,
   type ChatSessionRecord,
@@ -24,9 +24,7 @@ import { buildSessionSignature, toAgentMessages, toSessionSummary } from "./help
 
 interface UseChatSessionsParams {
   getIsPreparingTurn: () => boolean;
-  getIsStreaming: () => boolean;
   inputRef: RefObject<HTMLTextAreaElement | null>;
-  onAbortStreaming: () => void;
 }
 
 interface UseChatSessionsResult {
@@ -52,9 +50,7 @@ interface UseChatSessionsResult {
 
 export const useChatSessions = ({
   getIsPreparingTurn,
-  getIsStreaming,
   inputRef,
-  onAbortStreaming,
 }: UseChatSessionsParams): UseChatSessionsResult => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -194,12 +190,8 @@ export const useChatSessions = ({
 
   const handleCreateSession = useCallback(async () => {
     const isPreparingTurn = getIsPreparingTurn();
-    const isStreaming = getIsStreaming();
     if (!sessionsReady || isPreparingTurn) {
       return;
-    }
-    if (isStreaming) {
-      onAbortStreaming();
     }
 
     const created = await createChatSession();
@@ -207,14 +199,7 @@ export const useChatSessions = ({
     setSessions((prev) => [summary, ...prev.filter((session) => session.id !== summary.id)]);
     applyLoadedSession(created.id, [], []);
     replaceChatLocation(created.id);
-  }, [
-    applyLoadedSession,
-    getIsPreparingTurn,
-    getIsStreaming,
-    onAbortStreaming,
-    replaceChatLocation,
-    sessionsReady,
-  ]);
+  }, [applyLoadedSession, getIsPreparingTurn, replaceChatLocation, sessionsReady]);
 
   const updatePersistedSessionSummary = useCallback((record: ChatSessionRecord) => {
     const summary = toSessionSummary(record);
@@ -227,15 +212,11 @@ export const useChatSessions = ({
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       const isPreparingTurn = getIsPreparingTurn();
-      const isStreaming = getIsStreaming();
       if (!sessionsReady || isPreparingTurn) {
         return;
       }
       if (!sessionId || sessionId === activeSessionId) {
         return;
-      }
-      if (isStreaming) {
-        onAbortStreaming();
       }
 
       const session = await loadChatSession(sessionId);
@@ -248,15 +229,7 @@ export const useChatSessions = ({
       applyLoadedSession(session.id, nextMessages, nextReferences);
       replaceChatLocation(session.id);
     },
-    [
-      activeSessionId,
-      applyLoadedSession,
-      getIsPreparingTurn,
-      getIsStreaming,
-      onAbortStreaming,
-      replaceChatLocation,
-      sessionsReady,
-    ],
+    [activeSessionId, applyLoadedSession, getIsPreparingTurn, replaceChatLocation, sessionsReady],
   );
 
   const handlePromptDeleteSession = useCallback(
@@ -283,7 +256,6 @@ export const useChatSessions = ({
   const handleConfirmDeleteSession = useCallback(
     async (sessionId: string) => {
       const isPreparingTurn = getIsPreparingTurn();
-      const isStreaming = getIsStreaming();
       if (!sessionsReady || isPreparingTurn) {
         return;
       }
@@ -293,16 +265,12 @@ export const useChatSessions = ({
         return;
       }
 
-      if (isStreaming) {
-        onAbortStreaming();
-      }
-
       setDeletingSessionId(sessionId);
       setPendingDeleteSessionId(null);
       setSessionsError(null);
 
       try {
-        await deleteChatSession(sessionId);
+        await agentCommand({ type: "delete", sessionId });
         persistedSignaturesRef.current.delete(sessionId);
 
         const remaining = sessions.filter((session) => session.id !== sessionId);
@@ -337,8 +305,6 @@ export const useChatSessions = ({
       activeSessionId,
       applyLoadedSession,
       getIsPreparingTurn,
-      getIsStreaming,
-      onAbortStreaming,
       replaceChatLocation,
       sessions,
       sessionsReady,

@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
 
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { resolveThemeColors } from "@/hooks/theme/useThemeColorVars";
+import { tokens } from "../../styles/stylex.stylex";
+
 interface AudioVisualizerProps {
   stream: MediaStream | null;
   className?: string;
@@ -11,6 +15,14 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const previousHeightsRef = useRef<number[]>([]);
+  // Recording must not restart when the theme changes, so the bar color lives in a ref this
+  // effect reads each frame instead of a prop the setup effect below depends on.
+  const barColorRef = useRef("");
+  const resolvedTheme = useResolvedTheme();
+
+  useEffect(() => {
+    barColorRef.current = resolveThemeColors({ bar: tokens.textSoft }).bar;
+  }, [resolvedTheme]);
 
   useEffect(() => {
     if (!stream) return;
@@ -93,7 +105,7 @@ export function AudioVisualizer({ stream, className }: AudioVisualizerProps) {
       const maxBin = Math.floor(binCount * 0.9);
       const binRange = Math.max(1, maxBin - minBin);
 
-      ctx.fillStyle = "rgb(161, 161, 170)";
+      ctx.fillStyle = barColorRef.current;
 
       for (let i = 0; i < barCount; i++) {
         const normalizedIndex = i / (barCount - 1 || 1);

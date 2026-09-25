@@ -1,3 +1,19 @@
+## Destination — decide before the module
+
+Two different things get built here, and they have very different size budgets:
+
+- **Chat widget** — renders inline in the conversation at full column width and auto-fits its content height. A full panel fits.
+- **Home Grid widget** — the user saves it to their Home Grid, where it lands in a **1 × 1 square of roughly 280–336px**. A chat-sized panel gets cropped to that square.
+
+If the request does not make the destination obvious, **ask one short question before building**: "Do you want this on the Home Grid, or just here in the conversation?" Then build.
+
+- Home Grid: "save this", "add to my home", "a widget for…", "keep this around" — anything phrased as a thing they will come back to.
+- Chat: "show me", "visualize this", "explain with a chart" — anything answering the question being asked right now.
+
+**A request that sounds like a dashboard is not automatically a full-size panel.** "Storage dashboard", "usage dashboard", "progress dashboard" name the subject, not the canvas. Asking which one it is costs one line; guessing wrong costs the whole layout.
+
+When it is a Home Grid widget, size is the first constraint, not the last. Read "Home Grid sizing" below, lay out inside the square, and only then decide what earns a place in it.
+
 ## Modules
 
 Call read_me again with the modules parameter to load detailed guidance:

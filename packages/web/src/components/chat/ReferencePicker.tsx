@@ -1,5 +1,77 @@
 import { FileTextIcon, FolderSimpleIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
-import { cn } from "@/lib/cn";
+import * as stylex from "@stylexjs/stylex";
+
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: {
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    boxShadow: tokens.shadowSmall,
+    marginBottom: 8,
+    overflow: "hidden",
+    position: "relative",
+    zIndex: 10,
+  },
+  header: {
+    alignItems: "center",
+    borderBottom: `1px solid ${tokens.border}`,
+    display: "flex",
+    gap: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  icon: { color: tokens.textSoft, flexShrink: 0, height: 16, width: 16 },
+  iconSelected: { color: tokens.textInverse },
+  input: {
+    backgroundColor: "transparent",
+    color: tokens.text,
+    flex: 1,
+    fontSize: 14,
+    height: 28,
+    minWidth: 0,
+    outline: "none",
+    "::placeholder": { color: tokens.textSoft },
+  },
+  close: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: tokens.textSoft,
+    display: "inline-flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "all 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
+  },
+  listArea: { maxHeight: 256, overflowY: "auto", padding: 6 },
+  empty: {
+    borderRadius: 8,
+    color: tokens.textMuted,
+    fontSize: 12,
+    paddingBlock: 24,
+    paddingInline: 12,
+    textAlign: "center",
+  },
+  list: { display: "flex", flexDirection: "column", gap: 4 },
+  option: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: tokens.textStrong,
+    display: "flex",
+    fontSize: 14,
+    gap: 8,
+    paddingBlock: 8,
+    paddingInline: 10,
+    textAlign: "left",
+    transition: "all 150ms",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.hover },
+  },
+  optionSelected: { backgroundColor: tokens.primaryBackground, color: tokens.primaryText },
+  name: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+});
 
 export interface ReferencePickerOption {
   type: "file" | "folder";
@@ -30,57 +102,50 @@ export const ReferencePicker = ({
   }
 
   return (
-    <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-sm z-10 relative">
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-3 py-2">
-        <MagnifyingGlassIcon className="size-4 text-zinc-400" />
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
+        <MagnifyingGlassIcon className={stylex.props(styles.icon).className} />
         <input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search files and folders..."
-          className="h-7 min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
+          {...stylex.props(styles.input)}
         />
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex size-7 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+          {...stylex.props(styles.close)}
           aria-label="Close reference picker"
         >
-          <XIcon className="size-4" />
+          <XIcon className={stylex.props(styles.icon).className} />
         </button>
       </div>
-      <div className="max-h-64 overflow-y-auto p-1.5">
+      <div {...stylex.props(styles.listArea)}>
         {options.length === 0 ? (
-          <div className="rounded-lg px-3 py-6 text-center text-xs text-zinc-500">
-            No matching files or folders.
-          </div>
+          <div {...stylex.props(styles.empty)}>No matching files or folders.</div>
         ) : (
-          <div className="space-y-1">
+          <div {...stylex.props(styles.list)}>
             {options.map((option) => (
               <button
                 key={`${option.type}:${option.id}`}
                 type="button"
                 onClick={() => onSelect(option)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition",
-                  option.isSelected ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100",
-                )}
+                {...stylex.props(styles.option, option.isSelected && styles.optionSelected)}
               >
                 {option.type === "folder" ? (
                   <FolderSimpleIcon
-                    className={cn(
-                      "size-4 shrink-0",
-                      option.isSelected ? "text-zinc-200" : "text-zinc-500",
-                    )}
+                    className={
+                      stylex.props(styles.icon, option.isSelected && styles.iconSelected).className
+                    }
                   />
                 ) : (
                   <FileTextIcon
-                    className={cn(
-                      "size-4 shrink-0",
-                      option.isSelected ? "text-zinc-200" : "text-zinc-500",
-                    )}
+                    className={
+                      stylex.props(styles.icon, option.isSelected && styles.iconSelected).className
+                    }
                   />
                 )}
-                <span className="truncate">{option.name}</span>
+                <span {...stylex.props(styles.name)}>{option.name}</span>
               </button>
             ))}
           </div>

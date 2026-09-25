@@ -1,5 +1,7 @@
 import { Tooltip } from "@base-ui/react/tooltip";
+import * as stylex from "@stylexjs/stylex";
 
+import { tokens } from "../../styles/stylex.stylex";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import type { ChatMessage } from "@/hooks/chat/useAgent";
 import type { ModelInfo } from "@/types/settingsDialog";
@@ -18,6 +20,34 @@ interface UsageSummary {
 
 const MESSAGE_FRAMING_TOKENS = 6;
 const IMAGE_ATTACHMENT_TOKENS = 24;
+
+const styles = stylex.create({
+  trigger: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: tokens.olive,
+    display: "inline-flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "background-color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover },
+    ":focus-visible": { outline: "none", boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
+  },
+  chart: { height: 20, transform: "rotate(-90deg)", width: 20 },
+  backgroundRing: { opacity: 0.2 },
+  positioner: { zIndex: 30 },
+  popup: {
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textMuted,
+    fontSize: 12,
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+});
 
 const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
@@ -135,9 +165,9 @@ export function ChatContextUsage({
           <button
             type="button"
             aria-label={`Context usage ${usagePercent ?? primaryLabel}`}
-            className="inline-flex size-7 items-center justify-center rounded-full text-memora-olive transition-colors hover:bg-memora-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-memora-olive-soft"
+            {...stylex.props(styles.trigger)}
           >
-            <svg viewBox="0 0 36 36" className="size-5 -rotate-90" aria-hidden="true">
+            <svg viewBox="0 0 36 36" {...stylex.props(styles.chart)} aria-hidden="true">
               <circle
                 cx="18"
                 cy="18"
@@ -145,7 +175,7 @@ export function ChatContextUsage({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="3"
-                className="opacity-20"
+                className={stylex.props(styles.backgroundRing).className}
               />
               <circle
                 cx="18"
@@ -163,8 +193,13 @@ export function ChatContextUsage({
         }
       />
       <Tooltip.Portal>
-        <Tooltip.Positioner side="top" align="end" sideOffset={10} className="z-30">
-          <Tooltip.Popup className="rounded-xl border border-memora-border bg-memora-surface px-3 py-2 text-xs text-memora-text-muted shadow-sm-soft">
+        <Tooltip.Positioner
+          side="top"
+          align="end"
+          sideOffset={10}
+          className={stylex.props(styles.positioner).className}
+        >
+          <Tooltip.Popup className={stylex.props(styles.popup).className}>
             {usageDescription}
           </Tooltip.Popup>
         </Tooltip.Positioner>

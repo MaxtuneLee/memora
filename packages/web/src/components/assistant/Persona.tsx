@@ -1,13 +1,13 @@
 import { memo } from "react";
 
-import MemoraMascot, { type MemoraMascotState } from "./MemoraMascot";
+import MemoraMascot, { type MascotStyle, type MemoraMascotState } from "./MemoraMascot";
 
 export type PersonaState = MemoraMascotState;
 export type PersonaVariant = "obsidian" | "mana" | "opal" | "halo" | "glint" | "command";
 
 type PersonaProps = {
   state: PersonaState;
-  className?: string;
+  style?: MascotStyle;
   variant?: PersonaVariant;
   onLoad?: () => void;
   onLoadError?: (error: unknown) => void;
@@ -17,6 +17,6 @@ type PersonaProps = {
   onStop?: () => void;
 };
 
-export const Persona = memo(({ state = "idle", className }: PersonaProps) => {
-  return <MemoraMascot state={state} className={className} />;
+export const Persona = memo(({ state = "idle", style }: PersonaProps) => {
+  return <MemoraMascot state={state} style={style} />;
 });

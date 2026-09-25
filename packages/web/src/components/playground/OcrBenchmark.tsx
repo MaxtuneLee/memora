@@ -6,9 +6,9 @@ import {
   UploadSimpleIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import {
   OcrBenchmarkSession,
@@ -18,8 +18,433 @@ import {
   type OcrEngineBenchmarkResult,
   type SuccessfulOcrBenchmarkResult,
 } from "@/lib/playground/ocrBenchmark";
+import { tokens } from "../../styles/stylex.stylex";
 
 const REPEAT_OPTIONS = [1, 3, 5] as const;
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: "1.75rem" },
+  upperGrid: {
+    display: "grid",
+    gap: "1.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 1280px)": "minmax(300px,0.78fr) minmax(480px,1.22fr)",
+    },
+  },
+  panel: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "28px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 3px rgb(0 0 0 / 0.08)",
+    overflow: "hidden",
+  },
+  paddedPanel: {
+    overflow: "visible",
+    paddingBlock: "1.5rem",
+    paddingInline: { default: "1.5rem", "@media (min-width: 640px)": "1.75rem" },
+  },
+  dropzone: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: {
+      default: tokens.borderSoft,
+      ":hover": tokens.oliveSoft,
+    },
+    borderRadius: "1.5rem",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    margin: "1.25rem",
+    minHeight: "18rem",
+    outline: "none",
+    overflow: "hidden",
+    position: "relative",
+    transition: "border-color 150ms",
+    ":focus-within": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
+  },
+  dropzoneSelected: { backgroundColor: tokens.surfaceMuted, borderStyle: "solid" },
+  srOnly: {
+    clip: "rect(0,0,0,0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+  previewImage: { maxHeight: "410px", objectFit: "contain", padding: "1rem", width: "100%" },
+  emptyDropzone: { maxWidth: "20rem", paddingInline: "2rem", textAlign: "center" },
+  emptyIconFrame: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "1rem",
+    color: tokens.textMuted,
+    display: "flex",
+    height: "2.75rem",
+    justifyContent: "center",
+    marginInline: "auto",
+    width: "2.75rem",
+  },
+  mediumIcon: { height: "1.25rem", width: "1.25rem" },
+  emptyTitle: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    marginTop: "1rem",
+  },
+  emptyText: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  fileFooter: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    paddingBottom: "1.5rem",
+    paddingInline: "1.5rem",
+  },
+  fileCopy: { minWidth: 0 },
+  fileName: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  fileMeta: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.125rem",
+  },
+  pillButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hover,
+    },
+    borderColor: tokens.border,
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    outline: "none",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.875rem",
+    transition: "background-color 150ms",
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
+    ":disabled": { opacity: 0.45 },
+  },
+  icon: { height: "1rem", width: "1rem" },
+  configHeader: {
+    display: "flex",
+    flexDirection: { default: "column", "@media (min-width: 640px)": "row" },
+    gap: "1.25rem",
+    justifyContent: "space-between",
+    alignItems: { default: "stretch", "@media (min-width: 640px)": "flex-start" },
+  },
+  title: {
+    color: tokens.textStrong,
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "2rem",
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+    maxWidth: "36rem",
+  },
+  resetButton: {
+    alignItems: "center",
+    borderRadius: "9999px",
+    color: { default: tokens.textSoft, ":hover": tokens.text },
+    display: "inline-flex",
+    flexShrink: 0,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    outline: "none",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    transition: "background-color 150ms, color 150ms",
+    ":hover": { backgroundColor: tokens.hover },
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
+    ":disabled": { opacity: 0.45 },
+  },
+  fields: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "grid",
+    gap: "1.25rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(2,minmax(0,1fr))",
+    },
+    marginTop: "2rem",
+    paddingBlock: "1.5rem",
+  },
+  label: { display: "block" },
+  labelText: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    lineHeight: "1rem",
+  },
+  select: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+    fontSize: "0.875rem",
+    marginTop: "0.5rem",
+    outline: "none",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.75rem",
+    width: "100%",
+    ":focus": {
+      borderColor: tokens.oliveSoft,
+      boxShadow: `0 0 0 2px color-mix(in srgb, ${tokens.oliveSoft} 30%, transparent)`,
+    },
+    ":disabled": { opacity: 0.5 },
+  },
+  warning: {
+    backgroundColor: tokens.warningSurface,
+    borderColor: tokens.warningBorder,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.warningText,
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    marginTop: "1.25rem",
+    padding: "1rem",
+  },
+  warningIcon: { flexShrink: 0, height: "1rem", marginTop: "0.125rem", width: "1rem" },
+  progress: { marginTop: "1.5rem" },
+  progressHeader: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "1rem",
+    justifyContent: "space-between",
+    lineHeight: "1rem",
+  },
+  progressLabel: { color: tokens.text, fontWeight: 600 },
+  progressPhase: { color: tokens.textSoft },
+  progressTrack: {
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "9999px",
+    height: "0.375rem",
+    marginTop: "0.75rem",
+    overflow: "hidden",
+  },
+  progressBar: {
+    backgroundColor: tokens.olive,
+    borderRadius: "9999px",
+    height: "100%",
+    transition: "width 200ms",
+  },
+  runRow: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
+    marginTop: "1.75rem",
+  },
+  runButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+    borderRadius: "9999px",
+    color: tokens.surface,
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.5rem",
+    outline: "none",
+    paddingBlock: "0.625rem",
+    paddingInline: "1.25rem",
+    ":focus-visible": { outline: `2px solid ${tokens.oliveSoft}`, outlineOffset: 2 },
+    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
+  },
+  privacy: { color: tokens.textSoft, fontSize: "0.75rem", lineHeight: "1.25rem" },
+  resultsHeader: {
+    alignItems: { default: "stretch", "@media (min-width: 640px)": "flex-end" },
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    flexDirection: { default: "column", "@media (min-width: 640px)": "row" },
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    paddingBlock: "1.25rem",
+    paddingInline: "1.5rem",
+  },
+  runMeta: { color: tokens.textSoft, fontSize: "0.75rem", lineHeight: "1rem" },
+  tableScroll: { overflowX: "auto" },
+  table: { borderCollapse: "collapse", minWidth: "660px", width: "100%" },
+  tableHead: { backgroundColor: tokens.surfaceSoft },
+  tableHeader: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    lineHeight: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1.25rem",
+    textAlign: "left",
+  },
+  metricRow: {
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    ":first-child": { borderTopWidth: 0 },
+  },
+  metricLabel: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1.25rem",
+    textAlign: "left",
+    width: "34%",
+  },
+  metricValue: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1.25rem",
+  },
+  outputs: {
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 1024px)": "repeat(2,minmax(0,1fr))",
+    },
+  },
+  output: {
+    minWidth: 0,
+    paddingBlock: "1.25rem",
+    paddingInline: { default: "1.25rem", "@media (min-width: 640px)": "1.5rem" },
+    borderLeftColor: {
+      default: "transparent",
+      "@media (min-width: 1024px)": tokens.border,
+    },
+    borderLeftStyle: "solid",
+    borderLeftWidth: { default: 0, "@media (min-width: 1024px)": 1 },
+    ":first-child": { borderLeftWidth: 0 },
+  },
+  outputHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: "1rem",
+    justifyContent: "space-between",
+  },
+  outputTitle: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+  },
+  outputMeta: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.25rem",
+  },
+  confidence: {
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.border,
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    lineHeight: "1rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+  },
+  outputText: {
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "1rem",
+    color: tokens.text,
+    fontFamily: '"Noto Sans", "Noto Sans SC", sans-serif',
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "1.25rem",
+    minHeight: "10rem",
+    overflow: "auto",
+    padding: "1rem",
+    whiteSpace: "pre-wrap",
+  },
+  details: {
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "grid",
+    fontSize: "0.75rem",
+    gap: "0.5rem 1.25rem",
+    gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+    marginTop: "1rem",
+    paddingTop: "1rem",
+  },
+  detailRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    minWidth: 0,
+  },
+  detailKey: {
+    color: tokens.textSoft,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  detailValue: {
+    color: tokens.textMuted,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  breakWords: { minWidth: 0, overflowWrap: "anywhere" },
+});
 
 const formatMilliseconds = (value: number): string => {
   if (value >= 1000) {
@@ -106,12 +531,10 @@ interface MetricRowProps {
 
 function MetricRow({ label, tesseract, paddle }: MetricRowProps) {
   return (
-    <tr className="border-t border-memora-border first:border-t-0">
-      <th className="w-[34%] px-5 py-3 text-left text-xs font-medium text-memora-text-muted">
-        {label}
-      </th>
-      <td className="px-5 py-3 text-sm font-semibold text-memora-text">{tesseract}</td>
-      <td className="px-5 py-3 text-sm font-semibold text-memora-text">{paddle}</td>
+    <tr {...stylex.props(styles.metricRow)}>
+      <th {...stylex.props(styles.metricLabel)}>{label}</th>
+      <td {...stylex.props(styles.metricValue)}>{tesseract}</td>
+      <td {...stylex.props(styles.metricValue)}>{paddle}</td>
     </tr>
   );
 }
@@ -125,40 +548,40 @@ function EngineOutput({ result, fallbackLabel }: EngineOutputProps) {
   const label = result?.label ?? fallbackLabel;
 
   return (
-    <section className="min-w-0 px-5 py-5 sm:px-6">
-      <div className="flex items-start justify-between gap-4">
+    <section {...stylex.props(styles.output)}>
+      <div {...stylex.props(styles.outputHeader)}>
         <div>
-          <h3 className="text-sm font-semibold text-memora-text">{label}</h3>
-          <p className="mt-1 text-xs text-memora-text-soft">
+          <h3 {...stylex.props(styles.outputTitle)}>{label}</h3>
+          <p {...stylex.props(styles.outputMeta)}>
             {result?.status === "success"
               ? `${result.reusedSession ? "Warm session" : "Cold session"} · ${result.timing.samples.length} sample${result.timing.samples.length === 1 ? "" : "s"}`
               : "Benchmark output"}
           </p>
         </div>
         {result?.status === "success" ? (
-          <span className="rounded-full border border-memora-border bg-memora-surface-muted px-2.5 py-1 text-xs font-semibold text-memora-text-muted">
+          <span {...stylex.props(styles.confidence)}>
             {formatConfidence(result.confidence)} confidence
           </span>
         ) : null}
       </div>
 
       {result?.status === "error" ? (
-        <div className="mt-5 flex gap-3 rounded-2xl border border-memora-warning-border bg-memora-warning-surface p-4 text-sm text-memora-warning-text">
-          <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
-          <p className="min-w-0 break-words">{result.error}</p>
+        <div {...stylex.props(styles.warning)}>
+          <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
+          <p {...stylex.props(styles.breakWords)}>{result.error}</p>
         </div>
       ) : (
-        <pre className="mt-5 min-h-40 overflow-auto whitespace-pre-wrap rounded-2xl bg-memora-surface-muted p-4 font-sans text-sm leading-6 text-memora-text">
+        <pre {...stylex.props(styles.outputText)}>
           {result?.text || "Run the comparison to inspect recognized text."}
         </pre>
       )}
 
       {result?.status === "success" ? (
-        <dl className="mt-4 grid grid-cols-2 gap-x-5 gap-y-2 border-t border-memora-border pt-4 text-xs">
+        <dl {...stylex.props(styles.details)}>
           {Object.entries(result.details).map(([key, value]) => (
-            <div key={key} className="flex min-w-0 items-center justify-between gap-3">
-              <dt className="truncate text-memora-text-soft">{key}</dt>
-              <dd className="truncate font-medium text-memora-text-muted">
+            <div key={key} {...stylex.props(styles.detailRow)}>
+              <dt {...stylex.props(styles.detailKey)}>{key}</dt>
+              <dd {...stylex.props(styles.detailValue)}>
                 {typeof value === "number" && key.endsWith("ms")
                   ? formatMilliseconds(value)
                   : String(value)}
@@ -256,14 +679,14 @@ export default function OcrBenchmark() {
   const paddleResult = getEngineResult(result, "paddle-ocr-v6");
 
   return (
-    <div className="space-y-7">
-      <div className="grid gap-7 xl:grid-cols-[minmax(300px,0.78fr)_minmax(480px,1.22fr)]">
-        <section className="overflow-hidden rounded-[28px] border border-memora-border bg-memora-surface shadow-sm-soft">
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.upperGrid)}>
+        <section {...stylex.props(styles.panel)}>
           <label
-            className={cn(
-              "group relative m-5 flex min-h-72 cursor-pointer items-center justify-center overflow-hidden rounded-3xl border border-dashed border-memora-border-soft bg-memora-surface-soft outline-none transition-colors hover:border-memora-olive-soft focus-within:ring-2 focus-within:ring-memora-olive-soft",
-              previewUrl && "border-solid bg-[#f2eee6]",
-            )}
+            className={
+              stylex.props(styles.dropzone, Boolean(previewUrl) && styles.dropzoneSelected)
+                .className
+            }
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -273,7 +696,7 @@ export default function OcrBenchmark() {
             <input
               type="file"
               accept="image/*"
-              className="sr-only"
+              className={stylex.props(styles.srOnly).className}
               disabled={isRunning}
               onChange={(event) => {
                 selectImage(event.target.files?.[0] ?? null);
@@ -284,27 +707,25 @@ export default function OcrBenchmark() {
               <img
                 src={previewUrl}
                 alt="Selected OCR benchmark input"
-                className="max-h-[410px] w-full object-contain p-4"
+                className={stylex.props(styles.previewImage).className}
               />
             ) : (
-              <div className="max-w-xs px-8 text-center">
-                <span className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-memora-surface-muted text-memora-text-muted">
-                  <ImageSquareIcon className="size-5" />
+              <div {...stylex.props(styles.emptyDropzone)}>
+                <span {...stylex.props(styles.emptyIconFrame)}>
+                  <ImageSquareIcon className={stylex.props(styles.mediumIcon).className} />
                 </span>
-                <p className="mt-4 text-sm font-semibold text-memora-text">Drop an image here</p>
-                <p className="mt-2 text-xs leading-5 text-memora-text-soft">
+                <p {...stylex.props(styles.emptyTitle)}>Drop an image here</p>
+                <p {...stylex.props(styles.emptyText)}>
                   The same browser-local file is passed to both engines.
                 </p>
               </div>
             )}
           </label>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 pb-6">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-memora-text">
-                {image?.name ?? "No image selected"}
-              </p>
-              <p className="mt-0.5 text-xs text-memora-text-soft">
+          <div {...stylex.props(styles.fileFooter)}>
+            <div {...stylex.props(styles.fileCopy)}>
+              <p {...stylex.props(styles.fileName)}>{image?.name ?? "No image selected"}</p>
+              <p {...stylex.props(styles.fileMeta)}>
                 {image ? formatBytes(image.size) : "PNG, JPEG, or WebP"}
               </p>
             </div>
@@ -312,21 +733,19 @@ export default function OcrBenchmark() {
               type="button"
               disabled={isRunning}
               onClick={() => void handleUseSample()}
-              className="inline-flex items-center gap-2 rounded-full border border-memora-border bg-memora-surface px-3.5 py-2 text-xs font-semibold text-memora-text-muted outline-none transition-colors hover:bg-memora-hover focus-visible:ring-2 focus-visible:ring-memora-olive-soft disabled:opacity-45"
+              className={stylex.props(styles.pillButton).className}
             >
-              <UploadSimpleIcon className="size-4" />
+              <UploadSimpleIcon className={stylex.props(styles.icon).className} />
               Use sample
             </Button>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-memora-border bg-memora-surface px-6 py-6 shadow-sm-soft sm:px-7">
-          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+        <section {...stylex.props(styles.panel, styles.paddedPanel)}>
+          <div {...stylex.props(styles.configHeader)}>
             <div>
-              <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-                Compare cold start and inference
-              </h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-memora-text-muted">
+              <h2 {...stylex.props(styles.title)}>Compare cold start and inference</h2>
+              <p {...stylex.props(styles.description)}>
                 Engines run sequentially to avoid resource contention. Sessions stay warm until you
                 reset them.
               </p>
@@ -335,38 +754,36 @@ export default function OcrBenchmark() {
               type="button"
               disabled={isRunning}
               onClick={() => void handleResetEngines()}
-              className="inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-memora-text-soft outline-none transition-colors hover:bg-memora-hover hover:text-memora-text focus-visible:ring-2 focus-visible:ring-memora-olive-soft disabled:opacity-45"
+              className={stylex.props(styles.resetButton).className}
             >
-              <ArrowClockwiseIcon className="size-4" />
+              <ArrowClockwiseIcon className={stylex.props(styles.icon).className} />
               Reset engines
             </Button>
           </div>
 
-          <div className="mt-8 grid gap-5 border-y border-memora-border py-6 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-xs font-semibold text-memora-text-muted">
-                Tesseract languages
-              </span>
+          <div {...stylex.props(styles.fields)}>
+            <label {...stylex.props(styles.label)}>
+              <span {...stylex.props(styles.labelText)}>Tesseract languages</span>
               <select
                 value={language}
                 disabled={isRunning}
                 onChange={(event) => setLanguage(event.target.value as OcrBenchmarkLanguage)}
-                className="mt-2 w-full rounded-xl border border-memora-border bg-memora-surface-soft px-3 py-2.5 text-sm text-memora-text outline-none focus:border-memora-olive-soft focus:ring-2 focus:ring-memora-olive-soft/30 disabled:opacity-50"
+                className={stylex.props(styles.select).className}
               >
                 <option value="eng">English</option>
                 <option value="eng-chi-sim">English + Simplified Chinese</option>
               </select>
             </label>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-memora-text-muted">Warm runs</span>
+            <label {...stylex.props(styles.label)}>
+              <span {...stylex.props(styles.labelText)}>Warm runs</span>
               <select
                 value={repeatCount}
                 disabled={isRunning}
                 onChange={(event) =>
                   setRepeatCount(Number(event.target.value) as (typeof REPEAT_OPTIONS)[number])
                 }
-                className="mt-2 w-full rounded-xl border border-memora-border bg-memora-surface-soft px-3 py-2.5 text-sm text-memora-text outline-none focus:border-memora-olive-soft focus:ring-2 focus:ring-memora-olive-soft/30 disabled:opacity-50"
+                className={stylex.props(styles.select).className}
               >
                 {REPEAT_OPTIONS.map((count) => (
                   <option key={count} value={count}>
@@ -378,23 +795,23 @@ export default function OcrBenchmark() {
           </div>
 
           {pageError ? (
-            <div className="mt-5 flex gap-3 rounded-2xl border border-memora-warning-border bg-memora-warning-surface p-4 text-sm text-memora-warning-text">
-              <WarningCircleIcon className="mt-0.5 size-4 shrink-0" />
+            <div {...stylex.props(styles.warning)}>
+              <WarningCircleIcon className={stylex.props(styles.warningIcon).className} />
               <p>{pageError}</p>
             </div>
           ) : null}
 
           {isRunning && progress ? (
-            <div className="mt-6" aria-live="polite">
-              <div className="flex items-center justify-between gap-4 text-xs">
-                <span className="font-semibold text-memora-text">{progress.label}</span>
-                <span className="text-memora-text-soft">
+            <div {...stylex.props(styles.progress)} aria-live="polite">
+              <div {...stylex.props(styles.progressHeader)}>
+                <span {...stylex.props(styles.progressLabel)}>{progress.label}</span>
+                <span {...stylex.props(styles.progressPhase)}>
                   {progress.phase === "initializing" ? "Initializing" : "Running"}
                 </span>
               </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-memora-surface-muted">
+              <div {...stylex.props(styles.progressTrack)}>
                 <div
-                  className="h-full rounded-full bg-memora-olive transition-[width] duration-200"
+                  {...stylex.props(styles.progressBar)}
                   style={{
                     width: `${Math.max(4, Math.min(100, (progress.progress ?? 0) * 100))}%`,
                   }}
@@ -403,50 +820,42 @@ export default function OcrBenchmark() {
             </div>
           ) : null}
 
-          <div className="mt-7 flex flex-wrap items-center gap-4">
+          <div {...stylex.props(styles.runRow)}>
             <Button
               type="button"
               disabled={!image || isRunning}
               onClick={() => void handleRun()}
-              className="inline-flex items-center gap-2 rounded-full bg-memora-primary px-5 py-2.5 text-sm font-semibold text-memora-surface outline-none transition-colors hover:bg-[#34332f] focus-visible:ring-2 focus-visible:ring-memora-olive-soft focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className={stylex.props(styles.runButton).className}
             >
-              <PlayIcon weight="fill" className="size-4" />
+              <PlayIcon weight="fill" className={stylex.props(styles.icon).className} />
               {isRunning ? "Benchmark running" : "Run comparison"}
             </Button>
-            <p className="text-xs leading-5 text-memora-text-soft">
+            <p {...stylex.props(styles.privacy)}>
               PP-OCRv6 assets use the shared OPFS model cache. Images remain on this device.
             </p>
           </div>
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-[28px] border border-memora-border bg-memora-surface shadow-sm-soft">
-        <div className="flex flex-col justify-between gap-3 border-b border-memora-border px-6 py-5 sm:flex-row sm:items-end">
+      <section {...stylex.props(styles.panel)}>
+        <div {...stylex.props(styles.resultsHeader)}>
           <div>
-            <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-              Timing and recognition output
-            </h2>
+            <h2 {...stylex.props(styles.title)}>Timing and recognition output</h2>
           </div>
-          <p className="text-xs text-memora-text-soft">
+          <p {...stylex.props(styles.runMeta)}>
             {result
               ? `${result.repeatCount} run${result.repeatCount === 1 ? "" : "s"} · ${new Date(result.completedAt).toLocaleTimeString()}`
               : "Waiting for a benchmark run"}
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[660px] border-collapse">
-            <thead className="bg-memora-surface-soft">
+        <div {...stylex.props(styles.tableScroll)}>
+          <table {...stylex.props(styles.table)}>
+            <thead {...stylex.props(styles.tableHead)}>
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-memora-text-muted">
-                  Metric
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-memora-text-muted">
-                  Tesseract.js 7
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-memora-text-muted">
-                  PP-OCRv6 tiny
-                </th>
+                <th {...stylex.props(styles.tableHeader)}>Metric</th>
+                <th {...stylex.props(styles.tableHeader)}>Tesseract.js 7</th>
+                <th {...stylex.props(styles.tableHeader)}>PP-OCRv6 tiny</th>
               </tr>
             </thead>
             <tbody>
@@ -492,7 +901,7 @@ export default function OcrBenchmark() {
           </table>
         </div>
 
-        <div className="grid border-t border-memora-border lg:grid-cols-2 lg:divide-x lg:divide-memora-border">
+        <div {...stylex.props(styles.outputs)}>
           <EngineOutput result={tesseractResult} fallbackLabel="Tesseract.js 7" />
           <EngineOutput result={paddleResult} fallbackLabel="PP-OCRv6 tiny" />
         </div>

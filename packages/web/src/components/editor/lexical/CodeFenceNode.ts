@@ -6,7 +6,10 @@ import type {
   SerializedElementNode,
   Spread,
 } from "lexical";
+import * as stylex from "@stylexjs/stylex";
 import { $createTextNode, ElementNode } from "lexical";
+
+import { tokens } from "../../../styles/stylex.stylex";
 
 export type CodeFenceRole = "close" | "open";
 
@@ -20,14 +23,41 @@ export type SerializedCodeFenceNode = Spread<
   SerializedElementNode
 >;
 
-const getCodeFenceClassName = (role: CodeFenceRole, isActive: boolean): string => {
-  return [
-    "my-0 block w-full overflow-x-auto bg-zinc-50 px-4 font-mono text-sm leading-6 text-zinc-800",
-    "whitespace-pre-wrap empty:before:content-['\\200b']",
-    role === "open" ? "rounded-t-xl pt-3 pb-1" : "rounded-b-xl pt-1 pb-3",
-    isActive ? "block" : "hidden",
-  ].join(" ");
-};
+const styles = stylex.create({
+  fence: {
+    backgroundColor: tokens.surfaceMuted,
+    color: tokens.text,
+    fontFamily: "var(--font-mono)",
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginBlock: 0,
+    overflowX: "auto",
+    paddingInline: "1rem",
+    whiteSpace: "pre-wrap",
+    width: "100%",
+  },
+  open: {
+    borderTopLeftRadius: "0.75rem",
+    borderTopRightRadius: "0.75rem",
+    paddingBottom: "0.25rem",
+    paddingTop: "0.75rem",
+  },
+  close: {
+    borderBottomLeftRadius: "0.75rem",
+    borderBottomRightRadius: "0.75rem",
+    paddingBottom: "0.75rem",
+    paddingTop: "0.25rem",
+  },
+  active: { display: "block" },
+  inactive: { display: "none" },
+});
+
+const getCodeFenceClassName = (role: CodeFenceRole, isActive: boolean): string =>
+  stylex.props(
+    styles.fence,
+    role === "open" ? styles.open : styles.close,
+    isActive ? styles.active : styles.inactive,
+  ).className ?? "";
 
 export class CodeFenceNode extends ElementNode {
   __role: CodeFenceRole;

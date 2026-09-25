@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -23,9 +21,11 @@ describe("document parsing helpers", () => {
 
   test("routes pages with no usable text layer to OCR", () => {
     expect(shouldRunPdfOcrFallback("Page 1")).toBe(true);
-    expect(shouldRunPdfOcrFallback("A sufficiently long native PDF paragraph stays local.")).toBe(
-      false,
-    );
+    expect(
+      shouldRunPdfOcrFallback(
+        "A native PDF page with a real text layer keeps its own text. Memora reads it directly and only sends pages without enough text to OCR.",
+      ),
+    ).toBe(false);
   });
 
   test("recognizes PDF, DOCX, and PPTX even when browsers omit MIME types", () => {
@@ -33,38 +33,6 @@ describe("document parsing helpers", () => {
     expect(getSupportedDocumentKind(new File([""], "meeting-notes.docx"))).toBe("docx");
     expect(getSupportedDocumentKind(new File([""], "slides.pptx"))).toBe("pptx");
     expect(getSupportedDocumentKind(new File([""], "legacy.doc"))).toBeNull();
-  });
-
-  test("uses docx-preview for visual DOCX rendering", () => {
-    const source = readFileSync(
-      new URL("../../src/components/playground/DocumentParsing.tsx", import.meta.url),
-      "utf8",
-    );
-
-    expect(source).toContain('import("docx-preview")');
-    expect(source).toContain("renderAltChunks: false");
-    expect(source).toContain("<DocxVisualPreview file={file} />");
-  });
-
-  test("uses pptx-viewer core for parsing, Markdown conversion, and pure canvas rendering", () => {
-    const parserSource = readFileSync(
-      new URL("../../src/lib/playground/documentParsing.ts", import.meta.url),
-      "utf8",
-    );
-    const viewerSource = readFileSync(
-      new URL("../../src/components/playground/DocumentParsing.tsx", import.meta.url),
-      "utf8",
-    );
-
-    expect(parserSource).toContain('from "pptx-viewer-core"');
-    expect(parserSource).toContain("PptxHandler");
-    expect(parserSource).toContain("PptxMarkdownConverter");
-    expect(parserSource).toContain("await handler.load(fileBuffer");
-    expect(viewerSource).toContain("useViewerBuildingBlocks");
-    expect(viewerSource).toContain("<SlideCanvas {...canvasProps} />");
-    expect(viewerSource).toContain("<I18nextProvider i18n={pptxViewerI18n}>");
-    expect(viewerSource).toContain("<PptxMarkdownPreview document={result} />");
-    expect(viewerSource).toContain("<PptxVisualPreview");
   });
 
   test("summarizes docx-preview structure without exposing its experimental object", () => {

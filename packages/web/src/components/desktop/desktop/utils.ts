@@ -46,6 +46,7 @@ export const mapFolderRowsToDesktopItems = (
       parentId: folder.parentId ?? null,
       position: { x: 0, y: 0 },
       hasStoredPosition: false,
+      reservedKind: folder.reservedKind ?? null,
     } satisfies DesktopFolderItem;
   });
 };
@@ -74,7 +75,11 @@ export const areDesktopItemsEqual = (left: DesktopItemType, right: DesktopItemTy
     );
   }
   if (left.type === "folder" && right.type === "folder") {
-    return left.parentId === right.parentId && left.hasStoredPosition === right.hasStoredPosition;
+    return (
+      left.parentId === right.parentId &&
+      left.hasStoredPosition === right.hasStoredPosition &&
+      left.reservedKind === right.reservedKind
+    );
   }
   return (
     left.type === "widget" &&

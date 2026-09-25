@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Popover } from "@base-ui/react/popover";
+import * as stylex from "@stylexjs/stylex";
 import {
   CodeBlockIcon,
   ListBulletsIcon,
@@ -38,6 +39,70 @@ import {
 } from "lexical";
 
 import { $createMathNode } from "@/components/editor/lexical/MathNode";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  anchor: { zIndex: 30 },
+  popup: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowLarge,
+    maxHeight: 320,
+    outline: "none",
+    overflowY: "auto",
+    padding: 6,
+    width: 288,
+  },
+  option: {
+    alignItems: "center",
+    // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
+    backgroundColor: "transparent",
+    borderRadius: 8,
+    color: tokens.text,
+    display: "flex",
+    gap: 12,
+    paddingBlock: 8,
+    paddingInline: 10,
+    textAlign: "left",
+    transition: "background-color 150ms, color 150ms",
+    width: "100%",
+  },
+  selectedOption: {
+    backgroundColor: tokens.hover,
+    color: tokens.textStrong,
+  },
+  idleOption: { ":hover": { backgroundColor: tokens.hoverStrong } },
+  icon: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: 6,
+    color: tokens.textMuted,
+    display: "flex",
+    flexShrink: 0,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  copy: { minWidth: 0 },
+  label: { display: "block", fontSize: "0.875rem", fontWeight: 500 },
+  description: {
+    color: tokens.textSoft,
+    display: "block",
+    fontSize: "0.75rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  empty: {
+    color: tokens.textSoft,
+    fontSize: "0.875rem",
+    paddingBlock: 12,
+    paddingInline: 10,
+  },
+});
 
 type SlashCommandKind =
   | "paragraph"
@@ -386,7 +451,7 @@ export function SlashCommandPlugin() {
 
   return (
     <LexicalTypeaheadMenuPlugin
-      anchorClassName="z-30"
+      anchorClassName={stylex.props(styles.anchor).className}
       onQueryChange={setQuery}
       onSelectOption={handleSelectOption}
       options={filteredOptions}
@@ -416,7 +481,7 @@ export function SlashCommandPlugin() {
               >
                 <Popover.Popup
                   aria-label="Insert block"
-                  className="max-h-80 w-72 overflow-y-auto rounded-xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] p-1.5 shadow-[0_16px_40px_-24px_rgba(34,33,29,0.45)] outline-none"
+                  {...stylex.props(styles.popup)}
                   finalFocus={false}
                   id="typeahead-menu"
                   initialFocus={false}
@@ -431,11 +496,10 @@ export function SlashCommandPlugin() {
                           key={option.key}
                           ref={option.setRefElement}
                           aria-selected={isSelected}
-                          className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                            isSelected
-                              ? "bg-[var(--color-memora-hover)] text-[var(--color-memora-text-strong)]"
-                              : "text-[var(--color-memora-text)] hover:bg-[var(--color-memora-hover-strong)]"
-                          }`}
+                          {...stylex.props(
+                            styles.option,
+                            isSelected ? styles.selectedOption : styles.idleOption,
+                          )}
                           id={`typeahead-item-${index}`}
                           onClick={() => selectOptionAndCleanUp(option)}
                           onMouseEnter={() => setHighlightedIndex(index)}
@@ -443,14 +507,12 @@ export function SlashCommandPlugin() {
                           tabIndex={-1}
                           type="button"
                         >
-                          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-memora-surface-muted)] text-[var(--color-memora-text-muted)]">
+                          <span {...stylex.props(styles.icon)}>
                             <IconComponent aria-hidden="true" size={16} weight="bold" />
                           </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium">
-                              {option.definition.label}
-                            </span>
-                            <span className="block truncate text-xs text-[var(--color-memora-text-soft)]">
+                          <span {...stylex.props(styles.copy)}>
+                            <span {...stylex.props(styles.label)}>{option.definition.label}</span>
+                            <span {...stylex.props(styles.description)}>
                               {option.definition.description}
                             </span>
                           </span>
@@ -458,9 +520,7 @@ export function SlashCommandPlugin() {
                       );
                     })
                   ) : (
-                    <p className="px-2.5 py-3 text-sm text-[var(--color-memora-text-soft)]">
-                      No matching blocks
-                    </p>
+                    <p {...stylex.props(styles.empty)}>No matching blocks</p>
                   )}
                 </Popover.Popup>
               </Popover.Positioner>

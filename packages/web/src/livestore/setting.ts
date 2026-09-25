@@ -5,6 +5,7 @@ import { modelRoutingSchema, type StoredModelRouting } from "@/lib/models/modelR
 import type { LocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 
 export interface setting {
+  agentDeliveryMode?: "pending" | "steer";
   modelRouting?: StoredModelRouting;
   localModelTokenUsage?: LocalModelUsageTotals;
   theme: "light" | "dark" | "system";
@@ -30,9 +31,13 @@ export interface setting {
   primaryUseCase?: string;
   assistantStyle?: string;
   customInstructions?: string;
+  homeGridSeeded?: boolean;
+  widgetFoldersSeeded?: boolean;
+  logCollectionEnabled?: boolean;
 }
 
 export const defaultSettings: setting = {
+  agentDeliveryMode: "pending",
   modelRouting: {},
   localModelTokenUsage: {
     inputTokens: 0,
@@ -64,9 +69,13 @@ export const defaultSettings: setting = {
   primaryUseCase: "",
   assistantStyle: "",
   customInstructions: "",
+  homeGridSeeded: false,
+  widgetFoldersSeeded: false,
+  logCollectionEnabled: false,
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
+  agentDeliveryMode: Schema.optional(Schema.Literal("pending", "steer")),
   modelRouting: Schema.optional(modelRoutingSchema),
   localModelTokenUsage: Schema.optional(
     Schema.Struct({
@@ -102,6 +111,9 @@ export const settingsStoredValueSchema = Schema.Struct({
   primaryUseCase: Schema.optional(Schema.String),
   assistantStyle: Schema.optional(Schema.String),
   customInstructions: Schema.optional(Schema.String),
+  homeGridSeeded: Schema.optional(Schema.Boolean),
+  widgetFoldersSeeded: Schema.optional(Schema.Boolean),
+  logCollectionEnabled: Schema.optional(Schema.Boolean),
 });
 
 export const normalizeSettingsValue = (value: Partial<setting> | null | undefined): setting => {

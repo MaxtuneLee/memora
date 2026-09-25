@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 
@@ -24,6 +25,139 @@ import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries"
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
 import { folderEvents } from "@/livestore/folder";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  missingPage: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    marginInline: "auto",
+    maxWidth: "48rem",
+    minHeight: "100vh",
+    paddingBlock: "4rem",
+    paddingInline: "1.5rem",
+    width: "100%",
+  },
+  missingCard: {
+    backgroundColor: tokens.card,
+    borderColor: tokens.border,
+    borderRadius: "1.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    padding: "2rem",
+    textAlign: "center",
+  },
+  missingTitle: {
+    color: tokens.textStrong,
+    fontSize: "1.5rem",
+    fontWeight: 600,
+    lineHeight: "2rem",
+  },
+  missingDescription: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  backButton: {
+    backgroundColor: {
+      default: "transparent",
+      ":hover": tokens.hover,
+    },
+    borderColor: tokens.border,
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "1rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color",
+  },
+  page: {
+    backgroundColor: tokens.canvas,
+    color: tokens.text,
+    minHeight: "100vh",
+    paddingBlock: "1rem",
+    paddingInline: "1.25rem",
+    "@media (min-width: 640px)": {
+      paddingInline: "2rem",
+    },
+    "@media (min-width: 1024px)": {
+      paddingInline: "3rem",
+    },
+  },
+  session: {
+    display: "flex",
+    flexDirection: "column",
+    marginInline: "auto",
+    maxWidth: "58rem",
+    width: "100%",
+  },
+  loading: {
+    color: tokens.textSoft,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "2.5rem",
+    paddingInline: "0.25rem",
+  },
+  loadError: {
+    borderLeftColor: tokens.warningBorder,
+    borderLeftStyle: "solid",
+    borderLeftWidth: 1,
+    paddingBlock: "1rem",
+    paddingInline: "1.25rem",
+  },
+  loadErrorTitle: {
+    color: tokens.textStrong,
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+  },
+  loadErrorDescription: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  errorActions: {
+    display: "flex",
+    gap: "0.5rem",
+    marginTop: "1rem",
+  },
+  errorButton: {
+    borderRadius: "0.375rem",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.375rem",
+    paddingInline: "0.75rem",
+    transitionDuration: "150ms",
+  },
+  retryButton: {
+    backgroundColor: tokens.text,
+    color: tokens.canvas,
+    transitionProperty: "opacity",
+    ":hover": {
+      opacity: 0.9,
+    },
+  },
+  errorBackButton: {
+    backgroundColor: {
+      default: "transparent",
+      ":hover": tokens.hover,
+    },
+    color: {
+      default: tokens.textMuted,
+      ":hover": tokens.text,
+    },
+    transitionProperty: "color, background-color",
+  },
+});
 
 type HighlightRange = {
   startLine: number;
@@ -226,17 +360,13 @@ export function DocumentEditorPage({
 
   if (!currentFile || !isEditableTextDocument(currentFile)) {
     return (
-      <section className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-16">
-        <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-semibold text-zinc-950">Document not found</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+      <section {...stylex.props(styles.missingPage)}>
+        <div {...stylex.props(styles.missingCard)}>
+          <h1 {...stylex.props(styles.missingTitle)}>Document not found</h1>
+          <p {...stylex.props(styles.missingDescription)}>
             The requested editor file could not be found or is not an editable text document.
           </p>
-          <button
-            type="button"
-            className="mt-4 rounded-lg border border-zinc-200 px-4 py-2 text-sm text-zinc-700 transition hover:bg-zinc-50"
-            onClick={() => onGoBack?.()}
-          >
+          <button type="button" {...stylex.props(styles.backButton)} onClick={() => onGoBack?.()}>
             Go back
           </button>
         </div>
@@ -246,7 +376,7 @@ export function DocumentEditorPage({
 
   return (
     <section
-      className="min-h-screen bg-[var(--color-memora-canvas)] px-5 py-4 text-[var(--color-memora-text)] sm:px-8 lg:px-12"
+      {...stylex.props(styles.page)}
       data-testid="document-editor-page"
       style={
         {
@@ -538,30 +668,24 @@ function DocumentEditorSession({
   }, [editorFile, guardWysiwygEntry]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[58rem] flex-col">
+    <div {...stylex.props(styles.session)}>
       {editorFile.isLoading ? (
-        <div className="px-1 py-10 text-sm text-[var(--color-memora-text-soft)]">
-          Loading document...
-        </div>
+        <div {...stylex.props(styles.loading)}>Loading document...</div>
       ) : editorFile.loadError ? (
-        <div className="border-l border-[var(--color-memora-warning-border)] px-5 py-4">
-          <h1 className="text-lg font-semibold text-[var(--color-memora-text-strong)]">
-            Unable to load document
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-memora-text-muted)]">
-            {editorFile.loadError}
-          </p>
-          <div className="mt-4 flex gap-2">
+        <div {...stylex.props(styles.loadError)}>
+          <h1 {...stylex.props(styles.loadErrorTitle)}>Unable to load document</h1>
+          <p {...stylex.props(styles.loadErrorDescription)}>{editorFile.loadError}</p>
+          <div {...stylex.props(styles.errorActions)}>
             <button
               type="button"
-              className="rounded-md bg-[var(--color-memora-text)] px-3 py-1.5 text-sm text-[var(--color-memora-canvas)] transition hover:opacity-90"
+              {...stylex.props(styles.errorButton, styles.retryButton)}
               onClick={() => editorFile.reload()}
             >
               Retry
             </button>
             <button
               type="button"
-              className="rounded-md px-3 py-1.5 text-sm text-[var(--color-memora-text-muted)] transition hover:bg-[var(--color-memora-hover)] hover:text-[var(--color-memora-text)]"
+              {...stylex.props(styles.errorButton, styles.errorBackButton)}
               onClick={() => {
                 void handleGoBack();
               }}

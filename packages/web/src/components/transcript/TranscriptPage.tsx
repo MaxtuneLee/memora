@@ -1,11 +1,7 @@
 import { Button } from "@base-ui/react/button";
 import { isNemotronAsrModel } from "@memora/local-model-runtime";
-import {
-  CaretDownIcon,
-  GearSixIcon,
-  PlusIcon,
-  SlidersHorizontalIcon,
-} from "@phosphor-icons/react";
+import { CaretDownIcon, GearSixIcon, PlusIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { motion, useReducedMotion } from "motion/react";
 import { type ReactElement, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -20,8 +16,179 @@ import { useMediaFiles } from "@/hooks/library/useMediaFiles";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { TRANSCRIPT_LANGUAGE_STORAGE_KEY } from "@/lib/transcript/transcriptUtils";
+import { tokens } from "../../styles/stylex.stylex";
 
 const SECTION_EASE = [0.22, 1, 0.36, 1] as const;
+
+const CREATE_BUTTON_HOVER_BG = `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`;
+const CREATE_BUTTON_ACTIVE_BG = `color-mix(in srgb, ${tokens.primaryBackground} 76%, ${tokens.surface})`;
+
+const styles = stylex.create({
+  page: {
+    marginInline: "auto",
+    maxWidth: 1080,
+    paddingBlock: "2rem",
+    paddingInline: "1.5rem",
+    width: "100%",
+    "@media (min-width: 768px)": { paddingBlock: "2.5rem", paddingInline: "2.5rem" },
+  },
+  header: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    paddingBottom: "1rem",
+    "@media (min-width: 768px)": {
+      alignItems: "flex-end",
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+  },
+  title: {
+    color: tokens.textStrong,
+    fontFamily: "var(--font-serif)",
+    fontSize: "clamp(1.9rem, 4vw, 2.45rem)",
+    fontWeight: 600,
+    letterSpacing: "-0.045em",
+    lineHeight: 0.98,
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+    maxWidth: "34rem",
+    "@media (min-width: 768px)": { fontSize: 15 },
+  },
+  actions: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: "0.5rem" },
+  createButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": CREATE_BUTTON_HOVER_BG,
+      ":active": CREATE_BUTTON_ACTIVE_BG,
+    },
+    borderColor: tokens.primaryBackground,
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: {
+      default: tokens.shadowSmall,
+      ":hover": tokens.shadowMedium,
+      ":active": tokens.shadowSmall,
+    },
+    color: tokens.primaryText,
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    minHeight: "2.75rem",
+    paddingInline: "1rem",
+    transitionDuration: "300ms",
+    transitionProperty: "background-color, border-color, box-shadow, transform",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    ":hover": { transform: "translateY(-0.125rem)" },
+    ":active": { transform: "translateY(0)" },
+  },
+  createIcon: { height: "1rem", marginRight: "0.5rem", width: "1rem" },
+  menuTrigger: {
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
+      "[data-open=true]": tokens.hoverStrong,
+    },
+    borderColor: { default: tokens.borderSoft, "[data-open=true]": tokens.borderStrong },
+    borderRadius: "9999px",
+    boxShadow: "none",
+    gap: "0.625rem",
+    paddingBlock: "0.375rem",
+    paddingInline: "0.625rem",
+    ":hover": { boxShadow: "none" },
+    "[data-open=true]": { boxShadow: "none" },
+  },
+  menuIconFrame: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "9999px",
+    color: tokens.textMuted,
+    display: "flex",
+    flexShrink: 0,
+    height: "1.75rem",
+    justifyContent: "center",
+    transitionDuration: "300ms",
+    transitionProperty: "background-color, color",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    width: "1.75rem",
+  },
+  menuIcon: { height: 18, width: 18 },
+  menuLabel: {
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+  },
+  caret: { color: tokens.textSoft, flexShrink: 0, height: "0.875rem", width: "0.875rem" },
+  menuContent: { width: 292 },
+  languagePanel: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "1rem",
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    padding: "0.75rem",
+  },
+  divider: { backgroundColor: tokens.borderSoft, height: 1, marginBlock: "0.5rem" },
+  menuItem: {
+    alignItems: "center",
+    backgroundColor: { default: "transparent", ":hover": tokens.hoverStrong },
+    borderRadius: "1rem",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    lineHeight: "1.25rem",
+    padding: "0.75rem",
+    textAlign: "left",
+    transitionDuration: "300ms",
+    transitionProperty: "background-color",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    width: "100%",
+  },
+  itemText: { minWidth: 0 },
+  itemTitle: {
+    color: tokens.textStrong,
+    display: "block",
+    fontSize: 14,
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  itemDescription: {
+    color: tokens.textMuted,
+    display: "block",
+    fontSize: 13,
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  itemIconFrame: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "9999px",
+    color: tokens.textSoft,
+    display: "flex",
+    flexShrink: 0,
+    height: "2.25rem",
+    justifyContent: "center",
+    transitionDuration: "300ms",
+    transitionProperty: "background-color, color",
+    transitionTimingFunction: "var(--ease-out-quart)",
+    width: "2.25rem",
+  },
+  workbench: { marginTop: "1.5rem" },
+});
 
 export const Component = (): ReactElement => {
   const { recordings, deleteRecording } = useMediaFiles();
@@ -79,7 +246,7 @@ export const Component = (): ReactElement => {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1080px] px-6 py-8 md:px-10 md:py-10">
+    <div {...stylex.props(styles.page)}>
       <motion.header
         initial={reducedMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -87,65 +254,58 @@ export const Component = (): ReactElement => {
           duration: reducedMotion ? 0.12 : 0.24,
           ease: SECTION_EASE,
         }}
-        className="flex flex-col gap-4 border-b border-[#e9e5dc] pb-4 md:flex-row md:items-end md:justify-between"
+        {...stylex.props(styles.header)}
       >
         <div>
-          <h1
-            className="text-[clamp(1.9rem,4vw,2.45rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-[#22211d]"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Transcripts
-          </h1>
-          <p className="mt-2 max-w-[34rem] text-sm leading-6 text-[#716c64] md:text-[15px]">
+          <h1 {...stylex.props(styles.title)}>Transcripts</h1>
+          <p {...stylex.props(styles.description)}>
             Start a live capture or return to saved transcript work.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div {...stylex.props(styles.actions)}>
           <Button
             onClick={() => navigate("/transcript/live")}
-            className="memora-interactive inline-flex min-h-11 items-center rounded-full border border-[#2b2925] bg-[#22211d] px-4 text-sm font-semibold text-[#fffdfa] shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_24px_-22px_rgba(34,33,29,0.55)] transition-[background-color,border-color,box-shadow,transform] duration-300 ease-[var(--ease-out-quart)] hover:-translate-y-0.5 hover:border-[#4a463e] hover:bg-[#34312b] hover:shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_0_0_1px_rgba(255,251,242,0.08),0_10px_24px_-22px_rgba(34,33,29,0.55)] active:translate-y-0 active:border-[#1f1e1a] active:bg-[#1d1c18] active:shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_6px_14px_-14px_rgba(34,33,29,0.42)]"
+            className={`memora-interactive ${stylex.props(styles.createButton).className ?? ""}`}
           >
-            <PlusIcon className="size-4 mr-2" />
+            <PlusIcon {...stylex.props(styles.createIcon)} />
             New live transcript
           </Button>
           <AppMenu>
-            <AppMenuTrigger className="memora-interactive group gap-2.5 rounded-full border-[#e7e1d8] bg-[#fffdfa] px-2.5 py-1.5 shadow-none hover:bg-[#fffcf6] hover:shadow-none data-[open=true]:border-[#ddd7cb] data-[open=true]:bg-[#fffcf6] data-[open=true]:shadow-none">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f6f3ec] text-[#7c7265] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#6f695f]">
-                <SlidersHorizontalIcon className="size-[18px]" />
+            <AppMenuTrigger
+              className={`memora-interactive ${stylex.props(styles.menuTrigger).className ?? ""}`}
+            >
+              <span {...stylex.props(styles.menuIconFrame)}>
+                <SlidersHorizontalIcon {...stylex.props(styles.menuIcon)} />
               </span>
-              <span className="text-sm font-semibold text-[#22211d]">Settings</span>
+              <span {...stylex.props(styles.menuLabel)}>Settings</span>
               <CaretDownIcon
                 data-dashboard-menu-caret=""
-                className="size-3.5 shrink-0 text-[#9a948a]"
+                {...stylex.props(styles.caret)}
                 weight="bold"
               />
             </AppMenuTrigger>
-            <AppMenuContent className="w-[292px]">
-              <div className="rounded-[1rem] bg-[#fcfaf5] px-3 py-3 text-sm text-[#6f695f]">
+            <AppMenuContent className={stylex.props(styles.menuContent).className}>
+              <div {...stylex.props(styles.languagePanel)}>
                 <LanguageSelector
                   language={language}
                   setLanguage={handleLanguageChange}
                   includeAutoDetect={isNemotronSelected}
                 />
               </div>
-              <div className="my-2 h-px bg-[#ede7dc]" />
+              <div {...stylex.props(styles.divider)} />
               {settingsItems.map((item) => (
                 <AppMenuItem
                   key={item.section}
                   onClick={() => openSettings(item.section)}
-                  className="group flex w-full items-center justify-between gap-3 rounded-[1rem] px-3 py-3 text-left text-sm text-[#544f48] transition-[background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[#f8f4ec]"
+                  className={stylex.props(styles.menuItem).className}
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold text-[#2b2925]">
-                      {item.label}
-                    </span>
-                    <span className="mt-1 block text-[13px] leading-5 text-[#7b7469]">
-                      {item.description}
-                    </span>
+                  <span {...stylex.props(styles.itemText)}>
+                    <span {...stylex.props(styles.itemTitle)}>{item.label}</span>
+                    <span {...stylex.props(styles.itemDescription)}>{item.description}</span>
                   </span>
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f6f1e8] text-[#90897d] transition-[background-color,color] duration-300 ease-[var(--ease-out-quart)] group-hover:bg-[#efe8db] group-hover:text-[#7d7569]">
-                    <GearSixIcon className="size-[18px]" />
+                  <span {...stylex.props(styles.itemIconFrame)}>
+                    <GearSixIcon {...stylex.props(styles.menuIcon)} />
                   </span>
                 </AppMenuItem>
               ))}
@@ -153,7 +313,7 @@ export const Component = (): ReactElement => {
           </AppMenu>
         </div>
       </motion.header>
-      <div className="mt-6">
+      <div {...stylex.props(styles.workbench)}>
         <TranscriptWorkbench items={workbenchItems} onDelete={setPendingDelete} />
       </div>
 

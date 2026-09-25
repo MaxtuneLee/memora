@@ -90,9 +90,7 @@ export const WYSIWYG_NODES = [
   markdownLinkReplacement,
   /* remaining existing nodes */
 ];
-export const WYSIWYG_TRANSFORMERS = [
-  /* exact existing ordering */
-];
+export const WYSIWYG_TRANSFORMERS = [/* exact existing ordering */];
 
 export const importWysiwygMarkdown = (markdown: string): void => {
   $convertFromMarkdownString(markdown, WYSIWYG_TRANSFORMERS, $getRoot());

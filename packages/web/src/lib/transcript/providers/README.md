@@ -16,10 +16,10 @@
 
 ## 当前适配器
 
-| 适配器 | 模型 | 分段 | 时间戳 | 连接 |
-| --- | --- | --- | --- | --- |
-| `whisper-local` | `whisper-base-timestamped` | 手动，内部最多 30 秒一块 | 段、词 | 现有本地模型运行时 |
-| `elevenlabs-scribe` | `scribe_v2_realtime` | 手动 | 词 | 宿主注入连接，或用 `createScribeConnection` 注入临时 token 获取函数 |
+| 适配器              | 模型                       | 分段                     | 时间戳 | 连接                                                                |
+| ------------------- | -------------------------- | ------------------------ | ------ | ------------------------------------------------------------------- |
+| `whisper-local`     | `whisper-base-timestamped` | 手动，内部最多 30 秒一块 | 段、词 | 现有本地模型运行时                                                  |
+| `elevenlabs-scribe` | `scribe_v2_realtime`       | 手动                     | 词     | 宿主注入连接，或用 `createScribeConnection` 注入临时 token 获取函数 |
 
 Scribe 等待已提交段和延迟到达的词级时间戳。缺失结果、意外断线和结束超时都会报错，不把不完整结果当作成功。
 

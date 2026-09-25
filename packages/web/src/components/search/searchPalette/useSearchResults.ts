@@ -70,7 +70,8 @@ export const useSearchResults = ({
           items: rankedResults,
           emptyMessage: isLoadingContent
             ? "Searching extracted file content..."
-            : contentError ?? "Try a file name, a setting label, or an action like upload or transcription.",
+            : (contentError ??
+              "Try a file name, a setting label, or an action like upload or transcription."),
         },
       ];
     }
@@ -96,7 +97,15 @@ export const useSearchResults = ({
         emptyMessage: "Upload or record something to see recent files here.",
       },
     ];
-  }, [chatItems, contentError, fileItems, isLoadingChats, isLoadingContent, queryValue, rankedResults]);
+  }, [
+    chatItems,
+    contentError,
+    fileItems,
+    isLoadingChats,
+    isLoadingContent,
+    queryValue,
+    rankedResults,
+  ]);
 
   const visibleItems = useMemo<GlobalSearchItem[]>(
     () => displaySections.flatMap((section) => section.items),
@@ -156,14 +165,17 @@ export const useSearchResults = ({
     const timer = window.setTimeout(() => {
       setIsLoadingContent(true);
       setContentError(null);
-      void Promise.resolve().then(() => searchContent({
-        query: queryValue,
-        vectorDb: modelWorkerFactory.vectorDb,
-        files: fileRows,
-        signal: controller.signal,
-        semantic: readEmbeddingRuntime(store),
-        semanticMode: settings?.semanticSearchMode,
-      }))
+      void Promise.resolve()
+        .then(() =>
+          searchContent({
+            query: queryValue,
+            vectorDb: modelWorkerFactory.vectorDb,
+            files: fileRows,
+            signal: controller.signal,
+            semantic: readEmbeddingRuntime(store),
+            semanticMode: settings?.semanticSearchMode,
+          }),
+        )
         .then((results) => {
           if (!cancelled) startTransition(() => setContentResults(results));
         })

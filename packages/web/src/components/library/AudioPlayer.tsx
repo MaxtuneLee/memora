@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useAudioPlayer } from "@/hooks/library/useAudioPlayer";
 import { useWaveformData } from "@/hooks/library/useWaveformData";
 import { formatDuration } from "@/lib/format";
@@ -9,6 +10,7 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { WaveformCanvas } from "./WaveformCanvas";
+import { tokens } from "../../styles/stylex.stylex";
 
 const PLACEHOLDER_HEIGHTS = Array.from({ length: 60 }, (_, i) => 12 + ((i * 37 + 13) % 60));
 
@@ -24,6 +26,93 @@ interface AudioPlayerProps {
 }
 
 const WAVEFORM_BAR_COUNT = 400;
+const styles = stylex.create({
+  root: { overflow: "hidden" },
+  waveformWrap: {
+    paddingBlockEnd: 8,
+    paddingBlockStart: 24,
+    paddingInline: 20,
+    position: "relative",
+  },
+  waveform: { height: 96 },
+  waveformCanvas: { width: "100%" },
+  placeholder: {
+    alignItems: "flex-end",
+    display: "flex",
+    gap: 2,
+    height: 96,
+    justifyContent: "center",
+    paddingInline: 8,
+  },
+  placeholderBar: {
+    backgroundColor: tokens.border,
+    borderRadius: 9999,
+    transition: "transform 300ms var(--ease-out-quart)",
+    width: 4,
+  },
+  progressWrap: { paddingBlockEnd: 4, paddingInline: 20 },
+  progress: {
+    backgroundColor: tokens.border,
+    borderRadius: 9999,
+    cursor: "pointer",
+    height: 4,
+    position: "relative",
+    transition: "height 150ms",
+    ":hover": { height: 6 },
+  },
+  dragging: { height: 6 },
+  progressFill: {
+    backgroundColor: tokens.textStrong,
+    borderRadius: 9999,
+    insetBlock: 0,
+    left: 0,
+    position: "absolute",
+  },
+  times: { alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: 6 },
+  time: {
+    color: tokens.textSoft,
+    fontSize: 11,
+    fontVariantNumeric: "tabular-nums",
+  },
+  controls: {
+    alignItems: "center",
+    display: "flex",
+    gap: 32,
+    justifyContent: "center",
+    paddingBlockEnd: 20,
+    paddingBlockStart: 8,
+  },
+  skip: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: tokens.textSoft,
+    display: "flex",
+    height: 44,
+    justifyContent: "center",
+    position: "relative",
+    transition: "color 150ms",
+    width: 44,
+    ":hover": { color: tokens.text },
+  },
+  play: {
+    alignItems: "center",
+    backgroundColor: tokens.textStrong,
+    borderRadius: 9999,
+    boxShadow: "0 18px 40px -30px rgb(0 0 0 / 0.9)",
+    color: tokens.surface,
+    display: "flex",
+    height: 56,
+    justifyContent: "center",
+    transition: "transform 150ms, box-shadow 150ms, background-color 150ms",
+    width: 56,
+    ":hover": { boxShadow: "0 22px 42px -26px rgb(0 0 0 / 0.95)" },
+  },
+  smallIcon: { height: 20, width: 20 },
+  largeIcon: { height: 24, width: 24 },
+  playIcon: { height: 24, marginLeft: 2, width: 24 },
+  count: { fontSize: 8, fontWeight: 600, position: "absolute" },
+  hidden: { display: "none" },
+});
 
 export const AudioPlayer = memo(
   ({
@@ -214,95 +303,85 @@ export const AudioPlayer = memo(
     }, [playerTimeRef, seek]);
 
     return (
-      <div className="overflow-hidden">
-        <div className="relative px-5 pt-6 pb-2">
+      <div {...stylex.props(styles.root)}>
+        <div {...stylex.props(styles.waveformWrap)}>
           {waveformData ? (
-            <div className="group h-24">
+            <div {...stylex.props(styles.waveform)}>
               <WaveformCanvas
                 peaks={waveformData.peaks}
                 progress={0}
                 getProgress={getWaveformProgress}
                 height={96}
-                className="w-full"
+                className={stylex.props(styles.waveformCanvas).className}
                 onClick={handleSeek}
                 onDrag={handleSeek}
               />
             </div>
           ) : (
-            <div className="flex h-24 items-end justify-center gap-[2px] px-2">
+            <div {...stylex.props(styles.placeholder)}>
               {PLACEHOLDER_HEIGHTS.map((h, i) => (
-                <div
-                  key={i}
-                  className="w-1 rounded-full bg-[var(--color-memora-border)] transition-transform duration-300 ease-[var(--ease-out-quart)] odd:translate-y-0 even:translate-y-0"
-                  style={{ height: `${h}%` }}
-                />
+                <div key={i} {...stylex.props(styles.placeholderBar)} style={{ height: `${h}%` }} />
               ))}
             </div>
           )}
         </div>
 
-        <div className="px-5 pb-1">
+        <div {...stylex.props(styles.progressWrap)}>
           <div
             ref={progressRef}
-            className={`memora-surface-glow group relative h-1 cursor-pointer rounded-full bg-[var(--color-memora-border)] transition-all hover:h-1.5 ${isDragging ? "h-1.5" : ""}`}
+            className={`memora-surface-glow ${stylex.props(styles.progress, isDragging && styles.dragging).className}`}
             onMouseDown={handleProgressMouseDown}
           >
             <div
               ref={progressFillRef}
-              className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-memora-text-strong)] transition-none"
+              {...stylex.props(styles.progressFill)}
               style={{ width: "0%" }}
             />
           </div>
 
-          <div className="mt-1.5 flex items-center justify-between">
-            <span
-              ref={elapsedRef}
-              className="text-[11px] tabular-nums text-[var(--color-memora-text-soft)]"
-            >
+          <div {...stylex.props(styles.times)}>
+            <span ref={elapsedRef} {...stylex.props(styles.time)}>
               {formatDuration(0)}
             </span>
-            <span
-              ref={remainingRef}
-              className="text-[11px] tabular-nums text-[var(--color-memora-text-soft)]"
-            >
+            <span ref={remainingRef} {...stylex.props(styles.time)}>
               -{formatDuration(effectiveDuration)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-8 pb-5 pt-2">
+        <div {...stylex.props(styles.controls)}>
           <button
             onClick={onSkipBack}
-            className="memora-interactive relative flex size-11 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-colors hover:text-[var(--color-memora-text)]"
+            className={`memora-interactive ${stylex.props(styles.skip).className}`}
             aria-label="Skip back 15 seconds"
           >
-            <ArrowCounterClockwiseIcon className="size-5" />
-            <span className="absolute text-[8px] font-semibold">15</span>
+            <ArrowCounterClockwiseIcon className={stylex.props(styles.smallIcon).className} />
+            <span {...stylex.props(styles.count)}>15</span>
           </button>
 
           <button
             onClick={togglePlay}
-            className="memora-interactive flex size-14 items-center justify-center rounded-full bg-[var(--color-memora-text-strong)] text-[var(--color-memora-surface)] shadow-[0_18px_40px_-30px_rgba(34,33,29,0.9)] transition-[transform,box-shadow,background-color] hover:shadow-[0_22px_42px_-26px_rgba(34,33,29,0.95)]"
+            className={`memora-interactive ${stylex.props(styles.play).className}`}
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
-              <PauseIcon className="size-6" weight="fill" />
+              <PauseIcon className={stylex.props(styles.largeIcon).className} weight="fill" />
             ) : (
-              <PlayIcon className="size-6 ml-0.5" weight="fill" />
+              <PlayIcon className={stylex.props(styles.playIcon).className} weight="fill" />
             )}
           </button>
 
           <button
             onClick={onSkipForward}
-            className="memora-interactive relative flex size-11 items-center justify-center rounded-full text-[var(--color-memora-text-soft)] transition-colors hover:text-[var(--color-memora-text)]"
+            className={`memora-interactive ${stylex.props(styles.skip).className}`}
             aria-label="Skip forward 15 seconds"
           >
-            <ArrowClockwiseIcon className="size-5" />
-            <span className="absolute text-[8px] font-semibold">15</span>
+            <ArrowClockwiseIcon className={stylex.props(styles.smallIcon).className} />
+            <span {...stylex.props(styles.count)}>15</span>
           </button>
         </div>
 
-        <audio ref={setAudioNode} className="hidden" />
+        <audio ref={setAudioNode} {...stylex.props(styles.hidden)} />
       </div>
     );
   },

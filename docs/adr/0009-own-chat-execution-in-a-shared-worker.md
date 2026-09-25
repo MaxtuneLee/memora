@@ -1,0 +1,5 @@
+# Own chat execution in a SharedWorker
+
+The Agent SharedWorker owns each chat session’s task queue, agent loop, model calls, execution state, and message persistence so opening or switching chats does not cancel ongoing work and multiple sessions can run concurrently. Chat views subscribe to snapshots and send commands; existing LiveStore-dependent tools run through an application-level host bridge available from connected tabs, with reference scope captured per task and write approvals correlated by session and call. Persisted snapshots support inspection and manual retry after an interruption; automatic recovery and complete model-input tracing remain separate follow-up work, and closing all browser clients does not guarantee continued execution.
+
+Request `extendedLifetime` on the named worker and checkpoint when the last connected page leaves. A page opened during the browser's short extension period can reattach to the same run. The extension is browser-controlled; a newly created worker still treats unfinished work as interrupted.

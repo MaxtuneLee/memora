@@ -1,9 +1,29 @@
+import * as stylex from "@stylexjs/stylex";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { alignItems: "center", color: tokens.textMuted, display: "flex", fontSize: 11, gap: 8 },
+  key: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 6,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    fontWeight: 500,
+    justifyContent: "center",
+    minHeight: 24,
+    minWidth: 24,
+    paddingInline: 6,
+  },
+});
+
 export function ShortcutHint({ keys, label }: { keys: string; label: string }) {
   return (
-    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-      <kbd className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-md border border-[#e5e0d8] bg-[#f7f4ef] px-1.5 font-medium text-zinc-500">
-        {keys}
-      </kbd>
+    <div {...stylex.props(styles.root)}>
+      <kbd {...stylex.props(styles.key)}>{keys}</kbd>
       <span>{label}</span>
     </div>
   );

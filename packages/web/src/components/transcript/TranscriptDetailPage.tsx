@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 import { write as opfsWrite } from "@memora/fs";
@@ -19,6 +20,48 @@ import { RecordingHeader } from "@/components/transcript/transcriptDetail/Record
 import { TranscriptDiagnosticsPanel } from "@/components/transcript/transcriptDetail/TranscriptDiagnosticsPanel";
 import { RecordingPreviewSurface } from "@/components/transcript/transcriptDetail/RecordingPreviewSurface";
 import { TranscriptSection } from "@/components/transcript/transcriptDetail/TranscriptSection";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  statePage: {
+    alignItems: "center",
+    backgroundColor: tokens.shell,
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "100%",
+    padding: "1.5rem",
+  },
+  stateText: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+  },
+  page: {
+    backgroundColor: tokens.background,
+    color: tokens.text,
+    fontFamily: "var(--font-sans)",
+    minHeight: "100%",
+  },
+  content: {
+    marginInline: "auto",
+    maxWidth: 1320,
+    padding: "1.5rem",
+    width: "100%",
+    "@media (min-width: 768px)": { paddingBlock: "2rem", paddingInline: "2.5rem" },
+  },
+  navigation: { alignItems: "center", display: "flex", paddingBottom: "0.75rem" },
+  workbench: { marginTop: "0.5rem" },
+  columns: { alignItems: "flex-start", display: "grid", paddingTop: "1.25rem", rowGap: "2rem" },
+  splitColumns: {
+    "@media (min-width: 1280px)": {
+      columnGap: "0.25rem",
+      gridTemplateColumns: "minmax(0, 1.05fr) minmax(22rem, 0.95fr)",
+    },
+  },
+  previewColumnSplit: { "@media (min-width: 1280px)": { paddingRight: "0.5rem" } },
+  transcriptColumn: { "@media (min-width: 1280px)": { paddingLeft: "0.5rem" } },
+  diagnostics: { marginTop: "2.5rem" },
+});
 
 const buildExportFileName = (name: string, ext: "txt" | "srt"): string => {
   const sanitized = name
@@ -346,16 +389,16 @@ export const Component = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-[var(--color-memora-shell)] p-6">
-        <p className="text-sm text-[var(--color-memora-text-muted)]">Loading recording...</p>
+      <div {...stylex.props(styles.statePage)}>
+        <p {...stylex.props(styles.stateText)}>Loading recording...</p>
       </div>
     );
   }
 
   if (error || !recording) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-[var(--color-memora-shell)] p-6">
-        <p className="text-sm text-[var(--color-memora-text-muted)]">Failed to load recording.</p>
+      <div {...stylex.props(styles.statePage)}>
+        <p {...stylex.props(styles.stateText)}>Failed to load recording.</p>
       </div>
     );
   }
@@ -391,22 +434,16 @@ export const Component = () => {
   ] as const;
 
   return (
-    <div
-      className="min-h-full bg-memora-bg text-[var(--color-memora-text)]"
-      style={{ fontFamily: "var(--font-sans)" }}
-    >
-      <div className="mx-auto w-full max-w-[1320px] px-6 py-6 md:px-10 md:py-8">
+    <div {...stylex.props(styles.page)}>
+      <div {...stylex.props(styles.content)}>
         <div
-          className="memora-motion-enter flex items-center justify-between gap-3 pb-3"
+          className={`memora-motion-enter ${stylex.props(styles.navigation).className ?? ""}`}
           style={{ "--enter-delay": "0ms" } as CSSProperties}
         >
           <BackButton />
-          <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
-            Transcript detail
-          </span>
         </div>
 
-        <div data-surface="transcript-detail-workbench" className="mt-2">
+        <div data-surface="transcript-detail-workbench" {...stylex.props(styles.workbench)}>
           <RecordingHeader
             recording={recording}
             isRenaming={isRenaming}
@@ -441,15 +478,9 @@ export const Component = () => {
             onCancel={() => setShowDeleteConfirm(false)}
           />
 
-          <div
-            className={`grid items-start gap-y-8 pt-5 ${
-              showTranscript
-                ? "xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)] xl:gap-x-1"
-                : ""
-            }`}
-          >
+          <div {...stylex.props(styles.columns, showTranscript && styles.splitColumns)}>
             <div
-              className={`memora-motion-enter ${showTranscript ? "xl:pr-2" : ""}`}
+              className={`memora-motion-enter ${stylex.props(showTranscript && styles.previewColumnSplit).className ?? ""}`}
               style={{ "--enter-delay": "90ms" } as CSSProperties}
             >
               <RecordingPreviewSurface
@@ -464,7 +495,7 @@ export const Component = () => {
 
             {showTranscript ? (
               <div
-                className="memora-motion-enter xl:pl-2"
+                className={`memora-motion-enter ${stylex.props(styles.transcriptColumn).className ?? ""}`}
                 style={{ "--enter-delay": "150ms" } as CSSProperties}
               >
                 <TranscriptSection
@@ -501,7 +532,7 @@ export const Component = () => {
 
         {shouldShowDiagnostics ? (
           <div
-            className="memora-motion-enter mt-10"
+            className={`memora-motion-enter ${stylex.props(styles.diagnostics).className ?? ""}`}
             style={{ "--enter-delay": "220ms" } as CSSProperties}
           >
             <TranscriptDiagnosticsPanel

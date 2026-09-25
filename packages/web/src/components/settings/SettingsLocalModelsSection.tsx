@@ -1,6 +1,42 @@
+import * as stylex from "@stylexjs/stylex";
+
 import LocalModelDownloadCard from "@/components/settings/LocalModelDownloadCard";
-import {} from "@/components/settings/settingsClassNames";
 import { useLocalModelDownloadSettings } from "@/hooks/settings/useLocalModelDownloadSettings";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  stack: { display: "flex", flexDirection: "column", gap: 12 },
+  overview: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "1.4rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: 24,
+    "@media (min-width: 640px)": { padding: 28 },
+  },
+  overviewHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  title: { color: tokens.textStrong, fontSize: "1.125rem", fontWeight: 600 },
+  body: { color: tokens.textMuted, fontSize: "0.875rem", lineHeight: 1.5 },
+  titleBody: { marginTop: 4 },
+  badge: {
+    backgroundColor: tokens.successSurface,
+    borderRadius: 9999,
+    color: tokens.successText,
+    flexShrink: 0,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    paddingBlock: 4,
+    paddingInline: 12,
+  },
+  overviewBody: { marginTop: 16 },
+  metadata: { color: tokens.textSoft, fontSize: "0.75rem" },
+});
 
 interface SettingsLocalModelsSectionProps {
   open: boolean;
@@ -16,20 +52,18 @@ export default function SettingsLocalModelsSection({ open }: SettingsLocalModels
   } = useLocalModelDownloadSettings({ open });
 
   return (
-    <div className="space-y-3">
-      <section className="rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-6 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
+    <div {...stylex.props(styles.stack)}>
+      <section {...stylex.props(styles.overview)}>
+        <div {...stylex.props(styles.overviewHeader)}>
           <div>
-            <h3 className="text-lg font-semibold text-[#24231f]">BGE semantic retrieval</h3>
-            <p className="mt-1 text-sm leading-6 text-[#817b70]">
+            <h3 {...stylex.props(styles.title)}>BGE semantic retrieval</h3>
+            <p {...stylex.props(styles.body, styles.titleBody)}>
               BGE runs locally to build the semantic index and improve meaning-based search.
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-[#eef3e2] px-3 py-1 text-sm font-semibold text-[#5c6c3d]">
-            Local
-          </span>
+          <span {...stylex.props(styles.badge)}>Local</span>
         </div>
-        <p className="mt-4 text-sm leading-6 text-[#817b70]">
+        <p {...stylex.props(styles.body, styles.overviewBody)}>
           Select BM25, BGE, or hybrid retrieval in Indexing settings. The model is loaded when a
           semantic index is built.
         </p>
@@ -46,7 +80,7 @@ export default function SettingsLocalModelsSection({ open }: SettingsLocalModels
             title={model.name}
             description={model.manifest.modelId}
             meta={
-              <p className="text-xs text-[var(--color-memora-text-soft)]">
+              <p {...stylex.props(styles.metadata)}>
                 {model.manifest.device.toUpperCase()} · {model.manifest.modalities.input.join(", ")}
                 {" -> "}
                 {model.manifest.modalities.output.join(", ")}

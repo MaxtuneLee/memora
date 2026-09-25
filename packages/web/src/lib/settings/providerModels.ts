@@ -1,9 +1,23 @@
+import { loadPiModelLimits, type PiModelLimits } from "@memora/ai-provider-pi";
+
 import { parseProviderModel } from "./dialogHelpers";
 import { normalizeProviderEndpoint } from "./providerEndpoint";
 import type { ModelInfo } from "@/types/settingsDialog";
 
 // Only in-flight requests are shared. Keys remain in memory and are never persisted.
 const pendingRequests = new Map<string, Promise<ModelInfo[]>>();
+
+// A model the provider does not describe still beats the DEFAULT_MODEL_* constants when pi's
+// catalog knows it. Discovery must not fail when that catalog cannot be loaded.
+const loadRegistryLimits = async (): Promise<
+  ((modelId: string) => PiModelLimits | undefined) | undefined
+> => {
+  try {
+    return await loadPiModelLimits();
+  } catch {
+    return undefined;
+  }
+};
 
 export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<ModelInfo[]> => {
   const requestKey = JSON.stringify([baseUrl, apiKey]);
@@ -35,9 +49,10 @@ export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<Mo
       if (!Array.isArray(rawModels)) {
         throw new Error("The provider returned an invalid model list.");
       }
+      const lookupLimits = await loadRegistryLimits();
       const models = new Map<string, ModelInfo>();
       for (const raw of rawModels) {
-        const model = parseProviderModel(raw);
+        const model = parseProviderModel(raw, lookupLimits);
         if (model) models.set(model.id, model);
       }
       return [...models.values()];

@@ -61,7 +61,11 @@ The default normalization profile is `memora-text-default` version 1: NFC, lower
 ## Save and reopen results
 
 ```ts
-import { listEvaluationResults, readEvaluationResult, saveEvaluationResult } from "@memora/evaluation";
+import {
+  listEvaluationResults,
+  readEvaluationResult,
+  saveEvaluationResult,
+} from "@memora/evaluation";
 
 await saveEvaluationResult(result);
 

@@ -1,4 +1,5 @@
 import { CaretDownIcon, CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo } from "react";
 
@@ -12,12 +13,147 @@ import {
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
 import { useAiProviderSettings } from "@/hooks/settings/useAiProviderSettings";
-import { cn } from "@/lib/cn";
 import {
   filterProviderModelGroups,
   getSelectedModelLabel,
   parseProviderModels,
 } from "@/lib/settings/dialogHelpers";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: "1rem" },
+  picker: { marginTop: "1rem", position: "relative" },
+  trigger: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.surfaceSoft,
+      ":hover": tokens.hoverStrong,
+    },
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    justifyContent: "space-between",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+    textAlign: "left",
+    transition:
+      "border-color 300ms var(--ease-out-quart), background-color 300ms var(--ease-out-quart)",
+    width: "100%",
+  },
+  triggerLabel: { display: "block", fontSize: "0.875rem", fontWeight: 500, lineHeight: "1.25rem" },
+  selectedLabel: { color: tokens.textStrong },
+  placeholderLabel: { color: tokens.textSoft },
+  caret: { color: tokens.textSoft, height: "1rem", width: "1rem" },
+  dropdown: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "1.4rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 28px 70px -46px rgb(0 0 0 / 0.32)",
+    left: 0,
+    marginTop: "0.5rem",
+    position: "absolute",
+    top: "100%",
+    width: "100%",
+    zIndex: 20,
+  },
+  searchArea: {
+    borderBottomColor: tokens.borderSoft,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    padding: "0.75rem",
+  },
+  srOnly: {
+    borderWidth: 0,
+    clip: "rect(0, 0, 0, 0)",
+    height: 1,
+    margin: -1,
+    overflow: "hidden",
+    padding: 0,
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  },
+  searchField: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "flex",
+    gap: "0.5rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  searchIcon: { color: tokens.textSoft, height: "0.875rem", width: "0.875rem" },
+  searchInput: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    flex: 1,
+    minWidth: 0,
+    padding: 0,
+    ":focus": { borderColor: "transparent", boxShadow: "none" },
+  },
+  options: {
+    maxHeight: "18rem",
+    overflowY: "auto",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.5rem",
+    scrollbarGutter: "stable",
+  },
+  empty: {
+    color: tokens.textSoft,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "1rem",
+    paddingInline: "0.5rem",
+  },
+  providerLabel: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.5rem",
+  },
+  option: {
+    alignItems: "center",
+    color: {
+      default: tokens.textMuted,
+      ":hover": tokens.textMuted,
+    },
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "0.75rem",
+    justifyContent: "flex-start",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.5rem",
+    textAlign: "left",
+    transition: "background-color 150ms",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.hoverStrong },
+  },
+  selectedOption: {
+    backgroundColor: tokens.surfaceSoft,
+    color: tokens.textStrong,
+    fontWeight: 600,
+  },
+  checkSlot: {
+    alignItems: "center",
+    display: "flex",
+    flexShrink: 0,
+    height: "1.25rem",
+    justifyContent: "center",
+    width: "1.25rem",
+  },
+  checkIcon: { color: tokens.olive, height: "0.875rem", width: "0.875rem" },
+  backdrop: { inset: 0, position: "fixed", zIndex: 10 },
+  emptyProvider: { marginTop: "1rem" },
+});
 
 interface SettingsAiProviderSectionProps {
   open: boolean;
@@ -66,28 +202,28 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
   }, [providers, selectedModel, selectedProviderId]);
 
   return (
-    <div className="space-y-4">
+    <div {...stylex.props(styles.root)}>
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Chat model</h3>
 
-        <div className="relative mt-4">
+        <div {...stylex.props(styles.picker)}>
           <Button
             variant="plain"
             type="button"
             onClick={handleToggleModelDropdown}
-            className="memora-interactive flex w-full items-center justify-between rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-4 py-3 text-left transition-[border-color,background-color] duration-300 ease-[var(--ease-out-quart)] hover:bg-[var(--color-memora-hover-strong)]"
+            className={`memora-interactive ${stylex.props(styles.trigger).className}`}
           >
             <span
-              className={cn(
-                "block text-sm font-medium",
-                selectedModel
-                  ? "text-[var(--color-memora-text-strong)]"
-                  : "text-[var(--color-memora-text-soft)]",
-              )}
+              className={
+                stylex.props(
+                  styles.triggerLabel,
+                  selectedModel ? styles.selectedLabel : styles.placeholderLabel,
+                ).className
+              }
             >
               {selectedModelLabel}
             </span>
-            <CaretDownIcon className="size-4 text-[var(--color-memora-text-soft)]" />
+            <CaretDownIcon className={stylex.props(styles.caret).className} />
           </Button>
 
           <AnimatePresence>
@@ -97,14 +233,17 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute left-0 top-full z-20 mt-2 w-full rounded-[1.4rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] shadow-[0_28px_70px_-46px_rgba(34,33,29,0.32)]"
+                className={stylex.props(styles.dropdown).className}
               >
-                <div className="border-b border-[var(--color-memora-border-soft)] p-3">
-                  <label className="sr-only" htmlFor="model-search-input">
+                <div {...stylex.props(styles.searchArea)}>
+                  <label
+                    className={stylex.props(styles.srOnly).className}
+                    htmlFor="model-search-input"
+                  >
                     Search models
                   </label>
-                  <div className="flex items-center gap-2 rounded-[1rem] border border-[var(--color-memora-border)] bg-[var(--color-memora-surface-soft)] px-3 py-2">
-                    <MagnifyingGlassIcon className="size-3.5 text-[var(--color-memora-text-soft)]" />
+                  <div {...stylex.props(styles.searchField)}>
+                    <MagnifyingGlassIcon className={stylex.props(styles.searchIcon).className} />
                     <Input
                       id="model-search-input"
                       ref={modelSearchInputRef}
@@ -112,21 +251,17 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                       value={modelSearchQuery}
                       onChange={(event) => setModelSearchQuery(event.target.value)}
                       placeholder="Search models or providers"
-                      className="min-w-0 flex-1 border-transparent bg-transparent px-0 py-0 focus:border-transparent focus:ring-0"
+                      className={stylex.props(styles.searchInput).className}
                     />
                   </div>
                 </div>
-                <div className="memora-scrollbar max-h-72 overflow-y-auto px-2 py-2 [scrollbar-gutter:stable]">
+                <div className={`memora-scrollbar ${stylex.props(styles.options).className}`}>
                   {filteredModelGroups.length === 0 ? (
-                    <div className="px-2 py-4 text-sm text-[var(--color-memora-text-soft)]">
-                      No matching models.
-                    </div>
+                    <div {...stylex.props(styles.empty)}>No matching models.</div>
                   ) : (
                     filteredModelGroups.map(({ provider, models }) => (
                       <div key={provider.id}>
-                        <div className="px-2 py-2 text-xs font-medium text-[var(--color-memora-text-soft)]">
-                          {provider.name}
-                        </div>
+                        <div {...stylex.props(styles.providerLabel)}>{provider.name}</div>
                         {models.map((model) => {
                           const isSelected =
                             selectedProviderId === provider.id && selectedModel === model.id;
@@ -137,16 +272,14 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
                               key={model.id}
                               type="button"
                               onClick={() => handleSelectModel(provider.id, model.id)}
-                              className={cn(
-                                "flex w-full items-center justify-start gap-3 px-2 py-2.5 text-left text-sm transition",
-                                isSelected
-                                  ? "bg-[var(--color-memora-surface-soft)] font-semibold text-[var(--color-memora-text-strong)]"
-                                  : "text-[var(--color-memora-text-muted)] hover:bg-[var(--color-memora-hover-strong)]",
-                              )}
+                              className={
+                                stylex.props(styles.option, isSelected && styles.selectedOption)
+                                  .className
+                              }
                             >
-                              <span className="flex size-5 shrink-0 items-center justify-center">
+                              <span {...stylex.props(styles.checkSlot)}>
                                 {isSelected ? (
-                                  <CheckIcon className="size-3.5 text-[var(--color-memora-olive)]" />
+                                  <CheckIcon className={stylex.props(styles.checkIcon).className} />
                                 ) : null}
                               </span>
                               <span>{model.name ?? model.id}</span>
@@ -162,12 +295,14 @@ export default function SettingsAiProviderSection({ open }: SettingsAiProviderSe
           </AnimatePresence>
 
           {modelDropdownOpen ? (
-            <div className="fixed inset-0 z-10" onClick={handleCloseModelDropdown} />
+            <div {...stylex.props(styles.backdrop)} onClick={handleCloseModelDropdown} />
           ) : null}
         </div>
 
         {allModels.length === 0 ? (
-          <div className={cn(SETTINGS_INSET_PANEL_CLASS_NAME, "mt-4")}>
+          <div
+            className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.emptyProvider).className}`}
+          >
             <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>Add a provider to select a model.</p>
           </div>
         ) : null}

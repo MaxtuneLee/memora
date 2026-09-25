@@ -120,19 +120,8 @@ const normalizePositiveNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-export const parseProviderModel = (value: unknown): ModelInfo | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  const id = typeof record.id === "string" ? record.id.trim() : "";
-  if (!id) {
-    return null;
-  }
-
-  const name = typeof record.name === "string" ? record.name.trim() : "";
-  const contextWindow = normalizePositiveInteger(
+const readDiscoveryContextWindow = (record: Record<string, unknown>): number | undefined =>
+  normalizePositiveInteger(
     record.contextWindow ??
       record.context_window ??
       record.contextLength ??
@@ -149,20 +138,49 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
       pickTopProviderValue(record, "context_window") ??
       pickTopProviderValue(record, "context_length"),
   );
-  const maxTokens = normalizePositiveInteger(
-    record.maxTokens ??
-      record.maxOutputTokens ??
-      record.max_output_tokens ??
-      record.maxCompletionTokens ??
-      record.max_completion_tokens ??
-      record.completionTokenLimit ??
-      record.completion_token_limit ??
-      record.outputTokenLimit ??
-      record.output_token_limit ??
-      pickTopProviderValue(record, "maxOutputTokens") ??
-      pickTopProviderValue(record, "max_output_tokens") ??
-      pickTopProviderValue(record, "max_completion_tokens"),
-  );
+
+export interface ModelTokenLimits {
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+/**
+ * `lookupLimits` is consulted per field, and only where the provider's own listing is silent,
+ * so discovery metadata always wins over a static catalog. Discovery callers pass pi's model
+ * registry; a field neither source knows falls back to the DEFAULT_MODEL_* constants.
+ */
+export const parseProviderModel = (
+  value: unknown,
+  lookupLimits?: (modelId: string) => ModelTokenLimits | undefined,
+): ModelInfo | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === "string" ? record.id.trim() : "";
+  if (!id) {
+    return null;
+  }
+
+  const name = typeof record.name === "string" ? record.name.trim() : "";
+  const registryLimits = lookupLimits?.(id);
+  const contextWindow = readDiscoveryContextWindow(record) ?? registryLimits?.contextWindow;
+  const maxTokens =
+    normalizePositiveInteger(
+      record.maxTokens ??
+        record.maxOutputTokens ??
+        record.max_output_tokens ??
+        record.maxCompletionTokens ??
+        record.max_completion_tokens ??
+        record.completionTokenLimit ??
+        record.completion_token_limit ??
+        record.outputTokenLimit ??
+        record.output_token_limit ??
+        pickTopProviderValue(record, "maxOutputTokens") ??
+        pickTopProviderValue(record, "max_output_tokens") ??
+        pickTopProviderValue(record, "max_completion_tokens"),
+    ) ?? registryLimits?.maxTokens;
 
   return {
     id,
@@ -189,17 +207,6 @@ export const parseProviderModel = (value: unknown): ModelInfo | null => {
 
 export const formatMemoryTimestamp = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
-};
-
-export const toastIconColor = (type?: string): string => {
-  switch (type) {
-    case "success":
-      return "bg-emerald-500";
-    case "error":
-      return "bg-rose-500";
-    default:
-      return "bg-zinc-400";
-  }
 };
 
 export const parseProviderModels = (provider: Pick<ProviderRow, "models">): ModelInfo[] => {

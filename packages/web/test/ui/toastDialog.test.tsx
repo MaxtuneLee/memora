@@ -24,14 +24,7 @@ const Fixture = ({ outer = false, inner = false, mounted = true }) => (
         </NativeDialog>
       </NativeDialog>
     )}
-    <ToastStack
-      render={(toast) => (
-        <Toast.Content>
-          <Toast.Title>{toast.title}</Toast.Title>
-          <Toast.Close>Dismiss</Toast.Close>
-        </Toast.Content>
-      )}
-    />
+    <ToastStack />
   </Toast.Provider>
 );
 
@@ -134,7 +127,7 @@ describe("toast native dialog layering", () => {
         screen.getByRole("dialog", { name: "Settings" }),
       ),
     );
-    await user.click(screen.getByText("Dismiss"));
+    await user.click(screen.getByLabelText("Dismiss"));
     await waitFor(() => expect(screen.queryByText("Saved")).toBeNull());
   });
 

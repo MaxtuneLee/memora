@@ -1,4 +1,5 @@
 import { DownloadSimpleIcon, PauseIcon, PlayIcon, WaveformIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { InstalledDataset } from "@memora/datasets";
 import {
@@ -17,13 +18,261 @@ import {
 import { datasetClient } from "@/lib/playground/datasetClient";
 import { downloadEvaluationJson } from "@/lib/playground/downloadEvaluationJson";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
+import { tokens } from "../../styles/stylex.stylex";
 
-const inputClassName =
-  "h-11 w-full rounded-xl border border-memora-border bg-memora-surface px-3.5 text-sm text-memora-text outline-none transition focus:border-memora-olive-soft focus:ring-2 focus:ring-memora-olive-soft/30";
-const secondaryButtonClassName =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-memora-border bg-memora-surface px-4 text-sm font-medium text-memora-text transition hover:bg-memora-hover disabled:cursor-not-allowed disabled:opacity-50";
-const primaryButtonClassName =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-memora-text-strong px-4 text-sm font-medium text-memora-surface transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+const styles = stylex.create({
+  panel: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "28px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 1px 3px rgb(0 0 0 / 0.08)",
+    paddingBlock: "1.5rem",
+    paddingInline: { default: "1.25rem", "@media (min-width: 640px)": "1.75rem" },
+  },
+  intro: { maxWidth: "42rem" },
+  title: {
+    color: tokens.textStrong,
+    fontFamily: '"IBM Plex Serif", serif',
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    letterSpacing: "-0.025em",
+    lineHeight: "2rem",
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.5rem",
+  },
+  form: {
+    display: "grid",
+    gap: "0.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 768px)":
+        "minmax(0, 1fr) minmax(180px, 0.35fr) minmax(180px, 0.35fr) auto",
+    },
+    marginTop: "1.5rem",
+  },
+  label: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+  },
+  input: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+    fontSize: "0.875rem",
+    height: "2.75rem",
+    marginTop: "0.5rem",
+    outline: "none",
+    paddingInline: "0.875rem",
+    transition: "border-color 150ms, box-shadow 150ms",
+    width: "100%",
+    ":focus": {
+      borderColor: tokens.oliveSoft,
+      boxShadow: `0 0 0 2px color-mix(in srgb, ${tokens.oliveSoft} 30%, transparent)`,
+    },
+  },
+  actions: { alignItems: "flex-end", display: "flex", gap: "0.5rem" },
+  button: {
+    alignItems: "center",
+    borderRadius: "0.75rem",
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    height: "2.5rem",
+    justifyContent: "center",
+    paddingInline: "1rem",
+    transition: "background-color 150ms, opacity 150ms",
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+  },
+  primaryButton: {
+    backgroundColor: tokens.textStrong,
+    color: tokens.surface,
+    ":hover": { opacity: 0.9 },
+  },
+  secondaryButton: {
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hover,
+    },
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+  },
+  icon: { height: "1rem", width: "1rem" },
+  error: {
+    backgroundColor: tokens.warningSurface,
+    borderColor: tokens.warningBorder,
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.warningText,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "0.875rem",
+  },
+  progress: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "1rem",
+    marginTop: "1.5rem",
+    padding: "1rem",
+  },
+  progressHeader: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "1rem",
+    justifyContent: "space-between",
+    lineHeight: "1.25rem",
+  },
+  progressLabel: { color: tokens.text, fontWeight: 500 },
+  progressValue: { color: tokens.textMuted, fontVariantNumeric: "tabular-nums" },
+  progressTrack: {
+    backgroundColor: tokens.surfaceMuted,
+    borderRadius: "9999px",
+    height: "0.375rem",
+    marginTop: "0.75rem",
+    overflow: "hidden",
+  },
+  progressBar: {
+    backgroundColor: tokens.olive,
+    height: "100%",
+    transition: "width 150ms",
+  },
+  results: { marginTop: "1.75rem" },
+  resultHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: "1rem",
+    justifyContent: "space-between",
+  },
+  notice: { fontSize: "0.875rem", lineHeight: "1.25rem" },
+  noticeMuted: { color: tokens.textSoft },
+  noticeError: { color: tokens.warningText },
+  summaryGrid: {
+    display: "grid",
+    gap: "0.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 640px)": "repeat(3, minmax(0, 1fr))",
+      "@media (min-width: 1024px)": "repeat(6, minmax(0, 1fr))",
+    },
+    marginTop: "1rem",
+  },
+  summaryCard: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "1rem",
+  },
+  summaryLabel: { color: tokens.textSoft, fontSize: "0.75rem", lineHeight: "1rem" },
+  summaryValue: {
+    color: tokens.textStrong,
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+    marginTop: "0.25rem",
+  },
+  examples: { marginTop: "1.5rem" },
+  example: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    paddingBlock: "1rem",
+    ":last-child": { borderBottomWidth: 0 },
+  },
+  exampleMeta: {
+    alignItems: "center",
+    color: tokens.textSoft,
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "0.5rem",
+    lineHeight: "1rem",
+  },
+  exampleText: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+  },
+  exampleTextSecondary: { marginTop: "0.25rem" },
+  strong: { fontWeight: 500 },
+  timing: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.25rem",
+  },
+  exampleError: { color: tokens.warningText },
+  saved: {
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    marginTop: "2rem",
+    paddingTop: "1.5rem",
+  },
+  savedTitle: {
+    color: tokens.text,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+  },
+  savedList: { marginTop: "0.75rem" },
+  savedRow: {
+    alignItems: "center",
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBlock: "0.75rem",
+    textAlign: "left",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.hover },
+    ":last-child": { borderBottomWidth: 0 },
+  },
+  savedCopy: { minWidth: 0 },
+  savedName: {
+    color: tokens.text,
+    display: "block",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  savedMeta: {
+    color: tokens.textSoft,
+    display: "block",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.125rem",
+  },
+  savedCount: {
+    color: tokens.textMuted,
+    flexShrink: 0,
+    fontSize: "0.75rem",
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: "1rem",
+  },
+});
 
 const keyOf = (item: InstalledDataset) =>
   [item.datasetId, item.revision, item.configuration, item.split].join(":");
@@ -76,12 +325,10 @@ export default function AsrEvaluation() {
     setSaveNotice(undefined);
     setProgress({ completed: 0, total: selected.examples ?? 0 });
     try {
-      const evaluated = await evaluationClient.run(
-        selectionOf(selected),
-        modelId,
-        language,
-        { signal: nextController.signal, onProgress: setProgress },
-      );
+      const evaluated = await evaluationClient.run(selectionOf(selected), modelId, language, {
+        signal: nextController.signal,
+        onProgress: setProgress,
+      });
       setResult(evaluated);
       try {
         await saveEvaluationResult(evaluated);
@@ -114,21 +361,19 @@ export default function AsrEvaluation() {
   };
 
   return (
-    <section className="rounded-[28px] border border-memora-border bg-memora-surface px-5 py-6 shadow-sm-soft sm:px-7">
-      <div className="max-w-2xl">
-        <h2 className="font-serif text-2xl font-medium tracking-tight text-memora-text-strong">
-          ASR evaluation
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-memora-text-muted">
+    <section {...stylex.props(styles.panel)}>
+      <div {...stylex.props(styles.intro)}>
+        <h2 {...stylex.props(styles.title)}>ASR evaluation</h2>
+        <p {...stylex.props(styles.description)}>
           Run an installed audio split through a local model. Model call time includes queue
           waiting.
         </p>
       </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,0.35fr)_minmax(180px,0.35fr)_auto]">
-        <label className="text-sm font-medium text-memora-text">
+      <div {...stylex.props(styles.form)}>
+        <label {...stylex.props(styles.label)}>
           Installed split
           <select
-            className={`${inputClassName} mt-2`}
+            className={stylex.props(styles.input).className}
             value={selectionKey}
             onChange={(event) => setSelectionKey(event.target.value)}
             disabled={running}
@@ -143,10 +388,10 @@ export default function AsrEvaluation() {
             ))}
           </select>
         </label>
-        <label className="text-sm font-medium text-memora-text">
+        <label {...stylex.props(styles.label)}>
           Model
           <select
-            className={`${inputClassName} mt-2`}
+            className={stylex.props(styles.input).className}
             value={modelId}
             onChange={(event) => setModelId(event.target.value)}
             disabled={running}
@@ -159,54 +404,51 @@ export default function AsrEvaluation() {
             </option>
           </select>
         </label>
-        <label className="text-sm font-medium text-memora-text">
+        <label {...stylex.props(styles.label)}>
           ASR language
           <input
-            className={`${inputClassName} mt-2`}
+            className={stylex.props(styles.input).className}
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
             disabled={running}
           />
         </label>
-        <div className="flex items-end gap-2">
+        <div {...stylex.props(styles.actions)}>
           <button
             type="button"
-            className={primaryButtonClassName}
+            className={stylex.props(styles.button, styles.primaryButton).className}
             disabled={!selected || running || !language.trim()}
             onClick={() => void run()}
           >
-            <PlayIcon className="size-4" /> Run evaluation
+            <PlayIcon className={stylex.props(styles.icon).className} /> Run evaluation
           </button>
           {running ? (
             <button
               type="button"
-              className={secondaryButtonClassName}
+              className={stylex.props(styles.button, styles.secondaryButton).className}
               onClick={() => controller.current?.abort()}
             >
-              <PauseIcon className="size-4" /> Cancel
+              <PauseIcon className={stylex.props(styles.icon).className} /> Cancel
             </button>
           ) : null}
         </div>
       </div>
       {error ? (
-        <p
-          role="alert"
-          className="mt-4 rounded-xl border border-memora-warning-border bg-memora-warning-surface px-3.5 py-3 text-sm text-memora-warning-text"
-        >
+        <p role="alert" className={stylex.props(styles.error).className}>
           {error}
         </p>
       ) : null}
       {progress ? (
-        <div className="mt-6 rounded-2xl bg-memora-surface-soft px-4 py-4">
-          <div className="flex items-center justify-between gap-4 text-sm">
-            <span className="font-medium text-memora-text">Progress</span>
-            <span className="tabular-nums text-memora-text-muted">
+        <div {...stylex.props(styles.progress)}>
+          <div {...stylex.props(styles.progressHeader)}>
+            <span {...stylex.props(styles.progressLabel)}>Progress</span>
+            <span {...stylex.props(styles.progressValue)}>
               {progress.completed} / {progress.total}
             </span>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-memora-surface-muted">
+          <div {...stylex.props(styles.progressTrack)}>
             <div
-              className="h-full bg-memora-olive transition-[width]"
+              {...stylex.props(styles.progressBar)}
               style={{
                 width: `${progress.total ? Math.min(100, (progress.completed / progress.total) * 100) : 0}%`,
               }}
@@ -215,15 +457,16 @@ export default function AsrEvaluation() {
         </div>
       ) : null}
       {result ? (
-        <div className="mt-7">
-          <div className="flex items-center justify-between gap-4">
+        <div {...stylex.props(styles.results)}>
+          <div {...stylex.props(styles.resultHeader)}>
             {saveNotice ? (
               <p
                 role={saveNotice.status === "failed" ? "alert" : undefined}
                 className={
-                  saveNotice.status === "failed"
-                    ? "text-sm text-memora-warning-text"
-                    : "text-sm text-memora-text-soft"
+                  stylex.props(
+                    styles.notice,
+                    saveNotice.status === "failed" ? styles.noticeError : styles.noticeMuted,
+                  ).className
                 }
               >
                 {saveNotice.status === "saved"
@@ -235,13 +478,13 @@ export default function AsrEvaluation() {
             )}
             <button
               type="button"
-              className={secondaryButtonClassName}
+              className={stylex.props(styles.button, styles.secondaryButton).className}
               onClick={() => downloadEvaluationJson(result)}
             >
-              <DownloadSimpleIcon className="size-4" /> Download JSON
+              <DownloadSimpleIcon className={stylex.props(styles.icon).className} /> Download JSON
             </button>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div {...stylex.props(styles.summaryGrid)}>
             {[
               ["Status", result.status],
               ["Total", String(result.summary.total)],
@@ -250,35 +493,33 @@ export default function AsrEvaluation() {
               ["WER", percentage(result.summary.wer.value)],
               ["CER", percentage(result.summary.cer.value)],
             ].map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-memora-border bg-memora-surface-soft p-4"
-              >
-                <p className="text-xs text-memora-text-soft">{label}</p>
-                <p className="mt-1 text-lg font-semibold text-memora-text-strong">{value}</p>
+              <div key={label} className={stylex.props(styles.summaryCard).className}>
+                <p {...stylex.props(styles.summaryLabel)}>{label}</p>
+                <p {...stylex.props(styles.summaryValue)}>{value}</p>
               </div>
             ))}
           </div>
-          <div className="mt-6 divide-y divide-memora-border">
+          <div {...stylex.props(styles.examples)}>
             {result.examples.map((example) => (
-              <article key={example.index} className="py-4">
-                <div className="flex items-center gap-2 text-xs text-memora-text-soft">
-                  <WaveformIcon className="size-4" /> Example {example.index + 1} · {example.status}
+              <article key={example.index} {...stylex.props(styles.example)}>
+                <div {...stylex.props(styles.exampleMeta)}>
+                  <WaveformIcon className={stylex.props(styles.icon).className} /> Example{" "}
+                  {example.index + 1} · {example.status}
                 </div>
                 {example.status === "succeeded" ? (
                   <>
-                    <p className="mt-2 text-sm text-memora-text">
-                      <span className="font-medium">Reference:</span> {example.reference}
+                    <p {...stylex.props(styles.exampleText)}>
+                      <span {...stylex.props(styles.strong)}>Reference:</span> {example.reference}
                     </p>
-                    <p className="mt-1 text-sm text-memora-text">
-                      <span className="font-medium">Prediction:</span> {example.prediction}
+                    <p {...stylex.props(styles.exampleText, styles.exampleTextSecondary)}>
+                      <span {...stylex.props(styles.strong)}>Prediction:</span> {example.prediction}
                     </p>
-                    <p className="mt-1 text-xs text-memora-text-soft">
+                    <p {...stylex.props(styles.timing)}>
                       Model call and queue wait: {example.modelCallMs.toFixed(0)} ms
                     </p>
                   </>
                 ) : (
-                  <p role="alert" className="mt-2 text-sm text-memora-warning-text">
+                  <p role="alert" {...stylex.props(styles.exampleText, styles.exampleError)}>
                     {example.error.message}
                   </p>
                 )}
@@ -288,26 +529,26 @@ export default function AsrEvaluation() {
         </div>
       ) : null}
       {savedResults.length > 0 ? (
-        <div className="mt-8 border-t border-memora-border pt-6">
-          <h3 className="text-sm font-semibold text-memora-text">Saved results</h3>
-          <div className="mt-3 divide-y divide-memora-border">
+        <div {...stylex.props(styles.saved)}>
+          <h3 {...stylex.props(styles.savedTitle)}>Saved results</h3>
+          <div {...stylex.props(styles.savedList)}>
             {savedResults.map((summary) => (
               <button
                 key={savedResultKey(summary)}
                 type="button"
-                className="flex w-full items-center justify-between gap-4 py-3 text-left hover:bg-memora-hover"
+                className={stylex.props(styles.savedRow).className}
                 onClick={() => void viewSaved(summary.runId)}
               >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-memora-text">
+                <span {...stylex.props(styles.savedCopy)}>
+                  <span {...stylex.props(styles.savedName)}>
                     {summary.dataset.datasetId} · {summary.dataset.configuration}/
                     {summary.dataset.split}
                   </span>
-                  <span className="mt-0.5 block text-xs text-memora-text-soft">
+                  <span {...stylex.props(styles.savedMeta)}>
                     {summary.status} · {new Date(summary.startedAt).toLocaleString()}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs tabular-nums text-memora-text-muted">
+                <span {...stylex.props(styles.savedCount)}>
                   {summary.summary.succeeded}/{summary.summary.total} succeeded
                 </span>
               </button>

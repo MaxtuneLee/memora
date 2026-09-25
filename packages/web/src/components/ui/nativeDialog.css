@@ -15,12 +15,17 @@
 }
 
 .memora-native-dialog::backdrop {
-  background: color-mix(in srgb, #221f1d 30%, transparent);
+  background: rgb(0 0 0 / 30%);
   backdrop-filter: blur(0px);
   opacity: 0;
   transition:
     opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
     backdrop-filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Matches the dark overlay token; a backdrop cannot read the StyleX variables. */
+:root[data-theme="dark"] .memora-native-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
 }
 
 .memora-native-dialog[data-state="open"]::backdrop {
@@ -44,10 +49,10 @@
 
 .memora-native-dialog__panel {
   width: min(92vw, 32rem);
-  border: 1px solid #e9e5dc;
+  border: 1px solid var(--color-memora-border);
   border-radius: 1.5rem;
-  background: #fffdfa;
-  box-shadow: 0 24px 60px rgba(34, 33, 29, 0.16);
+  background: var(--color-memora-surface);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 16%);
   opacity: 0;
   transform: translateY(14px) scale(0.98);
   transition:

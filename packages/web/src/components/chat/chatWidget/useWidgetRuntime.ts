@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
+import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
 import {
   WIDGET_BRIDGE_KEY,
@@ -23,6 +25,8 @@ export const useWidgetRuntime = ({
   hasRuntimeDom,
   onSendPrompt,
   syncIframeHeight,
+  dataState,
+  onWriteData,
 }: {
   widget: ChatWidgetData;
   parsedCode: ParsedShowWidgetCode;
@@ -33,10 +37,20 @@ export const useWidgetRuntime = ({
   hasRuntimeDom: boolean;
   onSendPrompt?: (text: string) => Promise<void> | void;
   syncIframeHeight: () => void;
+  // The widget's bound catalog data (from show_widget's data_source/data_source_params), or null
+  // when it has no binding. Kept in refs (not the bridge object literal) so a data update never
+  // forces the widget script to re-run — only the bridge's onData listeners are notified.
+  dataState?: DataSourceValueState | null;
+  // Host-mediated write channel (ADR 0008); preview keeps writes in memory (see
+  // usePreviewWidgetData). Omitting this refuses every write.
+  onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
 }) => {
   const scriptElementsRef = useRef<HTMLScriptElement[]>([]);
   const cleanupRef = useRef<(() => void) | null>(null);
   const executedSignatureRef = useRef("");
+  const latestDataRef = useRef<unknown>(undefined);
+  const hasDataRef = useRef(false);
+  const dataListenersRef = useRef<Array<(data: unknown) => void>>([]);
   const [runtimeError, setRuntimeError] = useState<{
     signature: string;
     message: string;
@@ -65,7 +79,26 @@ export const useWidgetRuntime = ({
       delete iframeWindow[WIDGET_ERROR_KEY];
     }
     executedSignatureRef.current = "";
+    // Subscribers belong to the script instance that registered them; the last resolved value
+    // survives so a freshly re-run script's onData(callback) still fires immediately (matching
+    // the Home Grid shim's onData semantics).
+    dataListenersRef.current = [];
   }, [iframeDocumentRef]);
+
+  useEffect(() => {
+    if (dataState?.status !== "ready") {
+      return;
+    }
+    latestDataRef.current = dataState.value;
+    hasDataRef.current = true;
+    dataListenersRef.current.forEach((listener) => {
+      try {
+        listener(dataState.value);
+      } catch (error) {
+        console.error("Widget data listener failed:", error);
+      }
+    });
+  }, [dataState]);
 
   useEffect(() => {
     if (!iframeReady || !userStyleRef.current || !contentRef.current) {
@@ -195,6 +228,22 @@ export const useWidgetRuntime = ({
         container: contentRef.current,
         openLink,
         sendPrompt,
+        getData: () => latestDataRef.current,
+        onData: (callback) => {
+          dataListenersRef.current.push(callback);
+          if (hasDataRef.current) {
+            callback(latestDataRef.current);
+          }
+        },
+        writeData: async (name, content) => {
+          if (!onWriteData) {
+            throw new Error("This widget cannot write data.");
+          }
+          const result = await onWriteData(String(name ?? ""), String(content ?? ""));
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        },
       };
       iframeWindow[WIDGET_CLEANUP_KEY] = null;
       iframeWindow[WIDGET_ERROR_KEY] = null;
@@ -243,6 +292,9 @@ export const useWidgetRuntime = ({
   const Chart = window.Chart ?? bridge.Chart;
   const sendPrompt = bridge.sendPrompt;
   const openLink = bridge.openLink;
+  const getData = bridge.getData;
+  const onData = bridge.onData;
+  const writeData = bridge.writeData;
 
   try {
     const cleanup = (() => {
@@ -314,6 +366,7 @@ ${script.content}
     iframeDocumentRef,
     iframeReady,
     onSendPrompt,
+    onWriteData,
     parsedCode,
     syncIframeHeight,
     teardownWidgetScript,

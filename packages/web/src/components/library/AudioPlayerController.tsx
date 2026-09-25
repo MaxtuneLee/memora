@@ -10,11 +10,172 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { TranscriptWords } from "./TranscriptWords";
 import { WaveformCanvas } from "./WaveformCanvas";
+import { tokens } from "../../styles/stylex.stylex";
 
 const WAVEFORM_BAR_COUNT = 400; // More samples for smoother canvas rendering
 const ZOOM_VISIBLE_SECONDS = 7;
+const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
+const styles = stylex.create({
+  surface: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  relative: { position: "relative" },
+  transcript: {
+    overflow: "hidden",
+    transition: "height 500ms ease-out, min-height 500ms ease-out, opacity 500ms ease-out",
+  },
+  transcriptOpen: { minHeight: 256, opacity: 1 },
+  transcriptClosed: { height: 0, opacity: 0 },
+  transcriptBody: { padding: 16 },
+  loading: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    justifyContent: "center",
+    paddingBlock: 48,
+  },
+  spinner: {
+    animationDuration: "1s",
+    animationIterationCount: "infinite",
+    animationName: spin,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 2,
+    borderRadius: 9999,
+    borderTopColor: tokens.textMuted,
+    height: 32,
+    width: 32,
+  },
+  textCenter: { textAlign: "center" },
+  loadingTitle: { color: tokens.text, fontSize: 14, fontWeight: 500, margin: 0 },
+  loadingDetail: { color: tokens.textMuted, fontSize: 12, marginTop: 4 },
+  progress: {
+    backgroundColor: tokens.border,
+    borderRadius: 9999,
+    height: 6,
+    marginInline: "auto",
+    marginTop: 12,
+    overflow: "hidden",
+    width: 192,
+  },
+  progressFill: {
+    backgroundColor: tokens.textMuted,
+    borderRadius: 9999,
+    height: "100%",
+    transition: "width 300ms",
+  },
+  transcriptText: {
+    color: tokens.text,
+    fontSize: 14,
+    lineHeight: 1.625,
+    margin: 0,
+    whiteSpace: "pre-wrap",
+  },
+  emptyTranscript: { color: tokens.textMuted, fontSize: 14, paddingBlock: 32, textAlign: "center" },
+  timeline: {
+    borderTopColor: tokens.hover,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  waveform: { width: "100%" },
+  waveformFallback: {
+    alignItems: "center",
+    display: "flex",
+    gap: 8,
+    height: 40,
+    justifyContent: "center",
+  },
+  smallSpinner: {
+    animationDuration: "1s",
+    animationIterationCount: "infinite",
+    animationName: spin,
+    borderColor: tokens.borderStrong,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 9999,
+    borderTopColor: tokens.textMuted,
+    height: 14,
+    width: 14,
+  },
+  waveformLoading: { color: tokens.textSoft, fontSize: 12 },
+  line: { backgroundColor: tokens.border, height: 1, width: "100%" },
+  zoomWindow: {
+    backgroundColor: `color-mix(in srgb, ${tokens.olive} 12%, transparent)`,
+    borderInlineColor: `color-mix(in srgb, ${tokens.olive} 35%, transparent)`,
+    borderInlineStyle: "solid",
+    borderInlineWidth: 1,
+    insetBlock: 0,
+    pointerEvents: "none",
+    position: "absolute",
+  },
+  playhead: {
+    backgroundColor: tokens.olive,
+    insetBlock: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    width: 2,
+  },
+  labels: {
+    color: tokens.textSoft,
+    display: "flex",
+    fontSize: 12,
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  tabular: { fontVariantNumeric: "tabular-nums" },
+  time: {
+    color: tokens.textStrong,
+    fontSize: 36,
+    fontWeight: 300,
+    fontVariantNumeric: "tabular-nums",
+  },
+  timeWrap: { textAlign: "center" },
+  controls: { alignItems: "center", display: "flex", gap: 24, justifyContent: "center" },
+  skipButton: {
+    alignItems: "center",
+    borderRadius: 9999,
+    color: tokens.textMuted,
+    display: "flex",
+    height: 56,
+    justifyContent: "center",
+    position: "relative",
+    transition: "color 150ms, background-color 150ms",
+    width: 56,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text },
+  },
+  playButton: {
+    alignItems: "center",
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 9999,
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textStrong,
+    display: "flex",
+    height: 64,
+    justifyContent: "center",
+    transition: "box-shadow 150ms, transform 150ms",
+    width: 64,
+    ":hover": { boxShadow: tokens.shadowMedium },
+    ":active": { transform: "scale(0.95)" },
+  },
+  largeIcon: { height: 28, width: 28 },
+  playIcon: { height: 28, marginLeft: 2, width: 28 },
+  count: { fontSize: 10, fontWeight: 500, position: "absolute" },
+});
 
 export interface AudioPlayerProps {
   audioUrl: string | undefined;
@@ -115,30 +276,31 @@ export const AudioPlayerController = ({
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div {...stylex.props(styles.surface)}>
         {/* Animated container for waveform/transcript transition */}
-        <div className="relative">
+        <div {...stylex.props(styles.relative)}>
           {/* Transcript view */}
           <div
-            className={`transition-all duration-500 ease-out ${
-              showTranscript ? "min-h-64 opacity-100" : "h-0 opacity-0 overflow-hidden"
-            }`}
+            {...stylex.props(
+              styles.transcript,
+              showTranscript ? styles.transcriptOpen : styles.transcriptClosed,
+            )}
           >
-            <div className="p-4">
+            <div {...stylex.props(styles.transcriptBody)}>
               {isTranscribing ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12">
-                  <div className="size-8 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-600" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-zinc-700">Transcribing audio...</p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                <div {...stylex.props(styles.loading)}>
+                  <div {...stylex.props(styles.spinner)} />
+                  <div {...stylex.props(styles.textCenter)}>
+                    <p {...stylex.props(styles.loadingTitle)}>Transcribing audio...</p>
+                    <p {...stylex.props(styles.loadingDetail)}>
                       {transcriptionStatus === "loading-model" && "Loading AI model..."}
                       {transcriptionStatus === "decoding" && "Decoding audio..."}
                       {transcriptionStatus === "transcribing" && "Processing speech..."}
                       {transcriptionStatus === "saving" && "Saving transcript..."}
                     </p>
-                    <div className="mt-3 h-1.5 w-48 mx-auto overflow-hidden rounded-full bg-zinc-200">
+                    <div {...stylex.props(styles.progress)}>
                       <div
-                        className="h-full rounded-full bg-zinc-600 transition-all duration-300"
+                        {...stylex.props(styles.progressFill)}
                         style={{ width: `${transcriptionProgress}%` }}
                       />
                     </div>
@@ -147,104 +309,99 @@ export const AudioPlayerController = ({
               ) : transcript?.words && transcript.words.length > 0 ? (
                 <TranscriptWords words={transcript.words} currentTime={uiTime} onSeek={seek} />
               ) : transcript?.text ? (
-                <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
-                  {transcript.text}
-                </p>
+                <p {...stylex.props(styles.transcriptText)}>{transcript.text}</p>
               ) : (
-                <p className="text-sm text-zinc-500 text-center py-8">No transcript available</p>
+                <p {...stylex.props(styles.emptyTranscript)}>No transcript available</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Mini waveform / timeline (overview) */}
-        <div className="border-t border-zinc-100 px-4 py-3">
-          <div className="relative">
+        <div {...stylex.props(styles.timeline)}>
+          <div {...stylex.props(styles.relative)}>
             {waveformData ? (
               <WaveformCanvas
                 peaks={waveformData.peaks}
                 progress={progress}
                 height={40}
-                className="w-full"
+                className={stylex.props(styles.waveform).className}
                 onClick={handleSeek}
                 onDrag={handleSeek}
               />
             ) : (
-              <div className="h-10 flex items-center justify-center gap-2">
+              <div {...stylex.props(styles.waveformFallback)}>
                 {isWaveformLoading ? (
                   <>
-                    <div className="size-3.5 animate-spin rounded-full border border-zinc-300 border-t-zinc-500" />
-                    <span className="text-xs text-zinc-400">Loading waveform...</span>
+                    <div {...stylex.props(styles.smallSpinner)} />
+                    <span {...stylex.props(styles.waveformLoading)}>Loading waveform...</span>
                   </>
                 ) : (
-                  <div className="h-px w-full bg-zinc-200" />
+                  <div {...stylex.props(styles.line)} />
                 )}
               </div>
             )}
 
             {/* Zoom window indicator overlay */}
             {duration > 0 && waveformData && (
-              <div
-                ref={zoomIndicatorRef}
-                className="absolute top-0 bottom-0 bg-blue-500/10 border-x border-blue-500/30 pointer-events-none"
-              />
+              <div ref={zoomIndicatorRef} {...stylex.props(styles.zoomWindow)} />
             )}
 
             {/* Playhead indicator overlay */}
             {waveformData && (
               <div
                 ref={playheadRef}
-                className="absolute top-0 bottom-0 w-0.5 bg-blue-500 pointer-events-none"
+                {...stylex.props(styles.playhead)}
                 style={{ left: `${progress * 100}%` }}
               />
             )}
           </div>
 
           {/* Timeline labels */}
-          <div className="flex justify-between mt-1 text-xs text-zinc-400">
-            <span className="tabular-nums">0:00</span>
-            <span className="tabular-nums">{formatDuration(duration)}</span>
+          <div {...stylex.props(styles.labels)}>
+            <span {...stylex.props(styles.tabular)}>0:00</span>
+            <span {...stylex.props(styles.tabular)}>{formatDuration(duration)}</span>
           </div>
         </div>
       </div>
 
       {/* Current time display */}
-      <div className="text-center">
-        <span ref={timeDisplayRef} className="text-4xl font-light tabular-nums text-zinc-900">
+      <div {...stylex.props(styles.timeWrap)}>
+        <span ref={timeDisplayRef} {...stylex.props(styles.time)}>
           {formatDurationWithMs(uiTime)}
         </span>
       </div>
 
       {/* Playback controls */}
-      <div className="flex items-center justify-center gap-6">
+      <div {...stylex.props(styles.controls)}>
         <Button
           onClick={onSkipBack}
-          className="relative flex size-14 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-700 hover:bg-zinc-100"
+          {...stylex.props(styles.skipButton)}
           aria-label="Skip back 15 seconds"
         >
-          <ArrowCounterClockwiseIcon className="size-7" />
-          <span className="absolute text-[10px] font-medium">15</span>
+          <ArrowCounterClockwiseIcon className={stylex.props(styles.largeIcon).className} />
+          <span {...stylex.props(styles.count)}>15</span>
         </Button>
 
         <Button
           onClick={togglePlay}
-          className="flex size-16 items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-800 shadow-sm transition-all hover:shadow-md active:scale-95"
+          {...stylex.props(styles.playButton)}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
-            <PauseIcon className="size-7" weight="fill" />
+            <PauseIcon className={stylex.props(styles.largeIcon).className} weight="fill" />
           ) : (
-            <PlayIcon className="size-7 ml-0.5" weight="fill" />
+            <PlayIcon className={stylex.props(styles.playIcon).className} weight="fill" />
           )}
         </Button>
 
         <Button
           onClick={onSkipForward}
-          className="relative flex size-14 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-700 hover:bg-zinc-100"
+          {...stylex.props(styles.skipButton)}
           aria-label="Skip forward 15 seconds"
         >
-          <ArrowClockwiseIcon className="size-7" />
-          <span className="absolute text-[10px] font-medium">15</span>
+          <ArrowClockwiseIcon className={stylex.props(styles.largeIcon).className} />
+          <span {...stylex.props(styles.count)}>15</span>
         </Button>
       </div>
     </>

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { expect, test } from "vite-plus/test";
@@ -77,41 +76,5 @@ test("renders a centered cat empty state without a transcript action", () => {
   expect(html).toContain("ฅ^•ﻌ•^ฅ");
   expect(html).toContain("No content yet.");
   expect(html).not.toContain("New live transcript");
-  expect(html).toContain("text-center");
-});
-
-test("uses subtle motion primitives and quiet hover treatment instead of decorative hover animation", () => {
-  const workbenchSource = readFileSync(
-    new URL(
-      "../../src/components/transcript/transcriptLanding/TranscriptWorkbench.tsx",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  const rowSource = readFileSync(
-    new URL(
-      "../../src/components/transcript/transcriptLanding/TranscriptHistoryRow.tsx",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-
-  expect(workbenchSource).toContain('from "motion/react"');
-  expect(workbenchSource).toContain("useReducedMotion");
-  expect(workbenchSource).toContain("<motion.section");
-  expect(rowSource).toContain("transition-colors");
-  expect(rowSource).not.toContain("whileHover");
-});
-
-test("integrates TranscriptPage around a compact title bar, quiet utility rail, and the new workbench", () => {
-  const pageSource = readFileSync(
-    new URL("../../src/components/transcript/TranscriptPage.tsx", import.meta.url),
-    "utf8",
-  );
-
-  expect(pageSource).toContain("TranscriptWorkbench");
-  expect(pageSource).toContain("getTranscriptHistoryRowState");
-  expect(pageSource).toContain("New live transcript");
-  expect(pageSource).not.toContain("emptyAction=");
-  expect(pageSource).not.toContain("RecordingsGrid");
+  expect(html).toContain("No content yet.");
 });

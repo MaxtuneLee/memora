@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import type { AgentConfig } from "@memora/ai-core";
-import { createRemotePiRuntime, type PiModelRuntime } from "@memora/ai-provider-pi";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { useProviderCredentials } from "@/hooks/settings/useProviderCredentials";
@@ -75,30 +74,9 @@ export const useChatModelConfig = ({
     };
   }, [activeSessionId, selectedBaseUrl, selectedModel, selectedProvider]);
 
-  const runtime = useMemo((): PiModelRuntime | null => {
-    if (!selectedProvider || !selectedModel || !selectedBaseUrl || !selectedModelInfo) {
-      return null;
-    }
-
-    return createRemotePiRuntime({
-      id: selectedProvider.id,
-      name: selectedProvider.name,
-      baseUrl: selectedBaseUrl,
-      apiKey: selectedApiKey || undefined,
-      apiFormat: selectedApiFormat,
-      models: [selectedModelInfo],
-      selectedModelId: selectedModel,
-    });
-  }, [
-    selectedApiFormat,
-    selectedApiKey,
-    selectedBaseUrl,
-    selectedModel,
-    selectedModelInfo,
-    selectedProvider,
-    selectedProviderModels,
-  ]);
-  const isConfigured = runtime !== null;
+  const isConfigured = Boolean(
+    selectedProvider && selectedModel && selectedBaseUrl && selectedModelInfo,
+  );
 
   useEffect(() => {
     if (!IS_DEV || !selectedProvider || !selectedModel) {
@@ -122,7 +100,18 @@ export const useChatModelConfig = ({
 
   return {
     agentConfig,
-    runtime,
+    providerConfig:
+      isConfigured && selectedProvider && selectedModelInfo
+        ? {
+            id: selectedProvider.id,
+            name: selectedProvider.name,
+            baseUrl: selectedBaseUrl,
+            apiKey: selectedApiKey || undefined,
+            apiFormat: selectedApiFormat,
+            models: [selectedModelInfo],
+            selectedModelId: selectedModel,
+          }
+        : undefined,
     isConfigured,
     selectedApiFormat,
     selectedApiKey,

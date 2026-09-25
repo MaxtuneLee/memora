@@ -1,5 +1,21 @@
 # Imagine — Visual Creation Suite
 
+## Destination — decide before the module
+
+Two different things get built here, and they have very different size budgets:
+
+- **Chat widget** — renders inline in the conversation at full column width and auto-fits its content height. A full panel fits.
+- **Home Grid widget** — the user saves it to their Home Grid, where it lands in a **1 × 1 square of roughly 280–336px**. A chat-sized panel gets cropped to that square.
+
+If the request does not make the destination obvious, **ask one short question before building**: "Do you want this on the Home Grid, or just here in the conversation?" Then build.
+
+- Home Grid: "save this", "add to my home", "a widget for…", "keep this around" — anything phrased as a thing they will come back to.
+- Chat: "show me", "visualize this", "explain with a chart" — anything answering the question being asked right now.
+
+**A request that sounds like a dashboard is not automatically a full-size panel.** "Storage dashboard", "usage dashboard", "progress dashboard" name the subject, not the canvas. Asking which one it is costs one line; guessing wrong costs the whole layout.
+
+When it is a Home Grid widget, size is the first constraint, not the last. Read "Home Grid sizing" below, lay out inside the square, and only then decide what earns a place in it.
+
 ## Modules
 
 Call read_me again with the modules parameter to load detailed guidance:
@@ -75,6 +91,18 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No nested scrolling — auto-fit height.
 - Scripts execute after streaming — load libraries via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` (UMD globals), then use the global in a plain `<script>` that follows.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
+- **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
+
+### Home Grid sizing
+
+In chat your widget is full-width and auto-fits its content height. But the user can save any widget to the Home Grid, where it becomes a tile in a square-cell grid. Design for both.
+
+- The grid runs 1–4 columns depending on window width, with a `14px` gap. One cell is a square of roughly `280–336px` per side.
+- Every saved widget starts at **1 × 1** — a single square. The user can drag it up to `4 × 4`.
+- Treat the `1 × 1` square as the case that must read well: one headline figure, a small chart, or about 3–5 rows. That is where every widget lands by default.
+- Keep width fluid (`%`, flex, `width: 100%`). Never hardcode a pixel width — a widget that only works at chat width gets cropped at `1 × 1`.
+- Keep the `1 × 1` view short. The host clips the tile to its cell and scrolls it; the grid never grows to fit you, so anything past the first square is hidden until the user resizes.
+- Still auto-fit height and add no scroll container of your own — the host owns the clipping.
 
 ### CSS Variables
 
@@ -111,6 +139,22 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 
 # Imagine — Visual Creation Suite
 
+## Destination — decide before the module
+
+Two different things get built here, and they have very different size budgets:
+
+- **Chat widget** — renders inline in the conversation at full column width and auto-fits its content height. A full panel fits.
+- **Home Grid widget** — the user saves it to their Home Grid, where it lands in a **1 × 1 square of roughly 280–336px**. A chat-sized panel gets cropped to that square.
+
+If the request does not make the destination obvious, **ask one short question before building**: "Do you want this on the Home Grid, or just here in the conversation?" Then build.
+
+- Home Grid: "save this", "add to my home", "a widget for…", "keep this around" — anything phrased as a thing they will come back to.
+- Chat: "show me", "visualize this", "explain with a chart" — anything answering the question being asked right now.
+
+**A request that sounds like a dashboard is not automatically a full-size panel.** "Storage dashboard", "usage dashboard", "progress dashboard" name the subject, not the canvas. Asking which one it is costs one line; guessing wrong costs the whole layout.
+
+When it is a Home Grid widget, size is the first constraint, not the last. Read "Home Grid sizing" below, lay out inside the square, and only then decide what earns a place in it.
+
 ## Modules
 
 Call read_me again with the modules parameter to load detailed guidance:
@@ -186,6 +230,18 @@ Output streams token-by-token. Structure code so useful content appears early.
 - No nested scrolling — auto-fit height.
 - Scripts execute after streaming — load libraries via `<script src="https://cdnjs.cloudflare.com/ajax/libs/...">` (UMD globals), then use the global in a plain `<script>` that follows.
 - **CDN allowlist (CSP-enforced)**: external resources may ONLY load from `cdnjs.cloudflare.com`, `esm.sh`, `cdn.jsdelivr.net`, `unpkg.com`. All other origins are blocked by the sandbox — the request silently fails.
+- **Window event listeners**: bind global listeners (resize, keydown, visibilitychange, message, etc.) on `window`, not `document` — and return a cleanup function from your script that removes them. The script can re-execute without a page reload, and `window` is never reset between runs, so an unremoved listener duplicates on every re-run.
+
+### Home Grid sizing
+
+In chat your widget is full-width and auto-fits its content height. But the user can save any widget to the Home Grid, where it becomes a tile in a square-cell grid. Design for both.
+
+- The grid runs 1–4 columns depending on window width, with a `14px` gap. One cell is a square of roughly `280–336px` per side.
+- Every saved widget starts at **1 × 1** — a single square. The user can drag it up to `4 × 4`.
+- Treat the `1 × 1` square as the case that must read well: one headline figure, a small chart, or about 3–5 rows. That is where every widget lands by default.
+- Keep width fluid (`%`, flex, `width: 100%`). Never hardcode a pixel width — a widget that only works at chat width gets cropped at `1 × 1`.
+- Keep the `1 × 1` view short. The host clips the tile to its cell and scrolls it; the grid never grows to fit you, so anything past the first square is hidden until the user resizes.
+- Still auto-fit height and add no scroll container of your own — the host owns the clipping.
 
 ### CSS Variables
 
@@ -220,10 +276,68 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - All core design system rules still apply
 - Use `sendPrompt()` for any action that benefits from memora thinking
 
+## Data source catalog
+
+To make a widget data-backed instead of static, set `data_source` (and, if the entry takes
+params, `data_source_params`) on `show_widget`. The preview then receives live data through the
+`onData`/`getData` bindings below, and saving the widget onto the Home Grid pre-fills the same
+binding — the widget never authors its own query, only picks a catalog entry by name.
+
+| `data_source`      | Params                      | Resolved payload shape                                 |
+| ------------------ | --------------------------- | ------------------------------------------------------ |
+| `recentFiles`      | `limit` (number, default 5) | `{ files: Array<{ id, name, type, updatedAt }> }`      |
+| `todoProgress`     | none                        | `{ total: number, completed: number }`                 |
+| `storageStats`     | none                        | `{ usedBytes, quotaBytes, isPersistent, isSupported }` |
+| `chatSessionCount` | none                        | `{ count: number }`                                    |
+| `widgetData`       | none                        | `{ [fileName]: parsed JSON or raw text }`              |
+
+How to use each one:
+
+- **`recentFiles`** — a list or timeline of what the user has been working on. Set `limit` to how
+  many rows the widget has room for; iterate `data.files` and format `updatedAt` (epoch
+  milliseconds) as relative time ("2h ago").
+- **`todoProgress`** — a progress bar or ring over the to-do list. Render
+  `data.completed / data.total` as a percentage; guard `data.total === 0` (nothing on the list
+  yet) before dividing, and show an empty state instead of `NaN%`.
+- **`storageStats`** — a storage gauge. Render `data.usedBytes / data.quotaBytes` as a percentage.
+  If `data.isSupported` is `false`, show a "not available" state, not a 0% gauge — the browser
+  doesn't expose the Storage API here, it isn't that usage is zero.
+- **`chatSessionCount`** — a single stat tile ("12 conversations"). Just `data.count`, nothing to
+  iterate.
+- **`widgetData`** — the widget's own persisted state, written with `writeData`. See "Persisting
+  the widget's own data" below before using it — reading it back has ordering pitfalls the other
+  sources don't have.
+
+Example: a widget over the 8 most recent files sets `data_source: "recentFiles"` and
+`data_source_params: { limit: 8 }`, then reads `onData((data) => { data.files.forEach(...) })`.
+
+## Persisting the widget's own data
+
+A widget that needs to remember something between reloads (a habit tracker's checked days, a
+reading list's entries) can write it back through the host: set `data_files` on `show_widget` to
+the file names it will write (e.g. `["state.json"]`), then call `writeData(name, content)` from
+`widget_code`. `writeData` returns a promise that rejects with a message if `name` wasn't
+declared, the content is too large, or the widget's total data storage is full — there is no
+direct file or storage access, every write is host-validated (see ADR 0008).
+
+To read the data back, set `data_source: "widgetData"` — its resolved payload is
+`{ [fileName]: content }` for every file the widget has written, JSON-parsed when the content is
+valid JSON. `onData`/`getData` deliver it exactly like any other catalog entry, including a
+refresh with no reload after `writeData` resolves or the file is edited externally.
+
+In Chat's preview (before the widget is saved), `writeData` keeps its writes in memory instead of
+on disk — the widget's own code does not need to know which mode it is running in.
+
+**Before writing any `onData`/`getData` logic against `widgetData`, read `sections/widget_data.md`**
+— a write and its own readback arrive as two separate, out-of-order messages, and getting that
+wrong makes saved data look lost. It also covers why browser storage cannot substitute for
+`writeData`.
+
 ## Local runtime contract
 
 - Use this skill before calling `show_widget`.
 - First read `README.md`, then read exactly one module guideline under `guidelines/`, then read the required section files for that module under `sections/`.
+- Settle the destination before designing anything — a Home Grid widget (a `1 × 1` square of roughly `280–336px`) or a chat-only widget (full column width, auto-fit height). If the request does not make it obvious, ask one short question and wait for the answer. See "Destination — decide before the module" above.
 - Required sections:
   - `art`: `sections/svg_setup.md`, `sections/art_and_illustration.md`
   - `mockup`: `sections/ui_components.md`, `sections/color_palette.md`
@@ -237,6 +351,13 @@ Pick the closest use case below and adapt. When nothing fits cleanly:
 - When calling `show_widget`, set `i_have_seen_read_me` to `true` only if you have read this file in the current turn.
 - `show_widget.widget_code` must be a fragment in this order: `<style>...</style>`, then HTML, then `<script>...</script>`.
 - The runtime executes scripts only after the full `<script>` block arrives.
-- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`.
+- If your script needs a listener that isn't scoped to an element inside `container` (window resize, keydown, visibilitychange, message, etc.), bind it on `window`, not `document`, and return a cleanup function from the script's top-level call that removes it. The script can re-execute in the same iframe without a page reload, and `window` is never reset between runs — an unremoved listener duplicates on every re-run.
+- In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`, `writeData`.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
+- Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above and, before writing the `onData` handler, `sections/widget_data.md`.
+- If `data_source` was set on `show_widget`, use `onData(callback)` to run `callback` with the resolved payload — immediately if it already arrived, and again on every later update. `getData()` returns the latest payload synchronously (or `undefined` before the first one arrives). Without a `data_source`, these are never called.
+- A widget that binds a `data_source` and is later saved to the Home Grid renders through a
+  separate, sandboxed runtime with no direct object access — `getData`/`onData` there work
+  identically, but `Chart`, `sendPrompt`, and `openLink` route through a stricter, message-based
+  bridge (see ADR 0006). Widgets that only use the bindings above behave the same in both places.

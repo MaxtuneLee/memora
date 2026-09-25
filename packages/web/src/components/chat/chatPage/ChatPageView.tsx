@@ -1,9 +1,29 @@
 import { ConfirmDialog } from "@/components/desktop";
+import { MotionConfig, motion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
+import { CHAT_MASCOT_LAYOUT_ID } from "./helpers";
+
+const styles = stylex.create({
+  root: { display: "flex", height: "100%", minHeight: 0 },
+  main: { display: "flex", flex: 1, flexDirection: "column", minHeight: 0, minWidth: 0 },
+  content: { display: "flex", flex: 1, minHeight: 0, position: "relative" },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: "auto" },
+  messages: {
+    display: "flex",
+    flexDirection: "column",
+    marginInline: "auto",
+    maxWidth: 1024,
+    minHeight: "100%",
+    paddingInline: 16,
+    paddingTop: 24,
+    width: "100%",
+  },
+});
 
 export const ChatPageView = (props: {
   sessions: Parameters<typeof ChatPageHistoryShell>[0]["sessions"];
@@ -25,7 +45,8 @@ export const ChatPageView = (props: {
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: Parameters<typeof ChatPageMessagesPanel>[0]["iterationLimitPrompt"];
   error: Error | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  messagesContentRef: React.RefObject<HTMLDivElement | null>;
+  messagesScrollAreaRef: React.RefObject<HTMLDivElement | null>;
   greetingTitle: string;
   isConfigured: boolean;
   onSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
@@ -36,8 +57,7 @@ export const ChatPageView = (props: {
   onContinueAfterIterationLimit: () => Promise<void>;
   onDismissIterationLimitPrompt: () => void;
   onOpenSettings: (section?: string) => void;
-  onSuggestionClick: Parameters<typeof ChatPageMessagesPanel>[0]["onSuggestionClick"];
-  composerPanelProps: Parameters<typeof ChatPageComposerPanel>[0];
+  composerPanelProps: Omit<Parameters<typeof ChatPageComposerPanel>[0], "centered">;
   isHistoryDrawerOpen: boolean;
   pendingWriteApproval: Parameters<typeof ToolWriteApprovalDialog>[0]["request"];
   onAllowWriteOnce: () => void;
@@ -72,7 +92,8 @@ export const ChatPageView = (props: {
     savingAttachmentIds,
     iterationLimitPrompt,
     error,
-    messagesEndRef,
+    messagesContentRef,
+    messagesScrollAreaRef,
     greetingTitle,
     isConfigured,
     onSaveImageToLibrary,
@@ -83,7 +104,6 @@ export const ChatPageView = (props: {
     onContinueAfterIterationLimit,
     onDismissIterationLimitPrompt,
     onOpenSettings,
-    onSuggestionClick,
     composerPanelProps,
     isHistoryDrawerOpen,
     pendingWriteApproval,
@@ -101,8 +121,8 @@ export const ChatPageView = (props: {
   } = props;
 
   return (
-    <>
-      <div className="flex h-full min-h-0">
+    <MotionConfig reducedMotion="user">
+      <div {...stylex.props(styles.root)}>
         <ChatPageHistoryShell
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -117,14 +137,23 @@ export const ChatPageView = (props: {
           onOpenHistoryDrawer={onOpenHistoryDrawer}
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="relative flex min-h-0 flex-1">
-            <div className="min-h-0 flex-1 overflow-y-auto">
+        <div {...stylex.props(styles.main)}>
+          <div {...stylex.props(styles.content)}>
+            {/* layoutScroll lets the mascot flight measure through the auto-scroll to the bottom. */}
+            <motion.div
+              layoutScroll
+              ref={messagesScrollAreaRef}
+              {...stylex.props(styles.scrollArea)}
+            >
               <div
-                className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pt-6"
-                style={{ paddingBottom: composerScrollInset }}
+                ref={messagesContentRef}
+                {...stylex.props(styles.messages)}
+                style={{ paddingBottom: hasMessages ? composerScrollInset : 0 }}
               >
                 <ChatPageMessagesPanel
+                  // Scoped per session: the mascot flies from the empty state to the first
+                  // reply, but never between sessions when switching.
+                  mascotLayoutId={`${CHAT_MASCOT_LAYOUT_ID}:${activeSessionId}`}
                   messages={composerPanelProps.messages}
                   isStreaming={isStreaming}
                   status={status}
@@ -138,7 +167,6 @@ export const ChatPageView = (props: {
                   savingAttachmentIds={savingAttachmentIds}
                   iterationLimitPrompt={iterationLimitPrompt}
                   error={error}
-                  messagesEndRef={messagesEndRef}
                   greetingTitle={greetingTitle}
                   isConfigured={isConfigured}
                   onSaveImageToLibrary={onSaveImageToLibrary}
@@ -149,12 +177,11 @@ export const ChatPageView = (props: {
                   onContinueAfterIterationLimit={onContinueAfterIterationLimit}
                   onDismissIterationLimitPrompt={onDismissIterationLimitPrompt}
                   onOpenSettings={() => onOpenSettings("ai-provider")}
-                  onSuggestionClick={onSuggestionClick}
                 />
               </div>
-            </div>
+            </motion.div>
 
-            <ChatPageComposerPanel {...composerPanelProps} />
+            <ChatPageComposerPanel {...composerPanelProps} centered={!hasMessages} />
           </div>
         </div>
       </div>
@@ -194,6 +221,6 @@ export const ChatPageView = (props: {
           onConfirmDeleteSession(pendingDeleteSessionId);
         }}
       />
-    </>
+    </MotionConfig>
   );
 };

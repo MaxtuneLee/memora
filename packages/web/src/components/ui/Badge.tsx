@@ -1,6 +1,8 @@
 import type { ComponentProps } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 export type BadgeVariant = "neutral" | "olive" | "warning";
 
@@ -8,21 +10,29 @@ export interface BadgeProps extends ComponentProps<"span"> {
   variant?: BadgeVariant;
 }
 
-const BADGE_VARIANTS: Record<BadgeVariant, string> = {
-  neutral: "bg-[var(--color-memora-surface-soft)] text-[var(--color-memora-text-soft)]",
-  olive:
-    "bg-[color-mix(in_srgb,var(--color-memora-olive-soft)_18%,transparent)] text-[var(--color-memora-olive)]",
-  warning: "bg-[var(--color-memora-warning-surface)] text-[var(--color-memora-warning-text)]",
-};
+const styles = stylex.create({
+  base: {
+    alignItems: "center",
+    borderRadius: 9999,
+    display: "inline-flex",
+    flexShrink: 0,
+    fontSize: 11,
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 500,
+    lineHeight: "16px",
+    paddingBlock: 2,
+    paddingInline: 8,
+    whiteSpace: "nowrap",
+  },
+  neutral: { backgroundColor: tokens.surfaceMuted, color: tokens.textMuted },
+  olive: { backgroundColor: tokens.selected, color: tokens.oliveText },
+  warning: { backgroundColor: tokens.warningSurface, color: tokens.warningText },
+});
 
 export function Badge({ variant = "neutral", className, ...props }: BadgeProps) {
   return (
     <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium",
-        BADGE_VARIANTS[variant],
-        className,
-      )}
+      className={cn(stylex.props(styles.base, styles[variant]).className, className)}
       {...props}
     />
   );

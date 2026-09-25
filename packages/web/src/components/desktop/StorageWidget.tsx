@@ -2,6 +2,67 @@ import { useStorageStats } from "@/hooks/settings/useStorageStats";
 import { formatBytes } from "@/lib/format";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useMemo } from "react";
+import * as stylex from "@stylexjs/stylex";
+
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { bottom: 16, position: "absolute", right: 16, width: 288 },
+  button: { textAlign: "left", width: "100%" },
+  card: {
+    backdropFilter: "blur(12px)",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 16,
+    boxShadow: tokens.shadowSmall,
+    padding: 16,
+    transition: "background-color 150ms, border-color 150ms, box-shadow 150ms",
+    ":hover": {
+      backgroundColor: tokens.card,
+      borderColor: tokens.borderStrong,
+      boxShadow: tokens.shadowMedium,
+    },
+  },
+  header: { alignItems: "flex-start", display: "flex", gap: 12, justifyContent: "space-between" },
+  title: { color: tokens.textStrong, fontSize: 14, fontWeight: 600, margin: 0 },
+  summary: { color: tokens.textMuted, fontSize: 12, marginTop: 4 },
+  status: {
+    alignItems: "center",
+    borderRadius: 9999,
+    display: "flex",
+    fontSize: 10,
+    fontWeight: 500,
+    gap: 6,
+    paddingBlock: 2,
+    paddingInline: 8,
+  },
+  persistentStatus: { backgroundColor: tokens.successSurface, color: tokens.successText },
+  temporaryStatus: { backgroundColor: tokens.warningSurface, color: tokens.warningText },
+  dot: { borderRadius: 9999, height: 6, width: 6 },
+  bar: {
+    backgroundColor: tokens.border,
+    borderRadius: 9999,
+    display: "flex",
+    height: 6,
+    marginTop: 12,
+    overflow: "hidden",
+    width: "100%",
+  },
+  segment: { height: "100%" },
+  legend: {
+    color: tokens.textMuted,
+    display: "flex",
+    flexWrap: "wrap",
+    columnGap: 12,
+    rowGap: 4,
+    fontSize: 10,
+    marginTop: 10,
+  },
+  legendItem: { alignItems: "center", display: "flex", gap: 4 },
+  legendDot: { borderRadius: 9999, height: 6, width: 6 },
+  legendValue: { color: tokens.textSoft },
+  empty: { color: tokens.textSoft, fontSize: 10, marginTop: 10 },
+});
 
 export function StorageWidget() {
   const { breakdownSegments, storageQuota, storageUsage, isStoragePersistent } = useStorageStats();
@@ -18,56 +79,59 @@ export function StorageWidget() {
   }, [storageQuota, storageUsage]);
 
   return (
-    <div className="absolute bottom-4 right-4 w-72">
+    <div {...stylex.props(styles.root)}>
       <button
         type="button"
         onClick={() => openSettings("data-storage")}
-        className="w-full text-left"
+        {...stylex.props(styles.button)}
       >
-        <div className="rounded-2xl border border-zinc-200/80 bg-white/80 backdrop-blur-md p-4 shadow-sm transition hover:border-zinc-300 hover:bg-white hover:shadow-md">
-          <div className="flex items-start justify-between gap-3">
+        <div {...stylex.props(styles.card)}>
+          <div {...stylex.props(styles.header)}>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">Storage</h3>
-              <p className="mt-1 text-xs text-zinc-500">{storageSummary}</p>
+              <h3 {...stylex.props(styles.title)}>Storage</h3>
+              <p {...stylex.props(styles.summary)}>{storageSummary}</p>
             </div>
             <div
-              className={`
-                flex items-center gap-1.5 rounded-full px-2 py-0.5 
-                text-[10px] font-medium
-                ${isStoragePersistent ? "bg-[#eef2e2] text-[#5f7240]" : "bg-[#f3ebe2] text-[#8a6a4d]"}
-              `}
+              {...stylex.props(
+                styles.status,
+                isStoragePersistent ? styles.persistentStatus : styles.temporaryStatus,
+              )}
             >
               <span
-                className={`size-1.5 rounded-full ${
-                  isStoragePersistent ? "bg-[#879a4f]" : "bg-[#b07a63]"
-                }`}
+                {...stylex.props(styles.dot)}
+                style={{
+                  backgroundColor: isStoragePersistent ? tokens.olive : tokens.warningText,
+                }}
               />
               {isStoragePersistent ? "Persistent" : "Temporary"}
             </div>
           </div>
 
-          <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+          <div {...stylex.props(styles.bar)}>
             {visibleBreakdownSegments.map((segment) => (
               <div
                 key={segment.id}
-                className={segment.color}
-                style={{ width: `${segment.fraction * 100}%` }}
+                {...stylex.props(styles.segment)}
+                style={{ backgroundColor: segment.color, width: `${segment.fraction * 100}%` }}
               />
             ))}
           </div>
 
           {visibleBreakdownSegments.length > 0 ? (
-            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+            <div {...stylex.props(styles.legend)}>
               {visibleBreakdownSegments.map((segment) => (
-                <div key={segment.id} className="flex items-center gap-1">
-                  <span className={`size-1.5 rounded-full ${segment.color}`} />
+                <div key={segment.id} {...stylex.props(styles.legendItem)}>
+                  <span
+                    {...stylex.props(styles.legendDot)}
+                    style={{ backgroundColor: segment.color }}
+                  />
                   <span>{segment.label}</span>
-                  <span className="text-zinc-400">{formatBytes(segment.size)}</span>
+                  <span {...stylex.props(styles.legendValue)}>{formatBytes(segment.size)}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="mt-2.5 text-[10px] text-zinc-400">No storage used yet.</p>
+            <p {...stylex.props(styles.empty)}>No storage used yet.</p>
           )}
         </div>
       </button>

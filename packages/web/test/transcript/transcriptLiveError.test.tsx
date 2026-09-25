@@ -9,6 +9,12 @@ const state = vi.hoisted(() => ({ retry: vi.fn(), check: vi.fn(async () => false
 vi.mock("@/hooks/settings/useSettingsDialog", () => ({
   useSettingsDialog: () => ({ openSettings: vi.fn() }),
 }));
+vi.mock("@/hooks/settings/useModelRouting", () => ({
+  useModelRouting: () => ({
+    routing: { transcription: { source: "cloud", providerId: "provider", modelId: "model" } },
+    setFeatureModel: vi.fn(),
+  }),
+}));
 vi.mock("@/hooks/transcript/useTranscript", () => ({
   useTranscript: () => ({
     isWebGpuAvailable: true,

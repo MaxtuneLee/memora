@@ -7,7 +7,7 @@ import {
 } from "@memora/local-model-runtime/worker";
 
 describe("qwen35 adapter helpers", () => {
-  test("preserves text and image content", () => {
+  test("forwards the system prompt and preserves text and image content", () => {
     const messages = buildQwenMessages({
       systemPrompt: "You are Memora.",
       messages: [
@@ -22,8 +22,12 @@ describe("qwen35 adapter helpers", () => {
       tools: [],
     });
 
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.content).toEqual([
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toEqual({
+      role: "system",
+      content: [{ type: "text", text: "You are Memora." }],
+    });
+    expect(messages[1]?.content).toEqual([
       { type: "text", text: "describe this" },
       { type: "image", mimeType: "image/png", data: "abc" },
     ]);
@@ -52,13 +56,20 @@ describe("qwen35 adapter helpers", () => {
       ],
     });
 
+    expect(messages).toEqual([
+      { role: "system", content: [{ type: "text", text: "You are Memora." }] },
+      { role: "user", content: [{ type: "text", text: "search my notes" }] },
+    ]);
+  });
+
+  test("adds no system message for a blank system prompt", () => {
+    const messages = buildQwenMessages({
+      systemPrompt: "  ",
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      tools: [],
+    });
+
     expect(messages.map((message) => message.role)).toEqual(["user"]);
-    expect(messages[0]?.content).toEqual([{ type: "text", text: "search my notes" }]);
-    const firstContent = messages[0]?.content[0];
-    expect(firstContent?.type).toBe("text");
-    if (firstContent?.type === "text") {
-      expect(firstContent.text).not.toContain("search_notes");
-    }
   });
 
   test("uses thinking config when requested", () => {

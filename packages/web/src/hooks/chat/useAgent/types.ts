@@ -1,13 +1,10 @@
 import type {
   AgentConfig,
-  AgentHooks,
-  ModelStream,
   PersistenceAdapter,
   PromptSegment,
   TokenUsage,
   ToolDefinition,
 } from "@memora/ai-core";
-import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
 import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAttachments";
 import type { ChatWidget } from "@/lib/chat/showWidget";
@@ -28,6 +25,7 @@ export interface ChatTurnInput {
 }
 
 export interface RunTurnOptions {
+  mode?: "pending" | "steer";
   existingUserMessage?: ChatMessage;
   userMessageContent?: string;
 }
@@ -54,12 +52,13 @@ export type AgentStatus =
   | { type: "error" };
 
 export interface UseAgentOptions {
+  sessionStorage?: "memory";
+  providerConfig?: Omit<import("@memora/ai-provider-pi").RemotePiProviderConfig, "onUsage">;
+  getReferenceScope?: () => import("@/lib/chat/tools/shared").ResolvedReferenceScope;
+  deliveryMode?: "pending" | "steer";
   sessionId: string;
   initialMessages?: ChatMessage[];
   config: Partial<AgentConfig>;
-  model: PiModelRuntime["model"];
-  stream: ModelStream;
-  hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
   tools?: Partial<ToolDefinition>[];
   promptSegments?: PromptSegment[];
@@ -67,6 +66,9 @@ export interface UseAgentOptions {
 
 export interface UseAgentReturn {
   messages: ChatMessage[];
+  pendingCount: number;
+  pendingWriteApproval: import("@/lib/chat/tools/shared").WriteApprovalRequest | null;
+  resolveWriteApproval: (decision: import("@/lib/chat/tools/shared").WriteApprovalDecision) => void;
   isStreaming: boolean;
   status: AgentStatus;
   thinkingSteps: ThinkingStep[];

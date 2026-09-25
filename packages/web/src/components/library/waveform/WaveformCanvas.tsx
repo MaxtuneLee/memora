@@ -1,6 +1,18 @@
 import { memo, useCallback, useEffect, useRef } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { drawRoundedRect, interpolateColor, resamplePeaksToBars } from "@/lib/audio/waveformCanvas";
+import { useThemeColorVars } from "@/hooks/theme/useThemeColorVars";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { cursor: "pointer", position: "relative", userSelect: "none" },
+  canvas: { inset: 0, position: "absolute" },
+});
+
+// Resolved via getComputedStyle so the bars redraw with the theme (see useThemeColorVars).
+// Explicit playedColor/unplayedColor props win.
+const WAVEFORM_COLORS = { played: tokens.textStrong, unplayed: tokens.borderStrong };
 
 interface WaveformCanvasProps {
   peaks: number[];
@@ -24,8 +36,8 @@ export const WaveformCanvas = memo(function WaveformCanvas({
   getProgress,
   height,
   className = "",
-  playedColor = "#27272a",
-  unplayedColor = "#d4d4d8",
+  playedColor,
+  unplayedColor,
   barWidth = 2,
   barGap = 1,
   barRadius = 1,
@@ -33,6 +45,9 @@ export const WaveformCanvas = memo(function WaveformCanvas({
   onClick,
   onDrag,
 }: WaveformCanvasProps) {
+  const themeColors = useThemeColorVars(WAVEFORM_COLORS);
+  const resolvedPlayedColor = playedColor || themeColors.played;
+  const resolvedUnplayedColor = unplayedColor || themeColors.unplayed;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -48,8 +63,8 @@ export const WaveformCanvas = memo(function WaveformCanvas({
     progress,
     getProgress,
     height,
-    playedColor,
-    unplayedColor,
+    playedColor: resolvedPlayedColor,
+    unplayedColor: resolvedUnplayedColor,
     barWidth,
     barGap,
     barRadius,
@@ -62,8 +77,8 @@ export const WaveformCanvas = memo(function WaveformCanvas({
       progress,
       getProgress,
       height,
-      playedColor,
-      unplayedColor,
+      playedColor: resolvedPlayedColor,
+      unplayedColor: resolvedUnplayedColor,
       barWidth,
       barGap,
       barRadius,
@@ -74,8 +89,8 @@ export const WaveformCanvas = memo(function WaveformCanvas({
     progress,
     getProgress,
     height,
-    playedColor,
-    unplayedColor,
+    resolvedPlayedColor,
+    resolvedUnplayedColor,
     barWidth,
     barGap,
     barRadius,
@@ -265,14 +280,14 @@ export const WaveformCanvas = memo(function WaveformCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative cursor-pointer select-none ${className}`}
+      className={`${stylex.props(styles.root).className} ${className}`}
       style={{ height }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <canvas ref={canvasRef} className="absolute inset-0" />
+      <canvas ref={canvasRef} {...stylex.props(styles.canvas)} />
     </div>
   );
 });

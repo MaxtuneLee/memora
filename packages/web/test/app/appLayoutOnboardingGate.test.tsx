@@ -84,3 +84,17 @@ test("forces an incomplete session into onboarding from any other route", async 
 
   expect(navigateMock).toHaveBeenCalledWith("/onboarding", { replace: true });
 });
+
+test("the loading state and the routed shell share the document root theme", async () => {
+  state.settings = { onboardingCompleted: true, theme: "dark" } as typeof state.settings;
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <AppLayout />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText("Preparing your workspace...")).toBeInTheDocument();
+  expect(document.documentElement.dataset.theme).toBe("dark");
+
+  await waitForGateReady();
+  expect(document.documentElement.dataset.theme).toBe("dark");
+});

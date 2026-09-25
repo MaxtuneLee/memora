@@ -3,6 +3,9 @@ import { Toast } from "@base-ui/react/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "@/app/components/Sidebar";
 import SearchPalette from "@/components/search/SearchPalette";
+import ToastStack from "@/components/ToastStack";
+import AppUpdateDialog from "@/components/AppUpdateDialog";
+import ChatFinishedToasts from "@/components/chat/ChatFinishedToasts";
 import SettingsDialog from "@/components/settings/SettingsDialog";
 import { LocalModelDevtoolsPanel } from "@/components/devtools/LocalModelDevtoolsPanel";
 import {
@@ -11,13 +14,25 @@ import {
 } from "@/hooks/search/useSearchPalette";
 import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialog";
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
+import { startAppLogCollection } from "@/lib/appLog/appLogCollector";
 import type { SettingsSectionId } from "@/types/settings";
 import { useAppStore } from "@/livestore/store";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
+import { appShellStyles } from "@/styles/stylex.stylex";
+import * as stylex from "@stylexjs/stylex";
+
+import { useAgentToolHost } from "@/hooks/chat/useAgentToolHost";
 
 export default function AppLayout() {
+  useAgentToolHost();
   const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$);
+  useDocumentTheme(settings.theme ?? "system");
+  useEffect(() => {
+    if (!settings.logCollectionEnabled) return;
+    return startAppLogCollection(store);
+  }, [settings.logCollectionEnabled, store]);
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);
@@ -198,16 +213,14 @@ export default function AppLayout() {
       <SettingsDialogContextProvider value={settingsValue}>
         <SearchPaletteContextProvider value={searchValue}>
           {!onboardingGateReady ? (
-            <div className="flex h-dvh w-full items-center justify-center bg-memora-bg text-sm text-memora-muted">
-              Preparing your workspace...
-            </div>
+            <div {...stylex.props(appShellStyles.loading)}>Preparing your workspace...</div>
           ) : isOnboardingRoute ? (
             <Outlet />
           ) : (
-            <div className="flex h-dvh w-full overflow-hidden bg-memora-bg text-memora-text font-sans selection:bg-[#879a4f] selection:text-zinc-950">
+            <div {...stylex.props(appShellStyles.shell)}>
               <Sidebar />
-              <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200">
+              <main {...stylex.props(appShellStyles.content)}>
+                <div {...stylex.props(appShellStyles.scrollArea)}>
                   <Outlet />
                 </div>
               </main>
@@ -221,6 +234,9 @@ export default function AppLayout() {
             onSectionChange={setActiveSection}
           />
           {import.meta.env.DEV && <LocalModelDevtoolsPanel currentPath={location.pathname} />}
+          <ToastStack />
+          <ChatFinishedToasts />
+          <AppUpdateDialog />
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
     </Toast.Provider>

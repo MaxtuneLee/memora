@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useId } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,7 @@ import {
 import { getLocalModelOptions } from "@/lib/local-model";
 import { readProviderApiKey } from "@/livestore/providerCredential";
 import type { provider } from "@/livestore/provider";
+import { tokens } from "../../styles/stylex.stylex";
 
 const LOCAL_MODELS = getLocalModelOptions();
 const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
@@ -24,6 +26,79 @@ const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
   "sessionTitle",
   "memoryExtraction",
 ];
+
+const styles = stylex.create({
+  row: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    minWidth: 0,
+    paddingBlock: "1.25rem",
+    ":first-child": {
+      paddingTop: 0,
+    },
+    ":last-child": {
+      borderBottomWidth: 0,
+      paddingBottom: 0,
+    },
+  },
+  legend: {
+    color: tokens.textStrong,
+    float: "left",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    marginBottom: "0.25rem",
+    width: "100%",
+  },
+  description: {
+    clear: "both",
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+  },
+  grid: {
+    display: "grid",
+    gap: "0.75rem",
+    marginTop: "0.75rem",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr)",
+      "@media (min-width: 640px)": "repeat(2, minmax(0, 1fr))",
+    },
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.375rem",
+    minWidth: 0,
+  },
+  wideField: {
+    gridColumn: {
+      default: "auto",
+      "@media (min-width: 640px)": "span 2 / span 2",
+    },
+  },
+  label: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+  },
+  catalogStatus: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: "0.75rem",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+    lineHeight: "1rem",
+  },
+  routeStatus: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.75rem",
+  },
+});
 
 function FeatureModelRow({
   feature,
@@ -79,23 +154,13 @@ function FeatureModelRow({
   }, [autoSelectFirstProvider, feature, onChange, providers, route]);
   if (!info) return null;
   return (
-    <fieldset
-      disabled={disabled}
-      className="min-w-0 space-y-3 border-b border-[var(--color-memora-border)] py-5 first:pt-0 last:border-b-0 last:pb-0"
-    >
-      <legend className="float-left mb-1 w-full text-sm font-semibold text-[var(--color-memora-text-strong)]">
-        {info.label}
-      </legend>
-      <p className="clear-both text-sm leading-6 text-[var(--color-memora-text-muted)]">
-        {info.description}
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <fieldset disabled={disabled} {...stylex.props(styles.row)}>
+      <legend {...stylex.props(styles.legend)}>{info.label}</legend>
+      <p {...stylex.props(styles.description)}>{info.description}</p>
+      <div {...stylex.props(styles.grid)}>
         {sourceOptions.length > 1 ? (
-          <div className="space-y-1.5">
-            <label
-              htmlFor={`${id}-source`}
-              className="text-xs text-[var(--color-memora-text-muted)]"
-            >
+          <div {...stylex.props(styles.field)}>
+            <label htmlFor={`${id}-source`} {...stylex.props(styles.label)}>
               Execution
             </label>
             <Select
@@ -119,11 +184,8 @@ function FeatureModelRow({
           </div>
         ) : null}
         {route.source === "local" ? (
-          <div className="space-y-1.5">
-            <label
-              htmlFor={`${id}-local`}
-              className="text-xs text-[var(--color-memora-text-muted)]"
-            >
+          <div {...stylex.props(styles.field)}>
+            <label htmlFor={`${id}-local`} {...stylex.props(styles.label)}>
               Local model
             </label>
             <Select
@@ -139,11 +201,8 @@ function FeatureModelRow({
         ) : null}
         {route.source === "cloud" ? (
           <>
-            <div className="space-y-1.5">
-              <label
-                htmlFor={`${id}-provider`}
-                className="text-xs text-[var(--color-memora-text-muted)]"
-              >
+            <div {...stylex.props(styles.field)}>
+              <label htmlFor={`${id}-provider`} {...stylex.props(styles.label)}>
                 Provider
               </label>
               <Select
@@ -157,11 +216,8 @@ function FeatureModelRow({
                 }
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label
-                htmlFor={`${id}-model`}
-                className="text-xs text-[var(--color-memora-text-muted)]"
-              >
+            <div {...stylex.props(styles.field, styles.wideField)}>
+              <label htmlFor={`${id}-model`} {...stylex.props(styles.label)}>
                 Model
               </label>
               <Select
@@ -175,7 +231,7 @@ function FeatureModelRow({
                 }}
               />
               {selectedProvider ? (
-                <div className="flex items-center justify-between gap-3 text-xs text-[var(--color-memora-text-muted)]">
+                <div {...stylex.props(styles.catalogStatus)}>
                   <span role="status">
                     {catalog.loading
                       ? "Loading models…"
@@ -198,7 +254,7 @@ function FeatureModelRow({
           </>
         ) : null}
       </div>
-      <p className="text-xs leading-5 text-[var(--color-memora-text-muted)]" role="status">
+      <p {...stylex.props(styles.routeStatus)} role="status">
         {target.source === "local"
           ? "Processed on this device. Model files must be downloaded before first use. Failures never switch to cloud automatically."
           : !selectedProvider || !target.modelId

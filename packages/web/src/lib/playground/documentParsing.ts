@@ -1,4 +1,4 @@
-import * as pdfjs from "pdfjs-dist";
+import type * as pdfjs from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import * as mammoth from "mammoth";
 import { PptxHandler, PptxMarkdownConverter, type PptxElement } from "pptx-viewer-core";
@@ -785,18 +785,23 @@ const inspectDocxPreviewParser = async (file: File): Promise<DocxPreviewParserSu
   }
 };
 
-const configurePdfWorker = (): void => {
-  if (pdfjs.GlobalWorkerOptions.workerSrc !== pdfWorkerUrl) {
-    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-  }
+let pdfjsPromise: Promise<typeof pdfjs> | null = null;
+
+// pdf.js touches DOM globals while it loads, so it is imported only when a PDF is parsed.
+const loadPdfjs = (): Promise<typeof pdfjs> => {
+  pdfjsPromise ??= import("pdfjs-dist").then((module) => {
+    module.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+    return module;
+  });
+  return pdfjsPromise;
 };
 
 const parsePdf = async (file: File, options: DocumentParserOptions): Promise<ParsedPdfDocument> => {
   const startedAt = performance.now();
   options.onProgress?.({ stage: "reading", label: "Opening PDF" });
-  configurePdfWorker();
+  const { getDocument } = await loadPdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
-  const loadingTask = pdfjs.getDocument({
+  const loadingTask = getDocument({
     data,
     disableAutoFetch: true,
     useWorkerFetch: false,

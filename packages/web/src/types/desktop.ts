@@ -2,6 +2,10 @@ import type { RecordingMeta } from "@/types/library";
 
 export type DesktopItemType = "file" | "folder" | "widget";
 
+// Mirrors the folder table's reservedKind: "widgets" is the reserved root, "widgetDefinition"
+// is a Widget Definition's folder. Both are protected from delete/rename/move in the Desktop UI.
+export type DesktopFolderReservedKind = "widgets" | "widgetDefinition" | null;
+
 export interface Position {
   x: number;
   y: number;
@@ -32,6 +36,7 @@ export interface DesktopFolderItem extends DesktopItemBase {
   type: "folder";
   parentId: string | null;
   hasStoredPosition: boolean;
+  reservedKind: DesktopFolderReservedKind;
 }
 
 export interface DesktopWidgetItem extends DesktopItemBase {

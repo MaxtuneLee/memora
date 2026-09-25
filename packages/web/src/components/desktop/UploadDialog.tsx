@@ -1,9 +1,153 @@
 import { Button } from "@base-ui/react/button";
 import { XIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useId } from "react";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { formatBytes } from "@/lib/format";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowLarge,
+    padding: "1.5rem",
+    width: "min(420px, 92vw)",
+  },
+  header: {
+    alignItems: "flex-start",
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+  },
+  closeButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "transparent",
+      ":hover": tokens.hover,
+    },
+    borderRadius: "9999px",
+    color: {
+      default: tokens.textSoft,
+      ":hover": tokens.textStrong,
+    },
+    cursor: "pointer",
+    display: "flex",
+    height: "2rem",
+    justifyContent: "center",
+    transitionDuration: "150ms",
+    transitionProperty: "color, background-color",
+    width: "2rem",
+  },
+  closeIcon: {
+    height: "1rem",
+    width: "1rem",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    marginTop: "1.25rem",
+  },
+  label: {
+    color: tokens.text,
+    display: "block",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+  },
+  input: {
+    borderColor: {
+      default: tokens.border,
+      ":focus": tokens.focusRing,
+    },
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.25rem",
+    outline: "none",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+    transitionDuration: "150ms",
+    transitionProperty: "border-color, box-shadow",
+    width: "100%",
+    "::placeholder": {
+      color: tokens.textSoft,
+    },
+    ":focus": {
+      boxShadow: `0 0 0 2px ${tokens.border}`,
+    },
+  },
+  metadata: {
+    color: tokens.textMuted,
+    columnGap: "1.5rem",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    rowGap: "0.5rem",
+  },
+  metadataLabel: {
+    color: tokens.text,
+    fontWeight: 500,
+  },
+  actions: {
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "flex-end",
+    marginTop: "1.5rem",
+  },
+  button: {
+    borderRadius: "0.5rem",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "1rem",
+    transitionDuration: "150ms",
+    transitionProperty: "color, background-color, border-color, opacity",
+    ":disabled": {
+      opacity: 0.5,
+    },
+  },
+  cancelButton: {
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
+    },
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+  },
+  confirmButton: {
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+    borderWidth: 0,
+    color: tokens.primaryText,
+  },
+});
 
 const resolveFileLabel = (file: File | null): string => {
   if (!file) return "File";
@@ -51,31 +195,31 @@ export function UploadDialog({
       onOpenChange={(open) => !open && onCancel()}
       labelledBy={titleId}
       describedBy={descriptionId}
-      panelClassName="w-[min(420px,92vw)] rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
+      panelClassName={stylex.props(styles.panel).className}
     >
-      <div className="flex items-start justify-between">
+      <div {...stylex.props(styles.header)}>
         <div>
-          <h2 id={titleId} className="text-lg font-semibold text-zinc-900">
+          <h2 id={titleId} {...stylex.props(styles.title)}>
             Upload {resolveFileLabel(selectedFile)}
           </h2>
-          <p id={descriptionId} className="mt-1 text-sm text-zinc-500">
+          <p id={descriptionId} {...stylex.props(styles.description)}>
             Confirm the file details before uploading.
           </p>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className="flex size-8 cursor-pointer items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+          {...stylex.props(styles.closeButton)}
           aria-label="Close upload dialog"
         >
-          <XIcon className="size-4" />
+          <XIcon {...stylex.props(styles.closeIcon)} />
         </button>
       </div>
 
       {selectedFile ? (
-        <div className="mt-5 space-y-4">
+        <div {...stylex.props(styles.form)}>
           <div>
-            <label htmlFor="upload-name" className="block text-sm font-medium text-zinc-700">
+            <label htmlFor="upload-name" {...stylex.props(styles.label)}>
               Name
             </label>
             <input
@@ -83,35 +227,35 @@ export function UploadDialog({
               type="text"
               value={uploadName}
               onChange={(e) => setUploadName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+              {...stylex.props(styles.input)}
               placeholder="Enter file name"
             />
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-500">
+          <div {...stylex.props(styles.metadata)}>
             <span>
-              <span className="font-medium text-zinc-700">Type:</span>{" "}
+              <span {...stylex.props(styles.metadataLabel)}>Type:</span>{" "}
               {selectedFile.type || "audio/*"}
             </span>
             <span>
-              <span className="font-medium text-zinc-700">Size:</span>{" "}
+              <span {...stylex.props(styles.metadataLabel)}>Size:</span>{" "}
               {formatBytes(selectedFile.size)}
             </span>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-6 flex justify-end gap-3">
+      <div {...stylex.props(styles.actions)}>
         <Button
           onClick={onCancel}
           disabled={isUploading}
-          className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+          {...stylex.props(styles.button, styles.cancelButton)}
         >
           Cancel
         </Button>
         <Button
           onClick={onConfirm}
           disabled={isUploading}
-          className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-50"
+          {...stylex.props(styles.button, styles.confirmButton)}
         >
           {isUploading ? "Uploading..." : "Upload"}
         </Button>

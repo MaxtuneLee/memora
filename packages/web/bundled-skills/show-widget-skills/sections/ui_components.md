@@ -19,6 +19,8 @@ Flat, clean, white surfaces. Minimal 0.5px borders. Generous whitespace. No grad
 
 For summary numbers (revenue, count, percentage) — surface card with muted 13px label above, 24px/500 number below. `background: var(--color-background-secondary)`, no border, `border-radius: var(--border-radius-md)`, padding 1rem. Use in grids of 2-4 with `gap: 12px`. Distinct from raised cards (which have white bg + border).
 
+Those proportions assume chat width. In a Home Grid `1 × 1` square a 2-4 card grid plus anything else overflows — use a single card, or drop the card and show the number on its own.
+
 ### Layout
 
 - Editorial (explanatory content): no card wrapper, prose flows naturally

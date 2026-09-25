@@ -152,8 +152,8 @@ export const useTranscript = () => {
     vadInitializingRef.current = true;
     try {
       vadRef.current = await MicVAD.new({
-        baseAssetPath: "/",
-        onnxWASMBasePath: "/",
+        baseAssetPath: __VENDOR_ASSETS__.vadWeb,
+        onnxWASMBasePath: __VENDOR_ASSETS__.onnxRuntimeWeb,
         submitUserSpeechOnPause: true,
         getStream: getOrCreateStream,
         pauseStream: async () => {

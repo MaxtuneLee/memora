@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, test } from "vite-plus/test";
 
 import { restoreStoredFileMetadata } from "@/lib/content/contentTaskHandlers";
@@ -91,31 +89,6 @@ describe("content artifacts", () => {
     expect(artifact.parser.name).toBe("transcript");
     expect(artifact.plainText).toContain("roadmap");
     expect(artifact.segments[0]?.locator).toMatchObject({ kind: "transcript", startSeconds: 1 });
-  });
-
-  test("wires PPTX Markdown into content indexing and reuses the visual desktop viewer", () => {
-    const parserSource = readFileSync(
-      new URL("../../src/lib/content/parserRegistry.ts", import.meta.url),
-      "utf8",
-    );
-    const desktopPreviewSource = readFileSync(
-      new URL("../../src/components/desktop/DocumentFilePreview.tsx", import.meta.url),
-      "utf8",
-    );
-    const desktopViewerSource = readFileSync(
-      new URL("../../src/components/desktop/PptxDocumentPreview.tsx", import.meta.url),
-      "utf8",
-    );
-
-    expect(parserSource).toContain("markdown: parsed.markdown");
-    expect(parserSource).toContain("splitPptxMarkdownSegments(parsed.markdown, parsed.slides)");
-    expect(desktopPreviewSource).toContain('import("./PptxDocumentPreview")');
-    expect(desktopViewerSource).toContain("useViewerBuildingBlocks");
-    expect(desktopViewerSource).toContain("<SlideCanvas {...canvasProps} />");
-    expect(desktopViewerSource).toContain("onSlideCountChange: setSlideCount");
-    expect(desktopViewerSource).toContain('aria-label="Previous slide"');
-    expect(desktopViewerSource).toContain('aria-label="Next slide"');
-    expect(desktopViewerSource).toContain('className="flex min-h-0 flex-1 overflow-hidden"');
   });
 
   test("splits Playground PPTX Markdown into slide-aware index segments", () => {

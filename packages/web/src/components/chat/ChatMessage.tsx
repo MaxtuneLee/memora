@@ -1,14 +1,89 @@
 import { ArrowCounterClockwiseIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/MemoraMascot";
-import { cn } from "@/lib/cn";
 import { motion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import type { AgentStatus, ThinkingStep } from "@/hooks/chat/useAgent";
+import { tokens } from "../../styles/stylex.stylex";
 
 import { AssistantMessageContent } from "./chatMessage/AssistantMessageContent";
 import { getAssistantAvatarState } from "./chatMessage/getAssistantAvatarState";
 import type { ChatMessageData } from "./chatMessage/types";
+import { CHAT_LAYOUT_TRANSITION } from "./chatPage/helpers";
 import { UserMessageContent } from "./chatMessage/UserMessageContent";
+
+const styles = stylex.create({
+  root: { alignItems: "flex-start", display: "flex", gap: 12 },
+  userRoot: { justifyContent: "flex-end" },
+  assistantRoot: { justifyContent: "flex-start" },
+  avatarButton: {
+    alignItems: "center",
+    backgroundColor: tokens.olive,
+    borderRadius: 9999,
+    display: "flex",
+    flexShrink: 0,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`,
+    },
+  },
+  avatar: { height: 28, width: 28 },
+  messageWrap: { minWidth: 0 },
+  userMessageWrap: {
+    alignItems: "flex-end",
+    display: "flex",
+    flexDirection: "column",
+    maxWidth: "75%",
+  },
+  editingMessageWrap: { maxWidth: "none", width: "100%" },
+  assistantMessageWrap: { display: "flex", flex: 1, flexDirection: "column" },
+  messageContent: { fontSize: 14, lineHeight: 1.625, position: "relative" },
+  userContent: {
+    alignItems: "flex-end",
+    color: tokens.textStrong,
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+  },
+  assistantContent: { color: tokens.text, flex: 1, minWidth: 0 },
+  actions: {
+    alignItems: "center",
+    display: "flex",
+    gap: 6,
+    opacity: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    top: 12,
+    transition: "opacity 150ms",
+    zIndex: 20,
+  },
+  actionsVisible: { opacity: 1, pointerEvents: "auto" },
+  userActions: { marginRight: 12, right: "100%" },
+  assistantActions: { left: "100%", marginLeft: 12 },
+  actionButton: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 9999,
+    boxShadow: tokens.shadowSmall,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    height: 32,
+    justifyContent: "center",
+    transition: "all 150ms",
+    width: 32,
+    ":hover": {
+      backgroundColor: tokens.card,
+      borderColor: tokens.borderStrong,
+      color: tokens.textStrong,
+    },
+    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
+  },
+  actionIcon: { height: 14, width: 14 },
+});
 
 interface ChatMessageProps {
   message: ChatMessageData;
@@ -23,6 +98,7 @@ interface ChatMessageProps {
   onEditMessage?: (messageId: string, text: string) => Promise<void> | void;
   onRetryMessage?: (messageId: string) => Promise<void> | void;
   actionsDisabled?: boolean;
+  mascotLayoutId?: string;
 }
 
 function ChatMessageComponent({
@@ -38,6 +114,7 @@ function ChatMessageComponent({
   onEditMessage,
   onRetryMessage,
   actionsDisabled = false,
+  mascotLayoutId,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
@@ -45,6 +122,7 @@ function ChatMessageComponent({
   const [avatarBurstState, setAvatarBurstState] = useState<MemoraMascotState | null>(null);
   const avatarBurstTimeoutRef = useRef<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isActionsVisible, setIsActionsVisible] = useState(false);
   const [draftText, setDraftText] = useState(message.content);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const canShowHoverActions = Boolean(
@@ -130,50 +208,58 @@ function ChatMessageComponent({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      // The avatar carrying the mascot flies in from the empty state; fading it in would hide that.
+      initial={mascotLayoutId ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={cn(
-        "group/message flex items-start gap-3",
-        isUser ? "justify-end" : "justify-start",
-      )}
+      {...stylex.props(styles.root, isUser ? styles.userRoot : styles.assistantRoot)}
+      onMouseEnter={() => setIsActionsVisible(true)}
+      onMouseLeave={() => setIsActionsVisible(false)}
+      onFocus={() => setIsActionsVisible(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsActionsVisible(false);
+        }
+      }}
     >
       {!isUser && (
-        <button
+        <motion.button
           type="button"
           onClick={triggerAvatarBurst}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mocha ring-[#ddd1c1] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#91a85b]/45"
+          layoutId={mascotLayoutId}
+          transition={CHAT_LAYOUT_TRANSITION}
+          // Hover scale through motion: a CSS transform transition would fight the layout flight.
+          whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
+          {...stylex.props(styles.avatarButton)}
           aria-label="Animate assistant avatar"
         >
           <MemoraMascot
             state={displayedAssistantAvatarState}
             animated={shouldAnimateAssistantAvatar}
             decorative
-            className="size-7"
+            style={styles.avatar}
           />
-        </button>
+        </motion.button>
       )}
       <div
-        className={cn(
-          "min-w-0",
-          isUser
-            ? cn("flex flex-col items-end", isEditing ? "w-full max-w-none" : "max-w-[75%]")
-            : "flex min-w-0 flex-1 flex-col",
+        {...stylex.props(
+          styles.messageWrap,
+          isUser ? styles.userMessageWrap : styles.assistantMessageWrap,
+          isEditing && styles.editingMessageWrap,
         )}
       >
         <div
-          className={cn(
-            "relative text-sm leading-relaxed",
-            isUser
-              ? "flex w-full flex-col items-end text-zinc-900"
-              : "min-w-0 flex-1 bg-transparent px-0 py-0 text-zinc-800",
+          {...stylex.props(
+            styles.messageContent,
+            isUser ? styles.userContent : styles.assistantContent,
           )}
         >
           {canShowHoverActions && (
             <div
-              className={cn(
-                "pointer-events-none absolute top-3 z-20 flex items-center gap-1.5 opacity-0 transition duration-150 group-hover/message:opacity-100 group-focus-within/message:opacity-100",
-                isUser ? "right-full mr-3" : "left-full ml-3",
+              {...stylex.props(
+                styles.actions,
+                isActionsVisible && styles.actionsVisible,
+                isUser ? styles.userActions : styles.assistantActions,
               )}
             >
               {isUser && !isEditing && onEditMessage && (
@@ -181,10 +267,10 @@ function ChatMessageComponent({
                   type="button"
                   onClick={handleStartEditing}
                   disabled={actionsDisabled}
-                  className="pointer-events-auto inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-[#f1ebe2] text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  {...stylex.props(styles.actionButton)}
                   aria-label="Edit message"
                 >
-                  <PencilSimpleIcon className="size-3.5" />
+                  <PencilSimpleIcon className={stylex.props(styles.actionIcon).className} />
                 </button>
               )}
               {!isUser && onRetryMessage && (
@@ -192,10 +278,12 @@ function ChatMessageComponent({
                   type="button"
                   onClick={handleRetry}
                   disabled={actionsDisabled}
-                  className="pointer-events-auto inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-[#f1ebe2] text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  {...stylex.props(styles.actionButton)}
                   aria-label="Retry message"
                 >
-                  <ArrowCounterClockwiseIcon className="size-3.5" />
+                  <ArrowCounterClockwiseIcon
+                    className={stylex.props(styles.actionIcon).className}
+                  />
                 </button>
               )}
             </div>
@@ -257,7 +345,8 @@ const areChatMessagePropsEqual = (
     previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt &&
     previousProps.onEditMessage === nextProps.onEditMessage &&
     previousProps.onRetryMessage === nextProps.onRetryMessage &&
-    previousProps.actionsDisabled === nextProps.actionsDisabled
+    previousProps.actionsDisabled === nextProps.actionsDisabled &&
+    previousProps.mascotLayoutId === nextProps.mascotLayoutId
   );
 };
 

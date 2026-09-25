@@ -1,7 +1,9 @@
 import { Button as BaseButton } from "@base-ui/react/button";
 import type { ComponentProps } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { cn } from "@/lib/cn";
+import { tokens } from "../../styles/stylex.stylex";
 
 type DistributiveOmit<Type, Key extends PropertyKey> = Type extends unknown
   ? Omit<Type, Key>
@@ -25,25 +27,115 @@ export type ButtonProps = BaseButtonProps & {
   className?: string;
 };
 
-const BUTTON_VARIANTS: Record<Exclude<ButtonVariant, "segment">, string> = {
-  primary:
-    "min-h-10 border-[var(--color-memora-text-strong)] bg-[var(--color-memora-text-strong)] px-4 text-[var(--color-memora-surface)] hover:-translate-y-0.5 hover:border-[#4a463e] hover:bg-[#34312b]",
-  secondary:
-    "min-h-10 border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-4 text-[var(--color-memora-text)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-hover-strong)]",
-  oliveGhost:
-    "min-h-10 border-transparent bg-transparent px-4 text-[var(--color-memora-olive-soft)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--color-memora-olive-soft)_20%,transparent)] hover:text-[var(--color-memora-olive-soft)]",
-  destructive:
-    "min-h-10 border-[var(--color-memora-warning-border)] bg-[var(--color-memora-surface)] px-4 text-[var(--color-memora-warning-text)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-warning-surface)]",
-  icon: "size-9 border-transparent bg-transparent px-0 text-[var(--color-memora-text-soft)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-hover)] hover:text-[var(--color-memora-text)]",
-  destructiveIcon:
-    "size-9 border-transparent bg-transparent px-0 text-[var(--color-memora-text-soft)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-warning-surface)] hover:text-[var(--color-memora-warning-text)]",
-  plain: "border-transparent bg-transparent p-0 text-inherit",
-};
+const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.focusRing}`;
+const LIFT = "translateY(-0.125rem)";
 
-const getSegmentClassName = (active: boolean): string =>
-  active
-    ? "border-[var(--color-memora-text-strong)] bg-[var(--color-memora-text-strong)] px-3.5 py-2 text-[var(--color-memora-surface)]"
-    : "border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] px-3.5 py-2 text-[var(--color-memora-text-muted)] hover:-translate-y-0.5 hover:bg-[var(--color-memora-hover-strong)] hover:text-[var(--color-memora-text)]";
+const styles = stylex.create({
+  base: {
+    alignItems: "center",
+    borderRadius: 9999,
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "inline-flex",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    gap: 8,
+    justifyContent: "center",
+    transition:
+      "background-color 300ms var(--ease-out-quart), border-color 300ms var(--ease-out-quart), color 300ms var(--ease-out-quart), box-shadow 300ms var(--ease-out-quart), transform 300ms var(--ease-out-quart)",
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
+    "[aria-busy=true]": { cursor: "progress", opacity: 0.7 },
+  },
+  primary: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    minHeight: 40,
+    paddingInline: 16,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+      transform: LIFT,
+    },
+    ":active": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 76%, ${tokens.surface})`,
+      transform: "none",
+    },
+  },
+  secondary: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    color: tokens.text,
+    minHeight: 40,
+    paddingInline: 16,
+    ":hover": { backgroundColor: tokens.hoverStrong, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
+  },
+  oliveGhost: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    color: tokens.oliveText,
+    minHeight: 40,
+    paddingInline: 16,
+    ":hover": { backgroundColor: tokens.selected, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
+  },
+  destructive: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.warningBorder,
+    color: tokens.warningText,
+    minHeight: 40,
+    paddingInline: 16,
+    ":hover": { backgroundColor: tokens.warningSurface, transform: LIFT },
+    ":active": { borderColor: tokens.warningText, transform: "none" },
+  },
+  icon: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    color: tokens.textSoft,
+    height: 36,
+    paddingInline: 0,
+    width: 36,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
+  },
+  destructiveIcon: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    color: tokens.textSoft,
+    height: 36,
+    paddingInline: 0,
+    width: 36,
+    ":hover": {
+      backgroundColor: tokens.warningSurface,
+      color: tokens.warningText,
+      transform: LIFT,
+    },
+    ":active": { borderColor: tokens.warningBorder, transform: "none" },
+  },
+  plain: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    color: "inherit",
+    padding: 0,
+  },
+  segmentActive: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    paddingBlock: 8,
+    paddingInline: 14,
+  },
+  segmentIdle: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    color: tokens.textMuted,
+    paddingBlock: 8,
+    paddingInline: 14,
+    ":hover": { backgroundColor: tokens.hoverStrong, color: tokens.text, transform: LIFT },
+    ":active": { backgroundColor: tokens.pressed, transform: "none" },
+  },
+});
 
 export function Button({
   variant = "secondary",
@@ -54,8 +146,15 @@ export function Button({
   return (
     <BaseButton
       className={cn(
-        "memora-interactive inline-flex items-center justify-center gap-2 rounded-full border text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[var(--ease-out-quart)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        variant === "segment" ? getSegmentClassName(active) : BUTTON_VARIANTS[variant],
+        "memora-interactive",
+        stylex.props(
+          styles.base,
+          variant === "segment"
+            ? active
+              ? styles.segmentActive
+              : styles.segmentIdle
+            : styles[variant],
+        ).className,
         className,
       )}
       {...props}

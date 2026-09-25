@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import {
   getLocalModelDebugSnapshot,
@@ -14,6 +15,7 @@ import {
   type LocalModelPoolDebugState,
   type LocalModelWorkerDebugState,
 } from "@/lib/local-model/devtools";
+import { tokens } from "../../styles/stylex.stylex";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -57,6 +59,281 @@ interface DragState {
 }
 
 const DEFAULT_POSITION: FloatingPosition = { mode: "corner", corner: "bottom-right" };
+
+const styles = stylex.create({
+  sectionStack: { display: "flex", flexDirection: "column", gap: "0.75rem" },
+  rowBetween: {
+    alignItems: "center",
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "space-between",
+  },
+  rowStart: { alignItems: "flex-start" },
+  label: { color: tokens.textMuted, fontSize: "0.75rem", fontWeight: 500 },
+  sublabel: { color: tokens.textMuted, fontSize: "0.75rem" },
+  workerList: { display: "flex", flexDirection: "column", gap: "0.5rem" },
+  workerCard: {
+    backgroundColor: `color-mix(in srgb,${tokens.surface} 90%,white)`,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "0.75rem",
+  },
+  workerTitle: { color: tokens.textStrong, fontSize: "0.875rem", fontWeight: 600 },
+  status: {
+    borderRadius: "9999px",
+    fontFamily: "monospace",
+    fontSize: "0.625rem",
+    letterSpacing: "0.12em",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.5rem",
+    textTransform: "uppercase",
+  },
+  statusActive: { backgroundColor: tokens.selected, color: tokens.oliveText },
+  statusIdle: { backgroundColor: tokens.surfaceMuted, color: tokens.textMuted },
+  detailGrid: {
+    color: tokens.textMuted,
+    display: "grid",
+    fontSize: "0.6875rem",
+    gap: "0.5rem",
+    gridTemplateColumns: {
+      default: "minmax(0,1fr)",
+      "@media (min-width: 640px)": "repeat(2,minmax(0,1fr))",
+    },
+    marginTop: "0.75rem",
+  },
+  subtle: { color: tokens.textSoft },
+  runtimes: { display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" },
+  resident: {
+    borderRadius: "9999px",
+    fontSize: "0.625rem",
+    fontWeight: 500,
+    paddingBlock: "0.125rem",
+    paddingInline: "0.5rem",
+  },
+  residentMulti: { backgroundColor: tokens.warningSurface, color: tokens.warningText },
+  residentSingle: { backgroundColor: tokens.successSurface, color: tokens.successText },
+  runtimeList: { display: "flex", flexDirection: "column", gap: "0.375rem" },
+  runtime: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderRadius: "0.75rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.textMuted,
+    fontSize: "0.6875rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  runtimeName: { color: tokens.textStrong, fontWeight: 500 },
+  runtimeTime: {
+    color: tokens.textSoft,
+    fontFamily: "monospace",
+    fontSize: "0.625rem",
+  },
+  runtimeId: {
+    color: tokens.textMuted,
+    marginTop: "0.25rem",
+    overflowWrap: "anywhere",
+  },
+  empty: { color: tokens.textMuted, fontSize: "0.6875rem" },
+  emptyWorkers: {
+    backgroundColor: `color-mix(in srgb,${tokens.surface} 75%,transparent)`,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    color: tokens.textMuted,
+    fontSize: "0.6875rem",
+    paddingBlock: "1rem",
+    paddingInline: "0.75rem",
+  },
+  floatingRoot: {
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "calc(100dvh - 2rem)",
+    pointerEvents: "none",
+    position: "fixed",
+    zIndex: 90,
+  },
+  floatingOpen: { width: "min(28rem,calc(100vw - 2rem))" },
+  floatingClosed: { width: "auto" },
+  widget: {
+    alignItems: "center",
+    backdropFilter: "blur(8px)",
+    backgroundColor: {
+      default: `color-mix(in srgb,${tokens.surface} 94%,white)`,
+      ":hover": tokens.surface,
+    },
+    borderColor: {
+      default: tokens.border,
+      ":hover": tokens.oliveSoft,
+    },
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 18px 45px -30px rgb(0 0 0 / 0.35)",
+    color: tokens.textStrong,
+    display: "inline-flex",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    gap: "0.5rem",
+    justifyContent: "center",
+    pointerEvents: "auto",
+    touchAction: "none",
+    transition: "border-color 200ms, background-color 200ms, box-shadow 200ms, transform 200ms",
+  },
+  dragging: { cursor: "grabbing", boxShadow: "0 18px 45px -24px rgb(0 0 0 / 0.5)" },
+  draggable: { cursor: "grab" },
+  widgetCorner: { borderRadius: "1rem", paddingBlock: "0.5rem", paddingInline: "0.625rem" },
+  widgetTop: {
+    borderRadius: "0 0 0.75rem 0.75rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  widgetBottom: {
+    borderRadius: "0.75rem 0.75rem 0 0",
+    paddingBlock: "0.5rem",
+    paddingInline: "0.75rem",
+  },
+  widgetLeft: {
+    borderRadius: "0 0.75rem 0.75rem 0",
+    paddingBlock: "0.75rem",
+    paddingInline: "0.5rem",
+  },
+  widgetRight: {
+    borderRadius: "0.75rem 0 0 0.75rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "0.5rem",
+  },
+  dotFrame: {
+    alignItems: "center",
+    backgroundColor: `color-mix(in srgb,${tokens.olive} 16%,transparent)`,
+    borderRadius: "0.375rem",
+    color: tokens.olive,
+    display: "grid",
+    height: "1.25rem",
+    justifyItems: "center",
+    width: "1.25rem",
+  },
+  dot: {
+    backgroundColor: "currentColor",
+    borderRadius: "9999px",
+    height: "0.375rem",
+    width: "0.375rem",
+  },
+  workerCount: {
+    color: tokens.textMuted,
+    fontSize: "0.6875rem",
+    fontVariantNumeric: "tabular-nums",
+  },
+  panel: {
+    backdropFilter: "blur(8px)",
+    backgroundColor: `color-mix(in srgb,${tokens.surface} 94%,white)`,
+    borderColor: tokens.border,
+    borderRadius: "1.6rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "0 28px 80px -44px rgb(0 0 0 / 0.42)",
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "100%",
+    overflow: "hidden",
+    pointerEvents: "auto",
+    width: "100%",
+  },
+  panelHeader: {
+    alignItems: "flex-start",
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  headerCopy: { minWidth: 0 },
+  titleRow: { alignItems: "center", display: "flex", gap: "0.5rem" },
+  titleIcon: {
+    alignItems: "center",
+    backgroundColor: `color-mix(in srgb,${tokens.olive} 16%,transparent)`,
+    borderRadius: "0.5rem",
+    color: tokens.olive,
+    display: "grid",
+    flexShrink: 0,
+    height: "1.5rem",
+    justifyItems: "center",
+    width: "1.5rem",
+  },
+  titleDot: {
+    backgroundColor: "currentColor",
+    borderRadius: "9999px",
+    height: "0.5rem",
+    width: "0.5rem",
+  },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  countBadge: {
+    backgroundColor: `color-mix(in srgb,${tokens.olive} 14%,transparent)`,
+    borderRadius: "9999px",
+    color: tokens.olive,
+    flexShrink: 0,
+    fontSize: "0.625rem",
+    fontVariantNumeric: "tabular-nums",
+    paddingBlock: "0.125rem",
+    paddingInline: "0.5rem",
+  },
+  path: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    marginTop: "0.25rem",
+    overflow: "hidden",
+    paddingLeft: "2rem",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  close: {
+    borderColor: {
+      default: tokens.border,
+      ":hover": tokens.oliveSoft,
+    },
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: {
+      default: tokens.textMuted,
+      ":hover": tokens.textStrong,
+    },
+    flexShrink: 0,
+    fontSize: "0.75rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.625rem",
+    transition: "border-color 150ms, color 150ms",
+  },
+  panelBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    overflow: "auto",
+    padding: "1rem",
+  },
+  memoryCard: {
+    backgroundColor: `color-mix(in srgb,${tokens.surface} 75%,transparent)`,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: "0.75rem",
+  },
+  memoryValue: { color: tokens.textStrong, fontSize: "0.875rem", fontWeight: 600 },
+});
 
 const getCorner = (clientX: number, clientY: number): Corner => {
   const horizontal = clientX < window.innerWidth / 2 ? "left" : "right";
@@ -122,23 +399,6 @@ const getPositionStyle = (
 
   const [vertical, horizontal] = position.corner.split("-") as ["top" | "bottom", "left" | "right"];
   return { [vertical]: FLOATING_INSET, [horizontal]: FLOATING_INSET };
-};
-
-const getEdgeButtonClassName = (position: FloatingPosition): string => {
-  if (position.mode !== "edge") {
-    return "rounded-2xl px-2.5 py-2";
-  }
-
-  if (position.edge === "top") {
-    return "rounded-b-xl px-3 py-2";
-  }
-  if (position.edge === "bottom") {
-    return "rounded-t-xl px-3 py-2";
-  }
-  if (position.edge === "left") {
-    return "rounded-r-xl px-2 py-3";
-  }
-  return "rounded-l-xl px-2 py-3";
 };
 
 const formatBytes = (value: number | null): string => {
@@ -257,18 +517,16 @@ const useBrowserMemory = (): BrowserMemorySnapshot => {
 
 const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+    <section {...stylex.props(styles.sectionStack)}>
+      <div {...stylex.props(styles.rowBetween)}>
         <div>
-          <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
-            {pool.pool} pool
-          </p>
-          <p className="text-xs text-[var(--color-memora-text-muted)]">
+          <p {...stylex.props(styles.label)}>{pool.pool} pool</p>
+          <p {...stylex.props(styles.sublabel)}>
             {pool.workerCount} workers · {pool.activeRequestCount} active
           </p>
         </div>
       </div>
-      <div className="space-y-2">
+      <div {...stylex.props(styles.workerList)}>
         {pool.workers.length > 0 ? (
           pool.workers.map((worker) => {
             const loadedFamilies = Array.from(
@@ -277,93 +535,80 @@ const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
             const hasMultiFamilyRuntime = loadedFamilies.length > 1;
 
             return (
-              <div
-                key={`${pool.pool}-${worker.id}`}
-                className="rounded-2xl border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_90%,white)] p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
+              <div key={`${pool.pool}-${worker.id}`} {...stylex.props(styles.workerCard)}>
+                <div {...stylex.props(styles.rowBetween, styles.rowStart)}>
                   <div>
-                    <p className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
-                      Worker {worker.id}
-                    </p>
-                    <p className="text-xs text-[var(--color-memora-text-muted)]">
-                      {getCurrentTaskLabel(worker)}
-                    </p>
+                    <p {...stylex.props(styles.workerTitle)}>Worker {worker.id}</p>
+                    <p {...stylex.props(styles.sublabel)}>{getCurrentTaskLabel(worker)}</p>
                   </div>
                   <span
-                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${
-                      worker.currentRequestId
-                        ? "bg-[#879a4f]/15 text-[#516127]"
-                        : "bg-zinc-200/70 text-zinc-600"
-                    }`}
+                    {...stylex.props(
+                      styles.status,
+                      worker.currentRequestId ? styles.statusActive : styles.statusIdle,
+                    )}
                   >
                     {worker.currentStatus ?? "idle"}
                   </span>
                 </div>
-                <div className="mt-3 grid gap-2 text-[11px] text-[var(--color-memora-text-muted)] sm:grid-cols-2">
+                <div {...stylex.props(styles.detailGrid)}>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">request</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>request</span>:{" "}
                     {worker.currentRequestId ?? "none"}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">model</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>model</span>:{" "}
                     {worker.currentModelId ?? "none"}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">active since</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>active since</span>:{" "}
                     {formatTime(worker.activeSince)}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">last event</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>last event</span>:{" "}
                     {formatTime(worker.lastEventAt)}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">last completed</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>last completed</span>:{" "}
                     {formatTime(worker.lastCompletedAt)}
                   </div>
                   <div>
-                    <span className="text-[var(--color-memora-text-subtle)]">families</span>:{" "}
+                    <span {...stylex.props(styles.subtle)}>families</span>:{" "}
                     {getFamilySummary(worker)}
                   </div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
-                      Loaded runtimes
-                    </p>
+                <div {...stylex.props(styles.runtimes)}>
+                  <div {...stylex.props(styles.rowBetween)}>
+                    <p {...stylex.props(styles.label)}>Loaded runtimes</p>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        hasMultiFamilyRuntime
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
-                      }`}
+                      {...stylex.props(
+                        styles.resident,
+                        hasMultiFamilyRuntime ? styles.residentMulti : styles.residentSingle,
+                      )}
                     >
                       {hasMultiFamilyRuntime ? "multi-family resident" : "single-family resident"}
                     </span>
                   </div>
                   {worker.loadedRuntimes.length > 0 ? (
-                    <div className="space-y-1.5">
+                    <div {...stylex.props(styles.runtimeList)}>
                       {worker.loadedRuntimes.map((runtime) => (
                         <div
                           key={`${worker.id}-${runtime.family}-${runtime.modelId}-${runtime.adapter}`}
-                          className="rounded-xl border border-[var(--color-memora-border)] bg-white/65 px-3 py-2 text-[11px] text-[var(--color-memora-text-muted)]"
+                          {...stylex.props(styles.runtime)}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="font-medium text-[var(--color-memora-text-strong)]">
+                          <div {...stylex.props(styles.rowBetween)}>
+                            <span {...stylex.props(styles.runtimeName)}>
                               {runtime.family} / {runtime.adapter}
                             </span>
-                            <span className="font-mono text-[10px] text-[var(--color-memora-text-subtle)]">
+                            <span {...stylex.props(styles.runtimeTime)}>
                               {formatTime(runtime.loadedAt)}
                             </span>
                           </div>
-                          <p className="mt-1 break-all text-[var(--color-memora-text-muted)]">
-                            {runtime.modelId}
-                          </p>
+                          <p {...stylex.props(styles.runtimeId)}>{runtime.modelId}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-[var(--color-memora-text-muted)]">
+                    <p {...stylex.props(styles.empty)}>
                       No runtime has been loaded in this worker yet.
                     </p>
                   )}
@@ -372,9 +617,7 @@ const PoolSection = ({ pool }: { pool: LocalModelPoolDebugState }) => {
             );
           })
         ) : (
-          <div className="rounded-2xl border border-dashed border-[var(--color-memora-border)] bg-[var(--color-memora-surface)]/75 px-3 py-4 text-[11px] text-[var(--color-memora-text-muted)]">
-            No workers created yet.
-          </div>
+          <div {...stylex.props(styles.emptyWorkers)}>No workers created yet.</div>
         )}
       </div>
     </section>
@@ -485,21 +728,30 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
     return null;
   }
 
+  const widgetPositionStyle =
+    position.mode !== "edge"
+      ? styles.widgetCorner
+      : position.edge === "top"
+        ? styles.widgetTop
+        : position.edge === "bottom"
+          ? styles.widgetBottom
+          : position.edge === "left"
+            ? styles.widgetLeft
+            : styles.widgetRight;
+
   return (
     <div
-      className={`pointer-events-none fixed z-[90] flex max-h-[calc(100dvh-2rem)] flex-col ${
-        open ? "w-[min(28rem,calc(100vw-2rem))]" : "w-auto"
-      }`}
+      {...stylex.props(styles.floatingRoot, open ? styles.floatingOpen : styles.floatingClosed)}
       style={getPositionStyle(position, isDragging, dragPoint)}
     >
       {!open ? (
         <button
           type="button"
-          className={`pointer-events-auto inline-flex items-center justify-center gap-2 border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_94%,white)] text-xs font-medium text-[var(--color-memora-text-strong)] shadow-[0_18px_45px_-30px_rgba(34,33,29,0.35)] backdrop-blur transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:border-[var(--color-memora-olive-soft)] hover:bg-[var(--color-memora-surface)] ${
-            isDragging
-              ? "cursor-grabbing shadow-[0_18px_45px_-24px_rgba(34,33,29,0.5)]"
-              : "cursor-grab"
-          } touch-none ${getEdgeButtonClassName(position)}`}
+          {...stylex.props(
+            styles.widget,
+            isDragging ? styles.dragging : styles.draggable,
+            widgetPositionStyle,
+          )}
           aria-label={
             position.mode === "edge"
               ? "Restore local model devtools widget"
@@ -516,71 +768,59 @@ export const LocalModelDevtoolsPanel = ({ currentPath }: { currentPath: string }
           onPointerUp={finishWidgetDrag}
           onPointerCancel={finishWidgetDrag}
         >
-          <span className="grid size-5 place-items-center rounded-md bg-[color-mix(in_srgb,var(--color-memora-olive)_16%,transparent)] text-[var(--color-memora-olive)]">
-            <span className="size-1.5 rounded-full bg-current" />
+          <span {...stylex.props(styles.dotFrame)}>
+            <span {...stylex.props(styles.dot)} />
           </span>
-          <span className="tabular-nums text-[11px] text-[var(--color-memora-text-muted)]">
-            {workerCount}
-          </span>
+          <span {...stylex.props(styles.workerCount)}>{workerCount}</span>
         </button>
       ) : (
-        <aside className="pointer-events-auto flex max-h-full w-full flex-col overflow-hidden rounded-[1.6rem] border border-[var(--color-memora-border)] bg-[color-mix(in_srgb,var(--color-memora-surface)_94%,white)] shadow-[0_28px_80px_-44px_rgba(34,33,29,0.42)] backdrop-blur">
-          <div className="flex items-start justify-between gap-4 border-b border-[var(--color-memora-border)] px-4 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[color-mix(in_srgb,var(--color-memora-olive)_16%,transparent)] text-[var(--color-memora-olive)]">
-                  <span className="size-2 rounded-full bg-current" />
+        <aside {...stylex.props(styles.panel)}>
+          <div {...stylex.props(styles.panelHeader)}>
+            <div {...stylex.props(styles.headerCopy)}>
+              <div {...stylex.props(styles.titleRow)}>
+                <span {...stylex.props(styles.titleIcon)}>
+                  <span {...stylex.props(styles.titleDot)} />
                 </span>
-                <p className="truncate text-sm font-semibold text-[var(--color-memora-text-strong)]">
-                  Local model devtools
-                </p>
-                <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--color-memora-olive)_14%,transparent)] px-2 py-0.5 text-[10px] tabular-nums text-[var(--color-memora-olive)]">
-                  {workerCount} workers
-                </span>
+                <p {...stylex.props(styles.title)}>Local model devtools</p>
+                <span {...stylex.props(styles.countBadge)}>{workerCount} workers</span>
               </div>
-              <p className="mt-1 truncate pl-8 text-xs text-[var(--color-memora-text-muted)]">
+              <p {...stylex.props(styles.path)}>
                 {currentPath} · {activeWorkers.length} active
               </p>
             </div>
             <button
               type="button"
-              className="shrink-0 rounded-full border border-[var(--color-memora-border)] px-2.5 py-1 text-xs text-[var(--color-memora-text-muted)] transition hover:border-[var(--color-memora-olive-soft)] hover:text-[var(--color-memora-text-strong)]"
+              className={stylex.props(styles.close).className}
               aria-label="Hide local model devtools"
               onClick={() => setOpen(false)}
             >
               Close
             </button>
           </div>
-          <div className="space-y-4 overflow-auto px-4 py-4">
-            <section className="rounded-2xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)]/75 p-3">
-              <div className="flex items-center justify-between gap-3">
+          <div {...stylex.props(styles.panelBody)}>
+            <section {...stylex.props(styles.memoryCard)}>
+              <div {...stylex.props(styles.rowBetween)}>
                 <div>
-                  <p className="text-xs font-medium text-[var(--color-memora-text-muted)]">
-                    Browser memory
-                  </p>
-                  <p className="text-sm font-semibold text-[var(--color-memora-text-strong)]">
-                    {formatBytes(memory.bytes)}
-                  </p>
+                  <p {...stylex.props(styles.label)}>Browser memory</p>
+                  <p {...stylex.props(styles.memoryValue)}>{formatBytes(memory.bytes)}</p>
                 </div>
-                <span className="rounded-full bg-zinc-200/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-zinc-600">
-                  {memory.source}
-                </span>
+                <span {...stylex.props(styles.status, styles.statusIdle)}>{memory.source}</span>
               </div>
-              <div className="mt-3 grid gap-2 text-[11px] text-[var(--color-memora-text-muted)] sm:grid-cols-2">
+              <div {...stylex.props(styles.detailGrid)}>
                 <div>
-                  <span className="text-[var(--color-memora-text-subtle)]">captured</span>:{" "}
+                  <span {...stylex.props(styles.subtle)}>captured</span>:{" "}
                   {formatTime(memory.capturedAt)}
                 </div>
                 <div>
-                  <span className="text-[var(--color-memora-text-subtle)]">total heap</span>:{" "}
+                  <span {...stylex.props(styles.subtle)}>total heap</span>:{" "}
                   {formatBytes(memory.totalBytes)}
                 </div>
                 <div>
-                  <span className="text-[var(--color-memora-text-subtle)]">heap limit</span>:{" "}
+                  <span {...stylex.props(styles.subtle)}>heap limit</span>:{" "}
                   {formatBytes(memory.limitBytes)}
                 </div>
                 <div>
-                  <span className="text-[var(--color-memora-text-subtle)]">updated</span>:{" "}
+                  <span {...stylex.props(styles.subtle)}>updated</span>:{" "}
                   {formatTime(snapshot.updatedAt)}
                 </div>
               </div>

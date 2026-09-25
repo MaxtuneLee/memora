@@ -5,6 +5,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import * as stylex from "@stylexjs/stylex";
 import {
   CodeIcon,
   LinkSimpleIcon,
@@ -28,6 +29,8 @@ import {
   type TextFormatType,
   type TextNode,
 } from "lexical";
+
+import { tokens } from "../../styles/stylex.stylex";
 
 type PressedState = boolean | "mixed";
 type ToolbarFormat = Extract<TextFormatType, "bold" | "code" | "italic" | "strikethrough">;
@@ -226,8 +229,41 @@ export const isSafeFormattingLinkUrl = (value: string): boolean => {
   }
 };
 
-const buttonClassName =
-  "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-memora-text-muted)] outline-none transition-colors hover:bg-[var(--color-memora-hover)] hover:text-[var(--color-memora-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)] aria-pressed:bg-[var(--color-memora-surface-muted)] aria-pressed:text-[var(--color-memora-text-strong)]";
+const styles = stylex.create({
+  toolbar: {
+    alignItems: "center",
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    boxShadow: tokens.shadowLarge,
+    display: "flex",
+    gap: 2,
+    padding: 4,
+    position: "fixed",
+    zIndex: 30,
+  },
+  button: {
+    alignItems: "center",
+    // Reset explicitly: an unstyled <button> otherwise keeps the UA's dark-mode gray chrome.
+    backgroundColor: "transparent",
+    borderRadius: 8,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 32,
+    justifyContent: "center",
+    outline: "none",
+    transition: "color 150ms, background-color 150ms",
+    width: 32,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
+    "[aria-pressed=true]": {
+      backgroundColor: tokens.surfaceMuted,
+      color: tokens.textStrong,
+    },
+  },
+  divider: { backgroundColor: tokens.border, height: 20, marginInline: 2, width: 1 },
+});
 
 export function WysiwygFormattingToolbar() {
   const [editor] = useLexicalComposerContext();
@@ -511,7 +547,7 @@ export function WysiwygFormattingToolbar() {
   return (
     <div
       aria-label="Text formatting"
-      className="fixed z-30 flex items-center gap-0.5 rounded-xl border border-[var(--color-memora-border)] bg-[var(--color-memora-surface)] p-1 shadow-[0_12px_34px_-22px_rgba(34,33,29,0.38)]"
+      {...stylex.props(styles.toolbar)}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -531,7 +567,7 @@ export function WysiwygFormattingToolbar() {
         <button
           aria-label={label}
           aria-pressed={snapshot[state]}
-          className={buttonClassName}
+          className={stylex.props(styles.button).className}
           key={format}
           onClick={() => {
             handleFormat(format, snapshot[state]);
@@ -543,11 +579,11 @@ export function WysiwygFormattingToolbar() {
           <IconComponent aria-hidden="true" size={17} weight="bold" />
         </button>
       ))}
-      <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-[var(--color-memora-border)]" />
+      <span aria-hidden="true" {...stylex.props(styles.divider)} />
       <button
         aria-label="Link"
         aria-pressed={snapshot.link}
-        className={buttonClassName}
+        className={stylex.props(styles.button).className}
         onClick={handleLink}
         onPointerDown={handlePointerDown}
         title="Link"

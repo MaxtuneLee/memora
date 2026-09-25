@@ -8,7 +8,7 @@ import {
 } from "@memora/local-model-runtime/worker";
 
 describe("gemma4 adapter helpers", () => {
-  test("uses string content for text-only messages without local system prompt injection", async () => {
+  test("forwards the system prompt and uses string content for text-only messages", async () => {
     const messages = await buildGemmaMessages({
       systemPrompt: "You are Memora.",
       messages: [
@@ -24,8 +24,11 @@ describe("gemma4 adapter helpers", () => {
       tools: [],
     });
 
-    expect(messages[0]?.content).toBe("summarize");
-    expect(messages[1]?.content).toBe("done");
+    expect(messages).toEqual([
+      { role: "system", content: "You are Memora." },
+      { role: "user", content: "summarize" },
+      { role: "assistant", content: "done" },
+    ]);
   });
 
   test("adds thinking marker when requested", () => {

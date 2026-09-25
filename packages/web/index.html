@@ -15,7 +15,27 @@
       name="description"
       content="Memora is a local-first multimodal learning and memory workspace."
     />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#fcfaf6" />
+    <!-- Resolves the first-frame theme before any styles paint. Keep the key and colors in sync
+         with src/lib/theme/documentTheme.ts; LiveStore corrects a stale value after startup. -->
+    <script id="theme-bootstrap">
+      (function () {
+        var preference = null;
+        try {
+          preference = localStorage.getItem("memora-theme");
+        } catch (error) {}
+        var dark =
+          preference === "dark" ||
+          (preference !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var theme = dark ? "dark" : "light";
+        var root = document.documentElement;
+        root.dataset.theme = theme;
+        root.style.colorScheme = theme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute("content", dark ? "#1b1a17" : "#fcfaf6");
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Memora</title>

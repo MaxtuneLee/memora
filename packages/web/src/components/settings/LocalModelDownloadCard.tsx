@@ -1,9 +1,9 @@
 import { ArrowsClockwiseIcon, CheckIcon, TrashIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import type { ReactNode } from "react";
 
 import LocalModelDownloadFiles from "@/components/settings/LocalModelDownloadFiles";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 import type { LocalModelOption } from "@/lib/local-model";
 import {
   getLocalModelDownloadedBytes,
@@ -11,6 +11,117 @@ import {
   getLocalModelDownloadTotalBytes,
   type LocalModelDownloadState,
 } from "@/lib/local-model/downloadState";
+import { tokens } from "../../styles/stylex.stylex";
+
+const rotate = stylex.keyframes({
+  to: { transform: "rotate(360deg)" },
+});
+
+const styles = stylex.create({
+  card: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.border,
+    borderRadius: "1.4rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    padding: {
+      default: "1.5rem",
+      "@media (min-width: 640px)": "1.75rem",
+    },
+  },
+  header: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: "1.25rem",
+    justifyContent: "space-between",
+  },
+  heading: { minWidth: 0 },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    lineHeight: "1.75rem",
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: "1.5rem",
+    marginTop: "0.25rem",
+  },
+  meta: { marginTop: "0.5rem" },
+  cachedSummary: {
+    alignItems: "flex-end",
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    gap: "0.25rem",
+  },
+  downloadedBadge: {
+    alignItems: "center",
+    backgroundColor: tokens.successSurface,
+    borderRadius: "9999px",
+    color: tokens.successText,
+    display: "inline-flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "0.375rem",
+    lineHeight: "1.25rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.75rem",
+  },
+  smallIcon: { height: "0.875rem", width: "0.875rem" },
+  size: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    flexShrink: 0,
+  },
+  cachedSize: { fontSize: "0.75rem", lineHeight: "1rem" },
+  progressTrack: {
+    backgroundColor: tokens.border,
+    borderRadius: "9999px",
+    height: "0.5rem",
+    marginTop: "1.75rem",
+    overflow: "hidden",
+  },
+  progressBar: {
+    backgroundColor: tokens.olive,
+    borderRadius: "9999px",
+    height: "100%",
+    transformOrigin: "left",
+    transitionDuration: "300ms",
+    transitionProperty: "transform",
+  },
+  progressMeta: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    gap: "1rem",
+    justifyContent: "space-between",
+    lineHeight: "1.25rem",
+    marginTop: "0.75rem",
+  },
+  tabular: { fontVariantNumeric: "tabular-nums" },
+  actions: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    marginTop: "1.25rem",
+  },
+  spin: { animation: `${rotate} 1s linear infinite` },
+  files: { marginTop: "1rem" },
+  error: {
+    color: tokens.warningText,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginTop: "0.75rem",
+  },
+});
 
 interface LocalModelDownloadCardProps {
   model: LocalModelOption;
@@ -65,52 +176,48 @@ export default function LocalModelDownloadCard({
   const cachedSizeLabel = formatBytes(state?.cache?.totalBytes ?? manifestTotalBytes);
 
   return (
-    <section
-      className={cn("rounded-[1.4rem] border border-[#ded7c9] bg-[#fffdf8] p-6 sm:p-7", className)}
-    >
-      <div className="flex items-start justify-between gap-5">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-[#24231f]">{resolvedTitle}</h3>
-          <p className="mt-1 text-sm leading-6 text-[#817b70]">{resolvedDescription}</p>
-          {meta ? <div className="mt-2">{meta}</div> : null}
+    <section className={`${stylex.props(styles.card).className} ${className ?? ""}`}>
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.heading)}>
+          <h3 {...stylex.props(styles.title)}>{resolvedTitle}</h3>
+          <p {...stylex.props(styles.description)}>{resolvedDescription}</p>
+          {meta ? <div {...stylex.props(styles.meta)}>{meta}</div> : null}
         </div>
         {isCached ? (
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#eef3e2] px-3 py-1 text-sm font-semibold text-[#5c6c3d]">
-              <CheckIcon className="size-3.5" weight="bold" />
+          <div {...stylex.props(styles.cachedSummary)}>
+            <div {...stylex.props(styles.downloadedBadge)}>
+              <CheckIcon className={stylex.props(styles.smallIcon).className} weight="bold" />
               <span>Downloaded</span>
             </div>
             {cachedSizeLabel ? (
-              <span className="text-xs font-semibold text-[#6f695f]">{cachedSizeLabel}</span>
+              <span {...stylex.props(styles.size, styles.cachedSize)}>{cachedSizeLabel}</span>
             ) : null}
           </div>
         ) : totalSizeLabel ? (
-          <p className="shrink-0 text-sm font-semibold tabular-nums text-[#6f695f]">
-            {totalSizeLabel}
-          </p>
+          <p {...stylex.props(styles.size)}>{totalSizeLabel}</p>
         ) : null}
       </div>
 
       {!isCached ? (
         <>
-          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[#e4e3d9]">
+          <div {...stylex.props(styles.progressTrack)}>
             <div
-              className="h-full origin-left rounded-full bg-[#7d8c59] transition-transform duration-300"
+              {...stylex.props(styles.progressBar)}
               style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
-          <div className="mt-3 flex items-center justify-between gap-4 text-sm font-semibold text-[#817b70]">
-            <span className="tabular-nums">
+          <div {...stylex.props(styles.progressMeta)}>
+            <span {...stylex.props(styles.tabular)}>
               {totalSizeLabel && downloadedSizeLabel
                 ? `${downloadedSizeLabel} / ${totalSizeLabel}`
                 : (state?.file ?? "Preparing download")}
             </span>
-            <span className="tabular-nums">{Math.round(progress)}%</span>
+            <span {...stylex.props(styles.tabular)}>{Math.round(progress)}%</span>
           </div>
         </>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+      <div {...stylex.props(styles.actions)}>
         <Button
           variant="primary"
           type="button"
@@ -126,7 +233,9 @@ export default function LocalModelDownloadCard({
             onClick={() => onRefresh(model.id)}
             disabled={isDownloading}
           >
-            <ArrowsClockwiseIcon className={cn("size-3.5", isChecking ? "animate-spin" : "")} />
+            <ArrowsClockwiseIcon
+              className={stylex.props(styles.smallIcon, isChecking && styles.spin).className}
+            />
             <span>Refresh</span>
           </Button>
         ) : null}
@@ -137,16 +246,14 @@ export default function LocalModelDownloadCard({
             onClick={() => onDelete(model.id)}
             disabled={isDownloading}
           >
-            <TrashIcon className="size-3.5" />
+            <TrashIcon className={stylex.props(styles.smallIcon).className} />
             <span>Delete</span>
           </Button>
         ) : null}
       </div>
 
-      <LocalModelDownloadFiles state={state} className="mt-4" />
-      {state?.status === "error" ? (
-        <p className="mt-3 text-sm text-[var(--color-memora-warning-text)]">{state.error}</p>
-      ) : null}
+      <LocalModelDownloadFiles state={state} className={stylex.props(styles.files).className} />
+      {state?.status === "error" ? <p {...stylex.props(styles.error)}>{state.error}</p> : null}
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { useAudioPlayer } from "@/hooks/library/useAudioPlayer";
 import { formatDuration } from "@/lib/format";
 import type { RecordingWord } from "@/types/library";
@@ -10,6 +11,134 @@ import {
   CornersInIcon,
   SubtitlesIcon,
 } from "@phosphor-icons/react";
+
+// ponytail: this overlay sits on top of arbitrary video pixels, not the app background, so it
+// keeps the universal white-on-black-scrim video-player convention (YouTube, native <video>
+// controls, etc.) in both themes rather than following app tokens -- app-theme colors here would
+// break contrast against a bright video frame in light mode. Revisit only if a per-video theme
+// (e.g. reading average frame luminance) is ever wanted.
+const styles = stylex.create({
+  root: { backgroundColor: "#000", borderRadius: 12, overflow: "hidden", position: "relative" },
+  video: { aspectRatio: "16 / 9", cursor: "pointer", width: "100%" },
+  overlay: { inset: 0, pointerEvents: "none", position: "absolute", transition: "opacity 300ms" },
+  visible: { opacity: 1 },
+  hidden: { opacity: 0 },
+  gradient: {
+    backgroundImage: "linear-gradient(to top, rgb(0 0 0 / 0.6), transparent)",
+    inset: 0,
+    position: "absolute",
+  },
+  center: {
+    alignItems: "center",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    pointerEvents: "auto",
+    position: "absolute",
+  },
+  centerButton: {
+    alignItems: "center",
+    backdropFilter: "blur(4px)",
+    backgroundColor: "rgb(75 85 99 / 0.1)",
+    borderRadius: 9999,
+    color: "#fff",
+    display: "flex",
+    height: 64,
+    justifyContent: "center",
+    transition: "transform 150ms, background-color 150ms",
+    width: 64,
+    ":active": { transform: "scale(0.9)" },
+    ":hover": { backgroundColor: "rgb(0 0 0 / 0.4)" },
+  },
+  largeIcon: { height: 28, width: 28 },
+  playIcon: { height: 28, marginLeft: 2, width: 28 },
+  controls: {
+    bottom: 0,
+    left: 0,
+    paddingBlockEnd: 12,
+    paddingBlockStart: 32,
+    paddingInline: 16,
+    pointerEvents: "auto",
+    position: "absolute",
+    right: 0,
+  },
+  progress: {
+    backgroundColor: "rgb(255 255 255 / 0.2)",
+    borderRadius: 9999,
+    cursor: "pointer",
+    height: 4,
+    position: "relative",
+    transition: "height 150ms",
+    ":hover": { height: 6 },
+  },
+  progressFill: {
+    backgroundColor: "#fff",
+    borderRadius: 9999,
+    insetBlock: 0,
+    left: 0,
+    position: "absolute",
+  },
+  times: { alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: 8 },
+  time: { color: "rgb(255 255 255 / 0.7)", fontSize: 12, fontVariantNumeric: "tabular-nums" },
+  actions: { pointerEvents: "auto", position: "absolute", right: 12, top: 12 },
+  actionRow: { alignItems: "center", display: "flex", gap: 8 },
+  actionButton: {
+    alignItems: "center",
+    backdropFilter: "blur(4px)",
+    backgroundColor: "rgb(75 85 99 / 0.1)",
+    borderRadius: 8,
+    color: "rgb(255 255 255 / 0.8)",
+    display: "flex",
+    height: 32,
+    justifyContent: "center",
+    transition: "background-color 150ms, color 150ms",
+    width: 32,
+    ":hover": { backgroundColor: "rgb(0 0 0 / 0.6)", color: "#fff" },
+  },
+  captionsActive: {
+    backgroundColor: "rgb(255 255 255 / 0.2)",
+    color: "#fff",
+    ":hover": { backgroundColor: "rgb(255 255 255 / 0.3)" },
+  },
+  captionsIdle: {
+    backgroundColor: "rgb(55 65 81 / 0.5)",
+    color: "rgb(255 255 255 / 0.7)",
+    ":hover": { backgroundColor: "rgb(75 85 99 / 0.6)", color: "#fff" },
+  },
+  icon: { height: 16, width: 16 },
+  captionArea: {
+    bottom: 64,
+    display: "flex",
+    justifyContent: "center",
+    left: 0,
+    paddingInline: 20,
+    pointerEvents: "none",
+    position: "absolute",
+    right: 0,
+    zIndex: 20,
+    "@media (min-width: 640px)": { bottom: 80 },
+  },
+  caption: {
+    backdropFilter: "blur(4px)",
+    backgroundColor: "rgb(0 0 0 / 0.45)",
+    borderRadius: 12,
+    boxShadow: "0 10px 40px rgb(0 0 0 / 0.45)",
+    color: "#fafafa",
+    fontSize: "clamp(1rem, 1.8vw, 1.6rem)",
+    fontWeight: 500,
+    maxWidth: "min(90vw, 980px)",
+    paddingBlock: 8,
+    paddingInline: 16,
+    textAlign: "center",
+  },
+  captionText: {
+    display: "-webkit-box",
+    lineClamp: 2,
+    lineHeight: 1.25,
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+  },
+});
 
 interface VideoPlayerProps {
   videoUrl: string | undefined;
@@ -279,66 +408,67 @@ export const VideoPlayer = memo(
     return (
       <div
         ref={containerRef}
-        className="group relative overflow-hidden rounded-xl bg-black"
+        {...stylex.props(styles.root)}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
         <video
           ref={setVideoNode}
-          className="aspect-video w-full cursor-pointer"
+          {...stylex.props(styles.video)}
           playsInline
           onClick={handleVideoClick}
         />
 
         <div
-          className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
-            showControls || !isPlaying ? "opacity-100" : "opacity-0"
-          }`}
+          {...stylex.props(
+            styles.overlay,
+            showControls || !isPlaying ? styles.visible : styles.hidden,
+          )}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div {...stylex.props(styles.gradient)} />
 
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+          <div {...stylex.props(styles.center)}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 togglePlay();
                 scheduleHide();
               }}
-              className="flex size-16 items-center justify-center rounded-full bg-gray-600/10 text-white backdrop-blur-sm transition-transform active:scale-90 hover:bg-black/40"
+              {...stylex.props(styles.centerButton)}
             >
               {isPlaying ? (
-                <PauseIcon className="size-7" weight="fill" />
+                <PauseIcon className={stylex.props(styles.largeIcon).className} weight="fill" />
               ) : (
-                <PlayIcon className="size-7 ml-0.5" weight="fill" />
+                <PlayIcon className={stylex.props(styles.playIcon).className} weight="fill" />
               )}
             </button>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-8 pointer-events-auto">
+          <div {...stylex.props(styles.controls)}>
             <div
               ref={progressRef}
-              className="group/progress relative h-1 cursor-pointer rounded-full bg-white/20 transition-all hover:h-1.5"
+              {...stylex.props(styles.progress)}
               onMouseDown={handleProgressMouseDown}
             >
               <div
                 ref={progressFillRef}
-                className="absolute inset-y-0 left-0 rounded-full bg-white transition-none"
+                {...stylex.props(styles.progressFill)}
                 style={{ width: "0%" }}
               />
             </div>
 
-            <div className="mt-2 flex items-center justify-between">
-              <span ref={elapsedRef} className="text-xs tabular-nums text-white/70">
+            <div {...stylex.props(styles.times)}>
+              <span ref={elapsedRef} {...stylex.props(styles.time)}>
                 {formatDuration(0)}
               </span>
-              <span ref={remainingRef} className="text-xs tabular-nums text-white/70">
+              <span ref={remainingRef} {...stylex.props(styles.time)}>
                 -{formatDuration(effectiveDuration)}
               </span>
             </div>
           </div>
 
-          <div className="absolute top-3 right-3 pointer-events-auto">
-            <div className="flex items-center gap-2">
+          <div {...stylex.props(styles.actions)}>
+            <div {...stylex.props(styles.actionRow)}>
               {isFullscreen && captionCues.length > 0 && (
                 <button
                   onClick={(e) => {
@@ -346,14 +476,16 @@ export const VideoPlayer = memo(
                     setCaptionsEnabled((prev) => !prev);
                     scheduleHide();
                   }}
-                  className={`flex size-8 items-center justify-center rounded-lg backdrop-blur-sm transition-colors ${
-                    captionsEnabled
-                      ? "bg-white/20 text-white hover:bg-white/30"
-                      : "bg-gray-700/50 text-white/70 hover:bg-gray-600/60 hover:text-white"
-                  }`}
+                  {...stylex.props(
+                    styles.actionButton,
+                    captionsEnabled ? styles.captionsActive : styles.captionsIdle,
+                  )}
                   aria-label={captionsEnabled ? "Hide captions" : "Show captions"}
                 >
-                  <SubtitlesIcon className="size-4" weight={captionsEnabled ? "fill" : "bold"} />
+                  <SubtitlesIcon
+                    className={stylex.props(styles.icon).className}
+                    weight={captionsEnabled ? "fill" : "bold"}
+                  />
                 </button>
               )}
               <button
@@ -361,12 +493,12 @@ export const VideoPlayer = memo(
                   e.stopPropagation();
                   toggleFullscreen();
                 }}
-                className="flex size-8 items-center justify-center rounded-lg bg-gray-600/10 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-white"
+                {...stylex.props(styles.actionButton)}
               >
                 {isFullscreen ? (
-                  <CornersInIcon className="size-4" weight="bold" />
+                  <CornersInIcon className={stylex.props(styles.icon).className} weight="bold" />
                 ) : (
-                  <CornersOutIcon className="size-4" weight="bold" />
+                  <CornersOutIcon className={stylex.props(styles.icon).className} weight="bold" />
                 )}
               </button>
             </div>
@@ -374,9 +506,9 @@ export const VideoPlayer = memo(
         </div>
 
         {isFullscreen && captionsEnabled && activeCueIndex >= 0 && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center px-5 sm:bottom-20">
-            <div className="max-w-[min(90vw,980px)] rounded-xl bg-black/45 px-4 py-2 text-center text-[clamp(1rem,1.8vw,1.6rem)] font-medium text-zinc-50 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-              <p className="line-clamp-2 leading-tight">{captionCues[activeCueIndex]?.text}</p>
+          <div {...stylex.props(styles.captionArea)}>
+            <div {...stylex.props(styles.caption)}>
+              <p {...stylex.props(styles.captionText)}>{captionCues[activeCueIndex]?.text}</p>
             </div>
           </div>
         )}

@@ -6,6 +6,7 @@ import {
   sanitizeShowWidgetArguments,
 } from "@/lib/chat/showWidget";
 import { clearShowWidgetDebug, updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
+import type { DataSourceName } from "@/livestore/widget";
 
 import type { ChatMessage } from "./types";
 
@@ -16,7 +17,10 @@ const areWidgetsEqual = (left: ChatWidget, right: ChatWidget): boolean => {
     left.widgetCode !== right.widgetCode ||
     left.phase !== right.phase ||
     left.errorMessage !== right.errorMessage ||
-    left.loadingMessages.length !== right.loadingMessages.length
+    left.dataSourceName !== right.dataSourceName ||
+    left.loadingMessages.length !== right.loadingMessages.length ||
+    JSON.stringify(left.dataSourceParams) !== JSON.stringify(right.dataSourceParams) ||
+    JSON.stringify(left.dataFiles) !== JSON.stringify(right.dataFiles)
   ) {
     return false;
   }
@@ -30,6 +34,9 @@ interface ParsedShowWidgetSnapshot {
   title: string;
   loadingMessages: string[];
   widgetCode: string;
+  dataSourceName?: DataSourceName;
+  dataSourceParams?: Record<string, unknown>;
+  dataFiles?: string[];
 }
 
 const areParsedShowWidgetSnapshotsEqual = (
@@ -45,7 +52,10 @@ const areParsedShowWidgetSnapshotsEqual = (
   if (
     left.title !== right.title ||
     left.widgetCode !== right.widgetCode ||
-    left.loadingMessages.length !== right.loadingMessages.length
+    left.dataSourceName !== right.dataSourceName ||
+    left.loadingMessages.length !== right.loadingMessages.length ||
+    JSON.stringify(left.dataSourceParams) !== JSON.stringify(right.dataSourceParams) ||
+    JSON.stringify(left.dataFiles) !== JSON.stringify(right.dataFiles)
   ) {
     return false;
   }
@@ -65,6 +75,9 @@ const toParsedShowWidgetSnapshot = (rawArgsBuffer: string): ParsedShowWidgetSnap
     title: partialArguments.title ?? "",
     loadingMessages: partialArguments.loading_messages ?? [],
     widgetCode: partialArguments.widget_code ?? "",
+    dataSourceName: partialArguments.data_source,
+    dataSourceParams: partialArguments.data_source_params,
+    dataFiles: partialArguments.data_files,
   };
 };
 
@@ -226,6 +239,10 @@ export const useShowWidgetBuffer = (
 
       upsertWidget(messageId, toolCallId, (currentWidget) => {
         const fallbackSnapshot = nextSnapshot ?? previousSnapshot;
+        const dataSourceName = fallbackSnapshot?.dataSourceName ?? currentWidget?.dataSourceName;
+        const dataSourceParams =
+          fallbackSnapshot?.dataSourceParams ?? currentWidget?.dataSourceParams;
+        const dataFiles = fallbackSnapshot?.dataFiles ?? currentWidget?.dataFiles;
         return {
           toolCallId,
           title: fallbackSnapshot?.title ?? currentWidget?.title ?? "",
@@ -238,6 +255,9 @@ export const useShowWidgetBuffer = (
             : currentWidget?.errorMessage
               ? { errorMessage: currentWidget.errorMessage }
               : {}),
+          ...(dataSourceName ? { dataSourceName } : {}),
+          ...(dataSourceParams ? { dataSourceParams } : {}),
+          ...(dataFiles ? { dataFiles } : {}),
         };
       });
     },
@@ -331,6 +351,11 @@ export const useShowWidgetBuffer = (
           title: completeArguments.title ?? "",
           loading_messages: completeArguments.loading_messages ?? [],
           widget_code: completeArguments.widget_code ?? "",
+          ...(completeArguments.data_source ? { data_source: completeArguments.data_source } : {}),
+          ...(completeArguments.data_source_params
+            ? { data_source_params: completeArguments.data_source_params }
+            : {}),
+          ...(completeArguments.data_files ? { data_files: completeArguments.data_files } : {}),
         }),
       );
       flushBufferedWidget(toolCallId, {

@@ -1,6 +1,76 @@
 import { XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
+import * as stylex from "@stylexjs/stylex";
+
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  window: {
+    backdropFilter: "blur(4px)",
+    backgroundColor: tokens.surface,
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowMedium,
+    position: "absolute",
+    transition: "box-shadow 150ms",
+  },
+  focusedWindow: { borderColor: tokens.borderStrong, boxShadow: tokens.shadowLarge },
+  idleWindow: { borderColor: tokens.border },
+  header: {
+    alignItems: "center",
+    backgroundImage: `linear-gradient(to bottom, ${tokens.surface}, ${tokens.surfaceSoft})`,
+    borderBottom: `1px solid ${tokens.border}`,
+    borderRadius: "12px 12px 0 0",
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "space-between",
+    paddingBlock: 8,
+    paddingInline: 12,
+  },
+  headerTitle: { alignItems: "center", display: "flex", gap: 8, minWidth: 0 },
+  closeButton: {
+    alignItems: "center",
+    backgroundColor: tokens.border,
+    borderRadius: 9999,
+    color: tokens.textMuted,
+    display: "flex",
+    height: 16,
+    justifyContent: "center",
+    transition: "background-color 150ms",
+    width: 16,
+    ":hover": { backgroundColor: tokens.borderStrong },
+  },
+  closeIcon: { height: 12, width: 12 },
+  title: {
+    color: tokens.text,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  headerActions: { alignItems: "center", display: "flex", gap: 8 },
+  content: {
+    borderRadius: "0 0 12px 12px",
+    height: "calc(100% - 40px)",
+    overflow: "hidden",
+    position: "relative",
+  },
+  resizeHandle: {
+    backgroundColor: tokens.hover,
+    border: `1px solid ${tokens.borderStrong}`,
+    borderRadius: 2,
+    bottom: 4,
+    cursor: "se-resize",
+    height: 16,
+    opacity: 0,
+    position: "absolute",
+    right: 4,
+    width: 16,
+  },
+});
 
 export interface DesktopWindowPosition {
   x: number;
@@ -158,9 +228,7 @@ export function DesktopWindow({
 
   return (
     <div
-      className={`absolute rounded-xl border bg-white shadow-xl backdrop-blur-sm transition-shadow ${
-        isFocused ? "border-zinc-300 shadow-2xl" : "border-zinc-200 shadow-lg"
-      }`}
+      {...stylex.props(styles.window, isFocused ? styles.focusedWindow : styles.idleWindow)}
       style={{
         left: position.x,
         top: position.y,
@@ -173,25 +241,22 @@ export function DesktopWindow({
         event.stopPropagation();
       }}
     >
-      <div
-        className="flex items-center justify-between rounded-t-xl border-b border-zinc-200 bg-gradient-to-b from-white to-zinc-50 px-3 py-2 cursor-grab"
-        onPointerDown={handleDragStart}
-      >
-        <div className="flex min-w-0 items-center gap-2">
+      <div {...stylex.props(styles.header)} onPointerDown={handleDragStart}>
+        <div {...stylex.props(styles.headerTitle)}>
           <button
             type="button"
-            className="flex size-4 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 transition hover:bg-zinc-300"
+            {...stylex.props(styles.closeButton)}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => onClose(id)}
             aria-label="Close window"
           >
-            <XIcon className="size-3" weight="bold" />
+            <XIcon {...stylex.props(styles.closeIcon)} weight="bold" />
           </button>
-          <span className="truncate text-xs font-semibold text-zinc-700">{title}</span>
+          <span {...stylex.props(styles.title)}>{title}</span>
         </div>
         {headerActions && (
           <div
-            className="flex items-center gap-2"
+            {...stylex.props(styles.headerActions)}
             onPointerDown={(event) => event.stopPropagation()}
           >
             {headerActions}
@@ -199,12 +264,9 @@ export function DesktopWindow({
         )}
       </div>
 
-      <div className="relative h-[calc(100%-40px)] overflow-hidden rounded-b-xl">{children}</div>
+      <div {...stylex.props(styles.content)}>{children}</div>
 
-      <div
-        className="absolute bottom-1 right-1 size-4 cursor-se-resize rounded-sm border border-zinc-300 bg-zinc-100 opacity-0"
-        onPointerDown={handleResizeStart}
-      />
+      <div {...stylex.props(styles.resizeHandle)} onPointerDown={handleResizeStart} />
     </div>
   );
 }

@@ -1,5 +1,53 @@
+import * as stylex from "@stylexjs/stylex";
+
 import { TranscriptDiagnosticsCard } from "@/components/transcript/TranscriptDiagnosticsCard";
 import type { TranscriptDiagnostics } from "@/types/library";
+import { tokens } from "../../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: tokens.surfaceSoft,
+    borderRadius: "1.5rem",
+    overflow: "hidden",
+    paddingBlock: 8,
+    paddingInline: 16,
+  },
+  summary: { cursor: "pointer", listStyle: "none", paddingBlock: 8, textAlign: "left" },
+  eyebrow: {
+    color: tokens.textSoft,
+    fontSize: "11px",
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+  },
+  header: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "1rem",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+  },
+  body: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: 1.5,
+    marginTop: 4,
+  },
+  status: {
+    color: tokens.textSoft,
+    fontSize: "11px",
+    fontWeight: 500,
+    letterSpacing: "0.16em",
+    textTransform: "uppercase",
+  },
+  card: { paddingTop: 16 },
+});
 
 interface TranscriptDiagnosticsPanelProps {
   diagnostics: TranscriptDiagnostics | undefined;
@@ -17,27 +65,23 @@ export const TranscriptDiagnosticsPanel = ({
   return (
     <details
       data-surface="transcript-diagnostics-panel"
-      className="memora-surface-glow group overflow-hidden rounded-[1.5rem] bg-[var(--color-memora-surface-soft)] px-4 py-2"
+      className={`memora-surface-glow ${stylex.props(styles.panel).className}`}
     >
-      <summary className="cursor-pointer list-none py-2 text-left">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-memora-text-soft)]">
-          Diagnostics
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+      <summary {...stylex.props(styles.summary)}>
+        <p {...stylex.props(styles.eyebrow)}>Diagnostics</p>
+        <div {...stylex.props(styles.header)}>
           <div>
-            <p className="text-base font-semibold tracking-[-0.02em] text-[var(--color-memora-text-strong)]">
-              Transcript quality signals
-            </p>
-            <p className="mt-1 text-sm leading-6 text-[var(--color-memora-text-muted)]">
+            <p {...stylex.props(styles.title)}>Transcript quality signals</p>
+            <p {...stylex.props(styles.body)}>
               Development-only heuristics for checking transcript reliability.
             </p>
           </div>
-          <span className="memora-interactive text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-memora-text-soft)]">
+          <span className={`memora-interactive ${stylex.props(styles.status).className}`}>
             Expand
           </span>
         </div>
       </summary>
-      <div className="pt-4">
+      <div {...stylex.props(styles.card)}>
         <TranscriptDiagnosticsCard diagnostics={diagnostics} title="Transcript diagnostics" />
       </div>
     </details>

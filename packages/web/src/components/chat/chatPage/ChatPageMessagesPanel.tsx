@@ -1,12 +1,69 @@
 import { motion } from "motion/react";
+import * as stylex from "@stylexjs/stylex";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import type {
   AgentStatus,
   ChatMessage as AgentChatMessage,
   ThinkingStep,
 } from "@/hooks/chat/useAgent";
+import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageEmptyState } from "./ChatPageEmptyState";
-import type { SuggestionCard } from "./types";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: 16, width: "100%" },
+  sessionsError: {
+    color: tokens.dangerText,
+    display: "none",
+    fontSize: 12,
+    "@media (min-width: 48rem)": { display: "block" },
+  },
+  iterationPrompt: {
+    backgroundColor: `color-mix(in srgb, ${tokens.warningSurface} 80%, transparent)`,
+    border: `1px solid ${tokens.warningBorder}`,
+    borderRadius: 12,
+    color: tokens.warningText,
+    fontSize: 14,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  actions: { alignItems: "center", display: "flex", gap: 8, marginTop: 12 },
+  continueButton: {
+    backgroundColor: tokens.warningText,
+    border: `1px solid ${tokens.warningText}`,
+    borderRadius: 8,
+    color: tokens.textInverse,
+    fontSize: 12,
+    fontWeight: 600,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.warningText} 85%, ${tokens.surface})`,
+    },
+    ":disabled": { cursor: "not-allowed", opacity: 0.6 },
+  },
+  stopButton: {
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.warningBorder}`,
+    borderRadius: 8,
+    color: tokens.warningText,
+    fontSize: 12,
+    fontWeight: 500,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: tokens.warningSurface },
+    ":disabled": { cursor: "not-allowed", opacity: 0.6 },
+  },
+  error: {
+    backgroundColor: tokens.dangerSurface,
+    borderRadius: 12,
+    color: tokens.dangerText,
+    fontSize: 14,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+});
 
 interface ChatPageMessagesPanelProps {
   messages: AgentChatMessage[];
@@ -22,9 +79,9 @@ interface ChatPageMessagesPanelProps {
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: { iterations: number } | null;
   error: Error | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
   greetingTitle: string;
   isConfigured: boolean;
+  mascotLayoutId: string;
   onSaveImageToLibrary: (messageId: string, attachmentId: string) => Promise<void>;
   onSendWidgetPrompt: (text: string) => Promise<void>;
   onEditMessage: (messageId: string, nextText: string) => Promise<void>;
@@ -33,7 +90,6 @@ interface ChatPageMessagesPanelProps {
   onContinueAfterIterationLimit: () => Promise<void>;
   onDismissIterationLimitPrompt: () => void;
   onOpenSettings: () => void;
-  onSuggestionClick: (suggestion: SuggestionCard) => void;
 }
 
 export const ChatPageMessagesPanel = ({
@@ -50,9 +106,9 @@ export const ChatPageMessagesPanel = ({
   savingAttachmentIds,
   iterationLimitPrompt,
   error,
-  messagesEndRef,
   greetingTitle,
   isConfigured,
+  mascotLayoutId,
   onSaveImageToLibrary,
   onSendWidgetPrompt,
   onEditMessage,
@@ -61,23 +117,24 @@ export const ChatPageMessagesPanel = ({
   onContinueAfterIterationLimit,
   onDismissIterationLimitPrompt,
   onOpenSettings,
-  onSuggestionClick,
 }: ChatPageMessagesPanelProps) => {
   if (!hasMessages) {
     return (
       <ChatPageEmptyState
         greetingTitle={greetingTitle}
         isConfigured={isConfigured}
+        mascotLayoutId={mascotLayoutId}
         sessionsError={sessionsError}
         onOpenSettings={onOpenSettings}
-        onSuggestionClick={onSuggestionClick}
       />
     );
   }
 
+  const firstAssistantId = messages.find((message) => message.role === "assistant")?.id;
+
   return (
-    <div className="w-full space-y-4">
-      {sessionsError && <p className="hidden text-xs text-red-600 md:block">{sessionsError}</p>}
+    <div {...stylex.props(styles.root)}>
+      {sessionsError && <p {...stylex.props(styles.sessionsError)}>{sessionsError}</p>}
       {messages.map((message) => {
         const isCurrentAssistant = message.role === "assistant" && message.id === lastAssistantId;
         return (
@@ -98,6 +155,7 @@ export const ChatPageMessagesPanel = ({
                 : undefined
             }
             actionsDisabled={isStreaming || isPreparingTurn}
+            mascotLayoutId={message.id === firstAssistantId ? mascotLayoutId : undefined}
             onToggleThinking={isCurrentAssistant ? onToggleThinking : undefined}
           />
         );
@@ -106,18 +164,18 @@ export const ChatPageMessagesPanel = ({
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-800"
+          {...stylex.props(styles.iterationPrompt)}
         >
           <p>
             The model has been running for a while ({iterationLimitPrompt.iterations} iterations).
             Continue running?
           </p>
-          <div className="mt-3 flex items-center gap-2">
+          <div {...stylex.props(styles.actions)}>
             <button
               type="button"
               onClick={() => void onContinueAfterIterationLimit()}
               disabled={isStreaming}
-              className="rounded-lg border border-amber-700 bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+              {...stylex.props(styles.continueButton)}
             >
               Continue
             </button>
@@ -125,7 +183,7 @@ export const ChatPageMessagesPanel = ({
               type="button"
               onClick={onDismissIterationLimitPrompt}
               disabled={isStreaming}
-              className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+              {...stylex.props(styles.stopButton)}
             >
               Stop
             </button>
@@ -136,12 +194,11 @@ export const ChatPageMessagesPanel = ({
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
+          {...stylex.props(styles.error)}
         >
           {error.message}
         </motion.div>
       )}
-      <div ref={messagesEndRef} />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 
 import { getFileHref as getSidebarRecentFileHref } from "@/app/components/Sidebar";
-import { getFileHref as getDashboardRecentFileHref } from "@/components/dashboard/DashboardPage";
+import { getFileHref as getDashboardRecentFileHref } from "@/components/dashboard/recentItems";
 import { getFileOpenHref } from "@/components/desktop/DesktopPreviewWindow";
 import { buildFileSearchItems } from "@/lib/search/searchItems";
 import type { file as LiveStoreFile } from "@/livestore/file";
@@ -154,7 +154,7 @@ test("global search routes editable text documents directly to the editor", () =
   });
   expect(imageItem?.intent).toEqual({
     type: "desktop-intent",
-    to: "/",
+    to: "/desktop",
     desktopIntent: {
       type: "openPreview",
       fileId: "image-1",

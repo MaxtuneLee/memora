@@ -1,6 +1,8 @@
 import { motion, useReducedMotion } from "motion/react";
 import MemoraMascot from "@/components/assistant/MemoraMascot";
+import * as stylex from "@stylexjs/stylex";
 import type { LiveStoreLoadingStatus } from "../liveStoreLoadingStatus";
+import { tokens } from "../../styles/stylex.stylex";
 
 interface LiveStoreLoadingScreenProps {
   status: LiveStoreLoadingStatus;
@@ -15,11 +17,117 @@ const STAGE_COPY: Record<LiveStoreLoadingStatus["stage"], string> = {
 
 const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;
 const BACKGROUND_IMAGE = `
-  radial-gradient(circle at 50% 24%, rgba(255, 250, 236, 0.98) 0%, color-mix(in srgb, var(--color-memora-bg) 82%, transparent) 34%, transparent 70%),
-  radial-gradient(circle at 18% 78%, rgba(135, 154, 79, 0.12) 0%, rgba(135, 154, 79, 0) 42%),
-  radial-gradient(circle at 88% 14%, rgba(196, 167, 111, 0.14) 0%, rgba(196, 167, 111, 0) 36%),
-  linear-gradient(180deg, #fffdf8 0%, var(--color-memora-bg) 52%, #f8f1e3 100%)
+  radial-gradient(circle at 50% 24%, ${tokens.shell} 0%, color-mix(in srgb, ${tokens.background} 82%, transparent) 34%, transparent 70%),
+  radial-gradient(circle at 18% 78%, color-mix(in srgb, ${tokens.olive} 12%, transparent) 0%, transparent 42%),
+  radial-gradient(circle at 88% 14%, color-mix(in srgb, ${tokens.contentImage} 14%, transparent) 0%, transparent 36%),
+  linear-gradient(180deg, ${tokens.surface} 0%, ${tokens.background} 52%, ${tokens.rail} 100%)
 `;
+
+const styles = stylex.create({
+  root: {
+    alignItems: "center",
+    backgroundColor: tokens.background,
+    color: tokens.textStrong,
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "100dvh",
+    overflow: "hidden",
+    padding: "2.5rem 1.5rem",
+    position: "relative",
+    width: "100%",
+  },
+  backdrop: { inset: 0, overflow: "hidden", pointerEvents: "none", position: "absolute" },
+  centerGlow: {
+    backgroundColor: tokens.shell,
+    opacity: 0.8,
+    borderRadius: "9999px",
+    filter: "blur(88px)",
+    height: "26rem",
+    left: "50%",
+    position: "absolute",
+    top: "18%",
+    transform: "translateX(-50%)",
+    width: "26rem",
+  },
+  lowerGlow: {
+    backgroundColor: `color-mix(in srgb, ${tokens.olive} 12%, transparent)`,
+    borderRadius: "9999px",
+    bottom: "-6rem",
+    filter: "blur(96px)",
+    height: "18rem",
+    left: "-3rem",
+    position: "absolute",
+    width: "18rem",
+  },
+  upperGlow: {
+    backgroundColor: `color-mix(in srgb, ${tokens.contentImage} 16%, transparent)`,
+    borderRadius: "9999px",
+    filter: "blur(80px)",
+    height: "16rem",
+    position: "absolute",
+    right: "-5rem",
+    top: "-5rem",
+    width: "16rem",
+  },
+  content: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    maxWidth: "24rem",
+    position: "relative",
+    width: "100%",
+    zIndex: 10,
+  },
+  mascot: { height: "clamp(9.5rem, 20vw, 12rem)", width: "clamp(9.5rem, 20vw, 12rem)" },
+  copy: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    marginTop: "1.25rem",
+    textAlign: "center",
+  },
+  title: {
+    color: tokens.textStrong,
+    fontSize: "clamp(1.55rem, 2.8vw, 1.9rem)",
+    fontWeight: 600,
+    letterSpacing: "-0.05em",
+  },
+  description: {
+    color: tokens.textMuted,
+    fontSize: "0.875rem",
+    lineHeight: 1.5,
+    maxWidth: "17rem",
+    letterSpacing: "0.01em",
+  },
+  progress: { marginTop: "2rem", maxWidth: "15rem", width: "100%" },
+  progressStack: { display: "flex", flexDirection: "column", gap: "0.625rem" },
+  progressTrack: {
+    backgroundColor: tokens.border,
+    borderRadius: "9999px",
+    height: "0.375rem",
+    overflow: "hidden",
+  },
+  progressFill: {
+    backgroundColor: tokens.primaryBackground,
+    borderRadius: "9999px",
+    height: "100%",
+  },
+  progressText: {
+    color: tokens.textMuted,
+    fontSize: "0.68rem",
+    letterSpacing: "0.26em",
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  dots: { alignItems: "center", display: "flex", gap: "0.625rem", justifyContent: "center" },
+  dot: {
+    backgroundColor: tokens.primaryBackground,
+    borderRadius: "9999px",
+    height: "0.625rem",
+    width: "0.625rem",
+  },
+});
 
 export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScreenProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -30,14 +138,14 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
 
   return (
     <div
-      className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-memora-bg px-6 py-10 text-[#171311]"
+      {...stylex.props(styles.root)}
       role="status"
       aria-live="polite"
       style={{ backgroundImage: BACKGROUND_IMAGE }}
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div {...stylex.props(styles.backdrop)}>
         <motion.div
-          className="absolute left-1/2 top-[18%] h-[26rem] w-[26rem] -translate-x-1/2 rounded-full bg-[#fff7e7]/80 blur-[88px]"
+          {...stylex.props(styles.centerGlow)}
           animate={
             shouldReduceMotion ? undefined : { opacity: [0.72, 1, 0.72], scale: [0.96, 1.04, 0.96] }
           }
@@ -48,7 +156,7 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
           }}
         />
         <motion.div
-          className="absolute -left-12 bottom-[-6rem] h-[18rem] w-[18rem] rounded-full bg-[#8ea15b]/12 blur-[96px]"
+          {...stylex.props(styles.lowerGlow)}
           animate={
             shouldReduceMotion
               ? undefined
@@ -61,7 +169,7 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
           }}
         />
         <motion.div
-          className="absolute right-[-5rem] top-[-5rem] h-[16rem] w-[16rem] rounded-full bg-[#cfb27c]/16 blur-[80px]"
+          {...stylex.props(styles.upperGlow)}
           animate={
             shouldReduceMotion ? undefined : { opacity: [0.22, 0.42, 0.22], scale: [1, 1.12, 1] }
           }
@@ -74,7 +182,7 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
       </div>
 
       <motion.div
-        className="relative z-10 flex w-full max-w-sm flex-col items-center"
+        {...stylex.props(styles.content)}
         initial={{ opacity: 0, y: 18, scale: 0.985 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: EASE_OUT_QUINT }}
@@ -83,40 +191,36 @@ export default function LiveStoreLoadingScreen({ status }: LiveStoreLoadingScree
           state="thinking"
           decorative
           animated={!shouldReduceMotion}
-          className="size-[clamp(9.5rem,20vw,12rem)]"
+          style={styles.mascot}
         />
 
-        <div className="mt-5 flex flex-col items-center gap-2 text-center">
-          <p className="text-[clamp(1.55rem,2.8vw,1.9rem)] font-semibold tracking-[-0.05em] text-[#171311]">
-            Preparing Memora
-          </p>
-          <p className="max-w-[17rem] text-sm leading-6 tracking-[0.01em] text-[#6c645a]">
-            {STAGE_COPY[status.stage]}
-          </p>
+        <div {...stylex.props(styles.copy)}>
+          <p {...stylex.props(styles.title)}>Preparing Memora</p>
+          <p {...stylex.props(styles.description)}>{STAGE_COPY[status.stage]}</p>
         </div>
 
-        <div className="mt-8 w-full max-w-[15rem]">
+        <div {...stylex.props(styles.progress)}>
           {"progress" in status ? (
-            <div className="space-y-2.5">
-              <div className="h-1.5 overflow-hidden rounded-full bg-[#d9cfbf]/70">
+            <div {...stylex.props(styles.progressStack)}>
+              <div {...stylex.props(styles.progressTrack)}>
                 <motion.div
-                  className="h-full rounded-full bg-[#1a1612]"
+                  {...stylex.props(styles.progressFill)}
                   initial={{ scaleX: 0.02 }}
                   animate={{ scaleX: Math.max(progressRatio, 0.02) }}
                   transition={{ duration: 0.35, ease: EASE_OUT_QUINT }}
                   style={{ transformOrigin: "left center" }}
                 />
               </div>
-              <p className="text-center text-[0.68rem] uppercase tracking-[0.26em] text-[#8a7f72]">
+              <p {...stylex.props(styles.progressText)}>
                 {status.progress.done} / {status.progress.total}
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-2.5">
+            <div {...stylex.props(styles.dots)}>
               {[0, 1, 2].map((index) => (
                 <motion.span
                   key={index}
-                  className="h-2.5 w-2.5 rounded-full bg-[#1a1612]"
+                  {...stylex.props(styles.dot)}
                   animate={
                     shouldReduceMotion
                       ? { opacity: 0.7 }

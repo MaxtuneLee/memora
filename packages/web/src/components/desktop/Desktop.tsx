@@ -1,6 +1,9 @@
 import { DndContext, pointerWithin } from "@dnd-kit/core";
+import { Toast } from "@base-ui/react/toast";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import * as stylex from "@stylexjs/stylex";
+
 import { useAppStore } from "@/livestore/store";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -23,6 +26,11 @@ import {
 } from "@/lib/desktop/queries";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
 import { folderEvents } from "@/livestore/folder";
+import { syncWidgetDefinitionFolderRename } from "@/lib/widgets/widgetDefinitionFolderSync";
+import {
+  activeWidgetDefinitionsQuery$,
+  activeWidgetInstancesQuery$,
+} from "@/lib/widgets/widgetQueries";
 import type { DesktopItem as DesktopItemType, DesktopWidgetItem } from "@/types/desktop";
 import { DESKTOP_PADDING, GRID_SIZE } from "@/types/desktop";
 import type { RecordingMeta } from "@/types/library";
@@ -44,6 +52,40 @@ import {
   mapFolderRowsToDesktopItems,
   sortDesktopItems,
 } from "@/components/desktop/desktop/utils";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  canvas: {
+    backgroundColor: tokens.canvas,
+    height: "100%",
+    overflow: "auto",
+    position: "relative",
+    width: "100%",
+  },
+  grid: { inset: 0, opacity: 0.03, pointerEvents: "none", position: "absolute" },
+  dropOverlay: {
+    alignItems: "center",
+    backdropFilter: "blur(2px)",
+    backgroundColor: tokens.selected,
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: 50,
+  },
+  dropCard: {
+    backgroundColor: tokens.surface,
+    borderColor: tokens.oliveSoft,
+    borderRadius: 16,
+    borderStyle: "dashed",
+    borderWidth: 2,
+    boxShadow: tokens.shadowMedium,
+    paddingBlock: 24,
+    paddingInline: 32,
+  },
+  dropLabel: { color: tokens.oliveText, fontSize: "0.875rem", fontWeight: 500 },
+});
 
 interface DesktopProps {
   externalIntent?: PendingDesktopIntent | null;
@@ -62,13 +104,23 @@ export function Desktop({
 }: DesktopProps) {
   const store = useAppStore();
   const { reindexFile } = useContentPipeline();
+  const { add: addToast } = Toast.useToastManager();
   const fileRows = store.useQuery(desktopFilesQuery$);
   const folderRows = store.useQuery(desktopFoldersQuery$);
   const allFileRows = store.useQuery(desktopAllFilesQuery$);
   const allFolderRows = store.useQuery(desktopAllFoldersQuery$);
+  const widgetDefinitionRows = store.useQuery(activeWidgetDefinitionsQuery$);
+  const widgetInstanceRows = store.useQuery(activeWidgetInstancesQuery$);
   const containerRef = useRef<HTMLDivElement>(null);
   const [renamingIds, setRenamingIds] = useState<Set<string>>(new Set());
   const desktopSize = useDesktopSize(containerRef);
+
+  const notifyReservedFolderRejection = useCallback(
+    (message: string) => {
+      addToast({ title: "Widgets folder is protected", description: message, type: "error" });
+    },
+    [addToast],
+  );
 
   const mapToMeta = useCallback((file: LiveStoreFile): RecordingMeta => {
     return mapLiveStoreFileToMeta(file);
@@ -137,6 +189,7 @@ export function Desktop({
   const { activeDragId, sensors, handleDragStart, handleDragEnd } = useDesktopDnD({
     items,
     store,
+    onRejectedMove: notifyReservedFolderRejection,
   });
   const {
     nativeDragOver,
@@ -214,6 +267,8 @@ export function Desktop({
     store,
     allFileRows,
     allFolderRows,
+    widgetDefinitions: widgetDefinitionRows,
+    widgetInstances: widgetInstanceRows,
     trashedFileItems,
     trashedFolderItems,
     mapToMeta,
@@ -332,6 +387,13 @@ export function Desktop({
         return;
       }
 
+      if (item.reservedKind === "widgets") {
+        const message = "The Widgets folder is reserved and can't be renamed.";
+        console.warn("Rejected folder rename:", message);
+        notifyReservedFolderRejection(message);
+        return;
+      }
+
       try {
         renameFolderWithPathPolicy(folderRows, {
           id,
@@ -348,6 +410,7 @@ export function Desktop({
         next.delete(id);
         return next;
       });
+
       store.commit(
         folderEvents.folderUpdated({
           id,
@@ -355,8 +418,18 @@ export function Desktop({
           updatedAt: new Date(),
         }),
       );
+
+      if (item.reservedKind === "widgetDefinition") {
+        syncWidgetDefinitionFolderRename({
+          store,
+          definitions: widgetDefinitionRows,
+          files: fileRows,
+          folderId: id,
+          name,
+        });
+      }
     },
-    [fileRows, folderRows, items, store],
+    [fileRows, folderRows, items, notifyReservedFolderRejection, store, widgetDefinitionRows],
   );
 
   const handleRenameCancel = useCallback((id: string) => {
@@ -382,8 +455,14 @@ export function Desktop({
     if (!item || item.type === "widget") {
       return;
     }
+    if (item.type === "folder" && item.reservedKind === "widgets") {
+      const message = "The Widgets folder is reserved and can't be deleted.";
+      console.warn("Rejected delete:", message);
+      notifyReservedFolderRejection(message);
+      return;
+    }
     requestTrash(item);
-  }, [closeContextMenu, contextMenu.targetId, items, requestTrash]);
+  }, [closeContextMenu, contextMenu.targetId, items, notifyReservedFolderRejection, requestTrash]);
 
   const handleReindex = useCallback(() => {
     const targetId = contextMenu.targetId;
@@ -431,7 +510,7 @@ export function Desktop({
       >
         <DesktopDropZone
           ref={containerRef}
-          className="relative h-full w-full overflow-auto bg-gradient-to-br from-zinc-50 via-zinc-100/50 to-zinc-100"
+          {...stylex.props(styles.canvas)}
           onClick={handleDesktopClick}
           onContextMenu={handleDesktopContextMenu}
           onDragEnter={handleNativeDragEnter}
@@ -440,7 +519,7 @@ export function Desktop({
           onDrop={(event) => handleNativeDrop(event, null)}
         >
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.03]"
+            {...stylex.props(styles.grid)}
             style={{
               backgroundImage: `
                 linear-gradient(to right, currentColor 1px, transparent 1px),
@@ -527,9 +606,9 @@ export function Desktop({
           />
 
           {nativeDragOver && (
-            <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-blue-50/60 backdrop-blur-[2px]">
-              <div className="rounded-2xl border-2 border-dashed border-blue-400 bg-white/80 px-8 py-6 shadow-lg">
-                <p className="text-sm font-medium text-blue-600">Drop files here to upload</p>
+            <div {...stylex.props(styles.dropOverlay)}>
+              <div {...stylex.props(styles.dropCard)}>
+                <p {...stylex.props(styles.dropLabel)}>Drop files here to upload</p>
               </div>
             </div>
           )}

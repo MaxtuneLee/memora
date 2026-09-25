@@ -356,7 +356,8 @@ const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbInde
   if (!sqlite) {
     const init = sqlite3InitModule as unknown as SqliteInit;
     sqlite = await init({
-      locateFile: (path) => new URL(`/sqlite-vec/${path}`, self.location.origin).href,
+      locateFile: (path) =>
+        new URL(`${__VENDOR_ASSETS__.sqliteVec}${path}`, self.location.origin).href,
     });
   }
   if (!db) {

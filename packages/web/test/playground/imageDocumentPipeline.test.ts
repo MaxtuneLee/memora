@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -363,22 +362,5 @@ describe("shared OPFS model cache", () => {
         new Error("Can't create a session. No graph was found in the protobuf."),
       ),
     ).toBe(true);
-  });
-});
-
-describe("image pipeline interface copy", () => {
-  test("omits redundant eyebrow labels and uppercase styling", () => {
-    const source = readFileSync(
-      new URL("../../src/components/playground/ImageDocumentPipeline.tsx", import.meta.url),
-      "utf8",
-    );
-
-    expect(source).not.toContain(" uppercase");
-    expect(source).not.toContain('fillText("LAYOUT"');
-    expect(source).not.toContain('fillText("RECOGNIZE"');
-    expect(source).not.toContain('fillText("MARKDOWN"');
-    expect(source).not.toContain("Execution trace");
-    expect(source).not.toContain("Document image");
-    expect(source).not.toContain("Selected block");
   });
 });

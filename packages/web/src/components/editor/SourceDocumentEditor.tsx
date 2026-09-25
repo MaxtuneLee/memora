@@ -9,11 +9,64 @@ import {
 } from "react";
 
 import { markdown } from "@codemirror/lang-markdown";
-import { StateEffect, StateField, type EditorState, type Range } from "@codemirror/state";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import {
+  Compartment,
+  StateEffect,
+  StateField,
+  type EditorState,
+  type Extension,
+  type Range,
+} from "@codemirror/state";
 import { Decoration, EditorView, hoverTooltip, type DecorationSet } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
+import * as stylex from "@stylexjs/stylex";
 
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  root: { display: "flex", flexDirection: "column", gap: 16 },
+  editorSurface: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.borderSoft,
+    borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingBlock: 4,
+    paddingInline: 4,
+  },
+  diagnostic: { borderLeft: `1px solid ${tokens.warningBorder}`, paddingLeft: 12 },
+  diagnosticTitle: {
+    color: tokens.warningText,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+  },
+  diagnosticList: { display: "flex", flexDirection: "column", gap: 4, marginTop: 4 },
+  diagnosticLink: {
+    // Buttons pick up native dark-mode chrome (a gray UA background) unless the background is
+    // reset explicitly - that gray was tanking this text's contrast in dark mode.
+    backgroundColor: "transparent",
+    borderRadius: 4,
+    color: tokens.warningText,
+    fontSize: "0.875rem",
+    outline: "none",
+    paddingBlock: 2,
+    paddingInline: 4,
+    textAlign: "left",
+    textDecorationColor: tokens.warningBorder,
+    textDecorationLine: "underline",
+    textUnderlineOffset: 4,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: tokens.warningSurface },
+    ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
+  },
+});
 
 interface SourceDocumentEditorProps {
   text: string;
@@ -118,64 +171,98 @@ const safetyDiagnosticTooltip = hoverTooltip((view, position) => {
   };
 });
 
-const sourceEditorTheme = EditorView.theme({
-  "&": {
-    backgroundColor: "transparent",
-    color: "var(--color-memora-text)",
-    fontSize: "var(--document-editor-font-size, 16px)",
+// Surfaces, gutters, selection, diagnostics, and the hover tooltip all read CSS custom
+// properties, so they repaint automatically when the resolved theme flips the document root's
+// variable values - no reconfiguration needed for those. The `dark` flag passed to
+// `EditorView.theme` still needs to change per theme, though: it drives CodeMirror's own
+// built-in extensions (e.g. the default panel/tooltip base themes), so it's threaded through
+// a Compartment the component reconfigures on theme change instead of recreating the view.
+const buildSourceEditorTheme = (dark: boolean): Extension =>
+  EditorView.theme(
+    {
+      "&": {
+        backgroundColor: "transparent",
+        color: tokens.text,
+        fontSize: "var(--document-editor-font-size, 16px)",
+      },
+      "&.cm-focused": {
+        outline: "none",
+      },
+      ".cm-scroller": {
+        fontFamily:
+          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+        lineHeight: "1.5rem",
+        minHeight: "388px",
+        overflow: "auto",
+      },
+      ".cm-content": {
+        caretColor: tokens.text,
+        padding: "0.25rem 0",
+      },
+      ".cm-gutters": {
+        backgroundColor: "transparent",
+        borderRight: `1px solid ${tokens.borderSoft}`,
+        color: tokens.textSoft,
+      },
+      ".cm-activeLine, .cm-activeLineGutter": {
+        backgroundColor: tokens.hoverStrong,
+      },
+      ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": {
+        backgroundColor: tokens.selectionBackground,
+      },
+      ".cm-searchMatch": {
+        backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 35%, transparent)`,
+      },
+      ".cm-searchMatch.cm-searchMatch-selected": {
+        backgroundColor: `color-mix(in srgb, ${tokens.olive} 45%, transparent)`,
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: `color-mix(in srgb, ${tokens.oliveSoft} 22%, transparent)`,
+      },
+      ".cm-markdown-safety-line": {
+        backgroundColor: tokens.warningSurface,
+        boxShadow: `inset 2px 0 0 ${tokens.warningText}`,
+      },
+      ".cm-markdown-safety-diagnostic": {
+        backgroundColor: tokens.warningSurface,
+        textDecoration: `underline wavy ${tokens.warningText}`,
+        textDecorationThickness: "1px",
+        textUnderlineOffset: "3px",
+      },
+      ".cm-tooltip.cm-tooltip-hover": {
+        backgroundColor: tokens.surface,
+        border: `1px solid ${tokens.warningBorder}`,
+        borderRadius: "0.75rem",
+        boxShadow: tokens.shadowMedium,
+        color: tokens.warningText,
+        maxWidth: "32rem",
+        padding: "0.5rem 0.75rem",
+      },
+      ".cm-markdown-safety-tooltip": {
+        fontFamily: "inherit",
+        fontSize: "0.8125rem",
+        lineHeight: "1.25rem",
+      },
+    },
+    { dark },
+  );
+
+// Colors are CSS variables, so the style repaints with the resolved theme without reconfiguring.
+const sourceEditorHighlightStyle = HighlightStyle.define([
+  { tag: tags.heading, color: tokens.textStrong, fontWeight: "700" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: [tags.link, tags.url], color: tokens.oliveText },
+  { tag: tags.monospace, color: tokens.warningText },
+  {
+    tag: [tags.processingInstruction, tags.meta, tags.contentSeparator, tags.quote],
+    color: tokens.textMuted,
   },
-  "&.cm-focused": {
-    outline: "none",
-  },
-  ".cm-scroller": {
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-    lineHeight: "1.5rem",
-    minHeight: "388px",
-    overflow: "auto",
-  },
-  ".cm-content": {
-    caretColor: "var(--color-memora-text)",
-    padding: "0.25rem 0",
-  },
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    borderRight: "1px solid var(--color-memora-border-soft)",
-    color: "var(--color-memora-text-soft)",
-  },
-  ".cm-activeLine, .cm-activeLineGutter": {
-    backgroundColor: "var(--color-memora-hover-strong)",
-  },
-  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "var(--color-memora-olive-faint)",
-  },
-  ".cm-markdown-safety-line": {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    boxShadow: "inset 2px 0 0 var(--color-memora-warning-text)",
-  },
-  ".cm-markdown-safety-diagnostic": {
-    backgroundColor: "var(--color-memora-warning-surface)",
-    textDecoration: "underline wavy var(--color-memora-warning-text)",
-    textDecorationThickness: "1px",
-    textUnderlineOffset: "3px",
-  },
-  ".cm-tooltip.cm-tooltip-hover": {
-    backgroundColor: "var(--color-memora-surface)",
-    border: "1px solid var(--color-memora-warning-border)",
-    borderRadius: "0.75rem",
-    boxShadow: "0 8px 24px rgba(34, 33, 29, 0.08)",
-    color: "var(--color-memora-warning-text)",
-    maxWidth: "32rem",
-    padding: "0.5rem 0.75rem",
-  },
-  ".cm-markdown-safety-tooltip": {
-    fontFamily: "inherit",
-    fontSize: "0.8125rem",
-    lineHeight: "1.25rem",
-  },
-});
+]);
 
 const sourceEditorExtensions = [
+  syntaxHighlighting(sourceEditorHighlightStyle),
   markdown(),
   EditorView.contentAttributes.of({
     "aria-label": "Document source",
@@ -183,7 +270,6 @@ const sourceEditorExtensions = [
   }),
   safetyDiagnosticField,
   safetyDiagnosticTooltip,
-  sourceEditorTheme,
 ];
 
 const clampLineNumber = (lineNumber: number, lineCount: number): number => {
@@ -209,10 +295,30 @@ export const SourceDocumentEditor = forwardRef<
 ) {
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const onVisibleLineChangeRef = useRef(onVisibleLineChange);
+  const resolvedTheme = useResolvedTheme();
+  const themeCompartment = useMemo(() => new Compartment(), []);
+  // Computed once: later theme changes are applied through the compartment's reconfigure
+  // effect below rather than by re-deriving this array (which would only matter if `@uiw/
+  // react-codemirror` recreated the view on an `extensions` prop change).
+  const [themedExtensions] = useState<Extension[]>(() => [
+    ...sourceEditorExtensions,
+    themeCompartment.of(buildSourceEditorTheme(resolvedTheme === "dark")),
+  ]);
 
   useEffect(() => {
     onVisibleLineChangeRef.current = onVisibleLineChange;
   }, [onVisibleLineChange]);
+
+  // Reconfigures the theme compartment in place on theme change - the document, selection,
+  // undo history, and focus all live on the rest of the editor state and are untouched.
+  useEffect(() => {
+    if (!editorView) {
+      return;
+    }
+    editorView.dispatch({
+      effects: themeCompartment.reconfigure(buildSourceEditorTheme(resolvedTheme === "dark")),
+    });
+  }, [editorView, resolvedTheme, themeCompartment]);
 
   const visibleLineExtension = useMemo(() => {
     return EditorView.updateListener.of((update) => {
@@ -310,8 +416,8 @@ export const SourceDocumentEditor = forwardRef<
   }, [editorView]);
 
   return (
-    <section className="flex flex-col gap-4" data-surface="source-document-editor">
-      <div className="overflow-hidden rounded-xl border border-[var(--color-memora-border-soft)] bg-[var(--color-memora-surface-soft)] px-1 py-1">
+    <section {...stylex.props(styles.root)} data-surface="source-document-editor">
+      <div {...stylex.props(styles.editorSurface)}>
         <CodeMirror
           value={text}
           height="auto"
@@ -322,29 +428,25 @@ export const SourceDocumentEditor = forwardRef<
             foldGutter: false,
             highlightActiveLine: true,
             highlightActiveLineGutter: true,
+            syntaxHighlighting: false,
           }}
           editable={!readOnly}
           readOnly={readOnly}
-          extensions={[...sourceEditorExtensions, visibleLineExtension]}
+          extensions={[...themedExtensions, visibleLineExtension]}
           onCreateEditor={(view) => setEditorView(view)}
           onChange={(value) => onTextChange(value)}
         />
       </div>
 
       {diagnostics.length > 0 ? (
-        <div
-          aria-label="Markdown safety issues"
-          className="border-l border-[var(--color-memora-warning-border)] pl-3"
-        >
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-memora-warning-text)]">
-            Preview changes
-          </div>
-          <ol className="mt-1 space-y-1">
+        <div aria-label="Markdown safety issues" {...stylex.props(styles.diagnostic)}>
+          <div {...stylex.props(styles.diagnosticTitle)}>Preview changes</div>
+          <ol {...stylex.props(styles.diagnosticList)}>
             {diagnostics.map((diagnostic, index) => (
               <li key={`${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`}>
                 <button
                   type="button"
-                  className="rounded px-1 py-0.5 text-left text-sm text-[var(--color-memora-warning-text)] underline decoration-[var(--color-memora-warning-border)] underline-offset-4 transition hover:bg-[var(--color-memora-warning-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-memora-olive-soft)]"
+                  {...stylex.props(styles.diagnosticLink)}
                   aria-label={diagnostic.message}
                   onClick={() => revealDiagnostic(index)}
                 >

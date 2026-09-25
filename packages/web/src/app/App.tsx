@@ -3,10 +3,7 @@ import { StoreRegistryProvider } from "@livestore/react";
 import { Suspense } from "react";
 import LiveStoreLoadingScreen from "./components/LiveStoreLoadingScreen";
 import { ContentPipelineRoot } from "@/lib/content/contentPipelineRoot";
-import {
-  appStoreRegistry,
-  useLiveStoreLoadingStatus,
-} from "@/livestore/store";
+import { appStoreRegistry, useLiveStoreLoadingStatus } from "@/livestore/store";
 
 function LiveStoreFallback() {
   const status = useLiveStoreLoadingStatus();

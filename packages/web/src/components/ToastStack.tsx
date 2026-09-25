@@ -1,15 +1,102 @@
 import { Toast } from "@base-ui/react/toast";
+import { CheckCircleIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { motion } from "motion/react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 
-import { cn } from "../lib/cn";
 import { useNativeDialogLayer } from "../lib/nativeDialogLayer";
+import { tokens } from "../styles/stylex.stylex";
 
-type ToastStackProps = {
-  render: (toast: ReturnType<typeof Toast.useToastManager>["toasts"][number]) => ReactNode;
+const styles = stylex.create({
+  viewport: {
+    bottom: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
+    position: "fixed",
+    right: "1.5rem",
+    width: "320px",
+    zIndex: 60,
+  },
+  expanded: { gap: "0.75rem" },
+  collapsed: { rowGap: 0, ":not(:empty) > :not(:first-child)": { marginTop: "-2rem" } },
+  limited: { pointerEvents: "none" },
+  toast: {
+    alignItems: "flex-start",
+    backgroundColor: tokens.card,
+    borderColor: tokens.border,
+    borderRadius: "1rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowLarge,
+    display: "flex",
+    gap: "0.75rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+    transitionDuration: "150ms",
+    transitionProperty: "color, background-color, border-color, opacity, box-shadow, transform",
+  },
+  statusIcon: { flexShrink: 0, height: "1rem", marginTop: "0.125rem", width: "1rem" },
+  statusSuccess: { color: tokens.successText },
+  statusError: { color: tokens.dangerText },
+  statusDefault: { color: tokens.textSoft },
+  toastBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  toastTitle: {
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    lineHeight: "1.25rem",
+  },
+  toastDescription: {
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.125rem",
+  },
+  toastAction: {
+    backgroundColor: "transparent",
+    border: "none",
+    color: tokens.oliveText,
+    cursor: "pointer",
+    flexShrink: 0,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    ":hover": { textDecoration: "underline" },
+  },
+  toastClose: {
+    color: {
+      default: tokens.textSoft,
+      ":hover": tokens.text,
+    },
+    flexShrink: 0,
+    transitionDuration: "150ms",
+    transitionProperty: "color",
+  },
+  closeIcon: {
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+  },
+});
+
+// The icon shape carries the status, so it does not rely on color alone.
+const StatusIcon = ({ type }: { type?: string }) => {
+  switch (type) {
+    case "success":
+      return (
+        <CheckCircleIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusSuccess)} />
+      );
+    case "error":
+      return (
+        <WarningCircleIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusError)} />
+      );
+    default:
+      return <InfoIcon weight="fill" {...stylex.props(styles.statusIcon, styles.statusDefault)} />;
+  }
 };
 
-export default function ToastStack({ render }: ToastStackProps) {
+export default function ToastStack() {
   const portalContainer = useNativeDialogLayer();
   const { toasts } = Toast.useToastManager();
   const orderedToasts = useMemo(() => [...toasts].reverse(), [toasts]);
@@ -32,10 +119,8 @@ export default function ToastStack({ render }: ToastStackProps) {
     <Toast.Portal container={portalContainer}>
       <Toast.Viewport
         className={(state) =>
-          cn(
-            "fixed bottom-6 right-6 z-[60] flex w-[320px] flex-col",
-            state.expanded ? "gap-3" : "-space-y-8",
-          )
+          stylex.props(styles.viewport, state.expanded ? styles.expanded : styles.collapsed)
+            .className
         }
       >
         {visibleToasts.map((toast) => (
@@ -55,7 +140,7 @@ export default function ToastStack({ render }: ToastStackProps) {
               return (
                 <motion.div
                   {...rest}
-                  className={cn(props.className, state.limited ? "pointer-events-none" : "")}
+                  className={`${props.className ?? ""} ${stylex.props(state.limited && styles.limited).className ?? ""}`}
                   style={{
                     ...props.style,
                     zIndex: "calc(100 - var(--toast-index))",
@@ -96,7 +181,21 @@ export default function ToastStack({ render }: ToastStackProps) {
               );
             }}
           >
-            {render(toast)}
+            <Toast.Content {...stylex.props(styles.toast)}>
+              <StatusIcon type={toast.type} />
+              <div {...stylex.props(styles.toastBody)}>
+                <Toast.Title {...stylex.props(styles.toastTitle)}>{toast.title}</Toast.Title>
+                {toast.description ? (
+                  <Toast.Description {...stylex.props(styles.toastDescription)}>
+                    {toast.description}
+                  </Toast.Description>
+                ) : null}
+              </div>
+              <Toast.Action {...stylex.props(styles.toastAction)} />
+              <Toast.Close {...stylex.props(styles.toastClose)} aria-label="Dismiss">
+                <span {...stylex.props(styles.closeIcon)}>&#10005;</span>
+              </Toast.Close>
+            </Toast.Content>
           </Toast.Root>
         ))}
       </Toast.Viewport>

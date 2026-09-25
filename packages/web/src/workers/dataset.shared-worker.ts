@@ -117,13 +117,17 @@ async function execute(
     return null;
   }
   if (request.type === "reserve") {
-    const existing = reservations.find((entry) => sameSelection(entry.selection, request.selection));
+    const existing = reservations.find((entry) =>
+      sameSelection(entry.selection, request.selection),
+    );
     if (existing) existing.count += 1;
     else reservations.push({ selection: request.selection, count: 1 });
     return null;
   }
   if (request.type === "release") {
-    const existing = reservations.find((entry) => sameSelection(entry.selection, request.selection));
+    const existing = reservations.find((entry) =>
+      sameSelection(entry.selection, request.selection),
+    );
     if (existing && --existing.count <= 0) reservations.splice(reservations.indexOf(existing), 1);
     return null;
   }

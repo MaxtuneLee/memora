@@ -1,7 +1,230 @@
-import { memo, useMemo } from "react";
-import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
-import { cn } from "@/lib/cn";
+import { memo, useMemo, useSyncExternalStore } from "react";
+import { PlusIcon, SidebarSimpleIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
+import {
+  getRunningSessionIds,
+  getUnreadSessionIds,
+  subscribeSessionStatus,
+} from "@/lib/agent-runtime/client";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
+import { tokens } from "../../styles/stylex.stylex";
+
+const shimmer = stylex.keyframes({
+  "0%": { maskPosition: "100% 0" },
+  "100%": { maskPosition: "-100% 0" },
+});
+
+const styles = stylex.create({
+  root: {
+    backgroundColor: `color-mix(in srgb, ${tokens.rail} 85%, transparent)`,
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+  },
+  header: { borderBottom: `1px solid ${tokens.borderSoft}`, flexShrink: 0, padding: 12 },
+  headingRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: 8,
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headingStart: { alignItems: "center", display: "flex", gap: 6, minWidth: 0 },
+  headingCopy: { minWidth: 0 },
+  heading: {
+    color: tokens.textStrong,
+    fontSize: 14,
+    fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  activeTitle: {
+    color: tokens.textMuted,
+    fontSize: 12,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  iconButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    height: 28,
+    justifyContent: "center",
+    transition: "color 150ms, background-color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.text },
+  },
+  collapseButton: { flexShrink: 0, marginInlineStart: -2 },
+  icon: { height: 14, width: 14 },
+  newSession: {
+    alignItems: "center",
+    backgroundColor: tokens.card,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 8,
+    color: tokens.textStrong,
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 500,
+    gap: 6,
+    justifyContent: "center",
+    paddingBlock: 8,
+    paddingInline: 12,
+    overflow: "hidden",
+    transition:
+      "width 150ms ease-out, height 150ms ease-out, padding 150ms ease-out, gap 150ms ease-out, margin 150ms ease-out, background-color 150ms",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.hover },
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
+    "@media (prefers-reduced-motion: reduce)": { transition: "background-color 150ms" },
+  },
+  // Folds into a square plus button under the toggle, lined up with it in the collapsed rail.
+  newSessionCollapsed: {
+    gap: 0,
+    height: 28,
+    marginInlineStart: -2,
+    paddingBlock: 0,
+    paddingInline: 0,
+    width: 28,
+  },
+  newSessionLabel: {
+    maxWidth: 120,
+    opacity: 1,
+    transition: "max-width 150ms ease-out, opacity 150ms ease-out",
+    whiteSpace: "nowrap",
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+  },
+  newSessionLabelCollapsed: { maxWidth: 0, opacity: 0 },
+  fades: {
+    transition: "opacity 150ms ease-out",
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+  },
+  hidden: { opacity: 0, pointerEvents: "none" },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: "auto", paddingBlock: 12, paddingInline: 8 },
+  empty: {
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 60%, transparent)`,
+    border: `1px dashed ${tokens.borderSoft}`,
+    borderRadius: 12,
+    color: tokens.textMuted,
+    fontSize: 12,
+    paddingBlock: 16,
+    paddingInline: 12,
+    textAlign: "center",
+  },
+  groups: { display: "flex", flexDirection: "column", gap: 12 },
+  groupHeading: {
+    backdropFilter: "blur(8px)",
+    backgroundColor: `color-mix(in srgb, ${tokens.rail} 95%, transparent)`,
+    color: tokens.textMuted,
+    fontSize: 12,
+    fontWeight: 600,
+    paddingBlock: 6,
+    paddingInline: 8,
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+  sessions: { display: "flex", flexDirection: "column", gap: 4 },
+  session: {
+    alignItems: "flex-start",
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    color: tokens.textStrong,
+    display: "flex",
+    gap: 4,
+    padding: 8,
+    transition: "background-color 150ms, border-color 150ms",
+  },
+  sessionActive: {
+    backgroundColor: tokens.primaryBackground,
+    borderColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+  },
+  disabled: { cursor: "not-allowed", opacity: 0.6 },
+  select: {
+    backgroundColor: "transparent",
+    borderRadius: 8,
+    flex: 1,
+    minWidth: 0,
+    paddingBlock: 2,
+    paddingInline: 4,
+    textAlign: "left",
+  },
+  sessionTitle: {
+    fontSize: 14,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  preview: {
+    color: tokens.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  previewActive: { color: `color-mix(in srgb, ${tokens.primaryText} 80%, transparent)` },
+  delete: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: tokens.textSoft,
+    display: "inline-flex",
+    flexShrink: 0,
+    height: 28,
+    justifyContent: "center",
+    marginTop: 2,
+    transition: "all 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.dangerText },
+  },
+  deleteActive: {
+    color: `color-mix(in srgb, ${tokens.primaryText} 80%, transparent)`,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryText} 15%, transparent)`,
+      color: tokens.primaryText,
+    },
+  },
+  deleting: {
+    cursor: "not-allowed",
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 0.4,
+      [stylex.when.ancestor(":focus-within")]: 0.4,
+      "@media (hover: none)": 0.4,
+    },
+  },
+  revealOnHover: {
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 1,
+      [stylex.when.ancestor(":focus-within")]: 1,
+      "@media (hover: none)": 1,
+    },
+  },
+  titleRow: { alignItems: "center", display: "flex", gap: 6, minWidth: 0 },
+  unreadDot: {
+    backgroundColor: tokens.successText,
+    borderRadius: 9999,
+    flexShrink: 0,
+    height: 6,
+    width: 6,
+  },
+  titleRunning: {
+    animationDuration: "2s",
+    animationIterationCount: "infinite",
+    animationName: shimmer,
+    animationTimingFunction: "linear",
+    maskImage:
+      "linear-gradient(90deg, rgb(0 0 0 / 1) 35%, rgb(0 0 0 / 0.35) 50%, rgb(0 0 0 / 1) 65%)",
+    maskSize: "200% 100%",
+    "@media (prefers-reduced-motion: reduce)": { animationName: "none", maskImage: "none" },
+  },
+});
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -51,6 +274,8 @@ export interface ChatHistoryPanelProps {
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
   onCloseMobileDrawer?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   isReady?: boolean;
 }
 
@@ -63,28 +288,45 @@ function ChatHistoryPanelComponent({
   onSelectSession,
   onDeleteSession,
   onCloseMobileDrawer,
+  collapsed = false,
+  onToggleCollapsed,
   isReady = true,
 }: ChatHistoryPanelProps) {
+  const runningSessionIds = useSyncExternalStore(subscribeSessionStatus, getRunningSessionIds);
+  const unreadSessionIds = useSyncExternalStore(subscribeSessionStatus, getUnreadSessionIds);
   const groups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-  const activeTitle =
-    sessions.find((session) => session.id === activeSessionId)?.title ?? "History";
 
   return (
-    <div className="flex h-full flex-col bg-[#f7f2e9]/85">
-      <div className="shrink-0 border-b border-zinc-200/60 px-3 py-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-zinc-900">Chat History</h2>
-            <p className="truncate text-xs text-zinc-500">{activeTitle}</p>
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.headingRow)}>
+          <div {...stylex.props(styles.headingStart)}>
+            {onToggleCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                {...stylex.props(styles.iconButton, styles.collapseButton)}
+                aria-label={collapsed ? "Expand history panel" : "Collapse history panel"}
+                aria-expanded={!collapsed}
+              >
+                <SidebarSimpleIcon className={stylex.props(styles.icon).className} />
+              </button>
+            )}
+            <div
+              inert={collapsed}
+              {...stylex.props(styles.headingCopy, styles.fades, collapsed && styles.hidden)}
+            >
+              <h2 {...stylex.props(styles.heading)}>Chat History</h2>
+            </div>
           </div>
           {onCloseMobileDrawer && (
             <button
               type="button"
               onClick={onCloseMobileDrawer}
-              className="inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-200/70 hover:text-zinc-800"
+              {...stylex.props(styles.iconButton)}
               aria-label="Close history panel"
             >
-              <XIcon className="size-4" />
+              <XIcon className={stylex.props(styles.icon).className} />
             </button>
           )}
         </div>
@@ -95,39 +337,44 @@ function ChatHistoryPanelComponent({
             onCloseMobileDrawer?.();
           }}
           disabled={!isReady}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={collapsed ? "New session" : undefined}
+          {...stylex.props(styles.newSession, collapsed && styles.newSessionCollapsed)}
         >
-          <PlusIcon className="size-3.5" weight="bold" />
-          New session
+          <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
+          <span
+            {...stylex.props(styles.newSessionLabel, collapsed && styles.newSessionLabelCollapsed)}
+          >
+            New session
+          </span>
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+      <div
+        inert={collapsed}
+        {...stylex.props(styles.scrollArea, styles.fades, collapsed && styles.hidden)}
+      >
         {groups.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-200/70 bg-white/60 px-3 py-4 text-center text-xs text-zinc-500">
-            No saved sessions yet.
-          </div>
+          <div {...stylex.props(styles.empty)}>No saved sessions yet.</div>
         ) : (
-          <div className="space-y-3">
+          <div {...stylex.props(styles.groups)}>
             {groups.map((group) => (
               <section key={group.id}>
-                <div className="sticky top-0 z-10 bg-[#f7f2e9]/95 px-2 py-1.5 text-xs font-semibold text-zinc-500 backdrop-blur-sm">
-                  {group.label}
-                </div>
-                <div className="space-y-1">
+                <div {...stylex.props(styles.groupHeading)}>{group.label}</div>
+                <div {...stylex.props(styles.sessions)}>
                   {group.sessions.map((session) => {
                     const isActive = session.id === activeSessionId;
                     const selectDisabled = isStreaming && !isActive;
                     const deleteDisabled = isStreaming || deletingSessionId === session.id;
+                    const isRunning = runningSessionIds.has(session.id);
+                    const isUnread = !isActive && unreadSessionIds.has(session.id);
                     return (
                       <div
                         key={session.id}
-                        className={cn(
-                          "flex items-start gap-1 rounded-xl border px-2 py-2 transition-colors",
-                          isActive
-                            ? "border-zinc-900 bg-zinc-900 text-white"
-                            : "border-zinc-200 bg-white/80 text-zinc-700",
-                          selectDisabled && "cursor-not-allowed opacity-60",
+                        {...stylex.props(
+                          stylex.defaultMarker(),
+                          styles.session,
+                          isActive && styles.sessionActive,
+                          selectDisabled && styles.disabled,
                         )}
                       >
                         <button
@@ -137,19 +384,27 @@ function ChatHistoryPanelComponent({
                             onCloseMobileDrawer?.();
                           }}
                           disabled={selectDisabled}
-                          className={cn(
-                            "min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left bg-transparent",
-                          )}
+                          {...stylex.props(styles.select)}
                         >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{session.title}</p>
-                          </div>
-                          <p
-                            className={cn(
-                              "mt-1 truncate text-xs",
-                              isActive ? "text-zinc-300" : "text-zinc-500",
+                          <div {...stylex.props(styles.titleRow)}>
+                            {isUnread && (
+                              <span
+                                role="img"
+                                aria-label="New reply"
+                                {...stylex.props(styles.unreadDot)}
+                              />
                             )}
-                          >
+                            <p
+                              aria-busy={isRunning}
+                              {...stylex.props(
+                                styles.sessionTitle,
+                                isRunning && styles.titleRunning,
+                              )}
+                            >
+                              {session.title}
+                            </p>
+                          </div>
+                          <p {...stylex.props(styles.preview, isActive && styles.previewActive)}>
                             {session.preview || "No messages yet"}
                           </p>
                         </button>
@@ -158,15 +413,14 @@ function ChatHistoryPanelComponent({
                           onClick={() => onDeleteSession(session.id)}
                           disabled={deleteDisabled}
                           aria-label={`Delete session ${session.title}`}
-                          className={cn(
-                            "mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition",
-                            isActive
-                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-red-300"
-                              : "text-zinc-400 hover:bg-zinc-100 hover:text-red-600",
-                            deleteDisabled && "cursor-not-allowed opacity-40",
+                          {...stylex.props(
+                            styles.delete,
+                            isActive && styles.deleteActive,
+                            styles.revealOnHover,
+                            deleteDisabled && styles.deleting,
                           )}
                         >
-                          <TrashIcon className="size-3.5" />
+                          <TrashIcon className={stylex.props(styles.icon).className} />
                         </button>
                       </div>
                     );
@@ -194,6 +448,8 @@ const areChatHistoryPanelPropsEqual = (
     previousProps.onSelectSession === nextProps.onSelectSession &&
     previousProps.onDeleteSession === nextProps.onDeleteSession &&
     previousProps.onCloseMobileDrawer === nextProps.onCloseMobileDrawer &&
+    previousProps.collapsed === nextProps.collapsed &&
+    previousProps.onToggleCollapsed === nextProps.onToggleCollapsed &&
     previousProps.isReady === nextProps.isReady
   );
 };

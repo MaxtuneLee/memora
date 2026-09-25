@@ -1,5 +1,45 @@
 import { memo, useMemo } from "react";
+import * as stylex from "@stylexjs/stylex";
 import type { RecordingWord } from "@/types/library";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  word: { borderRadius: 2, cursor: "pointer", transition: "all 200ms" },
+  active: { color: tokens.textStrong, fontSize: "1.25rem", fontWeight: 600 },
+  past: { color: tokens.textStrong },
+  future: {
+    color: `color-mix(in srgb, ${tokens.textStrong} 30%, transparent)`,
+    ":hover": { color: `color-mix(in srgb, ${tokens.textStrong} 50%, transparent)` },
+  },
+  empty: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 8,
+    color: tokens.textMuted,
+    fontSize: 14,
+    padding: 16,
+  },
+  root: {
+    backgroundColor: tokens.surfaceSoft,
+    borderColor: tokens.border,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+  },
+  header: {
+    alignItems: "center",
+    color: tokens.textSoft,
+    display: "flex",
+    fontSize: 12,
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  scroll: { maxHeight: 384, overflowY: "auto" },
+  words: { fontSize: 16, lineHeight: 1.8 },
+});
 
 interface TranscriptWordsProps {
   words: RecordingWord[];
@@ -37,13 +77,10 @@ const WordsChunk = memo(
             <span
               key={`${word.timestamp[0]}-${i}`}
               onClick={() => onSeek(word.timestamp[0])}
-              className={`cursor-pointer rounded-sm transition-all duration-200 ${
-                isActive
-                  ? "text-[1.25rem] font-semibold text-zinc-950"
-                  : isPast
-                    ? "text-zinc-950"
-                    : "text-zinc-950/30 hover:text-zinc-950/50"
-              }`}
+              {...stylex.props(
+                styles.word,
+                isActive ? styles.active : isPast ? styles.past : styles.future,
+              )}
               style={
                 isActive
                   ? {
@@ -80,7 +117,7 @@ export const TranscriptWords = ({ words, currentTime, onSeek }: TranscriptWordsP
 
   if (words.length === 0) {
     return (
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+      <div {...stylex.props(styles.empty)}>
         Transcript will appear here once processing completes.
       </div>
     );
@@ -89,13 +126,13 @@ export const TranscriptWords = ({ words, currentTime, onSeek }: TranscriptWordsP
   const activeChunkIdx = activeWordIndex >= 0 ? Math.floor(activeWordIndex / CHUNK_SIZE) : -1;
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-      <div className="mb-3 flex items-center justify-between text-xs text-zinc-400">
+    <div {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
         <span>{words.length} words</span>
         <span>Click a word to jump</span>
       </div>
-      <div className="max-h-96 overflow-y-auto">
-        <div className="text-base leading-[1.8]">
+      <div {...stylex.props(styles.scroll)}>
+        <div {...stylex.props(styles.words)}>
           {chunks.map((chunk, chunkIdx) => (
             <WordsChunk
               key={chunkIdx}

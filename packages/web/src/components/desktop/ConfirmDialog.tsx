@@ -1,6 +1,61 @@
 import { useId } from "react";
+import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import { tokens } from "../../styles/stylex.stylex";
+
+// The dialog panel itself is tokens.surface, so a plain tokens.focusRing ring (tuned against
+// tokens.background) falls just under the WCAG 3:1 non-text contrast minimum in dark mode.
+// textStrong flips near-black/near-white per theme, so it stays clearly legible on the panel.
+const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.textStrong}`;
+
+const styles = stylex.create({
+  panel: {
+    backgroundColor: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 16,
+    boxShadow: tokens.shadowLarge,
+    padding: 24,
+    width: "min(420px, 92vw)",
+  },
+  content: { display: "flex", flexDirection: "column", gap: 16 },
+  title: { color: tokens.textStrong, fontSize: 18, fontWeight: 600, margin: 0 },
+  description: { color: tokens.textMuted, fontSize: 14, marginTop: 4 },
+  actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
+  cancel: {
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 8,
+    color: tokens.text,
+    fontSize: 14,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":hover": { backgroundColor: tokens.hoverStrong },
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
+  },
+  confirm: {
+    borderRadius: 8,
+    fontSize: 14,
+    paddingBlock: 6,
+    paddingInline: 12,
+    transition: "background-color 150ms",
+    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
+  },
+  defaultConfirm: {
+    backgroundColor: tokens.primaryBackground,
+    color: tokens.primaryText,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+  },
+  dangerConfirm: {
+    backgroundColor: tokens.dangerText,
+    color: tokens.textInverse,
+    ":hover": {
+      backgroundColor: `color-mix(in srgb, ${tokens.dangerText} 86%, ${tokens.surface})`,
+    },
+  },
+});
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -32,30 +87,27 @@ export function ConfirmDialog({
       onOpenChange={(open) => !open && onCancel()}
       labelledBy={titleId}
       describedBy={descriptionId}
-      panelClassName="w-[min(420px,92vw)] rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
+      panelClassName={stylex.props(styles.panel).className}
     >
-      <div className="flex flex-col gap-4">
+      <div {...stylex.props(styles.content)}>
         <div>
-          <h2 id={titleId} className="text-lg font-semibold text-zinc-900">
+          <h2 id={titleId} {...stylex.props(styles.title)}>
             {title}
           </h2>
-          <p id={descriptionId} className="mt-1 text-sm text-zinc-500">
+          <p id={descriptionId} {...stylex.props(styles.description)}>
             {description}
           </p>
         </div>
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-50"
-            onClick={onCancel}
-          >
+        <div {...stylex.props(styles.actions)}>
+          <button type="button" {...stylex.props(styles.cancel)} onClick={onCancel}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={`rounded-lg px-3 py-1.5 text-sm text-white transition ${
-              tone === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-zinc-900 hover:bg-zinc-800"
-            }`}
+            {...stylex.props(
+              styles.confirm,
+              tone === "danger" ? styles.dangerConfirm : styles.defaultConfirm,
+            )}
             onClick={onConfirm}
           >
             {confirmLabel}

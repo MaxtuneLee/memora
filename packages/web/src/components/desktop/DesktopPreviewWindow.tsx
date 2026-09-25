@@ -1,5 +1,6 @@
 import { Button } from "@base-ui/react/button";
 import { FolderIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
+import * as stylex from "@stylexjs/stylex";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -15,7 +16,228 @@ import { DesktopIndexStatusLabel } from "./DesktopIndexStatus";
 import { DocumentFilePreview } from "./DocumentFilePreview";
 import { useContentPipeline } from "@/lib/content/contentPipelineRoot";
 import { DesktopWindow } from "./DesktopWindow";
+import { tokens } from "../../styles/stylex.stylex";
 import type { JSX } from "react";
+
+const styles = stylex.create({
+  icon: {
+    height: "2.5rem",
+    width: "2.5rem",
+  },
+  folderIcon: {
+    color: tokens.contentFolder,
+  },
+  fileIcon: {
+    color: tokens.textMuted,
+  },
+  centeredMessage: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: "0.875rem",
+    height: "100%",
+    justifyContent: "center",
+    lineHeight: "1.25rem",
+  },
+  audioPreview: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    height: "100%",
+    justifyContent: "center",
+    padding: "1rem",
+  },
+  fullWidth: {
+    width: "100%",
+  },
+  videoPreview: {
+    height: "100%",
+    padding: "0.75rem",
+  },
+  video: {
+    // Video letterboxing stays black in both themes, like media artwork.
+    backgroundColor: "rgb(0 0 0 / 0.8)",
+    borderRadius: "0.5rem",
+    height: "100%",
+    width: "100%",
+  },
+  imagePreview: {
+    alignItems: "center",
+    backgroundColor: tokens.surfaceSoft,
+    display: "flex",
+    height: "100%",
+    justifyContent: "center",
+    padding: "0.75rem",
+  },
+  image: {
+    borderRadius: "0.5rem",
+    boxShadow: tokens.shadowSmall,
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain",
+  },
+  documentPreview: {
+    backgroundColor: tokens.surfaceSoft,
+    height: "100%",
+    overflow: "hidden",
+    padding: "0.75rem",
+  },
+  textPreview: {
+    backgroundColor: tokens.surfaceSoft,
+    height: "100%",
+    overflow: "auto",
+    padding: "1rem",
+  },
+  preformattedText: {
+    color: tokens.text,
+    fontSize: "0.75rem",
+    lineHeight: 1.625,
+    whiteSpace: "pre-wrap",
+  },
+  root: {
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+  },
+  header: {
+    alignItems: "center",
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    gap: "1rem",
+    paddingBlock: "0.75rem",
+    paddingInline: "1rem",
+  },
+  iconFrame: {
+    alignItems: "center",
+    backgroundColor: tokens.hover,
+    borderRadius: "0.75rem",
+    display: "flex",
+    flexShrink: 0,
+    justifyContent: "center",
+  },
+  fileHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fileName: {
+    color: tokens.textStrong,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    lineHeight: "1.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  metadata: {
+    color: tokens.textMuted,
+    columnGap: "1rem",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    marginTop: "0.25rem",
+    rowGap: "0.25rem",
+  },
+  metadataLabel: {
+    color: tokens.textMuted,
+    fontWeight: 500,
+  },
+  openButton: {
+    backgroundColor: {
+      default: tokens.primaryBackground,
+      ":hover": `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
+    },
+    borderRadius: "0.5rem",
+    color: tokens.primaryText,
+    cursor: "pointer",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    lineHeight: "1rem",
+    paddingBlock: "0.375rem",
+    paddingInline: "0.75rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color",
+  },
+  details: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    color: tokens.textMuted,
+    fontSize: "0.75rem",
+    lineHeight: "1rem",
+    paddingBlock: "0.5rem",
+    paddingInline: "1rem",
+  },
+  timestamps: {
+    alignItems: "center",
+    columnGap: "0.5rem",
+    display: "flex",
+    flexWrap: "wrap",
+    rowGap: "0.375rem",
+  },
+  separator: {
+    color: tokens.textSoft,
+  },
+  indexRow: {
+    alignItems: "center",
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    marginTop: "0.5rem",
+    paddingTop: "0.5rem",
+  },
+  reindexButton: {
+    alignItems: "center",
+    backgroundColor: {
+      default: tokens.surface,
+      ":hover": tokens.hoverStrong,
+    },
+    borderColor: tokens.border,
+    borderRadius: "0.375rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.textMuted,
+    display: "inline-flex",
+    fontSize: "0.6875rem",
+    fontWeight: 500,
+    gap: "0.25rem",
+    lineHeight: "1rem",
+    paddingBlock: "0.25rem",
+    paddingInline: "0.5rem",
+    transitionDuration: "150ms",
+    transitionProperty: "background-color, opacity",
+    ":disabled": {
+      cursor: "wait",
+      opacity: 0.6,
+    },
+  },
+  reindexIcon: {
+    height: "0.75rem",
+    width: "0.75rem",
+  },
+  updatedAt: {
+    color: tokens.textSoft,
+  },
+  summary: {
+    color: tokens.textMuted,
+    display: "-webkit-box",
+    lineHeight: "1.25rem",
+    marginTop: "0.5rem",
+    maxWidth: "42rem",
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 2,
+  },
+  previewBody: {
+    flex: 1,
+    overflow: "hidden",
+  },
+});
 
 type PreviewableItem = DesktopFileItem | DesktopFolderItem;
 
@@ -190,10 +412,10 @@ export function DesktopPreviewWindow({
 
   const getIcon = (): JSX.Element => {
     if (item.type === "folder") {
-      return <FolderIcon className="size-10 text-blue-500" weight="duotone" />;
+      return <FolderIcon {...stylex.props(styles.icon, styles.folderIcon)} weight="duotone" />;
     }
     const Icon = getFileIcon(item.fileMeta);
-    return <Icon className="size-10 text-zinc-500" weight="duotone" />;
+    return <Icon {...stylex.props(styles.icon, styles.fileIcon)} weight="duotone" />;
   };
 
   const handleOpen = () => {
@@ -204,16 +426,12 @@ export function DesktopPreviewWindow({
 
   const renderPreview = () => {
     if (!isFile) {
-      return (
-        <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-          Folder preview not available.
-        </div>
-      );
+      return <div {...stylex.props(styles.centeredMessage)}>Folder preview not available.</div>;
     }
 
     if (item.fileMeta.type === "audio") {
       return (
-        <div className="flex h-full flex-col justify-center gap-4 p-4">
+        <div {...stylex.props(styles.audioPreview)}>
           <audio
             ref={(element) => {
               mediaRef.current = element;
@@ -221,7 +439,7 @@ export function DesktopPreviewWindow({
             controls
             src={previewUrl ?? undefined}
             onLoadedMetadata={seekToLocator}
-            className="w-full"
+            {...stylex.props(styles.fullWidth)}
           />
         </div>
       );
@@ -229,7 +447,7 @@ export function DesktopPreviewWindow({
 
     if (item.fileMeta.type === "video") {
       return (
-        <div className="h-full p-3">
+        <div {...stylex.props(styles.videoPreview)}>
           <video
             ref={(element) => {
               mediaRef.current = element;
@@ -237,7 +455,7 @@ export function DesktopPreviewWindow({
             controls
             src={previewUrl ?? undefined}
             onLoadedMetadata={seekToLocator}
-            className="h-full w-full rounded-lg bg-black/80"
+            {...stylex.props(styles.video)}
           />
         </div>
       );
@@ -245,7 +463,7 @@ export function DesktopPreviewWindow({
 
     if (item.fileMeta.type === "image") {
       return (
-        <div className="flex h-full items-center justify-center bg-zinc-50 p-3">
+        <div {...stylex.props(styles.imagePreview)}>
           {previewUrl ? (
             <img
               src={previewUrl}
@@ -253,10 +471,10 @@ export function DesktopPreviewWindow({
               loading="lazy"
               width={512}
               height={512}
-              className="max-h-full max-w-full rounded-lg object-contain shadow"
+              {...stylex.props(styles.image)}
             />
           ) : (
-            <span className="text-sm text-zinc-500">Loading image...</span>
+            <span {...stylex.props(styles.centeredMessage)}>Loading image...</span>
           )}
         </div>
       );
@@ -265,27 +483,23 @@ export function DesktopPreviewWindow({
     if (item.fileMeta.type === "document") {
       if (!isTextMime(mimeType)) {
         return (
-          <div className="h-full overflow-hidden bg-zinc-50 p-3">
+          <div {...stylex.props(styles.documentPreview)}>
             {previewFile ? (
               <DocumentFilePreview file={previewFile} />
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-                Loading document preview…
-              </div>
+              <div {...stylex.props(styles.centeredMessage)}>Loading document preview…</div>
             )}
           </div>
         );
       }
       if (textStatus === "error") {
         return (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-            Preview not available for this file.
-          </div>
+          <div {...stylex.props(styles.centeredMessage)}>Preview not available for this file.</div>
         );
       }
       return (
-        <div className="h-full overflow-auto bg-zinc-50 p-4">
-          <pre className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-700">
+        <div {...stylex.props(styles.textPreview)}>
+          <pre {...stylex.props(styles.preformattedText)}>
             {textStatus === "loading"
               ? "Loading text…"
               : textContent?.trim() || "Preview not available."}
@@ -294,11 +508,7 @@ export function DesktopPreviewWindow({
       );
     }
 
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-        Preview not available.
-      </div>
-    );
+    return <div {...stylex.props(styles.centeredMessage)}>Preview not available.</div>;
   };
 
   return (
@@ -315,59 +525,56 @@ export function DesktopPreviewWindow({
       onMove={onMove}
       onResize={onResize}
     >
-      <div className="flex h-full flex-col">
-        <div className="flex items-center gap-4 border-b border-zinc-100 px-4 py-3">
+      <div {...stylex.props(styles.root)}>
+        <div {...stylex.props(styles.header)}>
           <div
-            className="flex shrink-0 items-center justify-center rounded-xl bg-zinc-100"
+            {...stylex.props(styles.iconFrame)}
             style={{ width: ICON_SIZE + 8, height: ICON_SIZE + 8 }}
           >
             {getIcon()}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-zinc-900">{item.name}</p>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+          <div {...stylex.props(styles.fileHeading)}>
+            <p {...stylex.props(styles.fileName)}>{item.name}</p>
+            <div {...stylex.props(styles.metadata)}>
               <span>
-                <span className="font-medium text-zinc-600">Type:</span> {previewLabel}
+                <span {...stylex.props(styles.metadataLabel)}>Type:</span> {previewLabel}
               </span>
               {isFile && (
                 <span>
-                  <span className="font-medium text-zinc-600">Size:</span>{" "}
+                  <span {...stylex.props(styles.metadataLabel)}>Size:</span>{" "}
                   {formatBytes(item.fileMeta.sizeBytes)}
                 </span>
               )}
               {isFile && item.fileMeta.durationSec && (
                 <span>
-                  <span className="font-medium text-zinc-600">Duration:</span>{" "}
+                  <span {...stylex.props(styles.metadataLabel)}>Duration:</span>{" "}
                   {formatDuration(item.fileMeta.durationSec)}
                 </span>
               )}
             </div>
           </div>
           {isFile && (
-            <Button
-              onClick={handleOpen}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-800 cursor-pointer"
-            >
+            <Button onClick={handleOpen} {...stylex.props(styles.openButton)}>
               Open
             </Button>
           )}
         </div>
 
         {isFile && (
-          <div className="border-b border-zinc-100 px-4 py-2 text-xs text-zinc-500">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <div {...stylex.props(styles.details)}>
+            <div {...stylex.props(styles.timestamps)}>
               <span>
-                <span className="font-medium text-zinc-600">Created:</span>{" "}
+                <span {...stylex.props(styles.metadataLabel)}>Created:</span>{" "}
                 {formatDate(item.fileMeta.createdAt)}
               </span>
-              <span className="text-zinc-300">•</span>
+              <span {...stylex.props(styles.separator)}>•</span>
               <span>
-                <span className="font-medium text-zinc-600">Modified:</span>{" "}
+                <span {...stylex.props(styles.metadataLabel)}>Modified:</span>{" "}
                 {formatDate(item.fileMeta.updatedAt)}
               </span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2">
-              <span className="font-medium text-zinc-600">Index status</span>
+            <div {...stylex.props(styles.indexRow)}>
+              <span {...stylex.props(styles.metadataLabel)}>Index status</span>
               <DesktopIndexStatusLabel status={item.indexState.status} />
               <Button
                 type="button"
@@ -376,26 +583,24 @@ export function DesktopPreviewWindow({
                   setIsReindexing(true);
                   void reindexFile(item.fileMeta.id).finally(() => setIsReindexing(false));
                 }}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+                {...stylex.props(styles.reindexButton)}
               >
-                <ArrowClockwiseIcon className="size-3" />
+                <ArrowClockwiseIcon {...stylex.props(styles.reindexIcon)} />
                 {isReindexing ? "Queued…" : "Reindex"}
               </Button>
               {item.indexState.indexedAt ? (
-                <span className="text-zinc-400">
+                <span {...stylex.props(styles.updatedAt)}>
                   Updated {formatDate(item.indexState.indexedAt)}
                 </span>
               ) : null}
             </div>
             {item.indexState.summary ? (
-              <p className="mt-2 line-clamp-2 max-w-2xl leading-5 text-zinc-500">
-                {item.indexState.summary}
-              </p>
+              <p {...stylex.props(styles.summary)}>{item.indexState.summary}</p>
             ) : null}
           </div>
         )}
 
-        <div className="flex-1 overflow-hidden">{renderPreview()}</div>
+        <div {...stylex.props(styles.previewBody)}>{renderPreview()}</div>
       </div>
     </DesktopWindow>
   );
