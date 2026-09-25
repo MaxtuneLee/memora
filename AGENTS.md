@@ -21,6 +21,8 @@
 - Install deps: `pnpm install`
 - Run commands for a package: `vp run @memora/web#<command>`
 - Run the web app with workspace dependencies: `vp run -t @memora/web#dev`
+- Run the marketing site (`@memora/site`, port `9004`): `vp run @memora/site#dev`
+  - It renders real `@memora/web` components from source on mock data; `@/livestore/store` is aliased to a stub, so only embed components that don't need the store.
 - Build the web app with workspace dependencies: `vp run -t @memora/web#build`
 - Deploy after building: `vp run -t @memora/web#build && vp run @memora/web#deploy`
 
@@ -111,6 +113,13 @@
 
 - Use Tailwind utility classes and `tailwind-merge` helpers where needed.
 - Reuse shared class strings via helpers in `src/lib` if repeated.
+
+## Releases and versions
+
+- The app version is the build's git short hash (`git describe --always --dirty`), shown in Settings > About.
+- For a change people will notice, add a bullet under a new top `## <release date>` section in `packages/web/RELEASE_NOTES.md`, in plain user-facing language. The update dialog shows the sections a user has not seen yet.
+- The service worker waits for the user to accept an update from that dialog; it does not activate new builds on its own.
+- Third-party runtime files copied into the build (ONNX Runtime, VAD, sqlite-vec) are served from `/vendor/<package>@<version>/`. Reference them through `__VENDOR_ASSETS__`, not fixed paths.
 
 ## Generated files
 

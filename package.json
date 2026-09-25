@@ -14,7 +14,9 @@
     "lint:web": "pnpm --filter @memora/web lint",
     "test:web": "pnpm --filter @memora/web test",
     "lint:ai-core": "pnpm --filter @memora/ai-core lint",
-    "preview": "vp run @memora/web#preview"
+    "preview": "vp run @memora/web#preview",
+    "dev:site": "vp run @memora/site#dev",
+    "build:site": "vp run @memora/site#build"
   },
   "dependencies": {
     "valibot": "^1.2.0"

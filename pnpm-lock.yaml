@@ -23,7 +23,7 @@ importers:
     devDependencies:
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -42,7 +42,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -61,7 +61,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -83,7 +83,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -117,7 +117,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -145,7 +145,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -160,7 +160,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -185,7 +185,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -204,7 +204,56 @@ importers:
         version: 5.9.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+
+  packages/site:
+    dependencies:
+      '@dnd-kit/core':
+        specifier: ^6.3.1
+        version: 6.3.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@phosphor-icons/react':
+        specifier: ^2.1.10
+        version: 2.1.10(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@stylexjs/stylex':
+        specifier: ^0.19.0
+        version: 0.19.0
+      animejs:
+        specifier: 4.5.0
+        version: 4.5.0(three@0.185.1)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.3
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.3(react@19.2.3)
+      react-router:
+        specifier: ^7.12.0
+        version: 7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+    devDependencies:
+      '@stylexjs/unplugin':
+        specifier: ^0.19.0
+        version: 0.19.0(unplugin@2.3.11)
+      '@types/react':
+        specifier: ^19.2.5
+        version: 19.2.8
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.8)
+      '@vitejs/plugin-react':
+        specifier: ^5.1.1
+        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
+      babel-plugin-react-compiler:
+        specifier: ^1.0.0
+        version: 1.0.0
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plus:
         specifier: 'catalog:'
         version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -430,6 +479,9 @@ importers:
       vite-plugin-route-builder:
         specifier: ^0.4.1
         version: 0.4.1
+      workbox-window:
+        specifier: ^7.4.0
+        version: 7.4.0
     devDependencies:
       '@react-grab/mcp':
         specifier: ^0.1.28
@@ -469,7 +521,7 @@ importers:
         version: 0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3)
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9)
+        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/browser-playwright':
         specifier: 4.1.10
         version: 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10)
@@ -493,7 +545,7 @@ importers:
         version: 2.3.11
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.9
-        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+        version: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(@vite-pwa/assets-generator@1.0.2)(@voidzero-dev/vite-plus-core@0.2.9)(workbox-build@7.4.0(@types/babel__core@7.20.5))(workbox-window@7.4.0)
@@ -502,7 +554,7 @@ importers:
         version: 3.1.4(@voidzero-dev/vite-plus-core@0.2.9)
       vite-plus:
         specifier: 'catalog:'
-        version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+        version: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9)(jsdom@25.0.1)
@@ -4706,6 +4758,17 @@ packages:
 
   ajv@8.18.0:
     resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
+
+  animejs@4.5.0:
+    resolution: {integrity: sha512-NQimYX+lz8WaXonGS9zVVoviCIAjONeJayxacUditaivYLqyXgGjFKjuyl0aUUhFKm5MriX9ty1TGovNzoJQWA==}
+    peerDependencies:
+      '@types/three': '>=0.150.0'
+      three: '>=0.150.0'
+    peerDependenciesMeta:
+      '@types/three':
+        optional: true
+      three:
+        optional: true
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -10087,7 +10150,7 @@ snapshots:
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260820.1)
       miniflare: 5.20260820.0-alpha
       unenv: 2.0.0-rc.24
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       workerd: 1.20260820.1
       wrangler: 4.125.0(@cloudflare/workers-types@4.20260702.1)
       ws: 8.21.0
@@ -11474,7 +11537,7 @@ snapshots:
     dependencies:
       '@livestore/adapter-web': 0.4.0(936ffa85fd5e0bed3281f35657c4b044)
       '@livestore/utils': 0.4.0(936ffa85fd5e0bed3281f35657c4b044)
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
     transitivePeerDependencies:
       - '@effect/ai'
       - '@effect/cli'
@@ -12857,7 +12920,7 @@ snapshots:
       '@vitejs/devtools-rpc': 0.1.9(typescript@5.9.3)(ws@8.20.0)
       birpc: 4.0.0
       ohash: 2.0.11
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
     transitivePeerDependencies:
       - typescript
       - ws
@@ -12946,7 +13009,7 @@ snapshots:
       perfect-debounce: 2.1.0
       sirv: 3.0.2
       tinyexec: 1.0.4
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       vue: 3.5.30(typescript@5.9.3)
       ws: 8.20.0
     transitivePeerDependencies:
@@ -12974,7 +13037,7 @@ snapshots:
       - uploadthing
       - utf-8-validate
 
-  '@vitejs/plugin-react@5.1.2(@voidzero-dev/vite-plus-core@0.2.9)':
+  '@vitejs/plugin-react@5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))':
     dependencies:
       '@babel/core': 7.28.6
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.6)
@@ -12982,7 +13045,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.53
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
     transitivePeerDependencies:
       - supports-color
 
@@ -13085,7 +13148,7 @@ snapshots:
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
 
   '@vitest/pretty-format@4.1.10':
     dependencies:
@@ -13111,7 +13174,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)':
+  '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)':
     dependencies:
       '@oxc-project/runtime': 0.143.0
       '@oxc-project/types': 0.143.0
@@ -13320,6 +13383,10 @@ snapshots:
       fast-uri: 3.1.0
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  animejs@4.5.0(three@0.185.1):
+    optionalDependencies:
+      three: 0.185.1
 
   ansi-regex@5.0.1: {}
 
@@ -16208,7 +16275,7 @@ snapshots:
       object-keys: 1.1.1
       safe-push-apply: 1.0.0
 
-  oxfmt@0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
+  oxfmt@0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -16231,7 +16298,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.62.0
       '@oxfmt/binding-win32-ia32-msvc': 0.62.0
       '@oxfmt/binding-win32-x64-msvc': 0.62.0
-      vite-plus: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      vite-plus: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
 
   oxfmt@0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
     dependencies:
@@ -16267,7 +16334,7 @@ snapshots:
       '@oxlint-tsgolint/win32-arm64': 7.0.2001
       '@oxlint-tsgolint/win32-x64': 7.0.2001
 
-  oxlint@1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
+  oxlint@1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.77.0
       '@oxlint/binding-android-arm64': 1.77.0
@@ -16289,7 +16356,7 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.77.0
       '@oxlint/binding-win32-x64-msvc': 1.77.0
       oxlint-tsgolint: 7.0.2001
-      vite-plus: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      vite-plus: 0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
 
   oxlint@1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)):
     optionalDependencies:
@@ -17849,7 +17916,7 @@ snapshots:
       debug: 4.4.3
       pretty-bytes: 6.1.1
       tinyglobby: 0.2.15
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       workbox-build: 7.4.0(@types/babel__core@7.20.5)
       workbox-window: 7.4.0
     optionalDependencies:
@@ -17865,9 +17932,9 @@ snapshots:
       p-map: 7.0.4
       picocolors: 1.1.1
       tinyglobby: 0.2.15
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
 
-  vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
+  vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
     dependencies:
       '@oxc-project/types': 0.143.0
       '@oxlint/plugins': 1.73.0
@@ -17880,9 +17947,9 @@ snapshots:
       '@vitest/snapshot': 4.1.10
       '@vitest/spy': 4.1.10
       '@vitest/utils': 4.1.10
-      '@voidzero-dev/vite-plus-core': 0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      oxfmt: 0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
-      oxlint: 1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
+      '@voidzero-dev/vite-plus-core': 0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      oxfmt: 0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
+      oxlint: 1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       oxlint-tsgolint: 7.0.2001
       vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9)(jsdom@25.0.1)
     optionalDependencies:
@@ -17939,7 +18006,7 @@ snapshots:
       '@vitest/snapshot': 4.1.10
       '@vitest/spy': 4.1.10
       '@vitest/utils': 4.1.10
-      '@voidzero-dev/vite-plus-core': 0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      '@voidzero-dev/vite-plus-core': 0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       oxfmt: 0.62.0(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       oxlint: 1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(esbuild@0.28.1)(jiti@2.6.1)(jsdom@25.0.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       oxlint-tsgolint: 7.0.2001
@@ -18005,7 +18072,7 @@ snapshots:
       tinyexec: 1.0.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
@@ -18036,7 +18103,7 @@ snapshots:
       tinyexec: 1.0.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
@@ -18068,7 +18135,7 @@ snapshots:
       jsonc-parser: 3.3.1
       pg: 8.22.0
       proper-lockfile: 4.1.2
-      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3))(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(@vitejs/devtools@0.1.9)(esbuild@0.28.1)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)'
       wrangler: 4.125.0(@cloudflare/workers-types@4.20260702.1)
     optionalDependencies:
       arktype: 2.2.3

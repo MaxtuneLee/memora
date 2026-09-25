@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Memora is a learning workspace in your browser. Keep lectures, papers, and photos in one library, get word-level transcripts, and ask questions about your own material. Free, no sign-up."
+    />
+    <link rel="canonical" href="https://memora.xox.im/" />
+    <meta name="theme-color" content="#fcfaf6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/memora-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Link previews. Scrapers don't run JavaScript, so these are the defaults for every page. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Memora" />
+    <meta property="og:title" content="Memora: feed it anything, find everything" />
+    <meta
+      property="og:description"
+      content="A learning workspace in your browser. Lectures, papers, and photos in one library, with transcripts and answers from your own material."
+    />
+    <meta property="og:url" content="https://memora.xox.im/" />
+    <meta property="og:image" content="https://memora.xox.im/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Memora cat drawn in dots, next to the headline Feed it anything. Find everything."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+    <title>Memora: a learning workspace in your browser</title>
+    <script>
+      // First frame: the remembered choice, else the system theme (kept in sync with lib/theme).
+      (() => {
+        let t = null;
+        try {
+          t = localStorage.getItem("memora-site-theme");
+        } catch {}
+        if (t !== "light" && t !== "dark") {
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
