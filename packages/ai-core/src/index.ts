@@ -10,6 +10,13 @@ export {
   rebaseCompaction,
 } from "./compaction";
 export type { CompactionParameters, CompactionState } from "./compaction";
+export type {
+  ModelPurpose,
+  TraceCallback,
+  TraceRecord,
+  TraceRecordBody,
+  TraceRecordType,
+} from "./trace";
 export { PromptComposer, createPromptComposer } from "./prompt";
 export { InMemoryAdapter, createInMemoryAdapter } from "./persistence";
 export { generateId, now } from "./utils";
