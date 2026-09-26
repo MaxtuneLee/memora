@@ -13,7 +13,11 @@ const memorySessions = new Set<string>();
 const listeners = new Map<string, Set<() => void>>();
 const requests = new Map<
   string,
-  { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
+  {
+    resolve: (result: unknown) => void;
+    reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }
 >();
 const calls = new Map<string, AbortController>();
 const approvals = new Map<string, (decision: "allow_once" | "allow_session" | "deny") => void>();
@@ -69,7 +73,7 @@ function connection(): MessagePort {
       requests.delete(message.requestId);
       clearTimeout(request.timer);
       if (message.error) request.reject(new Error(message.error));
-      else request.resolve();
+      else request.resolve(message.result);
     } else if (message.type === "snapshot") {
       const current = snapshots.get(message.snapshot.sessionId);
       if (current && current.revision > message.snapshot.revision) return;
@@ -152,7 +156,8 @@ function connection(): MessagePort {
   return worker.port;
 }
 
-export function command(command: AgentCommand): Promise<void> {
+/** Sends a command; resolves with the worker's reply result (trace commands return data). */
+export function command(command: AgentCommand): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const port = connection();
     const requestId = crypto.randomUUID();
