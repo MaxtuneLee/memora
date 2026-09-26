@@ -85,26 +85,9 @@ export class SessionRuntime {
     if (this.accepted.has(submission.id)) return;
     this.accepted.add(submission.id);
     this.snapshot.acceptedSubmissionIds = [...this.accepted];
-    const steerWhileStarting =
-      submission.mode === "steer" &&
-      this.draining &&
-      Boolean(this.snapshot.activeRunId) &&
-      !this.runner &&
-      !this.stopped;
-    if (
-      submission.mode === "steer" &&
-      (steerWhileStarting || this.runner?.steer(submission.input))
-    ) {
-      if (steerWhileStarting) this.startingSteering.push(submission.input);
-      this.steering.set(submission.input.id, submission);
-      this.snapshot.messages = [...this.snapshot.messages, submission.message];
-    } else {
+    if (submission.mode !== "steer" || !this.trySteer(submission)) {
       this.queue.push(submission);
-      this.snapshot.pending = this.queue.map((item) => ({
-        id: item.id,
-        text: item.message.content,
-        message: item.message,
-      }));
+      this.syncPending();
     }
     this.publish();
     // Save receipt before execution. Credentials and runtime configuration are never saved.
@@ -115,6 +98,36 @@ export class SessionRuntime {
       throw error;
     }
     void this.drain();
+  }
+
+  /** Move a queued message into the running task as a steer. Returns false when none runs. */
+  async steerPending(submissionId: string): Promise<boolean> {
+    const index = this.queue.findIndex((item) => item.id === submissionId);
+    const item = this.queue[index];
+    if (!item || !this.trySteer({ ...item, mode: "steer" })) return false;
+    this.queue.splice(index, 1);
+    this.syncPending();
+    this.publish();
+    await this.checkpoint();
+    return true;
+  }
+
+  private trySteer(submission: AgentSubmission): boolean {
+    const whileStarting =
+      this.draining && Boolean(this.snapshot.activeRunId) && !this.runner && !this.stopped;
+    if (!whileStarting && !this.runner?.steer(submission.input)) return false;
+    if (whileStarting) this.startingSteering.push(submission.input);
+    this.steering.set(submission.input.id, submission);
+    this.snapshot.messages = [...this.snapshot.messages, submission.message];
+    return true;
+  }
+
+  private syncPending(): void {
+    this.snapshot.pending = this.queue.map((item) => ({
+      id: item.id,
+      text: item.message.content,
+      message: item.message,
+    }));
   }
 
   abort(runId: string): void {
@@ -384,11 +397,7 @@ export class SessionRuntime {
           this.snapshot.activeMessageId = undefined;
           this.snapshot.approval = undefined;
           this.snapshot.status = { type: "idle" };
-          this.snapshot.pending = this.queue.map((item) => ({
-            id: item.id,
-            text: item.message.content,
-            message: item.message,
-          }));
+          this.syncPending();
           this.publish();
           await this.checkpoint();
         }

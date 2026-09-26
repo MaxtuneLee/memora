@@ -49,6 +49,7 @@ export type AgentCommand =
       replayFrom?: string;
     }
   | { type: "patch-message"; sessionId: string; message: ChatMessage }
+  | { type: "steer-pending"; sessionId: string; submissionId: string }
   | { type: "delete"; sessionId: string }
   | { type: "approval"; sessionId: string; approvalId: string; decision: WriteApprovalDecision }
   | { type: "host-ready" }

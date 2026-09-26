@@ -125,6 +125,12 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     },
     [sessionId],
   );
+  const steerPending = useCallback<UseAgentReturn["steerPending"]>(
+    (submissionId) => {
+      void command({ type: "steer-pending", sessionId, submissionId }).catch(reportError);
+    },
+    [sessionId, reportError],
+  );
   const updateMessage = useCallback<UseAgentReturn["updateMessage"]>(
     (id, updater) => {
       const message = getSnapshot(sessionId).messages.find((item) => item.id === id);
@@ -168,6 +174,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     abort,
     reset,
     updateMessage,
+    steerPending,
     continueAfterIterationLimit: () =>
       send("Continue from where you left off and finish the request."),
     dismissIterationLimitPrompt: () => setDismissedIteration(snapshot.revision),

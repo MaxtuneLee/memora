@@ -295,6 +295,9 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       publish(runtime.snapshot);
       break;
     }
+    case "steer-pending":
+      await runtime.steerPending(request.submissionId);
+      break;
     case "patch-message":
       runtime.patchMessage(request.message);
       break;

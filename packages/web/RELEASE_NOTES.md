@@ -9,7 +9,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 - When you edit and resend an earlier message, the assistant still remembers the tool results and images from before it.
 - In long chats, older replies and tool results are shortened instead of dropped, and the assistant can look up the full text when it needs it.
 - A deleted chat no longer reappears in the chat history.
-- When you steer a running reply, the reply ends where the assistant reads your message and continues in a new reply below it. Queued messages are listed above the message box.
+- When you steer a running reply, the reply ends where the assistant reads your message and continues in a new reply below it. Queued messages are listed above the message box, and each can be steered into the running reply. Whether new messages wait or steer is now set only in Settings.
 
 ## 2026-09-26
 

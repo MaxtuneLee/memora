@@ -126,6 +126,21 @@ describe("session execution", () => {
     await vi.waitFor(() => expect(h.runtime.snapshot.activeRunId).toBeUndefined());
   });
 
+  it("steers a queued message into the running task", async () => {
+    const h = harness();
+    await h.runtime.submit(submission("a"));
+    await vi.waitFor(() => expect(h.calls).toEqual(["a"]));
+    await h.runtime.submit(submission("b"));
+    expect(await h.runtime.steerPending("b")).toBe(true);
+    expect(h.steering).toEqual(["b"]);
+    expect(h.runtime.snapshot.pending).toEqual([]);
+    expect(h.runtime.snapshot.messages.at(-1)?.id).toBe("b");
+    h.releases.get("a")?.();
+    await vi.waitFor(() => expect(h.runtime.snapshot.activeRunId).toBeUndefined());
+    // It ran inside "a", not as its own task.
+    expect(h.calls).toEqual(["a"]);
+  });
+
   it.each([
     ["ends the reply at a steer and answers it in a new reply", "one", ["a", "one", "c", "two"]],
     ["moves a reply with nothing in it below the steer", "", ["a", "c", "two"]],

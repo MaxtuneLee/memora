@@ -164,6 +164,7 @@ export const Component = () => {
     abort: abortAgent,
     reset: resetAgent,
     updateMessage,
+    steerPending,
   } = useAgent({
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
@@ -199,16 +200,6 @@ export const Component = () => {
   });
   closeImagePickerRef.current = composerImages.closeImagePicker;
 
-  const [deliveryOverride, setDeliveryOverride] = useState<"pending" | "steer" | null>(null);
-  const deliveryMode = deliveryOverride ?? settings.agentDeliveryMode ?? "pending";
-  const sendWithMode = useCallback<typeof send>(
-    async (input, options) => {
-      await send(input, { ...options, mode: deliveryMode });
-      setDeliveryOverride(null);
-    },
-    [send, deliveryMode],
-  );
-
   const turnActions = useChatTurnActions({
     activeSessionId,
     sessionsReady,
@@ -225,7 +216,7 @@ export const Component = () => {
     closeImagePicker: composerImages.closeImagePicker,
     onComposerInputValueChange: references.handleComposerInputValueChange,
     prepareReferenceScopeForTurn: references.prepareReferenceScopeForTurn,
-    send: sendWithMode,
+    send,
     resetAgent,
     setActiveSessionInitialMessages,
     thinkingCollapsed,
@@ -234,7 +225,6 @@ export const Component = () => {
 
   useEffect(() => {
     setMemoryUpdatedNotice(false);
-    setDeliveryOverride(null);
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -532,8 +522,8 @@ export const Component = () => {
         onOpenSettings={openSettingsPanel}
         composerPanelProps={{
           pendingMessages,
-          deliveryMode,
-          onDeliveryModeChange: setDeliveryOverride,
+          deliveryMode: settings.agentDeliveryMode ?? "pending",
+          onSteerPending: steerPending,
           composerFadeHeight,
           composerOverlayRef,
           isStreaming,

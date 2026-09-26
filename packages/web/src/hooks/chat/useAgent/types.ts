@@ -86,6 +86,8 @@ export interface UseAgentReturn {
     replayFrom?: string;
   }) => Promise<void>;
   updateMessage: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
+  /** Insert a queued message into the running reply as a steer. */
+  steerPending: (submissionId: string) => void;
   saveMemory: (key: string, value: unknown) => Promise<void>;
   loadMemory: <T = unknown>(key: string) => Promise<T | null>;
 }

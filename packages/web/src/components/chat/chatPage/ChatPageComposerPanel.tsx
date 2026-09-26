@@ -163,6 +163,7 @@ const styles = stylex.create({
     minWidth: 0,
   },
   pendingIcon: { color: tokens.textSoft, flexShrink: 0, height: 14, width: 14 },
+  pendingText: { flex: 1, minWidth: 0 },
   removeReference: {
     alignItems: "center",
     borderRadius: 9999,
@@ -263,21 +264,12 @@ const styles = stylex.create({
     color: tokens.controlDisabledText,
   },
   disabled: { cursor: "not-allowed", opacity: 0.5 },
-  deliveryModeSelect: {
-    backgroundColor: tokens.controlBackground,
-    border: `1px solid ${tokens.controlBorder}`,
-    borderRadius: 8,
-    color: tokens.text,
-    fontSize: 13,
-    paddingBlock: 4,
-    paddingInline: 8,
-  },
 });
 
 interface ChatPageComposerPanelProps {
   pendingMessages: Array<{ id: string; text: string }>;
   deliveryMode: "pending" | "steer";
-  onDeliveryModeChange: (mode: "pending" | "steer") => void;
+  onSteerPending: (submissionId: string) => void;
   composerFadeHeight: number;
   centered: boolean;
   composerOverlayRef: React.RefObject<HTMLDivElement | null>;
@@ -340,7 +332,7 @@ interface ChatPageComposerPanelProps {
 export const ChatPageComposerPanel = ({
   pendingMessages,
   deliveryMode,
-  onDeliveryModeChange,
+  onSteerPending,
   composerFadeHeight,
   centered,
   composerOverlayRef,
@@ -535,7 +527,19 @@ export const ChatPageComposerPanel = ({
               {pendingMessages.map((pending) => (
                 <li key={pending.id} {...stylex.props(styles.pendingItem)}>
                   <ClockIcon className={stylex.props(styles.pendingIcon).className} />
-                  <span {...stylex.props(styles.truncate)}>{pending.text || "Image"}</span>
+                  <span {...stylex.props(styles.truncate, styles.pendingText)}>
+                    {pending.text || "Image"}
+                  </span>
+                  {isStreaming && (
+                    <button
+                      type="button"
+                      onClick={() => onSteerPending(pending.id)}
+                      aria-label={`Steer "${pending.text || "Image"}" into the current reply`}
+                      {...stylex.props(styles.clearButton)}
+                    >
+                      Steer
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -627,19 +631,6 @@ export const ChatPageComposerPanel = ({
                     messages={messages}
                     model={selectedModelInfo}
                   />
-                  {isStreaming && (
-                    <select
-                      aria-label="Message delivery"
-                      value={deliveryMode}
-                      onChange={(event) =>
-                        onDeliveryModeChange(event.target.value === "steer" ? "steer" : "pending")
-                      }
-                      {...stylex.props(styles.deliveryModeSelect)}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="steer">Steer</option>
-                    </select>
-                  )}
                   {isStreaming ? (
                     <button
                       type="button"
