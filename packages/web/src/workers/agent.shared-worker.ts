@@ -1,7 +1,9 @@
 import {
   CACHE_TTL_MS,
   COMPACTION_KEY,
+  COMPACTION_PARAMETERS,
   type Agent,
+  type AgentMessage,
   createAgent,
   createInMemoryAdapter,
   rebaseCompaction,
@@ -16,8 +18,15 @@ import {
   updateChatSession,
   deleteChatSession,
 } from "@/lib/chat/chatSessionStorage";
+import {
+  clearTraces,
+  deleteSessionTraces,
+  listTraceRuns,
+  readTraceText,
+} from "@/lib/chat/traceStorage";
 import { historyBeforeReplay } from "@/lib/agent-runtime/replayHistory";
 import { SessionRuntime, emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
+import { TraceRecorder, parseTrace, type AcceptedInput } from "@/lib/agent-runtime/traceRecorder";
 import type {
   AgentRequest,
   AgentResponse,
@@ -42,9 +51,18 @@ const toolCalls = new Map<
   }
 >();
 const deletedSessions = new Set<string>();
-const commands = new Map<string, Promise<void>>();
+const commands = new Map<string, Promise<unknown>>();
 const approvals = new Map<string, { callId: string; sessionId: string }>();
 const allowedSessions = new Set<string>();
+/** The Trace of each session's active Run; development builds only. */
+const traces = new Map<string, TraceRecorder>();
+/** Keyed by input message ID until a Trace records the input. */
+const acceptedInputs = new Map<string, AcceptedInput>();
+const takeAcceptedInput = (messageId: string): AcceptedInput | undefined => {
+  const input = acceptedInputs.get(messageId);
+  acceptedInputs.delete(messageId);
+  return input;
+};
 const post = (port: MessagePort, message: AgentResponse): void => port.postMessage(message);
 const running = new Set<string>();
 const postRunning = (port: MessagePort): void =>
@@ -73,7 +91,10 @@ const publish = (snapshot: SessionSnapshot): void => {
   }
 };
 const checkpointSessions = async (): Promise<void> => {
-  await Promise.all([...sessions.values()].map(async (session) => (await session).checkpoint()));
+  await Promise.all([
+    ...[...sessions.values()].map(async (session) => (await session).checkpoint()),
+    ...[...traces.values()].map((trace) => trace.flush()),
+  ]);
 };
 
 const finishTool = (callId: string, result?: unknown, error?: string): void => {
@@ -161,8 +182,13 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
       snapshot.approval = undefined;
       snapshot.status = { type: "idle" };
     }
-    const createRunner = async (submission: AgentSubmission) => {
+    // A Run's agent is traced in development; the idle recap's agent never is.
+    const createRunner = async (submission: AgentSubmission, traced = false) => {
       const adapter = memoryAdapter ?? createOpfsSessionPersistenceAdapter(sessionId);
+      const trace =
+        traced && import.meta.env.DEV
+          ? new TraceRecorder(sessionId, submission.id, takeAcceptedInput)
+          : undefined;
       const memory = await adapter.load(`memora-chat:${sessionId}`, "memory");
       const persistence: PersistenceAdapter = {
         save: (agentId, key, value) => adapter.save(agentId, key, value),
@@ -177,6 +203,7 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
         config: submission.config,
         ...model,
         persistence,
+        ...(trace ? { trace: trace.trace } : {}),
         ...(submission.compactionProvider
           ? { compactionModel: createRemotePiRuntime(submission.compactionProvider) }
           : {}),
@@ -192,6 +219,23 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
           execute: (args) => invokeTool(sessionId, submission, tool.name, args),
         });
       await agent.init();
+      if (trace) {
+        // Self-contained: the history as the Run starts resolves every message ID it references.
+        trace.add({
+          type: "run.started",
+          submissionId: submission.id,
+          submission: { ...takeAcceptedInput(submission.input.id), input: submission.input },
+          appVersion: __APP_VERSION__,
+          compactionParameters: COMPACTION_PARAMETERS,
+          // Left out when it cannot be read; tracing never fails the Run.
+          history: await Promise.resolve(
+            adapter.load<AgentMessage[]>(submission.config.id, "history"),
+          )
+            .then((history) => history ?? [])
+            .catch(() => undefined),
+        });
+        traces.set(sessionId, trace);
+      }
       return agent;
     };
     const runtime = new SessionRuntime({
@@ -210,7 +254,13 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
           agentStore: { ...session.agentStore, runtime: { snapshot: next } },
         }));
       },
-      createRunner,
+      createRunner: (submission) => createRunner(submission, true),
+      onRunSettled: async (runId, settled) => {
+        const trace = traces.get(sessionId);
+        if (trace?.runId !== runId) return;
+        traces.delete(sessionId);
+        await trace.settle(settled.outcome ?? "failed", settled.error);
+      },
       onIdle: (last) => {
         if (memoryAdapter) return;
         clearTimeout(recapTimers.get(sessionId));
@@ -241,7 +291,7 @@ const cancelTools = (sessionId: string, runId?: string): void => {
   }
 };
 
-async function execute(port: MessagePort, request: AgentRequest): Promise<void> {
+async function execute(port: MessagePort, request: AgentRequest): Promise<unknown> {
   if (request.type === "host-ready") {
     hosts.add(port);
     return;
@@ -290,6 +340,12 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
     publish(runtime.snapshot);
     return;
   }
+  // Traces outlive in-memory sessions, so these never load or create a session.
+  if (request.type === "list-runs") return listTraceRuns(request.sessionId);
+  if (request.type === "read-trace")
+    return parseTrace(await readTraceText(request.sessionId, request.runId));
+  if (request.type === "export-trace") return readTraceText(request.sessionId, request.runId);
+  if (request.type === "clear-traces") return clearTraces();
   if (request.type === "unsubscribe") {
     ports.get(port)?.delete(request.sessionId);
     return;
@@ -302,6 +358,12 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       post(port, { type: "snapshot", snapshot: runtime.snapshot });
       break;
     case "submit":
+      if (import.meta.env.DEV)
+        acceptedInputs.set(request.submission.input.id, {
+          submissionId: request.submission.id,
+          mode: request.submission.mode,
+          acceptedAt: Date.now(),
+        });
       await runtime.submit(request.submission);
       break;
     case "abort":
@@ -384,7 +446,10 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       cancelTools(request.sessionId);
       await runtime.stopAll();
       if (transientAdapters.has(request.sessionId)) transientAdapters.delete(request.sessionId);
-      else await deleteChatSession(request.sessionId);
+      else {
+        await deleteChatSession(request.sessionId);
+        await deleteSessionTraces(request.sessionId);
+      }
       allowedSessions.delete(request.sessionId);
       sessions.delete(request.sessionId);
       if (running.delete(request.sessionId)) for (const port of ports.keys()) postRunning(port);
@@ -405,7 +470,12 @@ scope.onconnect = (event) => {
     const operation = previous.catch(() => {}).then(() => execute(port, request));
     if (sessionId) commands.set(sessionId, operation);
     void operation.then(
-      () => post(port, { type: "reply", requestId: request.requestId }),
+      (result) =>
+        post(port, {
+          type: "reply",
+          requestId: request.requestId,
+          ...(result === undefined ? {} : { result }),
+        }),
       (error: unknown) =>
         post(port, {
           type: "reply",

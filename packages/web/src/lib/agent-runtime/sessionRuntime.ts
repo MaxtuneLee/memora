@@ -19,6 +19,8 @@ export interface SessionRuntimeOptions {
   publish: (snapshot: SessionSnapshot) => void;
   /** Called when the queue has drained, with the submission that ran last. */
   onIdle?: (lastSubmission: AgentSubmission) => void;
+  /** Called once per Run with its terminal outcome, before the session goes idle. */
+  onRunSettled?: (runId: string, snapshot: SessionSnapshot) => Promise<void>;
 }
 
 /** One owner serializes each session; different instances run independently. */
@@ -402,6 +404,7 @@ export class SessionRuntime {
           );
           this.steering.clear();
           this.runner = undefined;
+          await this.options.onRunSettled?.(submission.id, this.snapshot);
           this.updateAssistant((message) => ({
             ...message,
             thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),

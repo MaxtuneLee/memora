@@ -64,10 +64,15 @@ export type AgentCommand =
   | { type: "disconnect" }
   | { type: "tool-result"; callId: string; result?: unknown; error?: string }
   | { type: "request-approval"; callId: string; request: WriteApprovalRequest }
-  | { type: "memory-updated"; sessionId: string };
+  | { type: "memory-updated"; sessionId: string }
+  // Development Traces. Replies carry the Run IDs, the parsed Trace, or its JSONL text.
+  | { type: "list-runs"; sessionId: string }
+  | { type: "read-trace"; sessionId: string; runId: string }
+  | { type: "export-trace"; sessionId: string; runId: string }
+  | { type: "clear-traces" };
 export type AgentRequest = AgentCommand & { requestId: string };
 export type AgentResponse =
-  | { type: "reply"; requestId: string; error?: string }
+  | { type: "reply"; requestId: string; error?: string; result?: unknown }
   | { type: "snapshot"; snapshot: SessionSnapshot }
   | {
       type: "tool";

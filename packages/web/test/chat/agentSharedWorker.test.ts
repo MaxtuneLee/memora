@@ -6,12 +6,39 @@ import type {
   AgentSubmission,
 } from "@/lib/agent-runtime/protocol";
 import type { ChatSessionRecord } from "@/lib/chat/chatSessionStorage";
+import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 
 const state = vi.hoisted(() => ({
   records: new Map<string, ChatSessionRecord>(),
   gates: new Map<string, () => void>(),
   calls: [] as string[],
   touched: [] as string[],
+  traces: new Map<string, string>(),
+  failAppends: 0,
+}));
+vi.mock("@/lib/chat/traceStorage", () => ({
+  appendTrace: async (sessionId: string, runId: string, text: string) => {
+    if (state.failAppends > 0) {
+      state.failAppends -= 1;
+      throw new Error("disk full");
+    }
+    const key = `${sessionId}/${runId}`;
+    state.traces.set(key, (state.traces.get(key) ?? "") + text);
+  },
+  listTraceRuns: async (sessionId: string) =>
+    [...state.traces.keys()]
+      .filter((key) => key.startsWith(`${sessionId}/`))
+      .map((key) => key.slice(sessionId.length + 1)),
+  readTraceText: async (sessionId: string, runId: string) => {
+    const text = state.traces.get(`${sessionId}/${runId}`);
+    if (text === undefined) throw new Error("missing trace");
+    return text;
+  },
+  deleteSessionTraces: async (sessionId: string) => {
+    for (const key of state.traces.keys())
+      if (key.startsWith(`${sessionId}/`)) state.traces.delete(key);
+  },
+  clearTraces: async () => state.traces.clear(),
 }));
 vi.mock("@/lib/chat/chatSessionStorage", () => ({
   loadChatSession: async (id: string) => {
@@ -119,6 +146,7 @@ class Port {
       (message) => message.type === "reply" && message.requestId === requestId,
     );
     if (reply?.type === "reply" && reply.error) throw new Error(reply.error);
+    return reply?.type === "reply" ? reply.result : undefined;
   }
   snapshot() {
     return this.messages.filter((message) => message.type === "snapshot").at(-1)?.snapshot;
@@ -176,11 +204,14 @@ beforeEach(async () => {
   state.calls = [];
   state.touched = [];
   state.gates.clear();
+  state.traces.clear();
+  state.failAppends = 0;
   await startWorker();
 });
 afterEach(() => {
   for (const finish of state.gates.values()) finish();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("agent SharedWorker protocol", () => {
@@ -423,5 +454,171 @@ describe("agent SharedWorker protocol", () => {
     ]);
     expect(port.snapshot()?.activeRunId).toBeUndefined();
     expect(state.calls).toEqual([]);
+  });
+});
+
+describe("agent SharedWorker Traces", () => {
+  const run = async (port: Port, sessionId: string, text: string, storage?: "memory") => {
+    const item = submission(text);
+    await port.request({ type: "submit", sessionId, submission: item, storage });
+    await vi.waitFor(() => {
+      const snapshot = port.snapshot();
+      expect(snapshot?.activeRunId).toBeUndefined();
+      expect(snapshot?.outcome).toBeDefined();
+    });
+    // run.settled is written before the session reports idle; wait for its append.
+    await vi.waitFor(() =>
+      expect(state.traces.get(`${sessionId}/${item.id}`)).toContain('"run.settled"'),
+    );
+    return item.id;
+  };
+  const answerTool = async (port: Port) => {
+    await vi.waitFor(() =>
+      expect(port.messages.some((message) => message.type === "tool")).toBe(true),
+    );
+    const call = port.messages.find((message) => message.type === "tool");
+    if (call?.type !== "tool") throw new Error("missing tool call");
+    await port.request({ type: "tool-result", callId: call.callId, result: "data" });
+  };
+  const read = async (port: Port, sessionId: string, runId: string) =>
+    (await port.request({ type: "read-trace", sessionId, runId })) as TraceEvent[];
+
+  it("records one Trace per Run with envelope fields and increasing sequence", async () => {
+    const port = connect();
+    await port.request({ type: "host-ready" });
+    await port.request({ type: "subscribe", sessionId: "traced" });
+    const first = run(port, "traced", "tool");
+    await answerTool(port);
+    const firstId = await first;
+    const secondId = await run(port, "traced", "again");
+
+    expect(
+      ((await port.request({ type: "list-runs", sessionId: "traced" })) as string[]).sort(),
+    ).toEqual([firstId, secondId].sort());
+    const events = await read(port, "traced", firstId);
+    expect(events.map((event) => event.sequence)).toEqual(events.map((_, index) => index));
+    for (const event of events) {
+      expect(event).toMatchObject({ formatVersion: 1, sessionId: "traced", runId: firstId });
+      expect(typeof event.timestamp).toBe("number");
+    }
+    expect(events[0]).toMatchObject({
+      type: "run.started",
+      submissionId: firstId,
+      submission: { submissionId: firstId, mode: "pending", input: { id: "tool" } },
+      appVersion: __APP_VERSION__,
+      history: [],
+    });
+    expect(events[0]?.compactionParameters).toBeDefined();
+    expect(events.find((event) => event.type === "tool.settled")).toMatchObject({
+      name: "read_file",
+      outcome: "known",
+    });
+    const settled = events.at(-1);
+    expect(settled).toMatchObject({ type: "run.settled", outcome: "completed" });
+    const added = events.filter((event) => event.type === "message.added");
+    expect(settled?.finalMessageId).toBe((added.at(-1)?.message as { id: string } | undefined)?.id);
+
+    // The second Run is self-contained: it starts from the first Run's history.
+    const [started] = await read(port, "traced", secondId);
+    expect(started?.history).toHaveLength(added.length);
+    const exported = (await port.request({
+      type: "export-trace",
+      sessionId: "traced",
+      runId: firstId,
+    })) as string;
+    expect(exported.trim().split("\n")).toHaveLength(events.length);
+  });
+
+  it("records the delivery mode and acceptance time of an applied steer", async () => {
+    const port = connect();
+    await port.request({ type: "subscribe", sessionId: "steer" });
+    const item = submission("hold-steer");
+    await port.request({ type: "submit", sessionId: "steer", submission: item });
+    await vi.waitFor(() => expect(state.gates.has("hold-steer")).toBe(true));
+    const steer = { ...submission("steered"), mode: "steer" as const };
+    await port.request({ type: "submit", sessionId: "steer", submission: steer });
+    state.gates.get("hold-steer")?.();
+    await vi.waitFor(() => expect(state.traces.get(`steer/${item.id}`)).toContain('"run.settled"'));
+    const applied = (await read(port, "steer", item.id)).find(
+      (event) => event.type === "input.applied",
+    );
+    expect(applied).toMatchObject({ messageId: "steered", submissionId: steer.id, mode: "steer" });
+    expect(typeof applied?.acceptedAt).toBe("number");
+  });
+
+  it("marks a tool still running when its Run settles as unknown and drops image data", async () => {
+    // The loop settles interrupted tools itself; this covers a Run that ends without doing so.
+    const { TraceRecorder, parseTrace } = await import("@/lib/agent-runtime/traceRecorder");
+    const recorder = new TraceRecorder("open", "run", () => undefined);
+    recorder.trace({
+      type: "tool.started",
+      toolCallId: "call",
+      name: "read_file",
+      arguments: {},
+      turn: 1,
+    });
+    recorder.trace({
+      type: "message.added",
+      message: {
+        id: "image",
+        role: "user",
+        content: [{ type: "image", mimeType: "image/png", data: "AAAA" }],
+        createdAt: 1,
+      },
+      turn: 1,
+    });
+    await recorder.settle("aborted");
+    const events = parseTrace(state.traces.get("open/run") ?? "");
+    // Images keep their media type and size, never their data.
+    expect(events.find((event) => event.type === "message.added")?.message).toMatchObject({
+      content: [{ type: "image", mimeType: "image/png", size: 3 }],
+    });
+    expect(state.traces.get("open/run")).not.toContain("AAAA");
+    expect(events.slice(-2)).toMatchObject([
+      { type: "tool.settled", toolCallId: "call", name: "read_file", outcome: "unknown" },
+      { type: "run.settled", outcome: "aborted" },
+    ]);
+  });
+
+  it("follows a failed write with trace.gap on the next successful write", async () => {
+    const port = connect();
+    await port.request({ type: "host-ready" });
+    await port.request({ type: "subscribe", sessionId: "gap" });
+    state.failAppends = 1;
+    const pending = run(port, "gap", "tool");
+    await answerTool(port);
+    const runId = await pending;
+    const events = await read(port, "gap", runId);
+    const gap = events.find((event) => event.type === "trace.gap");
+    expect(gap).toMatchObject({ reason: "disk full" });
+    expect(gap?.dropped).toBeGreaterThan(0);
+    // The dropped events are gone; the ones after the gap were kept in order.
+    expect(events.some((event) => event.type === "run.started")).toBe(false);
+    expect(events.at(-1)?.type).toBe("run.settled");
+  });
+
+  it("deletes a chat session's Traces and keeps an in-memory session's", async () => {
+    const port = connect();
+    await port.request({ type: "subscribe", sessionId: "chat" });
+    await port.request({ type: "subscribe", sessionId: "eval", storage: "memory" });
+    await run(port, "chat", "question");
+    const kept = await run(port, "eval", "question", "memory");
+    await port.request({ type: "delete", sessionId: "chat" });
+    await port.request({ type: "delete", sessionId: "eval", storage: "memory" });
+    expect(await port.request({ type: "list-runs", sessionId: "chat" })).toEqual([]);
+    expect(await port.request({ type: "list-runs", sessionId: "eval" })).toEqual([kept]);
+    await port.request({ type: "clear-traces" });
+    expect(await port.request({ type: "list-runs", sessionId: "eval" })).toEqual([]);
+  });
+
+  it("records nothing outside development builds", async () => {
+    vi.stubEnv("DEV", false);
+    await startWorker();
+    const port = connect();
+    await port.request({ type: "subscribe", sessionId: "prod" });
+    await port.request({ type: "submit", sessionId: "prod", submission: submission("question") });
+    await vi.waitFor(() => expect(port.snapshot()?.outcome).toBe("completed"));
+    await port.request({ type: "checkpoint" });
+    expect(state.traces.size).toBe(0);
   });
 });
