@@ -136,6 +136,14 @@ test("steering messages enter the next model request in order, including after a
     ["add timestamps", "use Chinese"],
   );
   assert.equal(events.filter((event) => event.type === "done").length, 1);
+  // The consumed steers are announced before the reply that answers them.
+  const consumed = events.findIndex((event) => event.type === "steer-consumed");
+  assert.deepEqual(events[consumed]?.messageIds, ["s1", "s2"]);
+  assert.equal(
+    events.findIndex((event) => event.type === "text-delta" && event.delta === "revised") >
+      consumed,
+    true,
+  );
   assert.equal(agent.steer({ id: "late", role: "user", content: [], createdAt: 2 }), false);
 });
 

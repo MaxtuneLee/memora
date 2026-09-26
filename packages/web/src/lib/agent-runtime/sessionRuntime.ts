@@ -97,18 +97,7 @@ export class SessionRuntime {
     ) {
       if (steerWhileStarting) this.startingSteering.push(submission.input);
       this.steering.set(submission.input.id, submission);
-      // A steer is inserted into the running turn, so it shows above the reply it changes.
-      const replyIndex = this.snapshot.messages.findIndex(
-        (message) => message.id === this.snapshot.activeMessageId,
-      );
-      this.snapshot.messages =
-        replyIndex < 0
-          ? [...this.snapshot.messages, submission.message]
-          : [
-              ...this.snapshot.messages.slice(0, replyIndex),
-              submission.message,
-              ...this.snapshot.messages.slice(replyIndex),
-            ];
+      this.snapshot.messages = [...this.snapshot.messages, submission.message];
     } else {
       this.queue.push(submission);
       this.snapshot.pending = this.queue.map((item) => ({
@@ -236,6 +225,32 @@ export class SessionRuntime {
           }));
         }
         break;
+      case "steer-consumed": {
+        // The reply so far ends at the steer; what the model writes next is a new reply below
+        // it. A reply with nothing in it yet moves below the steer instead of staying empty.
+        const current = this.snapshot.messages.find(
+          (message) => message.id === this.snapshot.activeMessageId,
+        );
+        const empty =
+          current && !current.content && !current.thinkingSteps?.length && !current.widgets?.length;
+        if (!empty)
+          this.updateAssistant((message) => ({
+            ...message,
+            thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),
+          }));
+        const next: ChatMessage = empty
+          ? current
+          : { id: crypto.randomUUID(), role: "assistant", content: "" };
+        this.snapshot.messages = [
+          ...this.snapshot.messages.filter((message) => message.id !== next.id),
+          next,
+        ];
+        this.snapshot.activeMessageId = next.id;
+        this.snapshot.thinkingSteps = [];
+        this.snapshot.thinkingCollapsed = false;
+        this.snapshot.status = { type: "thinking" };
+        break;
+      }
       case "done":
         this.updateAssistant((message) => ({
           ...message,

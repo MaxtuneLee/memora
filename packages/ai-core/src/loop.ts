@@ -499,12 +499,15 @@ export class Agent {
       personalityText ?? "",
       notices,
     );
+    const steered: string[] = [];
     while (this.steeringInputs.length > 0) {
       for (const message of this.takeUnconsumedSteering()) {
         await this.context.append(message);
         await this.hooks.onAfterInput?.(this.createHookContext(), message);
+        steered.push(message.id);
       }
     }
+    if (steered.length > 0) yield { type: "steer-consumed", messageIds: steered };
     const history = this.context.getMessages();
     const messages = this.fitToContextWindow(
       this.config.compaction ? await this.compactHistory(history, systemPrompt) : history,

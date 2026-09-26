@@ -98,6 +98,8 @@ export type AgentEvent =
   | { type: "reasoning-delta"; delta: string }
   | { type: "reasoning-done"; text: string }
   | { type: "usage"; usage: TokenUsage }
+  /** Steering messages entered the context; the reply after them is a new turn. */
+  | { type: "steer-consumed"; messageIds: string[] }
   | { type: "tool-call-start"; toolCall: { id: string; name: string } }
   | { type: "tool-call-args-delta"; toolCallId: string; delta: string }
   | {
