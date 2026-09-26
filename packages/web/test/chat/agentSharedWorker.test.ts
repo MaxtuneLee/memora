@@ -11,13 +11,18 @@ const state = vi.hoisted(() => ({
   records: new Map<string, ChatSessionRecord>(),
   gates: new Map<string, () => void>(),
   calls: [] as string[],
+  touched: [] as string[],
 }));
 vi.mock("@/lib/chat/chatSessionStorage", () => ({
-  loadChatSession: async (id: string) => structuredClone(state.records.get(id) ?? null),
+  loadChatSession: async (id: string) => {
+    state.touched.push(id);
+    return structuredClone(state.records.get(id) ?? null);
+  },
   updateChatSession: async (
     id: string,
     update: (record: ChatSessionRecord) => ChatSessionRecord,
   ) => {
+    state.touched.push(id);
     const previous = state.records.get(id) ?? {
       id,
       schemaVersion: 2,
@@ -33,6 +38,7 @@ vi.mock("@/lib/chat/chatSessionStorage", () => ({
     return record;
   },
   deleteChatSession: async (id: string) => {
+    state.touched.push(id);
     state.records.delete(id);
   },
 }));
@@ -153,11 +159,9 @@ beforeAll(async () => {
   await import("@/workers/agent.shared-worker");
   vi.unstubAllGlobals();
 }, COLD_IMPORT_TIMEOUT);
-beforeEach(async () => {
+// Re-evaluating the module gives a fresh worker with empty in-memory state, like a browser restart.
+const startWorker = async (): Promise<void> => {
   vi.resetModules();
-  state.records.clear();
-  state.calls = [];
-  state.gates.clear();
   const scope: { onconnect?: (event: MessageEvent) => void } = {};
   vi.stubGlobal("self", scope);
   await import("@/workers/agent.shared-worker");
@@ -166,6 +170,13 @@ beforeEach(async () => {
     scope.onconnect?.({ ports: [port] } as unknown as MessageEvent);
     return port;
   };
+};
+beforeEach(async () => {
+  state.records.clear();
+  state.calls = [];
+  state.touched = [];
+  state.gates.clear();
+  await startWorker();
 });
 afterEach(() => {
   for (const finish of state.gates.values()) finish();
@@ -212,6 +223,42 @@ describe("agent SharedWorker protocol", () => {
     expect(state.records.has("experiment")).toBe(false);
     await first.request({ type: "memory-updated", sessionId: "experiment" });
     expect(second.messages.some((message) => message.type === "memory-updated")).toBe(true);
+  });
+
+  it("keeps every in-memory session command off chat-session storage after a worker restart", async () => {
+    const before = connect();
+    await before.request({ type: "subscribe", sessionId: "attempt", storage: "memory" });
+    await before.request({
+      type: "submit",
+      sessionId: "attempt",
+      storage: "memory",
+      submission: submission("question"),
+    });
+    await vi.waitFor(() => expect(before.snapshot()?.outcome).toBe("completed"));
+    const commands: AgentCommand[] = [
+      { type: "abort", sessionId: "attempt", runId: "gone", storage: "memory" },
+      { type: "reset", sessionId: "attempt", messages: [], history: [], storage: "memory" },
+      {
+        type: "patch-message",
+        sessionId: "attempt",
+        message: { id: "question", role: "user", content: "edited" },
+        storage: "memory",
+      },
+      { type: "steer-pending", sessionId: "attempt", submissionId: "gone", storage: "memory" },
+      {
+        type: "approval",
+        sessionId: "attempt",
+        approvalId: "gone",
+        decision: "deny",
+        storage: "memory",
+      },
+      { type: "delete", sessionId: "attempt", storage: "memory" },
+    ];
+    for (const command of commands) {
+      await startWorker();
+      await connect().request(command);
+    }
+    expect(state.touched).toEqual([]);
   });
 
   it("keeps one session running across subscribers and runs another session concurrently", async () => {

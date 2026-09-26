@@ -295,10 +295,7 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
     return;
   }
   if (deletedSessions.has(request.sessionId)) throw new Error("This session has been deleted.");
-  const runtime = await getSession(
-    request.sessionId,
-    "storage" in request ? request.storage : undefined,
-  );
+  const runtime = await getSession(request.sessionId, request.storage);
   switch (request.type) {
     case "subscribe":
       ports.get(port)?.add(request.sessionId);

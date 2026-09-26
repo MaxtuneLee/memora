@@ -8,6 +8,8 @@ export type ToolHost = (
 let worker: SharedWorker | undefined;
 let toolHost: ToolHost | undefined;
 const snapshots = new Map<string, SessionSnapshot>();
+// ponytail: a session's storage kind never changes, so entries live for the page.
+const memorySessions = new Set<string>();
 const listeners = new Map<string, Set<() => void>>();
 const requests = new Map<
   string,
@@ -160,7 +162,13 @@ export function command(command: AgentCommand): Promise<void> {
     }, 30_000);
     requests.set(requestId, { resolve, reject, timer });
     try {
-      port.postMessage({ ...command, requestId });
+      // Every command for an in-memory session carries its storage kind, so a restarted worker
+      // never falls back to chat-session storage.
+      const storage =
+        "sessionId" in command && memorySessions.has(command.sessionId)
+          ? { storage: "memory" }
+          : {};
+      port.postMessage({ ...command, ...storage, requestId });
     } catch (error) {
       clearTimeout(timer);
       requests.delete(requestId);
@@ -185,6 +193,7 @@ export function subscribe(sessionId: string, listener: () => void, storage?: "me
     listeners.set(sessionId, set);
   }
   set.add(listener);
+  if (storage === "memory") memorySessions.add(sessionId);
   if (unreadSessionIds.has(sessionId)) {
     const unread = new Set(unreadSessionIds);
     unread.delete(sessionId);
