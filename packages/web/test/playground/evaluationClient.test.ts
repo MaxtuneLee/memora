@@ -101,3 +101,134 @@ describe("evaluationClient.run", () => {
     expect(release).toHaveBeenCalledWith(selection);
   });
 });
+
+describe("evaluationClient.runAgent", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    instances.length = 0;
+    vi.stubGlobal("SharedWorker", FakeSharedWorker as unknown as typeof SharedWorker);
+  });
+
+  const agentIdentity = {
+    adapter: "memora-web",
+    model: "model-a",
+    promptRevision: "abc",
+    tools: [],
+    settings: {},
+  };
+  const judgeIdentity = { judge: "none", model: "none", promptVersion: "none" };
+
+  it("serves relayed agent and judge calls with the registered adapters", async () => {
+    const answer = vi.fn(async () => ({ answer: "Because." }));
+    const judge = vi.fn(async () => ({ rawOutput: "ok" }));
+    const onProgress = vi.fn();
+    const { evaluationClient } = await import("@/lib/playground/evaluationClient");
+    const running = evaluationClient.runAgent(
+      {
+        questions: [],
+        corpus: { fileLectures: {}, cues: {}, revisions: {} } as never,
+        agent: { identity: agentIdentity, answer } as never,
+        judge: { identity: judgeIdentity, judge } as never,
+        concurrency: 2,
+      },
+      { onProgress },
+    );
+    const port = instances[0].port;
+    const run = port.messages[0] as { id: string };
+    expect(run).toMatchObject({
+      type: "run-agent",
+      agent: agentIdentity,
+      judge: judgeIdentity,
+      concurrency: 2,
+    });
+
+    port.onmessage?.({
+      data: {
+        id: "a1",
+        type: "adapter-request",
+        runId: run.id,
+        adapter: "agent",
+        question: { questionId: "q1", question: "Why?" },
+      },
+    } as MessageEvent);
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual(
+        expect.objectContaining({
+          type: "adapter-result",
+          targetId: "a1",
+          value: { answer: "Because." },
+        }),
+      ),
+    );
+    expect(answer).toHaveBeenCalledWith(
+      { questionId: "q1", question: "Why?" },
+      expect.any(AbortSignal),
+    );
+
+    port.onmessage?.({
+      data: { id: "j1", type: "adapter-request", runId: run.id, adapter: "judge", input: {} },
+    } as MessageEvent);
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual(
+        expect.objectContaining({
+          type: "adapter-result",
+          targetId: "j1",
+          value: { rawOutput: "ok" },
+        }),
+      ),
+    );
+
+    port.onmessage?.({
+      data: { id: run.id, type: "agent-progress", progress: { completed: 1 } },
+    } as MessageEvent);
+    expect(onProgress).toHaveBeenCalledWith({ completed: 1 });
+    port.onmessage?.({
+      data: { id: run.id, type: "agent-result", result: { kind: "agent" } },
+    } as MessageEvent);
+    await expect(running).resolves.toEqual({ kind: "agent" });
+  });
+
+  it("aborts the adapter call when the worker cancels it, and cancels the run on abort", async () => {
+    let seen: AbortSignal | undefined;
+    const answer = vi.fn(
+      (_question: unknown, signal: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          seen = signal;
+          signal.addEventListener("abort", () => reject(new Error("Canceled.")));
+        }),
+    );
+    const controller = new AbortController();
+    const { evaluationClient } = await import("@/lib/playground/evaluationClient");
+    void evaluationClient
+      .runAgent(
+        {
+          questions: [],
+          corpus: {} as never,
+          agent: { identity: agentIdentity, answer } as never,
+          judge: { identity: judgeIdentity, judge: vi.fn() } as never,
+        },
+        { signal: controller.signal },
+      )
+      .catch(() => {});
+    const port = instances[0].port;
+    const run = port.messages[0] as { id: string };
+    port.onmessage?.({
+      data: { id: "a1", type: "adapter-request", runId: run.id, adapter: "agent", question: {} },
+    } as MessageEvent);
+    await vi.waitFor(() => expect(seen).toBeDefined());
+
+    port.onmessage?.({ data: { id: "c1", type: "model-cancel", targetId: "a1" } } as MessageEvent);
+    expect(seen?.aborted).toBe(true);
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual(
+        expect.objectContaining({ type: "adapter-result", targetId: "a1", error: "Canceled." }),
+      ),
+    );
+
+    controller.abort();
+    expect(port.messages).toContainEqual(
+      expect.objectContaining({ type: "cancel", targetId: run.id }),
+    );
+  });
+});

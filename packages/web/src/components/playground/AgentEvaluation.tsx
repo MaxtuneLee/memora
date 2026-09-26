@@ -1,11 +1,20 @@
+import { saveAgentEvaluationResult, type AgentEvaluationResult } from "@memora/evaluation";
 import * as stylex from "@stylexjs/stylex";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
+import { chatProvidersQuery$ } from "@/lib/chat/queries";
+import { createChatTools } from "@/lib/chat/tools";
+import { createWebAgentAdapter, UNJUDGED } from "@/lib/playground/agentEvaluationAdapter";
+import { evaluationClient } from "@/lib/playground/evaluationClient";
 import {
   importEvaluationLectures,
   parseEvaluationImport,
   type EvaluationImport,
 } from "@/lib/playground/evaluationImport";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import type { provider as ProviderRow } from "@/livestore/provider";
+import type { setting } from "@/livestore/setting";
 import { useAppStore } from "@/livestore/store";
 import { tokens } from "../../styles/stylex.stylex";
 
@@ -38,6 +47,17 @@ const styles = stylex.create({
     gap: "0.375rem",
   },
   input: { color: tokens.textMuted, fontWeight: 400 },
+  number: {
+    borderColor: tokens.border,
+    borderRadius: "0.5rem",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.text,
+    fontWeight: 400,
+    padding: "0.25rem 0.5rem",
+    width: "5rem",
+  },
+  actions: { display: "flex", gap: "0.5rem" },
   button: {
     alignSelf: "flex-start",
     backgroundColor: tokens.primaryBackground,
@@ -77,12 +97,70 @@ type ImportState =
   | { status: "failed"; message: string }
   | { status: "imported"; data: EvaluationImport; created: number; existing: number };
 
+type RunState =
+  | { status: "idle" }
+  | { status: "running"; completed: number; total: number }
+  | { status: "failed"; message: string }
+  | { status: "done"; result: AgentEvaluationResult; saveError?: string };
+
 export default function AgentEvaluation() {
   const store = useAppStore();
   const [state, setState] = useState<ImportState>({ status: "idle" });
 
   const [dataFiles, setDataFiles] = useState<File[]>([]);
   const [questionsFile, setQuestionsFile] = useState<File | null>(null);
+  const [concurrency, setConcurrency] = useState(3);
+  const [run, setRun] = useState<RunState>({ status: "idle" });
+  const controller = useRef<AbortController | undefined>(undefined);
+  useEffect(() => () => controller.current?.abort(), []);
+
+  const settings = store.useQuery(settingsDocumentQuery$) as setting;
+  const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
+  const { agentConfig, providerConfig, compactionProviderConfig } = useChatModelConfig({
+    providers,
+    settings,
+    activeSessionId: "evaluation",
+  });
+
+  const runEvaluation = async () => {
+    if (state.status !== "imported" || !providerConfig) return;
+    const { questions, fileLectures, cues, revisions } = state.data;
+    const next = new AbortController();
+    controller.current = next;
+    setRun({ status: "running", completed: 0, total: questions.length * 3 });
+    try {
+      const agent = await createWebAgentAdapter({
+        provider: providerConfig,
+        compactionProvider: compactionProviderConfig,
+        config: agentConfig,
+        tools: createChatTools(store),
+      });
+      const result = await evaluationClient.runAgent(
+        {
+          questions,
+          corpus: { fileLectures, cues, revisions },
+          agent,
+          judge: UNJUDGED,
+          concurrency,
+        },
+        {
+          signal: next.signal,
+          onProgress: ({ completed, total }) => setRun({ status: "running", completed, total }),
+        },
+      );
+      let saveError: string | undefined;
+      try {
+        await saveAgentEvaluationResult(result);
+      } catch (error) {
+        saveError = error instanceof Error ? error.message : String(error);
+      }
+      setRun({ status: "done", result, saveError });
+    } catch (error) {
+      setRun({ status: "failed", message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      controller.current = undefined;
+    }
+  };
 
   const importFiles = async () => {
     if (!questionsFile) return;
@@ -160,6 +238,63 @@ export default function AgentEvaluation() {
               2,
             )}
           </pre>
+          <label {...stylex.props(styles.field)}>
+            Attempts at once
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={concurrency}
+              disabled={run.status === "running"}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (Number.isInteger(value) && value >= 1) setConcurrency(value);
+              }}
+              {...stylex.props(styles.number)}
+            />
+          </label>
+          <div {...stylex.props(styles.actions)}>
+            <button
+              type="button"
+              disabled={run.status === "running" || !providerConfig}
+              onClick={() => void runEvaluation()}
+              {...stylex.props(styles.button)}
+            >
+              {run.status === "running"
+                ? `Running ${run.completed} of ${run.total}…`
+                : "Run evaluation"}
+            </button>
+            {run.status === "running" ? (
+              <button
+                type="button"
+                onClick={() => controller.current?.abort()}
+                {...stylex.props(styles.button)}
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          {providerConfig ? null : (
+            <p {...stylex.props(styles.description)}>Choose a chat model in Settings first.</p>
+          )}
+        </>
+      ) : null}
+      {run.status === "failed" ? (
+        <p role="alert" {...stylex.props(styles.error)}>
+          {run.message}
+        </p>
+      ) : null}
+      {run.status === "done" ? (
+        <>
+          <p {...stylex.props(styles.summary)}>
+            {run.result.status === "canceled" ? "Canceled. " : ""}
+            {run.result.summary.passed} of {run.result.summary.plannedAttempts} attempts passed;
+            retrieval passed {run.result.summary.retrievalPassed}.{" "}
+            {run.saveError
+              ? `The result could not be saved: ${run.saveError}`
+              : `Saved as ${run.result.evaluationId}.`}
+          </p>
+          <pre {...stylex.props(styles.pre)}>{JSON.stringify(run.result.summary, null, 2)}</pre>
         </>
       ) : null}
     </section>

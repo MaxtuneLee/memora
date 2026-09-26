@@ -1,4 +1,8 @@
-import { parseEvaluationQuestions, type EvaluationQuestion } from "@memora/evaluation";
+import {
+  parseEvaluationQuestions,
+  type EvaluationQuestion,
+  type TranscriptCue,
+} from "@memora/evaluation";
 import * as v from "valibot";
 
 import type { StoreQueryable } from "@/lib/chat/tools/shared";
@@ -34,6 +38,8 @@ export interface EvaluationImport {
   lectures: EvaluationLecture[];
   /** fileId → lectureId */
   fileLectures: Record<string, string>;
+  /** Cue file contents per lecture ID. */
+  cues: Record<string, TranscriptCue[]>;
   revisions: EvaluationRevisions;
 }
 
@@ -56,6 +62,10 @@ const TranscriptSchema = v.object({
   text: v.string(),
   words: v.array(v.object({ text: v.string(), timestamp: v.tuple([v.number(), v.number()]) })),
 });
+
+const CuesSchema = v.array(
+  v.object({ cueId: v.string(), startMs: v.number(), endMs: v.number(), text: v.string() }),
+);
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
@@ -123,6 +133,7 @@ export async function parseEvaluationImport(
     transcripts: {},
     cues: {},
   };
+  const cues: Record<string, TranscriptCue[]> = {};
   for (const { lectureId, durationMs } of manifest.lectures) {
     const transcriptFile = byName.get(`${lectureId}.transcript.json`);
     const cuesFile = byName.get(`${lectureId}.cues.json`);
@@ -133,6 +144,7 @@ export async function parseEvaluationImport(
     const transcriptSha = await sha256Hex(transcriptFile.bytes);
     revisions.transcripts[lectureId] = transcriptSha;
     revisions.cues[lectureId] = await sha256Hex(cuesFile.bytes);
+    cues[lectureId] = parseJson(CuesSchema, cuesFile);
     lectures.push({
       fileId: evaluationFileId(transcriptSha, lectureId),
       lectureId,
@@ -148,6 +160,7 @@ export async function parseEvaluationImport(
     fileLectures: Object.fromEntries(
       lectures.map((lecture) => [lecture.fileId, lecture.lectureId]),
     ),
+    cues,
     revisions,
   };
 }

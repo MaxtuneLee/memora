@@ -35,7 +35,9 @@ const transcript = (lectureId: string) =>
     ],
   });
 const cues = (lectureId: string) =>
-  file(`${lectureId}.cues.json`, [{ cueId: `${lectureId}-0001` }]);
+  file(`${lectureId}.cues.json`, [
+    { cueId: `${lectureId}-0001`, startMs: 1000, endMs: 2000, speaker: "A", text: "So why" },
+  ]);
 const question = {
   questionId: "q01",
   question: "Why are we here?",
@@ -80,6 +82,9 @@ describe("parseEvaluationImport", () => {
       cues: { lec11: sha(cues("lec11")), lec12: sha(cues("lec12")) },
     });
     expect(result.questions).toEqual([question]);
+    expect(result.cues.lec11).toEqual([
+      { cueId: "lec11-0001", startMs: 1000, endMs: 2000, text: "So why" },
+    ]);
     expect(result.lectures[0]).toMatchObject({ fileId: lec11Id, durationSec: 20 });
     // Entries keep their leading space, so search_transcript's joined text reads across cues.
     const joined = result.lectures[0].transcript.words.map((word) => word.text).join("");

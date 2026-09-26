@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { EvaluationWorkerRequest } from "@/lib/playground/evaluationWorkerProtocol";
 
-const { openDataset, runEvaluation } = vi.hoisted(() => ({
+const { openDataset, runEvaluation, runAgentEvaluation } = vi.hoisted(() => ({
   openDataset: vi.fn(),
   runEvaluation: vi.fn(),
+  runAgentEvaluation: vi.fn(),
 }));
 
 vi.mock("@memora/datasets", () => ({ openDataset }));
-vi.mock("@memora/evaluation", () => ({ runEvaluation }));
+vi.mock("@memora/evaluation", () => ({ runEvaluation, runAgentEvaluation }));
 
 class TestMessagePort {
   onmessage: ((event: MessageEvent<EvaluationWorkerRequest>) => void) | null = null;
@@ -106,5 +107,116 @@ describe("evaluation shared worker", () => {
 
   it("routes Nemotron through the same host model-request protocol as Whisper", async () => {
     await runThroughHostModelRequestProtocol("nemotron-3.5-asr-streaming-0.6b-int4");
+  });
+});
+
+describe("agent evaluation in the shared worker", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  const agent = {
+    adapter: "memora-web",
+    model: "model-a",
+    promptRevision: "abc",
+    tools: ["search_transcript"],
+    settings: { personality: "none" },
+  };
+  const judge = { judge: "none", model: "none", promptVersion: "none" };
+  const runAgent = {
+    id: "agent-run-1",
+    type: "run-agent",
+    questions: [],
+    corpus: { fileLectures: {}, cues: {}, revisions: {} },
+    agent,
+    judge,
+    concurrency: 2,
+  } as unknown as EvaluationWorkerRequest;
+
+  it("relays the agent and the judge through the Window", async () => {
+    runAgentEvaluation.mockImplementation(async (options) => {
+      const signal = new AbortController().signal;
+      const answer = await options.agent.answer({ questionId: "q1", question: "Why?" }, signal);
+      const verdict = await options.judge.judge({ answer: answer.answer }, signal);
+      return { identities: [options.agent.identity, options.judge.identity], answer, verdict };
+    });
+    const port = await connectWorker();
+
+    port.onmessage?.({ data: runAgent } as MessageEvent);
+    await vi.waitFor(() => expect(port.messages).toHaveLength(1));
+    const answerRequest = port.messages[0] as { id: string };
+    expect(answerRequest).toMatchObject({
+      type: "adapter-request",
+      runId: "agent-run-1",
+      adapter: "agent",
+      question: { questionId: "q1", question: "Why?" },
+    });
+    expect(runAgentEvaluation).toHaveBeenCalledWith(
+      expect.objectContaining({ concurrency: 2, questions: [] }),
+    );
+
+    port.onmessage?.({
+      data: {
+        id: "r1",
+        type: "adapter-result",
+        targetId: answerRequest.id,
+        value: { answer: "Because." },
+      },
+    } as MessageEvent);
+    await vi.waitFor(() => expect(port.messages).toHaveLength(2));
+    const judgeRequest = port.messages[1] as { id: string };
+    expect(judgeRequest).toMatchObject({
+      type: "adapter-request",
+      adapter: "judge",
+      input: { answer: "Because." },
+    });
+
+    port.onmessage?.({
+      data: { id: "r2", type: "adapter-result", targetId: judgeRequest.id, value: { ok: true } },
+    } as MessageEvent);
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual({
+        id: "agent-run-1",
+        type: "agent-result",
+        result: {
+          identities: [agent, judge],
+          answer: { answer: "Because." },
+          verdict: { ok: true },
+        },
+      }),
+    );
+  });
+
+  it("rejects the adapter call with the Window's error and cancels on abort", async () => {
+    let seen: unknown;
+    runAgentEvaluation.mockImplementation(async (options) => {
+      await options.agent
+        .answer({ questionId: "q1", question: "Why?" }, new AbortController().signal)
+        .catch((error: Error) => (seen = error.message));
+      const controller = new AbortController();
+      const pending = options.agent.answer(
+        { questionId: "q2", question: "How?" },
+        controller.signal,
+      );
+      controller.abort();
+      await pending.catch(() => {});
+      return {};
+    });
+    const port = await connectWorker();
+
+    port.onmessage?.({ data: runAgent } as MessageEvent);
+    await vi.waitFor(() => expect(port.messages).toHaveLength(1));
+    const first = port.messages[0] as { id: string };
+    port.onmessage?.({
+      data: { id: "r1", type: "adapter-result", targetId: first.id, error: "Provider refused." },
+    } as MessageEvent);
+
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual({ id: "agent-run-1", type: "agent-result", result: {} }),
+    );
+    expect(seen).toBe("Provider refused.");
+    const second = port.messages[1] as { id: string };
+    expect(port.messages[2]).toMatchObject({ type: "model-cancel", targetId: second.id });
   });
 });
