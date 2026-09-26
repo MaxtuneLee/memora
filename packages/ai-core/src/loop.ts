@@ -25,6 +25,7 @@ import * as v from "valibot";
 
 import {
   CACHE_TTL_MS,
+  COMPACTION_PARAMETERS,
   HIGH_WATERMARK,
   MAX_SUMMARY_FAILURES,
   MIN_SAVINGS,
@@ -492,7 +493,7 @@ export class Agent {
     systemPrompt: string,
   ): Promise<AgentMessage[]> {
     let state = this.context.getCompaction();
-    if (!isTurnStart(history)) return projectHistory(history, state);
+    if (!isTurnStart(history)) return projectHistory(history, state, COMPACTION_PARAMETERS);
 
     const input = history[history.length - 1]!;
     const lastReply = history
@@ -505,14 +506,14 @@ export class Agent {
         recap && recap.through === history[history.length - 2]?.id
           ? { ...state, recaps: [...(state.recaps ?? []), { before: input.id, text: recap.text }] }
           : state;
-      const next = planCompaction(history, withRecap, true) ?? withRecap;
+      const next = planCompaction(history, withRecap, COMPACTION_PARAMETERS, true) ?? withRecap;
       if (next !== state) {
         state = next;
         await this.context.setCompaction(state);
       }
     }
 
-    let projected = projectHistory(history, state);
+    let projected = projectHistory(history, state, COMPACTION_PARAMETERS);
     const window = this.model.contextWindow;
     if (window <= CONTEXT_SAFETY_TOKENS) return projected;
     const outputReserve = Math.min(
@@ -523,9 +524,9 @@ export class Agent {
     let tokens = this.estimateTokens(systemPrompt, projected);
     if (tokens <= budget * HIGH_WATERMARK) return projected;
 
-    const next = planCompaction(history, state);
+    const next = planCompaction(history, state, COMPACTION_PARAMETERS);
     if (next) {
-      const compacted = projectHistory(history, next);
+      const compacted = projectHistory(history, next, COMPACTION_PARAMETERS);
       const after = this.estimateTokens(systemPrompt, compacted);
       if (tokens - after >= budget * MIN_SAVINGS) {
         state = next;
@@ -545,7 +546,7 @@ export class Agent {
     systemPrompt: string,
   ): Promise<AgentMessage[] | undefined> {
     if ((state.summaryFailures ?? 0) >= MAX_SUMMARY_FAILURES) return undefined;
-    const boundary = protectedBoundary(history);
+    const boundary = protectedBoundary(history, COMPACTION_PARAMETERS.protectedTurns);
     const summarizedEnd = state.summary
       ? history.findIndex((message) => message.id === state.summary?.through)
       : -1;
@@ -554,12 +555,12 @@ export class Agent {
     try {
       const text = await this.complete(
         systemPrompt,
-        projectHistory(history.slice(0, boundary + 1), state),
+        projectHistory(history.slice(0, boundary + 1), state, COMPACTION_PARAMETERS),
         SUMMARY_INSTRUCTION,
         SUMMARY_MAX_TOKENS,
       );
       next = {
-        ...(planCompaction(history, state) ?? state),
+        ...(planCompaction(history, state, COMPACTION_PARAMETERS) ?? state),
         summary: { through: history[boundary]!.id, text },
         summaryFailures: 0,
       };
@@ -572,7 +573,7 @@ export class Agent {
       return undefined;
     }
     await this.context.setCompaction(next);
-    return projectHistory(history, next);
+    return projectHistory(history, next, COMPACTION_PARAMETERS);
   }
 
   /**
@@ -633,7 +634,7 @@ export class Agent {
     if (last?.role !== "assistant") return undefined;
     if ((await this.context.loadRecap())?.through === last.id) return undefined;
     const systemPrompt = await this.composeSystemPrompt();
-    const projected = projectHistory(history, this.context.getCompaction());
+    const projected = projectHistory(history, this.context.getCompaction(), COMPACTION_PARAMETERS);
     if (this.estimateTokens(systemPrompt, projected) < RECAP_MIN_TOKENS) return undefined;
     const text = await this.complete(systemPrompt, projected, RECAP_INSTRUCTION, RECAP_MAX_TOKENS);
     await this.context.saveRecap({ through: last.id, text });

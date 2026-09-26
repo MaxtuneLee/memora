@@ -3,8 +3,13 @@ export type { AgentOptions } from "./loop";
 
 export { ToolRegistry, createToolRegistry } from "./tools";
 export { COMPACTION_KEY, ContextManager, createContextManager } from "./context";
-export { CACHE_TTL_MS, RECALL_TOOL_NAME, rebaseCompaction } from "./compaction";
-export type { CompactionState } from "./compaction";
+export {
+  CACHE_TTL_MS,
+  COMPACTION_PARAMETERS,
+  RECALL_TOOL_NAME,
+  rebaseCompaction,
+} from "./compaction";
+export type { CompactionParameters, CompactionState } from "./compaction";
 export { PromptComposer, createPromptComposer } from "./prompt";
 export { InMemoryAdapter, createInMemoryAdapter } from "./persistence";
 export { generateId, now } from "./utils";
