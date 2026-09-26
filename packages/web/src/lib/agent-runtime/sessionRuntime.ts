@@ -97,7 +97,18 @@ export class SessionRuntime {
     ) {
       if (steerWhileStarting) this.startingSteering.push(submission.input);
       this.steering.set(submission.input.id, submission);
-      this.snapshot.messages = [...this.snapshot.messages, submission.message];
+      // A steer is inserted into the running turn, so it shows above the reply it changes.
+      const replyIndex = this.snapshot.messages.findIndex(
+        (message) => message.id === this.snapshot.activeMessageId,
+      );
+      this.snapshot.messages =
+        replyIndex < 0
+          ? [...this.snapshot.messages, submission.message]
+          : [
+              ...this.snapshot.messages.slice(0, replyIndex),
+              submission.message,
+              ...this.snapshot.messages.slice(replyIndex),
+            ];
     } else {
       this.queue.push(submission);
       this.snapshot.pending = this.queue.map((item) => ({

@@ -113,6 +113,18 @@ describe("session execution", () => {
     await h.runtime.submit(submission("d", "steer"));
     expect(h.steering).toEqual(["c", "d"]);
     expect(h.runtime.snapshot.pending.map((item) => item.id)).toEqual(["b"]);
+    // Steers show above the reply they were inserted into, in receipt order.
+    expect(h.runtime.snapshot.messages.map((message) => message.role)).toEqual([
+      "user",
+      "user",
+      "user",
+      "assistant",
+    ]);
+    expect(h.runtime.snapshot.messages.slice(0, 3).map((message) => message.id)).toEqual([
+      "a",
+      "c",
+      "d",
+    ]);
     h.releases.get("a")?.();
     await vi.waitFor(() => expect(h.calls).toEqual(["a", "b"]));
     h.releases.get("b")?.();

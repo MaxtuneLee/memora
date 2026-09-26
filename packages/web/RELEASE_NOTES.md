@@ -9,6 +9,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 - When you edit and resend an earlier message, the assistant still remembers the tool results and images from before it.
 - In long chats, older replies and tool results are shortened instead of dropped, and the assistant can look up the full text when it needs it.
 - A deleted chat no longer reappears in the chat history.
+- A message you steer into a running reply now shows above that reply, and queued messages are listed above the message box.
 
 ## 2026-09-26
 

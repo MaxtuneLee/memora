@@ -147,7 +147,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   );
   return {
     messages: snapshot.messages,
-    pendingCount: snapshot.pending.length,
+    pendingMessages: snapshot.pending.map(({ id, text }) => ({ id, text })),
     pendingWriteApproval: snapshot.approval?.request ?? null,
     resolveWriteApproval,
     isStreaming: Boolean(snapshot.activeRunId),

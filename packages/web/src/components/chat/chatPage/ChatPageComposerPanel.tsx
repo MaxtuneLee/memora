@@ -1,5 +1,6 @@
 import {
   ArrowUpIcon,
+  ClockIcon,
   FileTextIcon,
   FolderSimpleIcon,
   ImageIcon,
@@ -138,6 +139,30 @@ const styles = stylex.create({
   },
   referenceIcon: { color: tokens.textMuted, flexShrink: 0, height: 14, width: 14 },
   truncate: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  // Queued messages sit above the composer, clear of the fade, like the references card.
+  pendingList: {
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    listStyle: "none",
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "relative",
+    zIndex: 10,
+  },
+  pendingItem: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: 13,
+    gap: 8,
+    minWidth: 0,
+  },
+  pendingIcon: { color: tokens.textSoft, flexShrink: 0, height: 14, width: 14 },
   removeReference: {
     alignItems: "center",
     borderRadius: 9999,
@@ -250,7 +275,7 @@ const styles = stylex.create({
 });
 
 interface ChatPageComposerPanelProps {
-  pendingCount: number;
+  pendingMessages: Array<{ id: string; text: string }>;
   deliveryMode: "pending" | "steer";
   onDeliveryModeChange: (mode: "pending" | "steer") => void;
   composerFadeHeight: number;
@@ -313,7 +338,7 @@ interface ChatPageComposerPanelProps {
 }
 
 export const ChatPageComposerPanel = ({
-  pendingCount,
+  pendingMessages,
   deliveryMode,
   onDeliveryModeChange,
   composerFadeHeight,
@@ -505,7 +530,16 @@ export const ChatPageComposerPanel = ({
             {...stylex.props(styles.hidden)}
             onChange={onImageInputChange}
           />
-          {pendingCount > 0 && <p role="status">{pendingCount} pending</p>}
+          {pendingMessages.length > 0 && (
+            <ul aria-label="Queued messages" {...stylex.props(styles.pendingList)}>
+              {pendingMessages.map((pending) => (
+                <li key={pending.id} {...stylex.props(styles.pendingItem)}>
+                  <ClockIcon className={stylex.props(styles.pendingIcon).className} />
+                  <span {...stylex.props(styles.truncate)}>{pending.text || "Image"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <form onSubmit={onSubmit}>
             <div
               {...stylex.props(styles.composer, composerDragActive && styles.composerDragging)}

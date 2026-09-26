@@ -66,7 +66,8 @@ export interface UseAgentOptions {
 
 export interface UseAgentReturn {
   messages: ChatMessage[];
-  pendingCount: number;
+  /** Messages waiting for the current run to finish, in send order. */
+  pendingMessages: Array<{ id: string; text: string }>;
   pendingWriteApproval: import("@/lib/chat/tools/shared").WriteApprovalRequest | null;
   resolveWriteApproval: (decision: import("@/lib/chat/tools/shared").WriteApprovalDecision) => void;
   isStreaming: boolean;

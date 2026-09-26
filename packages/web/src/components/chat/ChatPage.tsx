@@ -149,7 +149,7 @@ export const Component = () => {
 
   const {
     messages,
-    pendingCount,
+    pendingMessages,
     pendingWriteApproval,
     resolveWriteApproval,
     isStreaming,
@@ -531,7 +531,7 @@ export const Component = () => {
         onDismissIterationLimitPrompt={dismissIterationLimitPrompt}
         onOpenSettings={openSettingsPanel}
         composerPanelProps={{
-          pendingCount,
+          pendingMessages,
           deliveryMode,
           onDeliveryModeChange: setDeliveryOverride,
           composerFadeHeight,
