@@ -35,6 +35,7 @@ interface ResetFn {
   (options?: {
     messages?: AgentChatMessage[];
     contextMessages?: AgentChatMessage[];
+    replayFrom?: string;
   }): Promise<void>;
 }
 
@@ -198,6 +199,7 @@ export const useChatTurnActions = ({
         await resetAgent({
           messages: nextDisplayedMessages,
           contextMessages: baseMessages,
+          replayFrom: sourceMessage.id,
         });
         await startAgentTurn(input, {
           existingUserMessage: replayedUserMessage,

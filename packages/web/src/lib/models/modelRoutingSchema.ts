@@ -20,6 +20,7 @@ export const modelRoutingSchema = Schema.Struct({
   transcription: Schema.optional(modelTargetSchema),
   sessionTitle: Schema.optional(inheritedTargetSchema),
   memoryExtraction: Schema.optional(inheritedTargetSchema),
+  contextCompaction: Schema.optional(inheritedTargetSchema),
   imageExtraction: Schema.optional(modelTargetSchema),
   formulaRecognition: Schema.optional(modelTargetSchema),
   embedding: Schema.optional(modelTargetSchema),

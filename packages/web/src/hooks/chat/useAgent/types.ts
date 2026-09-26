@@ -54,6 +54,11 @@ export type AgentStatus =
 export interface UseAgentOptions {
   sessionStorage?: "memory";
   providerConfig?: Omit<import("@memora/ai-provider-pi").RemotePiProviderConfig, "onUsage">;
+  /** Model for summaries and recaps; the chat model when undefined. */
+  compactionProviderConfig?: Omit<
+    import("@memora/ai-provider-pi").RemotePiProviderConfig,
+    "onUsage"
+  >;
   getReferenceScope?: () => import("@/lib/chat/tools/shared").ResolvedReferenceScope;
   deliveryMode?: "pending" | "steer";
   sessionId: string;
@@ -66,7 +71,10 @@ export interface UseAgentOptions {
 
 export interface UseAgentReturn {
   messages: ChatMessage[];
-  pendingCount: number;
+  /** Messages waiting for the current run to finish, in send order. */
+  pendingMessages: Array<{ id: string; text: string }>;
+  /** A recap written while the session sat idle, until the next message. */
+  recap: string | null;
   pendingWriteApproval: import("@/lib/chat/tools/shared").WriteApprovalRequest | null;
   resolveWriteApproval: (decision: import("@/lib/chat/tools/shared").WriteApprovalDecision) => void;
   isStreaming: boolean;
@@ -79,8 +87,14 @@ export interface UseAgentReturn {
   continueAfterIterationLimit: () => Promise<void>;
   dismissIterationLimitPrompt: () => void;
   abort: () => void;
-  reset: (options?: { messages?: ChatMessage[]; contextMessages?: ChatMessage[] }) => Promise<void>;
+  reset: (options?: {
+    messages?: ChatMessage[];
+    contextMessages?: ChatMessage[];
+    replayFrom?: string;
+  }) => Promise<void>;
   updateMessage: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
+  /** Insert a queued message into the running reply as a steer. */
+  steerPending: (submissionId: string) => void;
   saveMemory: (key: string, value: unknown) => Promise<void>;
   loadMemory: <T = unknown>(key: string) => Promise<T | null>;
 }

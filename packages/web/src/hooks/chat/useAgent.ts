@@ -71,6 +71,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         // Capture page-derived scope and configuration before the first asynchronous boundary.
         const scope = structuredClone(options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE);
         const provider = structuredClone(options.providerConfig);
+        const compactionProvider = structuredClone(options.compactionProviderConfig);
         const prompts = await Promise.all(
           (options.promptSegments ?? []).map(async (segment) => ({
             ...segment,
@@ -88,6 +89,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
             message,
             mode: turnOptions?.mode ?? options.deliveryMode ?? "pending",
             provider,
+            ...(compactionProvider ? { compactionProvider } : {}),
             config: { ...options.config, id: `memora-chat:${sessionId}` } as AgentConfig,
             prompts,
             scope,
@@ -119,10 +121,17 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         sessionId,
         messages: next?.messages ?? [],
         history: toAgentHistoryMessages(next?.contextMessages ?? next?.messages ?? []),
+        replayFrom: next?.replayFrom,
       });
       setLocalError(null);
     },
     [sessionId],
+  );
+  const steerPending = useCallback<UseAgentReturn["steerPending"]>(
+    (submissionId) => {
+      void command({ type: "steer-pending", sessionId, submissionId }).catch(reportError);
+    },
+    [sessionId, reportError],
   );
   const updateMessage = useCallback<UseAgentReturn["updateMessage"]>(
     (id, updater) => {
@@ -146,7 +155,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   );
   return {
     messages: snapshot.messages,
-    pendingCount: snapshot.pending.length,
+    pendingMessages: snapshot.pending.map(({ id, text }) => ({ id, text })),
+    recap: snapshot.recap ?? null,
     pendingWriteApproval: snapshot.approval?.request ?? null,
     resolveWriteApproval,
     isStreaming: Boolean(snapshot.activeRunId),
@@ -167,6 +177,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     abort,
     reset,
     updateMessage,
+    steerPending,
     continueAfterIterationLimit: () =>
       send("Continue from where you left off and finish the request."),
     dismissIterationLimitPrompt: () => setDismissedIteration(snapshot.revision),

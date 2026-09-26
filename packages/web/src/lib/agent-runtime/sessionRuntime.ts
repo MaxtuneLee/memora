@@ -17,6 +17,8 @@ export interface SessionRuntimeOptions {
   createRunner: (submission: AgentSubmission) => Promise<SessionRunner>;
   save: (snapshot: SessionSnapshot) => Promise<void>;
   publish: (snapshot: SessionSnapshot) => void;
+  /** Called when the queue has drained, with the submission that ran last. */
+  onIdle?: (lastSubmission: AgentSubmission) => void;
 }
 
 /** One owner serializes each session; different instances run independently. */
@@ -85,26 +87,10 @@ export class SessionRuntime {
     if (this.accepted.has(submission.id)) return;
     this.accepted.add(submission.id);
     this.snapshot.acceptedSubmissionIds = [...this.accepted];
-    const steerWhileStarting =
-      submission.mode === "steer" &&
-      this.draining &&
-      Boolean(this.snapshot.activeRunId) &&
-      !this.runner &&
-      !this.stopped;
-    if (
-      submission.mode === "steer" &&
-      (steerWhileStarting || this.runner?.steer(submission.input))
-    ) {
-      if (steerWhileStarting) this.startingSteering.push(submission.input);
-      this.steering.set(submission.input.id, submission);
-      this.snapshot.messages = [...this.snapshot.messages, submission.message];
-    } else {
+    this.snapshot.recap = undefined;
+    if (submission.mode !== "steer" || !this.trySteer(submission)) {
       this.queue.push(submission);
-      this.snapshot.pending = this.queue.map((item) => ({
-        id: item.id,
-        text: item.message.content,
-        message: item.message,
-      }));
+      this.syncPending();
     }
     this.publish();
     // Save receipt before execution. Credentials and runtime configuration are never saved.
@@ -115,6 +101,44 @@ export class SessionRuntime {
       throw error;
     }
     void this.drain();
+  }
+
+  /** Show a recap written while idle, unless work started in the meantime. */
+  async setRecap(text: string): Promise<void> {
+    if (this.snapshot.activeRunId || this.queue.length) return;
+    this.snapshot.recap = text;
+    this.publish();
+    await this.checkpoint();
+  }
+
+  /** Move a queued message into the running task as a steer. Returns false when none runs. */
+  async steerPending(submissionId: string): Promise<boolean> {
+    const index = this.queue.findIndex((item) => item.id === submissionId);
+    const item = this.queue[index];
+    if (!item || !this.trySteer({ ...item, mode: "steer" })) return false;
+    this.queue.splice(index, 1);
+    this.syncPending();
+    this.publish();
+    await this.checkpoint();
+    return true;
+  }
+
+  private trySteer(submission: AgentSubmission): boolean {
+    const whileStarting =
+      this.draining && Boolean(this.snapshot.activeRunId) && !this.runner && !this.stopped;
+    if (!whileStarting && !this.runner?.steer(submission.input)) return false;
+    if (whileStarting) this.startingSteering.push(submission.input);
+    this.steering.set(submission.input.id, submission);
+    this.snapshot.messages = [...this.snapshot.messages, submission.message];
+    return true;
+  }
+
+  private syncPending(): void {
+    this.snapshot.pending = this.queue.map((item) => ({
+      id: item.id,
+      text: item.message.content,
+      message: item.message,
+    }));
   }
 
   abort(runId: string): void {
@@ -225,6 +249,32 @@ export class SessionRuntime {
           }));
         }
         break;
+      case "steer-consumed": {
+        // The reply so far ends at the steer; what the model writes next is a new reply below
+        // it. A reply with nothing in it yet moves below the steer instead of staying empty.
+        const current = this.snapshot.messages.find(
+          (message) => message.id === this.snapshot.activeMessageId,
+        );
+        const empty =
+          current && !current.content && !current.thinkingSteps?.length && !current.widgets?.length;
+        if (!empty)
+          this.updateAssistant((message) => ({
+            ...message,
+            thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),
+          }));
+        const next: ChatMessage = empty
+          ? current
+          : { id: crypto.randomUUID(), role: "assistant", content: "" };
+        this.snapshot.messages = [
+          ...this.snapshot.messages.filter((message) => message.id !== next.id),
+          next,
+        ];
+        this.snapshot.activeMessageId = next.id;
+        this.snapshot.thinkingSteps = [];
+        this.snapshot.thinkingCollapsed = false;
+        this.snapshot.status = { type: "thinking" };
+        break;
+      }
       case "done":
         this.updateAssistant((message) => ({
           ...message,
@@ -289,10 +339,12 @@ export class SessionRuntime {
   private async drain(): Promise<void> {
     if (this.draining) return;
     this.draining = true;
+    let last: AgentSubmission | undefined;
     try {
       while (this.queue.length) {
         const submission = this.queue.shift();
         if (!submission) break;
+        last = submission;
         this.stopped = false;
         this.snapshot = {
           ...this.snapshot,
@@ -358,11 +410,7 @@ export class SessionRuntime {
           this.snapshot.activeMessageId = undefined;
           this.snapshot.approval = undefined;
           this.snapshot.status = { type: "idle" };
-          this.snapshot.pending = this.queue.map((item) => ({
-            id: item.id,
-            text: item.message.content,
-            message: item.message,
-          }));
+          this.syncPending();
           this.publish();
           await this.checkpoint();
         }
@@ -372,6 +420,7 @@ export class SessionRuntime {
     } finally {
       this.draining = false;
       for (const resolve of this.idleWaiters.splice(0)) resolve();
+      if (last) this.options.onIdle?.(last);
     }
   }
 }
