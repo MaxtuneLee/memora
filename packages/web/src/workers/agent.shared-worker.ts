@@ -7,6 +7,7 @@ import {
   updateChatSession,
   deleteChatSession,
 } from "@/lib/chat/chatSessionStorage";
+import { historyBeforeReplay } from "@/lib/agent-runtime/replayHistory";
 import { SessionRuntime, emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
 import type {
   AgentRequest,
@@ -290,31 +291,37 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
     case "patch-message":
       runtime.patchMessage(request.message);
       break;
-    case "reset":
+    case "reset": {
       if (runtime.snapshot.activeRunId || runtime.snapshot.pending.length)
         throw new Error("Stop the session and let queued messages finish before editing history.");
-      if (transientAdapters.has(request.sessionId)) {
-        await transientAdapters
-          .get(request.sessionId)
-          ?.save(`memora-chat:${request.sessionId}`, "history", request.history);
+      const agentKey = `memora-chat:${request.sessionId}`;
+      const transient = transientAdapters.get(request.sessionId);
+      if (transient) {
+        const history = historyBeforeReplay(await transient.load(agentKey, "history"), request);
+        await transient.save(agentKey, "history", history);
       } else
-        await updateChatSession(request.sessionId, (session) => ({
-          ...session,
-          messages: request.messages,
-          agentStore: {
-            ...session.agentStore,
-            [`memora-chat:${request.sessionId}`]: {
-              ...session.agentStore[`memora-chat:${request.sessionId}`],
-              history: request.history,
+        await updateChatSession(request.sessionId, (session) => {
+          const store = session.agentStore[agentKey];
+          const history = historyBeforeReplay(store?.history, request);
+          return {
+            ...session,
+            messages: request.messages,
+            agentStore: {
+              ...session.agentStore,
+              [agentKey]: {
+                ...store,
+                history,
+              },
             },
-          },
-        }));
+          };
+        });
       runtime.replaceSnapshot({
         ...emptySessionSnapshot(request.sessionId, request.messages),
         revision: runtime.snapshot.revision + 1,
       });
       await runtime.checkpoint();
       break;
+    }
     case "delete":
       deletedSessions.add(request.sessionId);
       cancelTools(request.sessionId);

@@ -79,7 +79,11 @@ export interface UseAgentReturn {
   continueAfterIterationLimit: () => Promise<void>;
   dismissIterationLimitPrompt: () => void;
   abort: () => void;
-  reset: (options?: { messages?: ChatMessage[]; contextMessages?: ChatMessage[] }) => Promise<void>;
+  reset: (options?: {
+    messages?: ChatMessage[];
+    contextMessages?: ChatMessage[];
+    replayFrom?: string;
+  }) => Promise<void>;
   updateMessage: (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
   saveMemory: (key: string, value: unknown) => Promise<void>;
   loadMemory: <T = unknown>(key: string) => Promise<T | null>;

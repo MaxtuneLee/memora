@@ -40,7 +40,14 @@ export type AgentCommand =
   | { type: "unsubscribe"; sessionId: string }
   | { type: "submit"; sessionId: string; submission: AgentSubmission; storage?: "memory" }
   | { type: "abort"; sessionId: string; runId: string }
-  | { type: "reset"; sessionId: string; messages: ChatMessage[]; history: AgentMessage[] }
+  | {
+      type: "reset";
+      sessionId: string;
+      messages: ChatMessage[];
+      history: AgentMessage[];
+      /** Keep the stored history before this message; `history` is the fallback. */
+      replayFrom?: string;
+    }
   | { type: "patch-message"; sessionId: string; message: ChatMessage }
   | { type: "delete"; sessionId: string }
   | { type: "approval"; sessionId: string; approvalId: string; decision: WriteApprovalDecision }

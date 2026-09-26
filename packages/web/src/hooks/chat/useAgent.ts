@@ -119,6 +119,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         sessionId,
         messages: next?.messages ?? [],
         history: toAgentHistoryMessages(next?.contextMessages ?? next?.messages ?? []),
+        replayFrom: next?.replayFrom,
       });
       setLocalError(null);
     },

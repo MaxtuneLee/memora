@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-09-26.2
+
+- When you edit and resend an earlier message, the assistant still remembers the tool results and images from before it.
+
 ## 2026-09-26
 
 - While a reply is being written, you can scroll up to read earlier messages without being pulled back down, and the chat now scrolls smoothly.
