@@ -71,6 +71,7 @@ export const useChatModelConfig = ({
     return {
       id: sessionScopedAgentId,
       maxIterations: 20,
+      compaction: true,
     };
   }, [activeSessionId, selectedBaseUrl, selectedModel, selectedProvider]);
 

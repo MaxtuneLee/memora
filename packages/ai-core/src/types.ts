@@ -45,6 +45,7 @@ export const ToolResultContentSchema = v.object({
   name: v.string(),
   result: v.unknown(),
   isError: v.optional(v.boolean()),
+  images: v.optional(v.array(ImageContentSchema)),
 });
 
 export const AgentMessageContentSchema = v.variant("type", [
@@ -187,5 +188,7 @@ export const AgentConfigSchema = v.object({
   temperature: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),
   maxTokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   maxIterations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 10),
+  /** Shorten older history instead of dropping it, and offer the recall tool. */
+  compaction: v.optional(v.boolean()),
 });
 export type AgentConfig = v.InferInput<typeof AgentConfigSchema>;

@@ -7,6 +7,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 ## 2026-09-26.2
 
 - When you edit and resend an earlier message, the assistant still remembers the tool results and images from before it.
+- In long chats, older replies and tool results are shortened instead of dropped, and the assistant can look up the full text when it needs it.
 
 ## 2026-09-26
 

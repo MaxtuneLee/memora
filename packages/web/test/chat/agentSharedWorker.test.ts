@@ -310,6 +310,7 @@ describe("agent SharedWorker protocol", () => {
       agentStore: {
         "memora-chat:replay": {
           history: [...earlier, text("second", "user", "second"), text("reply", "assistant", "x")],
+          compaction: { compactedThrough: "call", strippedThrough: "reply" },
         },
       },
     });
@@ -325,6 +326,11 @@ describe("agent SharedWorker protocol", () => {
       replayFrom: "second",
     });
     expect(history()).toEqual(earlier);
+    // The cut removed the stripped-through message, so every kept message was sent stripped.
+    expect(state.records.get("replay")?.agentStore["memora-chat:replay"]?.compaction).toEqual({
+      compactedThrough: "call",
+      strippedThrough: "answer",
+    });
 
     await port.request({
       type: "reset",

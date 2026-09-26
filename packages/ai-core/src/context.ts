@@ -1,11 +1,14 @@
+import { rebaseCompaction, type CompactionState } from "./compaction";
 import type { AgentMessage, PersistenceAdapter } from "./types";
 import { generateId, now } from "./utils";
 
 const HISTORY_KEY = "history";
 const MEMORY_KEY = "memory";
+export const COMPACTION_KEY = "compaction";
 
 export class ContextManager {
   private messages: AgentMessage[] = [];
+  private compaction: CompactionState = {};
   private loaded = false;
 
   constructor(
@@ -16,7 +19,22 @@ export class ContextManager {
   async load(): Promise<void> {
     const history = await this.persistence.load<AgentMessage[]>(this.agentId, HISTORY_KEY);
     this.messages = history ?? [];
+    this.compaction = rebaseCompaction(
+      await this.persistence.load<CompactionState>(this.agentId, COMPACTION_KEY),
+      this.messages,
+    );
     this.loaded = true;
+  }
+
+  getCompaction(): CompactionState {
+    this.ensureLoaded();
+    return { ...this.compaction };
+  }
+
+  async setCompaction(state: CompactionState): Promise<void> {
+    this.ensureLoaded();
+    this.compaction = { ...state };
+    await this.persistence.save(this.agentId, COMPACTION_KEY, this.compaction);
   }
 
   private ensureLoaded(): void {
@@ -35,6 +53,7 @@ export class ContextManager {
     this.ensureLoaded();
     this.messages = structuredClone(messages);
     await this.persistence.save(this.agentId, HISTORY_KEY, this.messages);
+    await this.setCompaction(rebaseCompaction(this.compaction, this.messages));
   }
 
   getMessages(): AgentMessage[] {
@@ -50,14 +69,8 @@ export class ContextManager {
   async clear(): Promise<void> {
     this.messages = [];
     await this.persistence.save(this.agentId, HISTORY_KEY, this.messages);
-  }
-
-  async truncate(maxMessages: number): Promise<void> {
-    this.ensureLoaded();
-    if (this.messages.length > maxMessages) {
-      this.messages = this.messages.slice(-maxMessages);
-      await this.persistence.save(this.agentId, HISTORY_KEY, this.messages);
-    }
+    this.compaction = {};
+    await this.persistence.save(this.agentId, COMPACTION_KEY, this.compaction);
   }
 
   // Memory (long-term facts)

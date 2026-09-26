@@ -1,4 +1,11 @@
-import { createAgent, createInMemoryAdapter, type PersistenceAdapter } from "@memora/ai-core";
+import {
+  COMPACTION_KEY,
+  createAgent,
+  createInMemoryAdapter,
+  rebaseCompaction,
+  type CompactionState,
+  type PersistenceAdapter,
+} from "@memora/ai-core";
 import { createRemotePiRuntime } from "@memora/ai-provider-pi";
 import * as v from "valibot";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
@@ -299,6 +306,14 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       if (transient) {
         const history = historyBeforeReplay(await transient.load(agentKey, "history"), request);
         await transient.save(agentKey, "history", history);
+        await transient.save(
+          agentKey,
+          COMPACTION_KEY,
+          rebaseCompaction(
+            await transient.load<CompactionState>(agentKey, COMPACTION_KEY),
+            history,
+          ),
+        );
       } else
         await updateChatSession(request.sessionId, (session) => {
           const store = session.agentStore[agentKey];
@@ -311,6 +326,10 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
               [agentKey]: {
                 ...store,
                 history,
+                [COMPACTION_KEY]: rebaseCompaction(
+                  store?.[COMPACTION_KEY] as CompactionState | undefined,
+                  history,
+                ),
               },
             },
           };

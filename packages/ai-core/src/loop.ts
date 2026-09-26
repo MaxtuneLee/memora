@@ -20,7 +20,20 @@ import {
   type Model,
 } from "@earendil-works/pi-ai";
 import { clampMaxTokensToContext } from "@earendil-works/pi-ai/api/simple-options";
+import { estimateContextTokens } from "@earendil-works/pi-ai/utils/estimate";
+import * as v from "valibot";
 
+import {
+  HIGH_WATERMARK,
+  MIN_SAVINGS,
+  RECALL_TOOL_NAME,
+  RecallOutput,
+  STORED_TOOL_RESULT_MAX_CHARS,
+  isTurnStart,
+  planCompaction,
+  projectHistory,
+  recallMessage,
+} from "./compaction";
 import {
   getAssistantReasoning,
   getAssistantText,
@@ -147,6 +160,21 @@ export class Agent {
 
     const persistence = options.persistence ?? new InMemoryAdapter();
     this.context = createContextManager(this.config.id, persistence);
+
+    if (this.config.compaction) {
+      this.tools.register({
+        type: "function",
+        name: RECALL_TOOL_NAME,
+        description:
+          "Return the original content behind an omission marker in this conversation. Pass the recall ID from the marker. For long content, pass start (and optionally end) character offsets to read further.",
+        parameters: v.object({
+          id: v.string(),
+          start: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+          end: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+        }),
+        execute: (args) => recallMessage(this.context.getMessages(), args),
+      });
+    }
 
     this.state = {
       phase: "input",
@@ -290,8 +318,16 @@ export class Agent {
             toolCall.arguments,
           );
 
-          const maxResultChars = this.config.maxToolResultChars ?? 8000;
-          const result = truncateResult(rawResult, maxResultChars);
+          const images = rawResult instanceof RecallOutput ? rawResult.images : [];
+          // With compaction the request shortens results itself, so storage keeps far more of
+          // the original for recall.
+          const maxResultChars = this.config.compaction
+            ? STORED_TOOL_RESULT_MAX_CHARS
+            : (this.config.maxToolResultChars ?? 8000);
+          const result = truncateResult(
+            rawResult instanceof RecallOutput ? rawResult.text : rawResult,
+            maxResultChars,
+          );
 
           yield {
             type: "tool-result",
@@ -310,6 +346,7 @@ export class Agent {
             name: toolCall.name,
             result,
             isError,
+            ...(images.length ? { images } : {}),
           });
         }
 
@@ -418,6 +455,41 @@ export class Agent {
     }
   }
 
+  /**
+   * Render the history through the persisted compaction state, and move that state forward
+   * only at a turn start when the context passes the high watermark and the move frees enough
+   * room to be worth one prompt-cache rewrite. Anything still too large falls through to
+   * fitToContextWindow.
+   */
+  private async compactHistory(
+    history: AgentMessage[],
+    systemPrompt: string,
+  ): Promise<AgentMessage[]> {
+    const state = this.context.getCompaction();
+    const projected = projectHistory(history, state);
+    const window = this.model.contextWindow;
+    if (window <= CONTEXT_SAFETY_TOKENS || !isTurnStart(history)) return projected;
+
+    const tools = this.tools.list();
+    const estimate = (messages: AgentMessage[]) =>
+      estimateContextTokens(normalizeContext(toPiContext({ systemPrompt, messages, tools })))
+        .tokens;
+    const outputReserve = Math.min(
+      this.config.maxTokens ?? this.model.maxTokens,
+      Math.floor(window / 4),
+    );
+    const budget = window - outputReserve;
+    const before = estimate(projected);
+    if (before <= budget * HIGH_WATERMARK) return projected;
+
+    const next = planCompaction(history, state);
+    if (!next) return projected;
+    const compacted = projectHistory(history, next);
+    if (before - estimate(compacted) < budget * MIN_SAVINGS) return projected;
+    await this.context.setCompaction(next);
+    return compacted;
+  }
+
   private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
     const baseSystemPrompt = await this.prompt.compose();
     const personalityText = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
@@ -434,7 +506,10 @@ export class Agent {
       }
     }
     const history = this.context.getMessages();
-    const messages = this.fitToContextWindow(history, systemPrompt);
+    const messages = this.fitToContextWindow(
+      this.config.compaction ? await this.compactHistory(history, systemPrompt) : history,
+      systemPrompt,
+    );
 
     let text = "";
     let reasoning = "";
