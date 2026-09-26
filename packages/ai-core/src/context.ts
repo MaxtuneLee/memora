@@ -5,6 +5,12 @@ import { generateId, now } from "./utils";
 const HISTORY_KEY = "history";
 const MEMORY_KEY = "memory";
 export const COMPACTION_KEY = "compaction";
+const RECAP_KEY = "recap";
+
+export interface Recap {
+  through: string;
+  text: string;
+}
 
 export class ContextManager {
   private messages: AgentMessage[] = [];
@@ -71,6 +77,15 @@ export class ContextManager {
     await this.persistence.save(this.agentId, HISTORY_KEY, this.messages);
     this.compaction = {};
     await this.persistence.save(this.agentId, COMPACTION_KEY, this.compaction);
+  }
+
+  /** The latest idle recap and the last message it covers. */
+  async loadRecap(): Promise<Recap | null> {
+    return this.persistence.load<Recap>(this.agentId, RECAP_KEY);
+  }
+
+  async saveRecap(recap: Recap): Promise<void> {
+    await this.persistence.save(this.agentId, RECAP_KEY, recap);
   }
 
   // Memory (long-term facts)

@@ -55,6 +55,15 @@ const styles = stylex.create({
     ":hover": { backgroundColor: tokens.warningSurface },
     ":disabled": { cursor: "not-allowed", opacity: 0.6 },
   },
+  recap: {
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    paddingBlock: 12,
+    paddingInline: 16,
+  },
+  recapLabel: { color: tokens.textMuted, fontSize: 12, fontWeight: 500, marginBottom: 4 },
+  recapText: { color: tokens.text, fontSize: 14, lineHeight: 1.6 },
   error: {
     backgroundColor: tokens.dangerSurface,
     borderRadius: 12,
@@ -78,6 +87,7 @@ interface ChatPageMessagesPanelProps {
   isPreparingTurn: boolean;
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: { iterations: number } | null;
+  recap: string | null;
   error: Error | null;
   greetingTitle: string;
   isConfigured: boolean;
@@ -105,6 +115,7 @@ export const ChatPageMessagesPanel = ({
   isPreparingTurn,
   savingAttachmentIds,
   iterationLimitPrompt,
+  recap,
   error,
   greetingTitle,
   isConfigured,
@@ -160,6 +171,17 @@ export const ChatPageMessagesPanel = ({
           />
         );
       })}
+      {recap && !isStreaming && (
+        <motion.aside
+          aria-label="Recap"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          {...stylex.props(styles.recap)}
+        >
+          <p {...stylex.props(styles.recapLabel)}>Where you left off</p>
+          <p {...stylex.props(styles.recapText)}>{recap}</p>
+        </motion.aside>
+      )}
       {iterationLimitPrompt && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}

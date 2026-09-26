@@ -24,8 +24,14 @@ import { estimateContextTokens } from "@earendil-works/pi-ai/utils/estimate";
 import * as v from "valibot";
 
 import {
+  CACHE_TTL_MS,
   HIGH_WATERMARK,
+  MAX_SUMMARY_FAILURES,
   MIN_SAVINGS,
+  RECAP_INSTRUCTION,
+  SUMMARY_INSTRUCTION,
+  protectedBoundary,
+  type CompactionState,
   RECALL_TOOL_NAME,
   RecallOutput,
   STORED_TOOL_RESULT_MAX_CHARS,
@@ -53,6 +59,11 @@ const truncateResult = (result: unknown, maxChars: number): unknown => {
   const truncated = str.slice(0, maxChars);
   return truncated + `\n\n[Truncated: showing ${maxChars} of ${str.length} characters]`;
 };
+
+const SUMMARY_MAX_TOKENS = 8_192;
+const RECAP_MAX_TOKENS = 512;
+/** Short conversations need no recap. */
+const RECAP_MIN_TOKENS = 8_000;
 
 /** Below this a response is too short to be worth sending, so we fail loudly instead. */
 const MIN_OUTPUT_TOKENS = 512;
@@ -123,6 +134,8 @@ export interface AgentOptions {
   stream: ModelStream;
   hooks?: AgentHooks;
   persistence?: PersistenceAdapter;
+  /** Writes compaction summaries and idle recaps; defaults to the main model. */
+  compactionModel?: { model: Model<Api>; stream: ModelStream };
 }
 
 export class Agent {
@@ -147,6 +160,7 @@ export class Agent {
   private hooks: AgentHooks;
   private model: Model<Api>;
   private stream: ModelStream;
+  private compactionModel: { model: Model<Api>; stream: ModelStream };
   private state: LoopState;
   private abortController: AbortController | null = null;
 
@@ -154,6 +168,10 @@ export class Agent {
     this.config = options.config;
     this.model = options.model;
     this.stream = options.stream;
+    this.compactionModel = options.compactionModel ?? {
+      model: options.model,
+      stream: options.stream,
+    };
     this.hooks = options.hooks ?? {};
     this.tools = createToolRegistry();
     this.prompt = createPromptComposer();
@@ -455,50 +473,182 @@ export class Agent {
     }
   }
 
+  private estimateTokens(systemPrompt: string, messages: AgentMessage[]): number {
+    const tools = this.tools.list();
+    return estimateContextTokens(normalizeContext(toPiContext({ systemPrompt, messages, tools })))
+      .tokens;
+  }
+
   /**
    * Render the history through the persisted compaction state, and move that state forward
-   * only at a turn start when the context passes the high watermark and the move frees enough
-   * room to be worth one prompt-cache rewrite. Anything still too large falls through to
-   * fitToContextWindow.
+   * only at a turn start:
+   * - after the cache expired, shrink older turns further and show a recap written meanwhile;
+   * - past the high watermark, compact older turns when that frees enough room to be worth one
+   *   prompt-cache rewrite, then summarize them if the context is still too large.
+   * Anything still too large falls through to fitToContextWindow.
    */
   private async compactHistory(
     history: AgentMessage[],
     systemPrompt: string,
   ): Promise<AgentMessage[]> {
-    const state = this.context.getCompaction();
-    const projected = projectHistory(history, state);
-    const window = this.model.contextWindow;
-    if (window <= CONTEXT_SAFETY_TOKENS || !isTurnStart(history)) return projected;
+    let state = this.context.getCompaction();
+    if (!isTurnStart(history)) return projectHistory(history, state);
 
-    const tools = this.tools.list();
-    const estimate = (messages: AgentMessage[]) =>
-      estimateContextTokens(normalizeContext(toPiContext({ systemPrompt, messages, tools })))
-        .tokens;
+    const input = history[history.length - 1]!;
+    const lastReply = history
+      .slice(0, -1)
+      .reverse()
+      .find((message) => message.role === "assistant");
+    if (lastReply && input.createdAt - lastReply.createdAt > CACHE_TTL_MS) {
+      const recap = await this.context.loadRecap();
+      const withRecap =
+        recap && recap.through === history[history.length - 2]?.id
+          ? { ...state, recaps: [...(state.recaps ?? []), { before: input.id, text: recap.text }] }
+          : state;
+      const next = planCompaction(history, withRecap, true) ?? withRecap;
+      if (next !== state) {
+        state = next;
+        await this.context.setCompaction(state);
+      }
+    }
+
+    let projected = projectHistory(history, state);
+    const window = this.model.contextWindow;
+    if (window <= CONTEXT_SAFETY_TOKENS) return projected;
     const outputReserve = Math.min(
       this.config.maxTokens ?? this.model.maxTokens,
       Math.floor(window / 4),
     );
     const budget = window - outputReserve;
-    const before = estimate(projected);
-    if (before <= budget * HIGH_WATERMARK) return projected;
+    let tokens = this.estimateTokens(systemPrompt, projected);
+    if (tokens <= budget * HIGH_WATERMARK) return projected;
 
     const next = planCompaction(history, state);
-    if (!next) return projected;
-    const compacted = projectHistory(history, next);
-    if (before - estimate(compacted) < budget * MIN_SAVINGS) return projected;
-    await this.context.setCompaction(next);
-    return compacted;
+    if (next) {
+      const compacted = projectHistory(history, next);
+      const after = this.estimateTokens(systemPrompt, compacted);
+      if (tokens - after >= budget * MIN_SAVINGS) {
+        state = next;
+        await this.context.setCompaction(state);
+        projected = compacted;
+        tokens = after;
+      }
+    }
+    if (tokens <= budget * HIGH_WATERMARK) return projected;
+    return (await this.summarize(history, state, systemPrompt)) ?? projected;
   }
 
-  private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
+  /** Replace the turns before the protected recent ones with one summary. */
+  private async summarize(
+    history: AgentMessage[],
+    state: CompactionState,
+    systemPrompt: string,
+  ): Promise<AgentMessage[] | undefined> {
+    if ((state.summaryFailures ?? 0) >= MAX_SUMMARY_FAILURES) return undefined;
+    const boundary = protectedBoundary(history);
+    const summarizedEnd = state.summary
+      ? history.findIndex((message) => message.id === state.summary?.through)
+      : -1;
+    if (boundary <= summarizedEnd) return undefined;
+    let next: CompactionState;
+    try {
+      const text = await this.complete(
+        systemPrompt,
+        projectHistory(history.slice(0, boundary + 1), state),
+        SUMMARY_INSTRUCTION,
+        SUMMARY_MAX_TOKENS,
+      );
+      next = {
+        ...(planCompaction(history, state) ?? state),
+        summary: { through: history[boundary]!.id, text },
+        summaryFailures: 0,
+      };
+    } catch (error) {
+      if (this.abortController?.signal.aborted) throw error;
+      await this.context.setCompaction({
+        ...state,
+        summaryFailures: (state.summaryFailures ?? 0) + 1,
+      });
+      return undefined;
+    }
+    await this.context.setCompaction(next);
+    return projectHistory(history, next);
+  }
+
+  /**
+   * One tool-less completion from the compaction model: the conversation as the model sees it,
+   * then the instruction. Replaying the same system prompt, tools, and messages lets the
+   * provider serve the prefix from cache.
+   */
+  private async complete(
+    systemPrompt: string,
+    messages: AgentMessage[],
+    instruction: string,
+    maxTokens: number,
+  ): Promise<string> {
+    const request = this.fitToContextWindow(
+      [
+        ...messages,
+        {
+          id: "compaction-instruction",
+          role: "user",
+          content: [{ type: "text", text: instruction }],
+          createdAt: now(),
+        },
+      ],
+      systemPrompt,
+    );
+    const { model, stream } = this.compactionModel;
+    const events = await stream(
+      model,
+      toPiContext({ systemPrompt, messages: request, tools: this.tools.list() }),
+      {
+        maxTokens: Math.min(maxTokens, model.maxTokens || maxTokens),
+        ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
+      },
+    );
+    let text = "";
+    let final: AssistantMessage | undefined;
+    for await (const event of events) {
+      if (event.type === "text_delta") text += event.delta;
+      if (event.type === "done") final = event.message;
+      if (event.type === "error")
+        throw new Error(event.error.errorMessage || "Compaction request failed.");
+    }
+    if (final) {
+      if (final.stopReason === "length") throw new Error("The summary was cut off.");
+      text = getAssistantText(final);
+    }
+    if (!text.trim()) throw new Error("The model returned no text.");
+    return text.trim();
+  }
+
+  /**
+   * Write a one-paragraph recap for a user who stepped away, once per finished turn. Returns
+   * undefined when a turn is still open, the conversation is short, or it is already recapped.
+   */
+  async generateRecap(): Promise<string | undefined> {
+    const history = this.context.getMessages();
+    const last = history[history.length - 1];
+    if (last?.role !== "assistant") return undefined;
+    if ((await this.context.loadRecap())?.through === last.id) return undefined;
+    const systemPrompt = await this.composeSystemPrompt();
+    const projected = projectHistory(history, this.context.getCompaction());
+    if (this.estimateTokens(systemPrompt, projected) < RECAP_MIN_TOKENS) return undefined;
+    const text = await this.complete(systemPrompt, projected, RECAP_INSTRUCTION, RECAP_MAX_TOKENS);
+    await this.context.saveRecap({ through: last.id, text });
+    return text;
+  }
+
+  private async composeSystemPrompt(): Promise<string> {
     const baseSystemPrompt = await this.prompt.compose();
     const personalityText = await this.context.loadMemory<string>(PERSONALITY_MEMORY_KEY);
     const notices = (await this.context.loadMemory<MemoryNotice[]>(NOTICES_MEMORY_KEY)) ?? [];
-    const systemPrompt = mergeSystemPromptWithMemory(
-      baseSystemPrompt,
-      personalityText ?? "",
-      notices,
-    );
+    return mergeSystemPromptWithMemory(baseSystemPrompt, personalityText ?? "", notices);
+  }
+
+  private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
+    const systemPrompt = await this.composeSystemPrompt();
     const steered: string[] = [];
     while (this.steeringInputs.length > 0) {
       for (const message of this.takeUnconsumedSteering()) {

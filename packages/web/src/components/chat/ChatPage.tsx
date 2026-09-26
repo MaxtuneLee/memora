@@ -125,11 +125,12 @@ export const Component = () => {
     return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
   }, [activeSessionId]);
 
-  const { agentConfig, providerConfig, isConfigured, selectedModelInfo } = useChatModelConfig({
-    providers,
-    settings,
-    activeSessionId,
-  });
+  const { agentConfig, providerConfig, compactionProviderConfig, isConfigured, selectedModelInfo } =
+    useChatModelConfig({
+      providers,
+      settings,
+      activeSessionId,
+    });
 
   const remoteTools = useMemo(
     () =>
@@ -157,6 +158,7 @@ export const Component = () => {
     thinkingSteps,
     thinkingCollapsed,
     iterationLimitPrompt,
+    recap,
     error,
     send,
     continueAfterIterationLimit,
@@ -170,6 +172,7 @@ export const Component = () => {
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
     providerConfig,
+    compactionProviderConfig,
     getReferenceScope: references.getReferenceScope,
     deliveryMode: settings.agentDeliveryMode ?? "pending",
     promptSegments: activePromptSegments,
@@ -507,6 +510,7 @@ export const Component = () => {
         isPreparingTurn={turnActions.isPreparingTurn}
         savingAttachmentIds={composerImages.savingImageAttachmentIdSet}
         iterationLimitPrompt={iterationLimitPrompt}
+        recap={recap}
         error={error}
         messagesContentRef={messagesContentRef}
         messagesScrollAreaRef={messagesScrollAreaRef}

@@ -17,6 +17,8 @@ export interface SessionRuntimeOptions {
   createRunner: (submission: AgentSubmission) => Promise<SessionRunner>;
   save: (snapshot: SessionSnapshot) => Promise<void>;
   publish: (snapshot: SessionSnapshot) => void;
+  /** Called when the queue has drained, with the submission that ran last. */
+  onIdle?: (lastSubmission: AgentSubmission) => void;
 }
 
 /** One owner serializes each session; different instances run independently. */
@@ -85,6 +87,7 @@ export class SessionRuntime {
     if (this.accepted.has(submission.id)) return;
     this.accepted.add(submission.id);
     this.snapshot.acceptedSubmissionIds = [...this.accepted];
+    this.snapshot.recap = undefined;
     if (submission.mode !== "steer" || !this.trySteer(submission)) {
       this.queue.push(submission);
       this.syncPending();
@@ -98,6 +101,14 @@ export class SessionRuntime {
       throw error;
     }
     void this.drain();
+  }
+
+  /** Show a recap written while idle, unless work started in the meantime. */
+  async setRecap(text: string): Promise<void> {
+    if (this.snapshot.activeRunId || this.queue.length) return;
+    this.snapshot.recap = text;
+    this.publish();
+    await this.checkpoint();
   }
 
   /** Move a queued message into the running task as a steer. Returns false when none runs. */
@@ -328,10 +339,12 @@ export class SessionRuntime {
   private async drain(): Promise<void> {
     if (this.draining) return;
     this.draining = true;
+    let last: AgentSubmission | undefined;
     try {
       while (this.queue.length) {
         const submission = this.queue.shift();
         if (!submission) break;
+        last = submission;
         this.stopped = false;
         this.snapshot = {
           ...this.snapshot,
@@ -407,6 +420,7 @@ export class SessionRuntime {
     } finally {
       this.draining = false;
       for (const resolve of this.idleWaiters.splice(0)) resolve();
+      if (last) this.options.onIdle?.(last);
     }
   }
 }

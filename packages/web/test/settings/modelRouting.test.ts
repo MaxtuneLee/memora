@@ -26,6 +26,23 @@ describe("feature model routing", () => {
       expect(explicit[feature]).toEqual({ source: "local", modelId: "qwen3.5-0.8b-onnx-opt" });
     },
   );
+  test("long conversations follow chat or use a cloud model, never a local one", () => {
+    const routing = normalizeAiModelRouting({}, { selectedProviderId: "p", selectedModel: "chat" });
+    expect(routing.contextCompaction).toEqual({ source: "inherit", featureId: "assistant" });
+    expect(
+      parseFeatureModelRoute("contextCompaction", {
+        source: "cloud",
+        providerId: "p",
+        modelId: "small",
+      }),
+    ).toEqual({ source: "cloud", providerId: "p", modelId: "small" });
+    expect(
+      parseFeatureModelRoute("contextCompaction", {
+        source: "local",
+        modelId: "qwen3.5-0.8b-onnx-opt",
+      }),
+    ).toBeNull();
+  });
   test("a damaged local configuration never inherits a working cloud model", () => {
     const routing = normalizeAiModelRouting({
       assistant: { source: "cloud", providerId: "cloud", modelId: "chat" },

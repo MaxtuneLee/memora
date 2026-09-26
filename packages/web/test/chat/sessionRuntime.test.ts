@@ -126,6 +126,29 @@ describe("session execution", () => {
     await vi.waitFor(() => expect(h.runtime.snapshot.activeRunId).toBeUndefined());
   });
 
+  it("reports the last submission when idle and clears a recap on the next message", async () => {
+    const idle: string[] = [];
+    const runtime = new SessionRuntime({
+      snapshot: emptySessionSnapshot("recap"),
+      publish: () => {},
+      save: async () => {},
+      onIdle: (last) => idle.push(last.id),
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {},
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+    await runtime.submit(submission("a"));
+    await vi.waitFor(() => expect(idle).toEqual(["a"]));
+    await runtime.setRecap("You were reading about rivers.");
+    expect(runtime.snapshot.recap).toBe("You were reading about rivers.");
+    await runtime.submit(submission("b"));
+    expect(runtime.snapshot.recap).toBeUndefined();
+    await vi.waitFor(() => expect(idle).toEqual(["a", "b"]));
+  });
+
   it("steers a queued message into the running task", async () => {
     const h = harness();
     await h.runtime.submit(submission("a"));

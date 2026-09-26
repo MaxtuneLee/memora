@@ -71,6 +71,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         // Capture page-derived scope and configuration before the first asynchronous boundary.
         const scope = structuredClone(options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE);
         const provider = structuredClone(options.providerConfig);
+        const compactionProvider = structuredClone(options.compactionProviderConfig);
         const prompts = await Promise.all(
           (options.promptSegments ?? []).map(async (segment) => ({
             ...segment,
@@ -88,6 +89,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
             message,
             mode: turnOptions?.mode ?? options.deliveryMode ?? "pending",
             provider,
+            ...(compactionProvider ? { compactionProvider } : {}),
             config: { ...options.config, id: `memora-chat:${sessionId}` } as AgentConfig,
             prompts,
             scope,
@@ -154,6 +156,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   return {
     messages: snapshot.messages,
     pendingMessages: snapshot.pending.map(({ id, text }) => ({ id, text })),
+    recap: snapshot.recap ?? null,
     pendingWriteApproval: snapshot.approval?.request ?? null,
     resolveWriteApproval,
     isStreaming: Boolean(snapshot.activeRunId),

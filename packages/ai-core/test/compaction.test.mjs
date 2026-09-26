@@ -199,3 +199,103 @@ test("rebases compaction IDs after the history is cut", () => {
   assert.deepStrictEqual(rebaseCompaction({ compactedThrough: "a9" }, []), {});
   assert.deepStrictEqual(rebaseCompaction(null, messages), {});
 });
+
+const isInstruction = (context) =>
+  textOf(context.messages.at(-1)).includes("compaction engine") ||
+  textOf(context.messages.at(-1)).includes("stepped away");
+
+const summaryAgent = (id, compactionStream) => {
+  const requests = [];
+  const agent = createAgent({
+    config: { id, maxIterations: 1, compaction: true },
+    model: fakeModel,
+    stream: (_model, context) => {
+      requests.push(context);
+      return answer();
+    },
+    compactionModel: { model: fakeModel, stream: compactionStream },
+    persistence: createInMemoryAdapter(),
+  });
+  return { agent, requests };
+};
+
+// User text is never shortened, so only a summary can bring this history under the watermark.
+const longUserHistory = () => {
+  const history = [];
+  for (let turn = 1; turn <= 6; turn++)
+    history.push(user(`u${turn}`, "q".repeat(20_000)), assistant(`a${turn}`, "short answer"));
+  return history;
+};
+
+test("summarizes older turns with the compaction model when shortening is not enough", async () => {
+  const summaryRequests = [];
+  const { agent, requests } = summaryAgent("summary", (_model, context) => {
+    summaryRequests.push(context);
+    return (async function* stream() {
+      yield { type: "text_delta", delta: "## Primary request and intent\n- test" };
+    })();
+  });
+  await agent.init();
+  await agent.replaceHistory(longUserHistory());
+  for await (const _event of agent.run("next")) {
+    // drain
+  }
+
+  assert.equal(summaryRequests.length, 1);
+  assert.ok(isInstruction(summaryRequests[0]));
+  assert.equal(requests.length, 1);
+  const first = textOf(requests[0].messages[0]);
+  assert.ok(first.includes("<summary>\n## Primary request and intent\n- test\n</summary>"));
+  assert.ok(first.includes("- u1: qqq"));
+  assert.ok(first.includes("- u4: qqq"));
+  // Turns 5, 6 and the new input stay verbatim after the summary.
+  assert.equal(textOf(requests[0].messages[1]), "q".repeat(20_000));
+  assert.equal(agent.context.getCompaction().summary.through, "a4");
+});
+
+test("stops summarizing after three failures in a row", async () => {
+  let attempts = 0;
+  const { agent } = summaryAgent("summary-fail", () => {
+    attempts += 1;
+    return (async function* stream() {
+      yield { type: "error", reason: "error", error: { errorMessage: "down" } };
+    })();
+  });
+  await agent.init();
+  await agent.replaceHistory(longUserHistory());
+  for (let run = 0; run < 4; run++) {
+    for await (const _event of agent.run(`next ${run}`)) {
+      // drain
+    }
+  }
+  assert.equal(attempts, 3);
+  assert.equal(agent.context.getCompaction().summaryFailures, 3);
+});
+
+test("writes one recap per finished turn and shows it after the cache expired", async () => {
+  const { agent, requests } = summaryAgent("recap", (_model, context) => {
+    assert.ok(isInstruction(context));
+    return (async function* stream() {
+      yield { type: "text_delta", delta: "You were comparing river valleys." };
+    })();
+  });
+  await agent.init();
+  const history = [];
+  for (let turn = 1; turn <= 4; turn++)
+    history.push(user(`u${turn}`), assistant(`a${turn}`, "y".repeat(10_000)));
+  await agent.replaceHistory(history);
+
+  assert.equal(await agent.generateRecap(), "You were comparing river valleys.");
+  assert.equal(await agent.generateRecap(), undefined);
+
+  // Back after more than the cache TTL.
+  for await (const _event of agent.run({ ...user("u5", "back"), createdAt: 1 + 6 * 60_000 })) {
+    // drain
+  }
+  const messages = requests[0].messages;
+  assert.ok(textOf(messages.at(-2)).includes("You were comparing river valleys."));
+  assert.equal(textOf(messages.at(-1)), "back");
+  // Turn 1 is outside the protected turns and uses the tighter limits.
+  const firstReply = textOf(messages.find((message) => message.role === "assistant"));
+  assert.ok(firstReply.includes("recall ID: a1") && firstReply.length < 1_000);
+});

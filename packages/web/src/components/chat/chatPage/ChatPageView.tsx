@@ -44,6 +44,7 @@ export const ChatPageView = (props: {
   isPreparingTurn: boolean;
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: Parameters<typeof ChatPageMessagesPanel>[0]["iterationLimitPrompt"];
+  recap: string | null;
   error: Error | null;
   messagesContentRef: React.RefObject<HTMLDivElement | null>;
   messagesScrollAreaRef: React.RefObject<HTMLDivElement | null>;
@@ -91,6 +92,7 @@ export const ChatPageView = (props: {
     isPreparingTurn,
     savingAttachmentIds,
     iterationLimitPrompt,
+    recap,
     error,
     messagesContentRef,
     messagesScrollAreaRef,
@@ -166,6 +168,7 @@ export const ChatPageView = (props: {
                   isPreparingTurn={isPreparingTurn}
                   savingAttachmentIds={savingAttachmentIds}
                   iterationLimitPrompt={iterationLimitPrompt}
+                  recap={recap}
                   error={error}
                   greetingTitle={greetingTitle}
                   isConfigured={isConfigured}

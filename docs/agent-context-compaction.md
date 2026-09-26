@@ -10,11 +10,14 @@ The model request is rebuilt from the session record on every turn. Compaction c
 | Microcompact                  | Implemented | `compaction.ts`, `Agent.compactHistory` in `packages/ai-core/src/loop.ts` |
 | Recall tool                   | Implemented | `recallMessage` in `compaction.ts`                                        |
 | State after history rewrites  | Implemented | `rebaseCompaction`, the `reset` handler in `agent.shared-worker.ts`       |
-| Summary                       | Not started |                                                                           |
+| Summary                       | Implemented | `Agent.summarize` in `loop.ts`                                            |
+| Idle recap and cold-cache run | Implemented | `Agent.generateRecap`, `writeRecap` in `agent.shared-worker.ts`           |
+| Compaction model setting      | Implemented | `contextCompaction` in `modelRouting.ts`, shown as Long conversations     |
 | Provider overflow retry       | Not started |                                                                           |
-| Idle recap and cold-cache run | Not started |                                                                           |
 
-Compaction is enabled for chat sessions through `compaction: true` in the agent configuration (`useChatModelConfig.ts`). Other agents keep the previous behavior. Until the summary layer exists, anything microcompact cannot fit falls through to `fitToContextWindow`, which drops the oldest turns from that request without persisting the change.
+Compaction is enabled for chat sessions through `compaction: true` in the agent configuration (`useChatModelConfig.ts`). Other agents keep the previous behavior. Anything the layers cannot fit falls through to `fitToContextWindow`, which drops the oldest turns from that request without persisting the change.
+
+Summaries and recaps use the model chosen for Long conversations in Settings > Models by feature. It follows the chat model by default and can be any cloud model. It runs inside the agent worker, which only reaches cloud models, so there is no local option.
 
 ## Principles
 
@@ -27,12 +30,16 @@ Compaction is enabled for chat sessions through `compaction: true` in the agent 
 
 ## State
 
-The state is saved under the `compaction` key of the agent store and holds two inclusive message IDs:
+The state is saved under the `compaction` key of the agent store. Message IDs are inclusive:
 
 - `compactedThrough`: messages up to this one render in their shortened form.
+- `coldThrough`: messages up to this one use the tighter limits of a run after the cache expired.
 - `strippedThrough`: messages up to this one render without reasoning or the stored provider message.
+- `summary`: messages up to `through` are replaced by the summary text.
+- `summaryFailures`: consecutive failed summaries.
+- `recaps`: recaps injected before the user message they preceded.
 
-A compaction event sets `compactedThrough` to the message before the protected recent turns and `strippedThrough` to the message before the new user input. Neither moves backwards.
+A compaction event sets `compactedThrough` to the message before the protected recent turns and `strippedThrough` to the message before the new user input. No ID moves backwards.
 
 ## Layers
 
@@ -59,9 +66,9 @@ No model call is made. If the move frees less than the minimum savings, the stat
 
 ### 3. Summary
 
-If microcompact leaves the context above the watermark, the oldest turns are replaced by one structured, multi-section summary. The summary request replays the current request prefix and appends the instruction as the last user message, so it reuses the prompt cache. The summarized turns remain recallable by ID.
+If microcompact leaves the context above the watermark, every message before the protected recent turns is replaced by one user message holding a structured, multi-section summary. The request replays the system prompt, tools, and messages as the model already sees them and appends the instruction as the last user message, so the provider can serve the prefix from cache. An earlier summary is part of that prefix, and the instruction asks the model to merge it.
 
-After three consecutive failed compactions the runtime stops trying and reports that the context is full.
+The summary message ends with one line per summarized user message, giving its recall ID and first words, so the originals stay reachable through `recall_message`. A summary cut off by the output limit, an empty reply, or a request error counts as a failure. After three failures in a row the agent stops summarizing for the session and the request falls through to `fitToContextWindow`.
 
 ### Provider overflow
 
@@ -71,13 +78,13 @@ A context-overflow error from the provider runs the layers above and retries the
 
 A recap is one short paragraph describing where the conversation stands. It is optional and separate from the compaction summary.
 
-- The worker generates it when a session has been idle for `T_recap`, which is shorter than the provider cache TTL, so the recap request is served mostly from cache.
-- It is generated only when the agent has finished its turn, the conversation is above the minimum size, and enough has happened since the last recap.
-- It is stored with the session and replaced by the next recap.
-- Timers run in the SharedWorker. If the worker has terminated, no recap is generated, and none is created later.
-- The chat shows the latest recap after the last message when the user returns. It is not a chat message and is not added to the history except as described below.
+- When a session's queue drains, the worker starts a timer for `T_recap`, which is shorter than the cache TTL, so the recap request replays a prefix the provider still has cached.
+- It is written only when the last message is a finished reply, the conversation is above the minimum size, and no recap covers that reply yet.
+- It is stored under the `recap` key of the agent store with the ID of the reply it covers, and in the session snapshot for display.
+- Timers run in the SharedWorker. If the worker has terminated, no recap is written, and none is created later.
+- The chat shows the recap after the last message under "Where you left off". It is not a chat message. The next message clears it from the snapshot.
 
-On the next send:
+On the next send, the gap is measured from the last reply to the new user message:
 
 | Gap since last model response      | Action                                                                                                   |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -85,7 +92,7 @@ On the next send:
 | Beyond the cache TTL, recap exists | Run microcompact with the lower cold-cache threshold, then append the recap before the new user message. |
 | Beyond the cache TTL, no recap     | Run microcompact with the lower cold-cache threshold only.                                               |
 
-When the cache has expired, the full prefix is rewritten anyway, so the cold-cache run shortens more. Its limits must be persisted with the state, because rendering has to stay reproducible.
+When the cache has expired, the full prefix is rewritten anyway, so the cold-cache run shortens more and needs no minimum savings. `coldThrough` records where the tighter limits apply, so rendering stays reproducible. The injected recap is a user message that says it was shown to the user while they were away.
 
 ## Recall
 
@@ -109,14 +116,17 @@ Starting values, to be tuned against real sessions:
 | ----------------------------------------- | -------------------------------------------------- |
 | Write limit: threshold, head, tail        | 8,000 / 6,000 / 1,500 characters                   |
 | Microcompact limit: threshold, head, tail | 2,000 / 1,000 / 500 characters                     |
+| Cold-cache limit: threshold, head, tail   | 1,000 / 500 / 250 characters                       |
 | Stored tool result                        | 100,000 characters                                 |
 | Recall page                               | 7,000 characters                                   |
 | Protected recent turns                    | 3 user turns, counting the one being answered      |
 | Input budget                              | Context window minus min(output limit, window ÷ 4) |
 | High watermark                            | 80% of the input budget                            |
 | Minimum savings                           | 10% of the input budget                            |
-| Cache TTL                                 | Per provider; 5 minutes when unknown               |
+| Cache TTL                                 | 5 minutes for every provider                       |
 | `T_recap`                                 | TTL minus 1 minute                                 |
 | Minimum conversation size for a recap     | 8,000 tokens                                       |
+| Summary and recap output limit            | 8,192 and 512 tokens                               |
+| Summary failures before stopping          | 3                                                  |
 
 Token estimates use `estimateContextTokens` from pi-ai, the same estimate that clamps the response limit.
