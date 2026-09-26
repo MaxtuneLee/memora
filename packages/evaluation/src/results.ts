@@ -2,6 +2,7 @@ import { EvaluationError } from "./errors";
 import { parseEvaluationResult } from "./schema";
 import { opfsResultStorage, type ResultStorage } from "./storage";
 import type { DatasetSelection } from "@memora/datasets";
+import type { AgentEvaluationResult } from "./agentTypes";
 import type { EvaluationResult, EvaluationSummary, ModelIdentity } from "./types";
 
 export type { ResultStorage } from "./storage";
@@ -86,4 +87,45 @@ export async function readEvaluationResult(
       cause: error,
     });
   }
+}
+
+const AGENT_STORAGE_ROOT = "/memora/agent-evaluations";
+const agentResultPath = (evaluationId: string) =>
+  `${AGENT_STORAGE_ROOT}/${encodeURIComponent(evaluationId)}.json`;
+
+export async function saveAgentEvaluationResult(
+  result: AgentEvaluationResult,
+  options: ResultStorageOptions = {},
+): Promise<void> {
+  try {
+    await resolveStorage(options).write(
+      agentResultPath(result.evaluationId),
+      JSON.stringify(result),
+    );
+  } catch (error) {
+    throw new EvaluationError("save-failed", "The agent evaluation result could not be saved.", {
+      cause: error,
+    });
+  }
+}
+
+// ponytail: checks kind and format version only; add a valibot schema when results are listed or migrated.
+export async function readAgentEvaluationResult(
+  evaluationId: string,
+  options: ResultStorageOptions = {},
+): Promise<AgentEvaluationResult> {
+  const storage = resolveStorage(options);
+  const path = agentResultPath(evaluationId);
+  if (!(await storage.exists(path)))
+    throw new EvaluationError("not-found", `No saved agent evaluation ${evaluationId}.`);
+  const corrupted = `The agent evaluation ${evaluationId} is corrupted.`;
+  let parsed: Partial<AgentEvaluationResult> | null;
+  try {
+    parsed = JSON.parse(await storage.readText(path));
+  } catch (error) {
+    throw new EvaluationError("invalid-result", corrupted, { cause: error });
+  }
+  if (parsed?.kind !== "agent" || parsed.formatVersion !== 1)
+    throw new EvaluationError("invalid-result", corrupted);
+  return parsed as AgentEvaluationResult;
 }
