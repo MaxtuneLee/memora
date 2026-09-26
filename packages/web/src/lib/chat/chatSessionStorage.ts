@@ -94,6 +94,18 @@ const normalizeSessionPath = (sessionId: string): string => {
   return `${CHAT_SESSIONS_DIR}/${safeId}.json`;
 };
 
+/**
+ * A deleted session leaves this marker so a late write (a title that finishes generating, a
+ * worker checkpoint) cannot recreate it. Session IDs are never reused.
+ */
+const tombstonePath = (sessionId: string): string =>
+  normalizeSessionPath(sessionId).replace(/\.json$/, ".deleted");
+
+const assertNotDeleted = async (sessionId: string): Promise<void> => {
+  if (await opfsFile(tombstonePath(sessionId)).exists())
+    throw new Error("This session has been deleted.");
+};
+
 const ensureSessionsDir = async (): Promise<void> => {
   await opfsDir(CHAT_SESSIONS_DIR).create();
 };
@@ -367,6 +379,7 @@ export const updateChatSession = async (
 ): Promise<ChatSessionRecord> => {
   return runSessionMutation(sessionId, async () => {
     const existing = await loadChatSession(sessionId);
+    if (!existing) await assertNotDeleted(sessionId);
     const base = existing ?? createEmptyRecord(sessionId);
     const next = await updater(base);
     const normalizedMessages = normalizeMessages(next.messages);
@@ -418,14 +431,19 @@ export const updateChatSessionMessages = async (
 export const ensureChatSession = async (sessionId: string): Promise<ChatSessionRecord> => {
   const existing = await loadChatSession(sessionId);
   if (existing) return existing;
+  await assertNotDeleted(sessionId);
   const record = createEmptyRecord(sessionId);
   await writeRecord(record);
   return record;
 };
 
 export const deleteChatSession = async (sessionId: string): Promise<void> => {
-  const path = normalizeSessionPath(sessionId);
-  await opfsFile(path).remove({ force: true });
+  // Inside the session lock, so a write already queued lands before the marker, not after.
+  await runSessionMutation(sessionId, async () => {
+    await ensureSessionsDir();
+    await opfsWrite(tombstonePath(sessionId), "", { overwrite: true });
+    await opfsFile(normalizeSessionPath(sessionId)).remove({ force: true });
+  });
   await deleteChatSessionAssets(sessionId);
   sessionQueue.delete(sessionId);
 };
