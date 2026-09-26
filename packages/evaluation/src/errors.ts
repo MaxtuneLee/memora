@@ -1,4 +1,8 @@
-export type EvaluationErrorCode = "save-failed" | "not-found" | "invalid-result";
+export type EvaluationErrorCode =
+  | "save-failed"
+  | "not-found"
+  | "invalid-result"
+  | "invalid-questions";
 
 export class EvaluationError extends Error {
   readonly code: EvaluationErrorCode;
