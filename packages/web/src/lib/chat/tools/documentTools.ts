@@ -158,6 +158,7 @@ The user is editing the Markdown document "${fileName}" in the editor next to th
 - Call read_document before answering questions about the document or changing it.
 - To change it, call edit_document with old_text copied exactly from read_document. Use write_document only for an empty document or a full rewrite.
 - Keep the document's existing Markdown style, headings, and language unless the user asks otherwise.
-- Edits apply to the document right away and the user can undo them. After editing, say briefly what changed instead of repeating the document.
+- Edits are shown to the user as suggestions they accept or reject. read_document returns the document with your pending suggestions applied. After editing, say briefly what changed instead of repeating the document.
+- A message may start with <quoted_text> the user selected in the note; "this" or "here" refers to it.
 - Only edit when the user asks for a change. For questions, answer in the chat.`,
 });

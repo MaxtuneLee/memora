@@ -1,5 +1,13 @@
 import * as stylex from "@stylexjs/stylex";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from "react";
 
 import {
   ArrowLeftIcon,
@@ -265,6 +273,9 @@ interface MarkdownDocumentEditorProps {
   onCancelTxtUpgrade: () => void;
   isChatOpen?: boolean;
   onToggleChat?: () => void;
+  // Shown in place of the editor while chat suggestions wait for review.
+  changeReview?: ReactNode;
+  onSelectionTextChange?: (text: string | null) => void;
 }
 
 const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"]): string => {
@@ -312,6 +323,8 @@ export function MarkdownDocumentEditor({
   onCancelTxtUpgrade,
   isChatOpen = false,
   onToggleChat,
+  changeReview = null,
+  onSelectionTextChange,
 }: MarkdownDocumentEditorProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
@@ -597,12 +610,15 @@ export function MarkdownDocumentEditor({
 
       <div {...stylex.props(styles.editorLayout)}>
         <div {...stylex.props(styles.editor)}>
-          {isSourceMode ? (
+          {changeReview ? (
+            changeReview
+          ) : isSourceMode ? (
             <SourceDocumentEditor
               ref={sourceRef}
               text={text}
               onTextChange={onTextChange}
               onVisibleLineChange={setActiveHeadingFromLine}
+              onSelectionTextChange={onSelectionTextChange}
               focusedLineStart={focusedLineStart}
               focusedLineEnd={focusedLineEnd}
               diagnostics={wysiwygSafetyDiagnostics}
@@ -612,6 +628,7 @@ export function MarkdownDocumentEditor({
               ref={wysiwygRef}
               text={text}
               onActiveHeadingChange={handleActiveHeadingChange}
+              onSelectionTextChange={onSelectionTextChange}
               onTextChange={onTextChange}
             />
           )}

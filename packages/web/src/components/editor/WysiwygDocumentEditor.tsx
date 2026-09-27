@@ -113,6 +113,8 @@ export interface WysiwygDocumentEditorHandle {
 interface WysiwygDocumentEditorProps {
   text: string;
   onActiveHeadingChange?: (headingIndex: number) => void;
+  // Selected text while the editor has a range selection, or null once it collapses.
+  onSelectionTextChange?: (text: string | null) => void;
   onTextChange: (text: string) => void;
 }
 
@@ -1573,6 +1575,39 @@ const ensureCodeFences = (
   };
 };
 
+function SelectionTextPlugin({
+  onSelectionTextChange,
+}: {
+  onSelectionTextChange: (text: string | null) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const onChangeRef = useRef(onSelectionTextChange);
+
+  useEffect(() => {
+    onChangeRef.current = onSelectionTextChange;
+  }, [onSelectionTextChange]);
+
+  useEffect(() => {
+    let lastText: string | null = null;
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const selection = $getSelection();
+        // No selection means the editor lost focus; keep what was selected for the chat.
+        if (!$isRangeSelection(selection)) {
+          return;
+        }
+        const text = selection.isCollapsed() ? null : selection.getTextContent() || null;
+        if (text !== lastText) {
+          lastText = text;
+          onChangeRef.current(text);
+        }
+      });
+    });
+  }, [editor]);
+
+  return null;
+}
+
 function CodeShikiPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -1879,7 +1914,10 @@ void CurrentBlockSourcePlugin;
 export const WysiwygDocumentEditor = forwardRef<
   WysiwygDocumentEditorHandle,
   WysiwygDocumentEditorProps
->(function WysiwygDocumentEditor({ text, onActiveHeadingChange, onTextChange }, ref) {
+>(function WysiwygDocumentEditor(
+  { text, onActiveHeadingChange, onSelectionTextChange, onTextChange },
+  ref,
+) {
   const editorRef = useRef<LexicalEditor | null>(null);
   const isImportingRef = useRef(false);
   const latestMarkdownRef = useRef(text);
@@ -2064,6 +2102,9 @@ export const WysiwygDocumentEditor = forwardRef<
         <LinkPlugin />
         <TablePlugin hasCellMerge={false} />
         <TableActionsPlugin />
+        {onSelectionTextChange ? (
+          <SelectionTextPlugin onSelectionTextChange={onSelectionTextChange} />
+        ) : null}
         <CodeShikiPlugin />
         <CodeFencePlugin />
         <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />

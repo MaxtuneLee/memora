@@ -1,44 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import * as stylex from "@stylexjs/stylex";
 import {
-  ArrowCounterClockwiseIcon,
-  ArrowUpIcon,
+  ArrowSquareOutIcon,
+  ClockCounterClockwiseIcon,
   NotePencilIcon,
-  StopIcon,
   XIcon,
 } from "@phosphor-icons/react";
 
-import { ChatMessage } from "@/components/chat/ChatMessage";
-import { StatusBar } from "@/components/chat/StatusBar";
-import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
-import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
-import { useAgent } from "@/hooks/chat/useAgent";
-import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
-import { createChatTools, SYSTEM_PROMPT } from "@/lib/chat/tools";
-import { chatProvidersQuery$ } from "@/lib/chat/queries";
+import { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
+import { useChatController } from "@/components/chat/chatPage/useChatController";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
+import type { ChatMessageQuote } from "@/hooks/chat/useAgent";
 import { createDocumentPromptSegment, createDocumentTools } from "@/lib/chat/tools/documentTools";
-import { settingsDocumentQuery$ } from "@/lib/settings/queries";
-import { BUILT_IN_SKILLS_PROMPT } from "@/lib/skills/builtInSkills";
-import type { provider as ProviderRow } from "@/livestore/provider";
-import type { setting } from "@/livestore/setting";
-import { useAppStore } from "@/livestore/store";
 import { tokens } from "../../styles/stylex.stylex";
 
-const SIDEBAR_WIDTH = 400;
-const FOLLOW_BOTTOM_THRESHOLD_PX = 48;
-
-const SUGGESTIONS = [
-  "Summarize this note",
-  "Fix spelling and grammar",
-  "Add a table of contents",
-] as const;
+const SIDEBAR_WIDTH = 420;
+// Long selections are sent whole; this only bounds what the input box previews.
+const SELECTION_PREVIEW_LENGTH = 280;
 
 const styles = stylex.create({
   root: {
-    backgroundColor: tokens.surface,
+    backgroundColor: tokens.shell,
     borderLeftColor: tokens.border,
     borderLeftStyle: "solid",
     borderLeftWidth: 1,
+    boxShadow: { default: tokens.shadowLarge, "@media (min-width: 1024px)": "none" },
     display: "flex",
     flexDirection: "column",
     flexShrink: 0,
@@ -52,24 +39,28 @@ const styles = stylex.create({
       "@media (min-width: 1024px)": SIDEBAR_WIDTH,
     },
     zIndex: { default: 40, "@media (min-width: 1024px)": 1 },
-    boxShadow: { default: tokens.shadowLarge, "@media (min-width: 1024px)": "none" },
   },
+  chat: { flex: 1, minHeight: 0, position: "relative" },
   header: {
-    alignItems: "center",
     borderBottomColor: tokens.borderSoft,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     display: "flex",
+    flexDirection: "column",
     gap: 8,
     paddingBlock: 10,
-    paddingInline: 16,
+    paddingInline: 12,
   },
-  titleBlock: { flex: 1, minWidth: 0 },
+  headerRow: { alignItems: "center", display: "flex", gap: 4 },
+  titleBlock: { flex: 1, minWidth: 0, paddingInlineStart: 4 },
   title: {
     color: tokens.textStrong,
     fontSize: "0.9375rem",
     fontWeight: 600,
     lineHeight: "1.25rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   subtitle: {
     color: tokens.textSoft,
@@ -92,283 +83,175 @@ const styles = stylex.create({
     ":disabled": { cursor: "not-allowed", opacity: 0.4 },
     ":focus-visible": { outline: `2px solid ${tokens.focusRing}`, outlineOffset: 1 },
   },
-  messages: {
-    display: "flex",
-    flex: 1,
-    flexDirection: "column",
-    gap: 16,
-    minHeight: 0,
-    overflowY: "auto",
-    paddingBlock: 16,
-    paddingInline: 16,
-  },
-  empty: {
-    color: tokens.textMuted,
-    display: "flex",
-    flexDirection: "column",
-    fontSize: "0.875rem",
-    gap: 12,
-    lineHeight: "1.25rem",
-    marginBlock: "auto",
-  },
-  suggestions: { display: "flex", flexDirection: "column", gap: 8 },
-  suggestion: {
-    backgroundColor: { default: tokens.surfaceSoft, ":hover": tokens.hover },
-    borderColor: tokens.borderSoft,
-    borderRadius: 10,
-    borderStyle: "solid",
-    borderWidth: 1,
-    color: tokens.text,
-    fontSize: "0.8125rem",
-    paddingBlock: 8,
-    paddingInline: 12,
-    textAlign: "left",
-    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
-  },
-  notice: {
-    borderRadius: 10,
-    fontSize: "0.8125rem",
-    lineHeight: "1.25rem",
-    paddingBlock: 8,
-    paddingInline: 12,
-  },
-  error: {
-    backgroundColor: tokens.dangerSurface,
-    borderColor: tokens.dangerBorder,
-    borderStyle: "solid",
-    borderWidth: 1,
-    color: tokens.dangerText,
-  },
-  info: {
-    backgroundColor: tokens.infoSurface,
-    borderColor: tokens.infoBorder,
-    borderStyle: "solid",
-    borderWidth: 1,
-    color: tokens.infoText,
-  },
-  footer: {
-    borderTopColor: tokens.borderSoft,
-    borderTopStyle: "solid",
-    borderTopWidth: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    padding: 12,
-  },
-  undoBar: {
+  iconButtonActive: { backgroundColor: tokens.hover, color: tokens.text },
+  reviewBar: {
     alignItems: "center",
     backgroundColor: tokens.surfaceMuted,
     borderRadius: 10,
     color: tokens.text,
     display: "flex",
     fontSize: "0.8125rem",
-    gap: 8,
-    paddingBlock: 6,
-    paddingInlineEnd: 6,
-    paddingInlineStart: 12,
+    gap: 6,
+    paddingBlock: 5,
+    paddingInlineEnd: 5,
+    paddingInlineStart: 10,
   },
-  undoText: { flex: 1 },
+  reviewText: { flex: 1 },
   textButton: {
-    alignItems: "center",
     backgroundColor: { default: "transparent", ":hover": tokens.hover },
     borderRadius: 8,
     color: tokens.text,
-    display: "inline-flex",
     fontSize: "0.8125rem",
     fontWeight: 500,
-    gap: 4,
     paddingBlock: 4,
     paddingInline: 8,
   },
-  composer: {
-    alignItems: "flex-end",
-    backgroundColor: tokens.canvas,
-    borderColor: { default: tokens.border, ":focus-within": tokens.borderStrong },
-    borderRadius: 14,
-    borderStyle: "solid",
-    borderWidth: 1,
+  history: {
+    backgroundColor: tokens.shell,
     display: "flex",
-    gap: 8,
+    flexDirection: "column",
+    gap: 2,
+    inset: 0,
+    overflowY: "auto",
     padding: 8,
+    position: "absolute",
+    zIndex: 20,
   },
-  textarea: {
-    backgroundColor: "transparent",
-    color: tokens.text,
-    flex: 1,
-    fontSize: "0.875rem",
-    lineHeight: "1.25rem",
-    maxHeight: 200,
-    minHeight: 40,
-    outline: "none",
-    paddingBlock: 10,
-    paddingInline: 6,
-    resize: "none",
-    "::placeholder": { color: tokens.textSoft },
-  },
-  sendButton: {
-    alignItems: "center",
-    backgroundColor: tokens.primaryBackground,
-    borderRadius: 10,
-    color: tokens.primaryText,
+  historyItem: {
+    backgroundColor: { default: "transparent", ":hover": tokens.hover },
+    borderRadius: 8,
     display: "flex",
-    flexShrink: 0,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
-    ":focus-visible": { outline: `2px solid ${tokens.focusRing}`, outlineOffset: 2 },
+    flexDirection: "column",
+    gap: 2,
+    paddingBlock: 8,
+    paddingInline: 10,
+    textAlign: "left",
+    width: "100%",
+    ":disabled": { cursor: "not-allowed", opacity: 0.5 },
   },
+  historyItemActive: { backgroundColor: tokens.selected },
+  historyTitle: {
+    color: tokens.textStrong,
+    fontSize: "0.8125rem",
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  historyPreview: {
+    color: tokens.textSoft,
+    fontSize: "0.75rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  historyEmpty: { color: tokens.textSoft, fontSize: "0.8125rem", padding: 10 },
 });
 
-interface DocumentChatSidebarProps {
-  fileName: string;
-  sessionId: string;
-  canUndoEdit: boolean;
-  onUndoEdit: () => void;
-  onKeepEdit: () => void;
-  onTurnStart: () => void;
-  onClose: () => void;
-}
-
-// Schemas only: the app-wide tool host runs the document tools against the open editor.
+// Schemas only: the app-wide tool host runs the document tools against the open note.
 const DOCUMENT_TOOL_SCHEMAS = createDocumentTools({
   applyText: () => undefined,
   fileName: "",
   getText: () => "",
 });
 
+interface DocumentChatSidebarProps {
+  fileName: string;
+  initialSessionId: string | null;
+  onActiveSessionChange: (sessionId: string) => void;
+  selectionText: string | null;
+  onClearSelection: () => void;
+  pendingChangeCount: number;
+  onAcceptAllChanges: () => void;
+  onRejectAllChanges: () => void;
+  onClose: () => void;
+}
+
 export function DocumentChatSidebar({
   fileName,
-  sessionId,
-  canUndoEdit,
-  onUndoEdit,
-  onKeepEdit,
-  onTurnStart,
+  initialSessionId,
+  onActiveSessionChange,
+  selectionText,
+  onClearSelection,
+  pendingChangeCount,
+  onAcceptAllChanges,
+  onRejectAllChanges,
   onClose,
 }: DocumentChatSidebarProps) {
-  const store = useAppStore();
-  const settings = store.useQuery(settingsDocumentQuery$) as setting;
-  const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
-  const { openSettings } = useSettingsDialog();
-  const [input, setInput] = useState("");
-  const [isComposing, setIsComposing] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
-  const isFollowingRef = useRef(true);
-
-  const { agentConfig, providerConfig, isConfigured } = useChatModelConfig({
-    providers,
-    settings,
-    activeSessionId: sessionId,
-  });
-  const tools = useMemo(() => [...createChatTools(store), ...DOCUMENT_TOOL_SCHEMAS], [store]);
-  const promptSegments = useMemo(
-    () => [SYSTEM_PROMPT, BUILT_IN_SKILLS_PROMPT, createDocumentPromptSegment(fileName)],
-    [fileName],
-  );
-
-  const {
-    messages,
-    isStreaming,
-    status,
-    thinkingSteps,
-    thinkingCollapsed,
-    error,
-    pendingWriteApproval,
-    resolveWriteApproval,
-    send,
-    abort,
-    reset,
-  } = useAgent({
-    sessionId,
-    sessionStorage: "memory",
-    config: agentConfig,
-    providerConfig,
-    deliveryMode: "pending",
-    promptSegments,
-    tools,
+  const navigate = useNavigate();
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const quoteRef = useRef<ChatMessageQuote | null>(null);
+  useLayoutEffect(() => {
+    quoteRef.current = selectionText
+      ? { label: `Selection from ${fileName}`, text: selectionText }
+      : null;
   });
 
-  const lastAssistantId = useMemo(() => {
-    return messages.findLast((message) => message.role === "assistant")?.id;
-  }, [messages]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (!input && inputRef.current) {
-      inputRef.current.style.height = "";
-    }
-  }, [input]);
-
-  useEffect(() => {
-    const scrollArea = scrollAreaRef.current;
-    if (scrollArea && isFollowingRef.current) {
-      scrollArea.scrollTop = scrollArea.scrollHeight;
-    }
-  }, [messages, thinkingSteps, status]);
-
-  const submit = useCallback(
-    (text: string): void => {
-      const trimmed = text.trim();
-      if (!trimmed || isStreaming) {
-        return;
-      }
-      if (!isConfigured) {
-        openSettings("ai-provider");
-        return;
-      }
-
-      onTurnStart();
-      isFollowingRef.current = true;
-      setInput("");
-      void send(trimmed).catch(() => {
-        // The agent hook reports the error below the messages.
-        setInput((current) => current || trimmed);
-      });
+  const extraPromptSegments = useMemo(() => [createDocumentPromptSegment(fileName)], [fileName]);
+  const getTurnQuote = useCallback(() => quoteRef.current, []);
+  const { viewProps, apiKeyPromptOpen, closeApiKeyPrompt, confirmApiKeyPrompt } = useChatController(
+    {
+      syncWithUrl: false,
+      initialSessionId,
+      onActiveSessionChange,
+      extraPromptSegments,
+      extraTools: DOCUMENT_TOOL_SCHEMAS,
+      getTurnQuote,
+      onTurnSent: onClearSelection,
     },
-    [isConfigured, isStreaming, onTurnStart, openSettings, send],
   );
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (event.key !== "Enter" || event.shiftKey || isComposing || event.nativeEvent.isComposing) {
-      return;
-    }
-    event.preventDefault();
-    submit(input);
-  };
+  const activeSession = viewProps.sessions.find(
+    (session) => session.id === viewProps.activeSessionId,
+  );
+  const selectionPreview =
+    selectionText && selectionText.length > SELECTION_PREVIEW_LENGTH
+      ? `${selectionText.slice(0, SELECTION_PREVIEW_LENGTH)}…`
+      : selectionText;
 
-  const handleNewChat = useCallback((): void => {
-    if (isStreaming) {
-      return;
-    }
-    void reset().then(() => inputRef.current?.focus());
-  }, [isStreaming, reset]);
-
-  return (
-    <aside
-      aria-label="Chat about this note"
-      {...stylex.props(styles.root)}
-      data-testid="document-chat-sidebar"
-    >
-      <header {...stylex.props(styles.header)}>
+  const header = (
+    <div {...stylex.props(styles.header)}>
+      <div {...stylex.props(styles.headerRow)}>
         <div {...stylex.props(styles.titleBlock)}>
-          <div {...stylex.props(styles.title)}>Chat</div>
+          <div {...stylex.props(styles.title)}>{activeSession?.title ?? "Chat"}</div>
           <div {...stylex.props(styles.subtitle)} title={fileName}>
             {fileName}
           </div>
         </div>
         <button
           type="button"
+          aria-label="Chat history"
+          aria-pressed={isHistoryOpen}
+          title="Chat history"
+          onClick={() => setIsHistoryOpen((open) => !open)}
+          {...stylex.props(styles.iconButton, isHistoryOpen && styles.iconButtonActive)}
+        >
+          <ClockCounterClockwiseIcon size={18} />
+        </button>
+        <button
+          type="button"
           aria-label="New chat"
           title="New chat"
-          disabled={isStreaming || messages.length === 0}
-          onClick={handleNewChat}
+          disabled={!viewProps.sessionsReady || viewProps.isPreparingTurn}
+          onClick={() => {
+            setIsHistoryOpen(false);
+            viewProps.onCreateSession();
+          }}
           {...stylex.props(styles.iconButton)}
         >
           <NotePencilIcon size={18} />
+        </button>
+        <button
+          type="button"
+          aria-label="Open in Chat"
+          title="Open in Chat"
+          disabled={!viewProps.activeSessionId}
+          onClick={() => {
+            void navigate(`/chat?session=${encodeURIComponent(viewProps.activeSessionId)}`);
+          }}
+          {...stylex.props(styles.iconButton)}
+        >
+          <ArrowSquareOutIcon size={18} />
         </button>
         <button
           type="button"
@@ -379,133 +262,86 @@ export function DocumentChatSidebar({
         >
           <XIcon size={18} />
         </button>
-      </header>
-
-      <div
-        ref={scrollAreaRef}
-        {...stylex.props(styles.messages)}
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          isFollowingRef.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight <=
-            FOLLOW_BOTTOM_THRESHOLD_PX;
-        }}
-      >
-        {messages.length === 0 ? (
-          <div {...stylex.props(styles.empty)}>
-            <p>
-              Ask about this note, or ask for changes. Edits go straight into the note, and you can
-              undo them.
-            </p>
-            <div {...stylex.props(styles.suggestions)}>
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  disabled={isStreaming}
-                  onClick={() => submit(suggestion)}
-                  {...stylex.props(styles.suggestion)}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((message) => {
-            const isCurrentAssistant = message.id === lastAssistantId;
-            return (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isStreaming={isStreaming && isCurrentAssistant}
-                thinkingSteps={isCurrentAssistant ? thinkingSteps : undefined}
-                status={isCurrentAssistant ? status : undefined}
-                thinkingCollapsed={isCurrentAssistant ? thinkingCollapsed : undefined}
-                onSendWidgetPrompt={submit}
-                actionsDisabled={isStreaming}
-              />
-            );
-          })
-        )}
-        {error ? <div {...stylex.props(styles.notice, styles.error)}>{error.message}</div> : null}
       </div>
-
-      <div {...stylex.props(styles.footer)}>
-        {isStreaming ? <StatusBar status={status} /> : null}
-        {canUndoEdit ? (
-          <div {...stylex.props(styles.undoBar)} role="status">
-            <span {...stylex.props(styles.undoText)}>Chat edited this note.</span>
-            <button type="button" onClick={onUndoEdit} {...stylex.props(styles.textButton)}>
-              <ArrowCounterClockwiseIcon size={14} />
-              Undo
-            </button>
-            <button type="button" onClick={onKeepEdit} {...stylex.props(styles.textButton)}>
-              Keep
-            </button>
-          </div>
-        ) : null}
-        {!isConfigured ? (
-          <div {...stylex.props(styles.notice, styles.info)}>
-            Chat needs a cloud model.{" "}
-            <button
-              type="button"
-              onClick={() => openSettings("ai-provider")}
-              {...stylex.props(styles.textButton)}
-            >
-              Add an API key
-            </button>
-          </div>
-        ) : null}
-        <div {...stylex.props(styles.composer)}>
-          <textarea
-            ref={inputRef}
-            aria-label="Message"
-            rows={1}
-            value={input}
-            placeholder="Ask about this note…"
-            onChange={(event) => {
-              setInput(event.currentTarget.value);
-              const element = event.currentTarget;
-              element.style.height = "auto";
-              element.style.height = `${element.scrollHeight}px`;
-            }}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
-            {...stylex.props(styles.textarea)}
-          />
-          {isStreaming ? (
-            <button
-              type="button"
-              aria-label="Stop"
-              title="Stop"
-              onClick={abort}
-              {...stylex.props(styles.sendButton)}
-            >
-              <StopIcon size={16} weight="fill" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              aria-label="Send"
-              title="Send"
-              disabled={!input.trim()}
-              onClick={() => submit(input)}
-              {...stylex.props(styles.sendButton)}
-            >
-              <ArrowUpIcon size={16} weight="bold" />
-            </button>
-          )}
+      {pendingChangeCount > 0 ? (
+        <div {...stylex.props(styles.reviewBar)} role="status">
+          <span {...stylex.props(styles.reviewText)}>
+            {pendingChangeCount} suggested {pendingChangeCount === 1 ? "change" : "changes"} in the
+            note
+          </span>
+          <button type="button" onClick={onRejectAllChanges} {...stylex.props(styles.textButton)}>
+            Reject all
+          </button>
+          <button type="button" onClick={onAcceptAllChanges} {...stylex.props(styles.textButton)}>
+            Accept all
+          </button>
         </div>
-      </div>
+      ) : null}
+    </div>
+  );
 
-      <ToolWriteApprovalDialog
-        request={pendingWriteApproval}
-        onAllowOnce={() => resolveWriteApproval("allow_once")}
-        onAllowSession={() => resolveWriteApproval("allow_session")}
-        onDeny={() => resolveWriteApproval("deny")}
+  return (
+    <aside
+      aria-label="Chat about this note"
+      {...stylex.props(styles.root)}
+      data-testid="document-chat-sidebar"
+    >
+      <ConfirmDialog
+        isOpen={apiKeyPromptOpen}
+        title="Add an API key to start chatting"
+        description="Chat runs on a cloud model. Add a provider and its API key in Settings. Your key stays on this device."
+        confirmLabel="Add API key"
+        cancelLabel="Not now"
+        onConfirm={confirmApiKeyPrompt}
+        onCancel={closeApiKeyPrompt}
       />
+      {header}
+      <div {...stylex.props(styles.chat)}>
+        <ChatPageView
+          {...viewProps}
+          variant="sidebar"
+          composerPanelProps={{
+            ...viewProps.composerPanelProps,
+            placeholder: "Ask about this note...",
+            contextChip: selectionPreview
+              ? {
+                  label: "Selected text",
+                  preview: selectionPreview,
+                  onRemove: onClearSelection,
+                }
+              : null,
+          }}
+        />
+        {isHistoryOpen ? (
+          <div {...stylex.props(styles.history)} role="list" aria-label="Chat history">
+            {viewProps.sessions.length === 0 ? (
+              <p {...stylex.props(styles.historyEmpty)}>No chats yet.</p>
+            ) : (
+              viewProps.sessions.map((session) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  role="listitem"
+                  disabled={viewProps.isHistoryPanelBusy}
+                  onClick={() => {
+                    viewProps.onSelectSession(session.id);
+                    setIsHistoryOpen(false);
+                  }}
+                  {...stylex.props(
+                    styles.historyItem,
+                    session.id === viewProps.activeSessionId && styles.historyItemActive,
+                  )}
+                >
+                  <span {...stylex.props(styles.historyTitle)}>{session.title}</span>
+                  {session.preview ? (
+                    <span {...stylex.props(styles.historyPreview)}>{session.preview}</span>
+                  ) : null}
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
+      </div>
     </aside>
   );
 }

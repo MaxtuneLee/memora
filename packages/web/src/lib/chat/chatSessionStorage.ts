@@ -32,6 +32,7 @@ export interface ChatSessionMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  quote?: { label: string; text: string };
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
   thinkingSteps?: ChatSessionThinkingStep[];
@@ -171,6 +172,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
       role: value.role,
       content: value.content,
     };
+
+    const quote = value.quote as { label?: unknown; text?: unknown } | undefined;
+    if (quote && typeof quote.label === "string" && typeof quote.text === "string") {
+      normalizedMessage.quote = { label: quote.label, text: quote.text };
+    }
 
     const attachments = normalizeChatImageAttachments(value.attachments);
     if (attachments && attachments.length > 0) {

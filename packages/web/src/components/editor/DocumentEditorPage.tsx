@@ -11,6 +11,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 
+import { DocumentChangeReview } from "@/components/editor/DocumentChangeReview";
 import { DocumentChatSidebar } from "@/components/editor/DocumentChatSidebar";
 import { MarkdownDocumentEditor } from "@/components/editor/MarkdownDocumentEditor";
 import { useDocumentEditorFile } from "@/hooks/editor/useDocumentEditorFile";
@@ -33,6 +34,12 @@ import { parseLineAnchor, parseReferenceLink } from "@/lib/editor/referenceLinks
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
 import { registerDocumentToolTarget } from "@/lib/chat/tools/documentTools";
+import {
+  acceptDiffHunk,
+  computeDiffHunks,
+  rejectDiffHunk,
+  type DiffHunk,
+} from "@/lib/editor/textDiff";
 import { folderEvents } from "@/livestore/folder";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
 import { tokens } from "../../styles/stylex.stylex";
@@ -224,6 +231,25 @@ interface DocumentEditorPageProps {
   onAttachmentFileCreated?: (createdEvent: AttachmentFileCreatedEventInput) => void;
   onAttachmentFolderCreated?: (createdEvent: FolderCreatedEventInput) => void;
 }
+
+// The chat a note's side panel last showed, so reopening the panel continues it.
+const DOCUMENT_CHAT_SESSION_KEY_PREFIX = "memora.documentChatSession.";
+
+const readDocumentChatSessionId = (fileId: string): string | null => {
+  try {
+    return window.localStorage.getItem(`${DOCUMENT_CHAT_SESSION_KEY_PREFIX}${fileId}`);
+  } catch {
+    return null;
+  }
+};
+
+const writeDocumentChatSessionId = (fileId: string, sessionId: string): void => {
+  try {
+    window.localStorage.setItem(`${DOCUMENT_CHAT_SESSION_KEY_PREFIX}${fileId}`, sessionId);
+  } catch {
+    // Without storage the panel starts a new chat next time.
+  }
+};
 
 const parseSearchLineNumber = (value: string | null): number | null => {
   if (!value) {
@@ -510,15 +536,35 @@ function DocumentEditorSession({
   );
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  // The text before the chat's latest run of edits, and what the chat left, so it can be undone.
-  const [chatEdit, setChatEdit] = useState<{ before: string; after: string } | null>(null);
-  const chatSessionId = `document-chat:${file.id}`;
+  const [chatSessionId, setChatSessionId] = useState<string | null>(() =>
+    readDocumentChatSessionId(file.id),
+  );
+  const [selectionText, setSelectionText] = useState<string | null>(null);
+  // Chat edits wait here, as the whole proposed note, until each change is accepted or rejected.
+  // The ref gives the chat tools the latest proposal before React re-renders.
+  const [chatProposal, setChatProposalState] = useState<string | null>(null);
+  const chatProposalRef = useRef<string | null>(null);
   const chatTargetRef = useRef({ editorFile, editorMode, guardWysiwygEntry, handleTextChange });
   useLayoutEffect(() => {
     chatTargetRef.current = { editorFile, editorMode, guardWysiwygEntry, handleTextChange };
   });
 
-  const applyChatText = useCallback((nextText: string): void => {
+  const handleChatSessionChange = useCallback(
+    (sessionId: string): void => {
+      setChatSessionId(sessionId);
+      writeDocumentChatSessionId(file.id, sessionId);
+    },
+    [file.id],
+  );
+
+  const setChatProposal = useCallback((proposal: string | null): void => {
+    const currentText = chatTargetRef.current.editorFile.getCanonicalSnapshot().text;
+    const nextProposal = proposal === currentText ? null : proposal;
+    chatProposalRef.current = nextProposal;
+    setChatProposalState(nextProposal);
+  }, []);
+
+  const writeAcceptedText = useCallback((nextText: string): void => {
     const latest = chatTargetRef.current;
     latest.handleTextChange(nextText);
     // Leave Preview when the new Markdown would not convert cleanly, as when opening the note.
@@ -529,23 +575,54 @@ function DocumentEditorSession({
 
   const chatFileName = activeFile?.name ?? file.name;
   useEffect(() => {
+    if (!chatSessionId) {
+      return;
+    }
     return registerDocumentToolTarget(chatSessionId, {
       fileName: chatFileName,
-      getText: () => chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
-      applyText: (nextText) => {
-        const before = chatTargetRef.current.editorFile.getCanonicalSnapshot().text;
-        setChatEdit((current) => ({ before: current?.before ?? before, after: nextText }));
-        applyChatText(nextText);
-      },
+      getText: () =>
+        chatProposalRef.current ?? chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
+      applyText: setChatProposal,
     });
-  }, [applyChatText, chatFileName, chatSessionId]);
+  }, [chatFileName, chatSessionId, setChatProposal]);
 
-  const handleUndoChatEdit = useCallback((): void => {
-    if (chatEdit) {
-      applyChatText(chatEdit.before);
+  const handleAcceptChange = useCallback(
+    (hunk: DiffHunk): void => {
+      const proposal = chatProposalRef.current;
+      if (proposal === null) {
+        return;
+      }
+      writeAcceptedText(acceptDiffHunk(text, proposal, hunk));
+      setChatProposal(proposal);
+    },
+    [setChatProposal, text, writeAcceptedText],
+  );
+
+  const handleRejectChange = useCallback(
+    (hunk: DiffHunk): void => {
+      const proposal = chatProposalRef.current;
+      if (proposal !== null) {
+        setChatProposal(rejectDiffHunk(text, proposal, hunk));
+      }
+    },
+    [setChatProposal, text],
+  );
+
+  const handleAcceptAllChanges = useCallback((): void => {
+    const proposal = chatProposalRef.current;
+    if (proposal !== null) {
+      writeAcceptedText(proposal);
     }
-    setChatEdit(null);
-  }, [applyChatText, chatEdit]);
+    setChatProposal(null);
+  }, [setChatProposal, writeAcceptedText]);
+
+  const handleRejectAllChanges = useCallback((): void => {
+    setChatProposal(null);
+  }, [setChatProposal]);
+
+  const pendingChangeCount = useMemo(() => {
+    return chatProposal === null ? 0 : computeDiffHunks(text, chatProposal).length;
+  }, [chatProposal, text]);
 
   const handleAttachImage = useCallback(
     async (image: File): Promise<void> => {
@@ -785,6 +862,19 @@ function DocumentEditorSession({
               onCancelTxtUpgrade={() => editorFile.cancelTxtUpgrade()}
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen((open) => !open)}
+              onSelectionTextChange={setSelectionText}
+              changeReview={
+                chatProposal !== null ? (
+                  <DocumentChangeReview
+                    baseText={text}
+                    proposedText={chatProposal}
+                    onAcceptHunk={handleAcceptChange}
+                    onRejectHunk={handleRejectChange}
+                    onAcceptAll={handleAcceptAllChanges}
+                    onRejectAll={handleRejectAllChanges}
+                  />
+                ) : null
+              }
             />
           ) : null}
         </div>
@@ -792,11 +882,13 @@ function DocumentEditorSession({
       {isChatOpen && activeFile ? (
         <DocumentChatSidebar
           fileName={chatFileName}
-          sessionId={chatSessionId}
-          canUndoEdit={chatEdit !== null && chatEdit.after === text}
-          onUndoEdit={handleUndoChatEdit}
-          onKeepEdit={() => setChatEdit(null)}
-          onTurnStart={() => setChatEdit(null)}
+          initialSessionId={chatSessionId}
+          onActiveSessionChange={handleChatSessionChange}
+          selectionText={selectionText}
+          onClearSelection={() => setSelectionText(null)}
+          pendingChangeCount={pendingChangeCount}
+          onAcceptAllChanges={handleAcceptAllChanges}
+          onRejectAllChanges={handleRejectAllChanges}
           onClose={() => setIsChatOpen(false)}
         />
       ) : null}

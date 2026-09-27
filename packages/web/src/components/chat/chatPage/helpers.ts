@@ -23,6 +23,7 @@ export const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessag
     id: message.id,
     role: message.role,
     content: message.content,
+    ...(message.quote ? { quote: message.quote } : {}),
     attachments: message.attachments,
     widgets: message.widgets,
     thinkingSteps: message.thinkingSteps,
