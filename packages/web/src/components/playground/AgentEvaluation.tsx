@@ -254,7 +254,7 @@ export default function AgentEvaluation() {
     data: EvaluationImport,
     questions: EvaluationQuestion[],
     concurrency: number,
-  ): Promise<void> => {
+  ): Promise<AgentEvaluationResult | undefined> => {
     if (!providerConfig) throw new Error("Choose a chat model in Settings first.");
     if (!jevKey) throw new Error("Enter the TypeSafe AI API key for the Jev judge.");
     const { lectures, fileLectures, cues, revisions } = data;
@@ -310,8 +310,10 @@ export default function AgentEvaluation() {
       setRun({ status: "done", result, saveError });
       setShown(result);
       void listAgentEvaluationResults().then(setHistory, () => {});
+      return result;
     } catch (error) {
       setRun({ status: "failed", message: errorMessage(error) });
+      return undefined;
     } finally {
       controller.current = undefined;
     }

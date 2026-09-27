@@ -24,15 +24,15 @@ export interface EvaluationDevApiHandlers {
     result?: AgentEvaluationResult;
   };
   shown: AgentEvaluationResult | undefined;
-  importData(
+  importData: (
     files: EvaluationImportFile[],
     questions: EvaluationImportFile,
-  ): Promise<EvaluationImport>;
-  runEvaluation(
+  ) => Promise<EvaluationImport>;
+  runEvaluation: (
     data: EvaluationImport,
     questions: EvaluationQuestion[],
     concurrency: number,
-  ): Promise<void>;
+  ) => Promise<AgentEvaluationResult | undefined>;
 }
 
 export interface MemoraEvalApi {
@@ -42,7 +42,11 @@ export interface MemoraEvalApi {
     transcripts?: string;
     questions?: string;
   }): Promise<{ questions: string[]; lectures: string[] }>;
-  /** Starts a run on the imported data and returns at once; poll `status()`. */
+  /**
+   * Starts a run on the imported data and returns at once. When it finishes, the result with its
+   * Traces and a compact report are written to `results/` in the data folder, so a caller can wait
+   * for the report file instead of polling `status()`.
+   */
   run(options?: { questionIds?: string[]; concurrency?: number }): {
     questions: number;
     attempts: number;
@@ -118,6 +122,26 @@ const report = (result: AgentEvaluationResult) => {
   };
 };
 
+const putJson = async (path: string, body: string): Promise<void> => {
+  const response = await fetch(`${DATA_URL}/${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+  if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
+};
+
+/** Writes the export, then its report; the report appearing means both are complete. */
+const saveResult = async (result: AgentEvaluationResult): Promise<string> => {
+  const path = `results/agent-evaluation-${result.evaluationId}.json`;
+  await putJson(path, await evaluationExportJson(result));
+  await putJson(
+    `results/agent-evaluation-${result.evaluationId}.report.json`,
+    JSON.stringify(report(result), null, 2),
+  );
+  return path;
+};
+
 /** Installs `window.__memoraEval`; the returned function removes it. */
 export function installEvaluationDevApi(handlers: () => EvaluationDevApiHandlers): () => void {
   let imported: EvaluationImport | undefined;
@@ -161,7 +185,10 @@ export function installEvaluationDevApi(handlers: () => EvaluationDevApiHandlers
         ? data.questions.filter(({ questionId }) => questionIds.includes(questionId))
         : data.questions;
       // Errors after the start are reported through status().
-      void page.runEvaluation(data, questions, concurrency).catch(console.error);
+      void page
+        .runEvaluation(data, questions, concurrency)
+        .then((result) => result && saveResult(result))
+        .catch(console.error);
       return { questions: questions.length, attempts: questions.length * 3 };
     },
     status() {
@@ -175,14 +202,7 @@ export function installEvaluationDevApi(handlers: () => EvaluationDevApiHandlers
       const { run, shown } = handlers();
       const result = run.result ?? shown;
       if (!result) throw new Error("No evaluation result to save.");
-      const path = `results/agent-evaluation-${result.evaluationId}.json`;
-      const response = await fetch(`${DATA_URL}/${path}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: await evaluationExportJson(result),
-      });
-      if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
-      return path;
+      return saveResult(result);
     },
   };
   window.__memoraEval = api;
