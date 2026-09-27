@@ -1,16 +1,32 @@
+import { lazy, Suspense, useState } from "react";
 import { ConfirmDialog } from "@/components/desktop";
 import { MotionConfig, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
+import { TabSelect } from "@/components/ui/TabSelect";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
 import { CHAT_MASCOT_LAYOUT_ID } from "./layout";
 
+// Development builds only: production never loads the Trace tab.
+const ChatPageTracePanel = import.meta.env.DEV
+  ? lazy(() =>
+      import("./ChatPageTracePanel").then((module) => ({ default: module.ChatPageTracePanel })),
+    )
+  : null;
+
+const VIEW_OPTIONS = [
+  { value: "chat", label: "Chat" },
+  { value: "trace", label: "Trace" },
+] as const;
+
 const styles = stylex.create({
   root: { display: "flex", height: "100%", minHeight: 0 },
   main: { display: "flex", flex: 1, flexDirection: "column", minHeight: 0, minWidth: 0 },
+  views: { paddingInline: 16, paddingTop: 12 },
+  hidden: { display: "none" },
   content: { display: "flex", flex: 1, minHeight: 0, position: "relative" },
   scrollArea: { flex: 1, minHeight: 0, overflowY: "auto" },
   messages: {
@@ -121,6 +137,7 @@ export const ChatPageView = (props: {
     onOpenHistoryDrawer,
     onCloseHistoryDrawer,
   } = props;
+  const [view, setView] = useState<"chat" | "trace">("chat");
 
   return (
     <MotionConfig reducedMotion="user">
@@ -140,7 +157,22 @@ export const ChatPageView = (props: {
         />
 
         <div {...stylex.props(styles.main)}>
-          <div {...stylex.props(styles.content)}>
+          {ChatPageTracePanel ? (
+            <div {...stylex.props(styles.views)}>
+              <TabSelect
+                aria-label="Chat view"
+                value={view}
+                onValueChange={setView}
+                options={VIEW_OPTIONS}
+              />
+            </div>
+          ) : null}
+          {ChatPageTracePanel && view === "trace" && activeSessionId ? (
+            <Suspense fallback={null}>
+              <ChatPageTracePanel sessionId={activeSessionId} />
+            </Suspense>
+          ) : null}
+          <div {...stylex.props(styles.content, view === "trace" && styles.hidden)}>
             {/* layoutScroll lets the mascot flight measure through the auto-scroll to the bottom. */}
             <motion.div
               layoutScroll

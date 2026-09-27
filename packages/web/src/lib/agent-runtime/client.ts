@@ -1,5 +1,6 @@
 import type { AgentCommand, AgentResponse, SessionSnapshot } from "./protocol";
 import { emptySessionSnapshot } from "./sessionRuntime";
+import type { TraceEvent } from "./traceRecorder";
 
 export type ToolHost = (
   request: Extract<AgentResponse, { type: "tool" }>,
@@ -276,3 +277,16 @@ export function requestToolApproval(
     });
   });
 }
+
+// Development Traces, read through the worker that writes them.
+export const listTraceRuns = (sessionId: string): Promise<string[]> =>
+  command({ type: "list-runs", sessionId }) as Promise<string[]>;
+
+export const readTrace = (sessionId: string, runId: string): Promise<TraceEvent[]> =>
+  command({ type: "read-trace", sessionId, runId }) as Promise<TraceEvent[]>;
+
+/** The Run's Trace as stored, one JSON event per line. */
+export const exportTrace = (sessionId: string, runId: string): Promise<string> =>
+  command({ type: "export-trace", sessionId, runId }) as Promise<string>;
+
+export const clearTraces = (): Promise<void> => command({ type: "clear-traces" }) as Promise<void>;

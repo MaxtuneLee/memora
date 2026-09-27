@@ -6,6 +6,7 @@ export { COMPACTION_KEY, ContextManager, createContextManager } from "./context"
 export {
   CACHE_TTL_MS,
   COMPACTION_PARAMETERS,
+  projectHistory,
   RECALL_TOOL_NAME,
   rebaseCompaction,
 } from "./compaction";
