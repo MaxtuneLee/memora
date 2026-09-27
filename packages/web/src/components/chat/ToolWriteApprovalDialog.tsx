@@ -84,6 +84,9 @@ const prefixLines = (text: string, prefix: string): string =>
     .join("\n");
 
 const describeOperation = (request: WriteApprovalRequest): string => {
+  if (request.operation === "create") {
+    return "Create a document in your library";
+  }
   if (request.operation === "append") {
     return "Append text";
   }

@@ -2,13 +2,17 @@ import { cat, file as opfsFile, grep, ls, write as opfsWrite } from "@memora/fs"
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
-import { fileTable } from "@/livestore/file";
+import { fileEvents, fileTable } from "@/livestore/file";
 import { readExtractedContent } from "@/lib/content/artifactStorage";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { searchContent } from "@/lib/search/contentSearchService";
 import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
 import { normalizeSettingsValue } from "@/livestore/setting";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
+import { saveTextDocument, type TextDocumentFileLike } from "@/lib/editor/documentPersistence";
+import { normalizeLogicalName, type WorkspaceFolderLike } from "@/lib/editor/logicalPaths";
+import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
@@ -223,20 +227,44 @@ export const createFileTools = (
           };
         }
 
-        // Check the edits apply before asking the user to approve them.
-        let replacedContent: string | null = null;
+        const targetFile = opfsFile(path);
+        const exists = await targetFile.exists();
+        // Library files need a database record, which only create_document adds.
+        if (!exists && path.startsWith("/files/")) {
+          return {
+            error: `No file at ${path}. To add a new document to the library, use create_document.`,
+          };
+        }
+        const libraryFile = (
+          store.query(
+            fileTable.where({ storagePath: path, deletedAt: null, purgedAt: null }),
+          ) as TextDocumentFileLike[]
+        )[0];
+        if (libraryFile && !store.commit) {
+          return { error: "Library files cannot be changed here." };
+        }
+
+        // Work out the new content before asking the user to approve it.
+        const overwrite = payload.overwrite ?? true;
+        let nextContent: string;
         if (payload.operation === "replace") {
-          const targetFile = opfsFile(path);
-          if (!(await targetFile.exists())) {
+          if (!exists) {
             return { error: `No file at ${path}.` };
           }
           const result = applyTextEdits(await targetFile.text(), payload.edits ?? []);
           if ("error" in result) {
             return result;
           }
-          replacedContent = result.content;
+          nextContent = result.content;
         } else if (payload.content == null) {
           return { error: `${payload.operation} needs content.` };
+        } else if (payload.operation === "write") {
+          if (exists && !overwrite) {
+            return { error: `${path} already exists. Set overwrite to replace it.` };
+          }
+          nextContent = payload.content;
+        } else {
+          nextContent = (exists ? await targetFile.text() : "") + payload.content;
         }
         const content = payload.content ?? "";
         const edits = (payload.edits ?? []).map((edit) => ({
@@ -244,7 +272,6 @@ export const createFileTools = (
           newText: edit.new_text,
         }));
 
-        const overwrite = payload.overwrite ?? true;
         const approval = await options.requestWriteApproval({
           path,
           operation: payload.operation,
@@ -260,36 +287,78 @@ export const createFileTools = (
           return { error: "User denied file modification request." };
         }
 
-        if (payload.operation === "write") {
-          await opfsWrite(path, content, { overwrite });
-          return {
-            path,
-            operation: "write",
-            bytesWritten: content.length,
-            overwrite,
-          };
+        if (libraryFile) {
+          const saved = await saveTextDocument({ file: libraryFile, text: nextContent });
+          store.commit?.(fileEvents.fileUpdated(saved.updatedEvent));
+        } else {
+          await opfsWrite(path, nextContent, { overwrite: true });
         }
-
-        if (replacedContent !== null) {
-          await opfsWrite(path, replacedContent, { overwrite: true });
-          return {
-            path,
-            operation: "replace",
-            editsApplied: edits.length,
-            totalBytes: replacedContent.length,
-          };
-        }
-
-        const targetFile = opfsFile(path);
-        const existing = (await targetFile.exists()) ? await targetFile.text() : "";
-        const nextContent = `${existing}${content}`;
-        await opfsWrite(path, nextContent, { overwrite: true });
 
         return {
           path,
-          operation: "append",
-          appendedBytes: content.length,
+          operation: payload.operation,
           totalBytes: nextContent.length,
+          ...(payload.operation === "replace" && { editsApplied: edits.length }),
+        };
+      },
+    },
+    {
+      type: "function",
+      name: "create_document",
+      description:
+        "Create a new Markdown document in the user's library, where it shows up alongside their other files. Use this, not modify_text_file, whenever the user asks you to create a document or note. folder_id is optional; without it the document goes to the user's default note location. Returns the new file's id and storagePath; use modify_text_file on that storagePath for later changes.",
+      parameters: v.object({
+        name: v.pipe(v.string(), v.minLength(1)),
+        content: v.string(),
+        folder_id: v.optional(v.string()),
+      }),
+      execute: async (params: unknown) => {
+        const payload = params as { name: string; content: string; folder_id?: string };
+        if (!options.requestWriteApproval) {
+          return {
+            error:
+              "Creating a document requires user approval, but no approval handler is configured.",
+          };
+        }
+        if (!store.commit) {
+          return { error: "Documents cannot be created here." };
+        }
+
+        const files = store.query(desktopFilesQuery$) as TextDocumentFileLike[];
+        const folders = store.query(desktopFoldersQuery$) as WorkspaceFolderLike[];
+        if (payload.folder_id && !folders.some((folder) => folder.id === payload.folder_id)) {
+          return { error: `No folder with id ${payload.folder_id}.` };
+        }
+        const name = normalizeLogicalName(payload.name, "Untitled note");
+
+        const approval = await options.requestWriteApproval({
+          path: name,
+          operation: "create",
+          content: payload.content,
+          contentLength: payload.content.length,
+          overwrite: false,
+        });
+        if (approval === "deny") {
+          return { error: "User denied creating the document." };
+        }
+
+        const settings = normalizeSettingsValue(store.query(settingsDocumentQuery$));
+        const result = await createNewMarkdownNote({
+          settings: payload.folder_id
+            ? { defaultNoteLocationMode: "folder", defaultNoteFolderId: payload.folder_id }
+            : settings,
+          files,
+          folders,
+          initialContent: payload.content,
+          name,
+        });
+        store.commit(fileEvents.fileCreated(result.createdEvent));
+
+        return {
+          id: result.id,
+          name: result.meta.name,
+          storagePath: result.meta.storagePath,
+          folderId: result.meta.parentId ?? null,
         };
       },
     },

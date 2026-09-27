@@ -20,8 +20,29 @@ vi.mock("@memora/fs", () => ({
     text: async () => files.get(path) ?? "",
   }),
   grep: async () => [],
-  write: async (path: string, content: string) => {
-    files.set(path, content);
+  write: async (path: string, content: string | Uint8Array) => {
+    files.set(path, typeof content === "string" ? content : new TextDecoder().decode(content));
+  },
+}));
+
+vi.mock("@/lib/library/fileStorage", () => ({
+  saveFileToOpfs: async (input: { name: string; parentId: string | null; blob: Blob }) => {
+    const storagePath = "/files/new/new.md";
+    files.set(storagePath, await input.blob.text());
+    return {
+      id: "new",
+      meta: {
+        id: "new",
+        name: input.name,
+        type: "document",
+        mimeType: "text/markdown",
+        sizeBytes: input.blob.size,
+        storageType: "opfs",
+        storagePath,
+        parentId: input.parentId,
+        createdAt: 0,
+      },
+    };
   },
 }));
 
@@ -79,5 +100,74 @@ describe("modify_text_file replace", () => {
       ]),
     ).toHaveProperty("error");
     expect(files.get("/chat/a.md")).toBe("x x yz");
+  });
+});
+
+describe("library documents", () => {
+  const libraryRow = {
+    id: "doc",
+    name: "Notes.md",
+    type: "document",
+    mimeType: "text/markdown",
+    sizeBytes: 5,
+    storageType: "opfs",
+    storagePath: "/files/doc/doc.md",
+    metaPath: "/files/doc/doc.meta.json",
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const setup = (rows: unknown[]) => {
+    const commit = vi.fn();
+    const tools = createFileTools(
+      { query: () => rows, commit },
+      { requestWriteApproval: async () => "allow_once" as const },
+    );
+    const run = (name: string, args: unknown) => {
+      const tool = tools.find((item) => item.name === name);
+      if (!tool) throw new Error(`${name} is missing.`);
+      return tool.execute(v.parse(tool.parameters, args));
+    };
+    return { commit, run };
+  };
+
+  test("create_document adds a library record", async () => {
+    const { commit, run } = setup([]);
+    expect(await run("create_document", { name: "HTTP notes", content: "# HTTP" })).toMatchObject({
+      name: "HTTP notes.md",
+      storagePath: "/files/new/new.md",
+    });
+    expect(files.get("/files/new/new.md")).toBe("# HTTP");
+    expect(commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "v1.FileCreated",
+        args: expect.objectContaining({ id: "new" }),
+      }),
+    );
+  });
+
+  test("modify_text_file will not create a file under /files/ without a record", async () => {
+    const { commit, run } = setup([]);
+    expect(
+      await run("modify_text_file", { path: "/files/loose.md", operation: "write", content: "x" }),
+    ).toMatchObject({ error: expect.stringContaining("create_document") });
+    expect(files.has("/files/loose.md")).toBe(false);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  test("editing a library document updates its record", async () => {
+    files.set("/files/doc/doc.md", "hello");
+    const { commit, run } = setup([libraryRow]);
+    await run("modify_text_file", {
+      path: "/files/doc/doc.md",
+      operation: "append",
+      content: " world",
+    });
+    expect(files.get("/files/doc/doc.md")).toBe("hello world");
+    expect(commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "v1.FileUpdated",
+        args: expect.objectContaining({ id: "doc", sizeBytes: 11 }),
+      }),
+    );
   });
 });

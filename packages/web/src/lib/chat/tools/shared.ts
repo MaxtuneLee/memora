@@ -24,7 +24,7 @@ export type WriteApprovalDecision = "allow_once" | "allow_session" | "deny";
 
 export interface WriteApprovalRequest {
   path: string;
-  operation: "write" | "append" | "replace";
+  operation: "create" | "write" | "append" | "replace";
   content: string;
   contentLength: number;
   overwrite: boolean;
@@ -50,7 +50,11 @@ export interface CreateChatToolsOptions {
 }
 
 // oxlint-disable-next-line @typescript-eslint/no-explicit-any
-export type StoreQueryable = { query: (...args: any[]) => any };
+export type StoreQueryable = {
+  query: (...args: any[]) => any;
+  /** Needed by tools that add or update library files. */
+  commit?: (...events: any[]) => void;
+};
 
 export interface ActiveFileRow {
   id: string;

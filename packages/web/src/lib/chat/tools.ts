@@ -83,6 +83,6 @@ Word-level timestamps live in the "words" array. Prefer search_transcript to get
 4a. use search_files for document, OCR, and extracted content search; use read_extracted_content for the matching passage
 5. if the user states a lasting preference for how you should communicate in future turns, call remember_user_preference with a concise summary
 6. do NOT call remember_user_preference for one-off formatting requests, temporary constraints, factual profile details, or sensitive inferences
-7. use modify_text_file only if the user explicitly asks to create or edit a text file
+7. only if the user explicitly asks: use create_document to create a new document, and modify_text_file to edit an existing file
 8. when presenting results, map internal data back to user-friendly file names, types, and timestamps`,
 };
