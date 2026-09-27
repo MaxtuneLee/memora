@@ -41,6 +41,7 @@ import {
   parseMarkdownTableLines,
 } from "@/components/editor/lexical/imageMarkdownTransformer";
 import {
+  TASK_LIST_TRANSFORMER,
   WYSIWYG_NODES,
   WYSIWYG_TRANSFORMERS,
   exportWysiwygMarkdown,
@@ -409,7 +410,7 @@ test("keeps the production custom transformer order", () => {
     HORIZONTAL_RULE_TRANSFORMER,
     MULTILINE_MATH_BLOCK_TRANSFORMER,
     MATH_BLOCK_TRANSFORMER,
-    CHECK_LIST,
+    TASK_LIST_TRANSFORMER,
     TABLE_TRANSFORMER,
     SETEXT_HEADING_TRANSFORMER,
     HTML_IMAGE_TRANSFORMER,

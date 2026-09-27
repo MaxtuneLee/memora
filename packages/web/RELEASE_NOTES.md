@@ -4,6 +4,14 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-09-27
+
+- The note editor no longer jumps the cursor into a code block when a note contains a divider, and typing inside bold or italic text keeps the formatting.
+- Tables: the first column is no longer shown as a header, bold, links and code in cells are kept, and a new options button on the selected cell lets you insert or delete rows and columns, set column alignment, or delete the table. Press Tab in the last cell to add a row, or type a header row and a `| --- |` row and press Enter to create a table.
+- Tab and Shift+Tab indent and outdent list items, Backspace at the start of a list item, heading, or quote turns it back into plain text, and typing `[ ] ` in a list item makes it a task.
+- Pasting Markdown text shows it formatted instead of as raw symbols.
+- More notes open in Preview: lists indented with 2 spaces, aligned or padded tables, `***` dividers, underlined headings, and front matter are kept as written. Tasks marked `[X]` stay checked.
+
 ## 2026-09-26
 
 - While a reply is being written, you can scroll up to read earlier messages without being pulled back down, and the chat now scrolls smoothly.

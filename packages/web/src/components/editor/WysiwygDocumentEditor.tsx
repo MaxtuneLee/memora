@@ -92,7 +92,10 @@ import {
 } from "@/components/editor/lexical/imageMarkdownTransformer";
 import { WysiwygFormattingToolbar } from "@/components/editor/WysiwygFormattingToolbar";
 import { MathEditorPopover } from "@/components/editor/MathEditorPopover";
+import { MarkdownKeyboardPlugin } from "@/components/editor/MarkdownKeyboardPlugin";
+import { MarkdownPastePlugin } from "@/components/editor/MarkdownPastePlugin";
 import { SlashCommandPlugin } from "@/components/editor/SlashCommandPlugin";
+import { TableActionsPlugin } from "@/components/editor/TableActionsPlugin";
 import { normalizeMarkdownRoundTripText } from "@/lib/editor/markdownRoundTripGuard";
 import {
   WYSIWYG_NODES,
@@ -114,6 +117,7 @@ interface WysiwygDocumentEditorProps {
 }
 
 const PLACEHOLDER = "Start writing...";
+const MARKDOWN_TABLE_HEADERS = { columns: false, rows: true } as const;
 const CODE_BLOCK_WITH_FENCES_STYLE =
   "margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0.25rem; padding-bottom: 0.25rem;";
 
@@ -265,7 +269,8 @@ const editorStyles = stylex.create({
   paragraph: {
     color: tokens.text,
     lineHeight: "1.75rem",
-    marginBottom: "0.75rem",
+    // The last paragraph in a table cell should not add space under the cell text.
+    marginBottom: { default: "0.75rem", ":last-child": 0 },
   },
   quote: {
     borderLeftColor: tokens.borderSoft,
@@ -276,7 +281,13 @@ const editorStyles = stylex.create({
     paddingLeft: "1rem",
   },
   editorRoot: { minHeight: 420, padding: 0, position: "relative" },
-  table: { borderCollapse: "collapse", fontSize: "0.875rem", lineHeight: "1.25rem", width: "100%" },
+  table: {
+    borderCollapse: "collapse",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    marginBlock: "1rem",
+    width: "100%",
+  },
   tableCell: {
     borderColor: tokens.borderSoft,
     borderStyle: "solid",
@@ -289,6 +300,7 @@ const editorStyles = stylex.create({
     backgroundColor: tokens.surfaceMuted,
     color: tokens.text,
     fontWeight: 600,
+    textAlign: "start",
   },
   alignTop: { verticalAlign: "top" },
   horizontalScroll: { overflowX: "auto" },
@@ -1910,10 +1922,26 @@ export const WysiwygDocumentEditor = forwardRef<
   useImperativeHandle(ref, () => {
     return {
       insertTable: () => {
-        editorRef.current?.dispatchCommand(INSERT_TABLE_COMMAND, {
+        const editor = editorRef.current;
+        if (!editor) {
+          return;
+        }
+
+        editor.update(
+          () => {
+            // Without a caret (the editor was never focused) insert at the end of the document.
+            if (!$isRangeSelection($getSelection())) {
+              $getRoot().selectEnd();
+            }
+          },
+          { discrete: true },
+        );
+        editor.dispatchCommand(INSERT_TABLE_COMMAND, {
           columns: "3",
+          includeHeaders: MARKDOWN_TABLE_HEADERS,
           rows: "3",
         });
+        editor.focus();
       },
       revealHeading: (headingIndex: number) => {
         const rootElement = editorRef.current?.getRootElement();
@@ -1950,6 +1978,11 @@ export const WysiwygDocumentEditor = forwardRef<
     isImportingRef.current = true;
     editor.update(() => {
       importWysiwygMarkdown(text);
+      // Outside changes append content (an attached image), so keep the caret at the end rather
+      // than jumping to the top of the document.
+      if ($getSelection() !== null) {
+        $getRoot().selectEnd();
+      }
     });
     latestMarkdownRef.current = text;
     isImportingRef.current = false;
@@ -2025,9 +2058,12 @@ export const WysiwygDocumentEditor = forwardRef<
         <HorizontalRulePlugin />
         <LinkPlugin />
         <TablePlugin hasCellMerge={false} />
+        <TableActionsPlugin />
         <CodeShikiPlugin />
         <CodeFencePlugin />
         <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />
+        <MarkdownKeyboardPlugin />
+        <MarkdownPastePlugin />
         <SlashCommandPlugin />
         <WysiwygFormattingToolbar />
         <MathEditorPopover />
