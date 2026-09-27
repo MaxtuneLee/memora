@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
 import { chatProvidersQuery$ } from "@/lib/chat/queries";
 import { createChatTools } from "@/lib/chat/tools";
+import { readTrace } from "@/lib/agent-runtime/client";
 import { createWebAgentAdapter } from "@/lib/playground/agentEvaluationAdapter";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
 import {
@@ -137,6 +138,28 @@ type ImportState =
   | { status: "failed"; message: string }
   | { status: "imported"; data: EvaluationImport; created: number; existing: number };
 
+/** Downloads the result with each attempt's Trace inlined, keyed by `<sessionId>/<runId>`. */
+async function exportEvaluation(result: AgentEvaluationResult): Promise<void> {
+  const traces: Record<string, unknown> = {};
+  for (const attempt of result.attempts) {
+    const trace = attempt.answer ?? attempt.trace;
+    if (!trace?.runId) continue;
+    // Traces exist only in development builds; a missing one is left out.
+    traces[`${trace.sessionId}/${trace.runId}`] = await readTrace(
+      trace.sessionId,
+      trace.runId,
+    ).catch(() => null);
+  }
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify({ ...result, traces }, null, 2)], { type: "application/json" }),
+  );
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `agent-evaluation-${result.evaluationId}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 type RunState =
   | { status: "idle" }
   | {
@@ -170,6 +193,7 @@ export default function AgentEvaluation() {
   useEffect(() => () => controller.current?.abort(), []);
   const [history, setHistory] = useState<SavedAgentEvaluationSummary[]>([]);
   const [shown, setShown] = useState<AgentEvaluationResult>();
+  const [exporting, setExporting] = useState(false);
   const [openError, setOpenError] = useState<string>();
 
   const openResult = async (evaluationId: string) => {
@@ -429,7 +453,24 @@ export default function AgentEvaluation() {
       ) : shown ? (
         <>
           <div>
-            <h2 {...stylex.props(styles.title)}>Results</h2>
+            <div {...stylex.props(styles.actions)}>
+              <h2 {...stylex.props(styles.title)}>Results</h2>
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => {
+                  setExporting(true);
+                  void exportEvaluation(shown)
+                    .catch((error: unknown) =>
+                      console.error("Could not export the evaluation:", error),
+                    )
+                    .finally(() => setExporting(false));
+                }}
+                {...stylex.props(styles.button)}
+              >
+                {exporting ? "Exporting…" : "Export JSON"}
+              </button>
+            </div>
             <p {...stylex.props(styles.description)}>
               {new Date(shown.startedAt).toLocaleString()} · {shown.agent.model} · judged by{" "}
               {shown.judge.model}
