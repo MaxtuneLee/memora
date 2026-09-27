@@ -405,7 +405,7 @@ export default function AgentEvaluation() {
               disabled={run.status === "running"}
               onChange={(event) => {
                 const value = Number(event.target.value);
-                if (Number.isInteger(value) && value >= 1) setConcurrency(value);
+                if (Number.isInteger(value) && value >= 1 && value <= 10) setConcurrency(value);
               }}
               {...stylex.props(styles.number)}
             />
