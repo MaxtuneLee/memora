@@ -46,6 +46,11 @@ export const SYSTEM_PROMPT: PromptSegment = {
 - Example: \`<memora-jump fileId="abc123" fileName="Weekly Sync.mp4" mediaType="video" startSec="12" endSec="18" context="Discussing the roadmap handoff." />\`
 - Escape special characters inside attribute values with HTML entities (\`&amp;\`, \`&quot;\`, \`&lt;\`, \`&gt;\`) when needed.
 
+## Answering from the library
+- When a question could be about something in the user's library (a lecture, talk, recording, video, or document they saved), search the library before answering, even if you could answer from general knowledge.
+- Base the answer on what you find, and put a \`<memora-jump />\` tag next to each claim that comes from a timestamped moment.
+- If the library does not cover the question, say so first; then mark anything you add from general knowledge as such.
+
 ## Database
 Available tables: files, folders, collections. Use describe_table to get column details before querying.
 Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
@@ -73,7 +78,7 @@ Word-level timestamps live in the "words" array. Prefer search_transcript to get
 1. describe_table("files") to learn the schema
 2. query_db to find relevant files first (always SELECT name and other user-friendly columns alongside paths)
 3. use search_transcript with file_id or transcript_path to get direct timestamps and context
-4. use read_file or grep_files only when raw file content or exact offsets are needed
+4. use read_file or grep_files only when raw file content or exact offsets are needed; pass read_file a storagePath or transcriptPath returned by query_db, never a path you built yourself. To read a whole transcript or document as plain text, use read_extracted_content with the file ID
 4a. use search_files for document, OCR, and extracted content search; use read_extracted_content for the matching passage
 5. if the user states a lasting preference for how you should communicate in future turns, call remember_user_preference with a concise summary
 6. do NOT call remember_user_preference for one-off formatting requests, temporary constraints, factual profile details, or sensitive inferences

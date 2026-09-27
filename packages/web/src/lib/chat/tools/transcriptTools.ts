@@ -93,6 +93,8 @@ const findRangeIndexAtOffset = (ranges: TranscriptWordRange[], offset: number): 
   return ranges.length - 1;
 };
 
+const MAX_CONTEXT_CHARS = 200;
+
 const buildContextSnippet = (
   text: string,
   start: number,
@@ -114,7 +116,7 @@ export const createTranscriptTools = (
       type: "function",
       name: "search_transcript",
       description:
-        "Search transcript words by keyword and return direct timestamp ranges with context and media type. Supports filtering by file_id or transcript_path. If no filter is provided, searches all active transcripts.",
+        "Search transcript words by keyword and return direct timestamp ranges with context and media type. Supports filtering by file_id or transcript_path. If no filter is provided, searches all active transcripts. context_chars is the text kept on each side of a match, at most 200; larger values are capped.",
       parameters: v.object({
         keyword: v.string(),
         file_id: v.optional(v.string()),
@@ -124,10 +126,8 @@ export const createTranscriptTools = (
           v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
           20,
         ),
-        context_chars: v.optional(
-          v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(200)),
-          48,
-        ),
+        // Capped in execute rather than rejected: models often ask for a little more.
+        context_chars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 48),
       }),
       execute: async (params: unknown) => {
         const payload = params as {
@@ -169,7 +169,7 @@ export const createTranscriptTools = (
         }
 
         const maxResults = payload.max_results ?? 20;
-        const contextChars = payload.context_chars ?? 48;
+        const contextChars = Math.min(payload.context_chars ?? 48, MAX_CONTEXT_CHARS);
         const flags = payload.ignore_case === false ? "g" : "gi";
         const matches: Array<{
           fileId: string;
