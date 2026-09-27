@@ -392,7 +392,7 @@ const insertSlashCommand = (editor: LexicalEditor, option: SlashCommandOption): 
   if (kind === "table") {
     editor.dispatchCommand(INSERT_TABLE_COMMAND, {
       columns: "3",
-      includeHeaders: true,
+      includeHeaders: { columns: false, rows: true },
       rows: "3",
     });
     return;

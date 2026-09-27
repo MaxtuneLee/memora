@@ -10,10 +10,17 @@ import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAt
 import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import type { ChatWidget } from "@/lib/chat/showWidget";
 
+// Text the user attached to a message from elsewhere, such as a selection in a note.
+export interface ChatMessageQuote {
+  label: string;
+  text: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  quote?: ChatMessageQuote;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
   files?: ChatFileCard[];
@@ -30,6 +37,7 @@ export interface RunTurnOptions {
   mode?: "pending" | "steer";
   existingUserMessage?: ChatMessage;
   userMessageContent?: string;
+  userMessageQuote?: ChatMessageQuote;
 }
 
 export interface IterationLimitPrompt {

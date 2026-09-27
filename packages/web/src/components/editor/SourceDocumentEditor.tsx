@@ -72,6 +72,8 @@ interface SourceDocumentEditorProps {
   text: string;
   onTextChange: (text: string) => void;
   onVisibleLineChange?: (lineNumber: number) => void;
+  // Selected text while the editor has focus, or null once the selection collapses.
+  onSelectionTextChange?: (text: string | null) => void;
   focusedLineStart?: number | null;
   focusedLineEnd?: number | null;
   diagnostics?: readonly MarkdownSafetyDiagnostic[];
@@ -286,6 +288,7 @@ export const SourceDocumentEditor = forwardRef<
     text,
     onTextChange,
     onVisibleLineChange,
+    onSelectionTextChange,
     focusedLineStart = null,
     focusedLineEnd = null,
     diagnostics = [],
@@ -295,6 +298,7 @@ export const SourceDocumentEditor = forwardRef<
 ) {
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const onVisibleLineChangeRef = useRef(onVisibleLineChange);
+  const onSelectionTextChangeRef = useRef(onSelectionTextChange);
   const resolvedTheme = useResolvedTheme();
   const themeCompartment = useMemo(() => new Compartment(), []);
   // Computed once: later theme changes are applied through the compartment's reconfigure
@@ -309,6 +313,10 @@ export const SourceDocumentEditor = forwardRef<
     onVisibleLineChangeRef.current = onVisibleLineChange;
   }, [onVisibleLineChange]);
 
+  useEffect(() => {
+    onSelectionTextChangeRef.current = onSelectionTextChange;
+  }, [onSelectionTextChange]);
+
   // Reconfigures the theme compartment in place on theme change - the document, selection,
   // undo history, and focus all live on the rest of the editor state and are untouched.
   useEffect(() => {
@@ -322,6 +330,10 @@ export const SourceDocumentEditor = forwardRef<
 
   const visibleLineExtension = useMemo(() => {
     return EditorView.updateListener.of((update) => {
+      if (update.selectionSet && update.view.hasFocus) {
+        const { from, to } = update.state.selection.main;
+        onSelectionTextChangeRef.current?.(from === to ? null : update.state.sliceDoc(from, to));
+      }
       if (!update.viewportChanged && !update.docChanged) {
         return;
       }

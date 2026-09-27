@@ -176,6 +176,31 @@ const styles = stylex.create({
     ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   hidden: { display: "none" },
+  contextChip: {
+    alignItems: "flex-start",
+    backgroundColor: tokens.surfaceMuted,
+    borderLeft: `3px solid ${tokens.olive}`,
+    borderRadius: 8,
+    display: "flex",
+    gap: 8,
+    marginInline: 12,
+    marginTop: 10,
+    paddingBlock: 6,
+    paddingInline: 10,
+  },
+  contextBody: { display: "flex", flex: 1, flexDirection: "column", gap: 2, minWidth: 0 },
+  contextLabel: { color: tokens.textMuted, fontSize: 11, fontWeight: 600 },
+  contextPreview: {
+    color: tokens.text,
+    display: "-webkit-box",
+    fontSize: 12,
+    lineHeight: "1rem",
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 3,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  },
   composer: {
     backdropFilter: "blur(24px)",
     backgroundColor: `color-mix(in srgb, ${tokens.card} 90%, transparent)`,
@@ -327,6 +352,9 @@ interface ChatPageComposerPanelProps {
   onReferenceButtonClick: () => void;
   onAbort: () => void;
   onRemoveComposerImage: (attachmentId: string) => void;
+  // Context attached to the next message, shown inside the input box (selected note text).
+  contextChip?: { label: string; preview: string; onRemove: () => void } | null;
+  placeholder?: string;
 }
 
 export const ChatPageComposerPanel = ({
@@ -386,6 +414,8 @@ export const ChatPageComposerPanel = ({
   onReferenceButtonClick,
   onAbort,
   onRemoveComposerImage,
+  contextChip = null,
+  placeholder = "Message Memora...",
 }: ChatPageComposerPanelProps) => {
   return (
     <div {...stylex.props(styles.root, centered && styles.rootCentered)}>
@@ -555,6 +585,22 @@ export const ChatPageComposerPanel = ({
               {composerDragActive && (
                 <div {...stylex.props(styles.dragOverlay)}>Drop images here to attach them</div>
               )}
+              {contextChip && (
+                <div {...stylex.props(styles.contextChip)} data-testid="chat-context-chip">
+                  <div {...stylex.props(styles.contextBody)}>
+                    <span {...stylex.props(styles.contextLabel)}>{contextChip.label}</span>
+                    <span {...stylex.props(styles.contextPreview)}>{contextChip.preview}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={contextChip.onRemove}
+                    {...stylex.props(styles.removeReference)}
+                    aria-label={`Remove ${contextChip.label.toLowerCase()}`}
+                  >
+                    <XIcon className={stylex.props(styles.iconSmall).className} />
+                  </button>
+                </div>
+              )}
               {composerImages.length > 0 && (
                 <div {...stylex.props(styles.attachments)}>
                   <ChatImageAttachmentGallery
@@ -571,7 +617,7 @@ export const ChatPageComposerPanel = ({
                 onPaste={onPaste}
                 onCompositionStart={onCompositionStart}
                 onCompositionEnd={onCompositionEnd}
-                placeholder="Message Memora..."
+                placeholder={placeholder}
                 disabled={isPreparingTurn}
                 rows={1}
                 {...stylex.props(

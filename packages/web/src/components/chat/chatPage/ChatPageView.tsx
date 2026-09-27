@@ -29,6 +29,7 @@ const styles = stylex.create({
   hidden: { display: "none" },
   content: { display: "flex", flex: 1, minHeight: 0, position: "relative" },
   scrollArea: { flex: 1, minHeight: 0, overflowY: "auto" },
+  messagesCompact: { paddingInline: 12, paddingTop: 16 },
   messages: {
     display: "flex",
     flexDirection: "column",
@@ -88,6 +89,8 @@ export const ChatPageView = (props: {
   onConfirmDeleteSession: (sessionId: string) => void;
   onOpenHistoryDrawer: () => void;
   onCloseHistoryDrawer: () => void;
+  // "sidebar": a narrow chat without the history column, for the editor side panel.
+  variant?: "page" | "sidebar";
 }) => {
   const {
     sessions,
@@ -136,7 +139,9 @@ export const ChatPageView = (props: {
     onConfirmDeleteSession,
     onOpenHistoryDrawer,
     onCloseHistoryDrawer,
+    variant = "page",
   } = props;
+  const isSidebar = variant === "sidebar";
   const [view, setView] = useState<"chat" | "trace">("chat");
   // The user message that started (or steered) the Run to open in the Trace tab.
   const [traceInputId, setTraceInputId] = useState<string>();
@@ -157,22 +162,24 @@ export const ChatPageView = (props: {
   return (
     <MotionConfig reducedMotion="user">
       <div {...stylex.props(styles.root)}>
-        <ChatPageHistoryShell
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          activeSessionTitle={activeSessionTitle}
-          isHistoryPanelBusy={isHistoryPanelBusy}
-          deletingSessionId={deletingSessionId}
-          sessionsReady={sessionsReady}
-          sessionsError={sessionsError}
-          onCreateSession={onCreateSession}
-          onSelectSession={onSelectSession}
-          onDeleteSession={onDeleteSession}
-          onOpenHistoryDrawer={onOpenHistoryDrawer}
-        />
+        {isSidebar ? null : (
+          <ChatPageHistoryShell
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            activeSessionTitle={activeSessionTitle}
+            isHistoryPanelBusy={isHistoryPanelBusy}
+            deletingSessionId={deletingSessionId}
+            sessionsReady={sessionsReady}
+            sessionsError={sessionsError}
+            onCreateSession={onCreateSession}
+            onSelectSession={onSelectSession}
+            onDeleteSession={onDeleteSession}
+            onOpenHistoryDrawer={onOpenHistoryDrawer}
+          />
+        )}
 
         <div {...stylex.props(styles.main)}>
-          {ChatPageTracePanel ? (
+          {ChatPageTracePanel && !isSidebar ? (
             <div {...stylex.props(styles.views)}>
               <TabSelect
                 aria-label="Chat view"
@@ -196,7 +203,7 @@ export const ChatPageView = (props: {
             >
               <div
                 ref={messagesContentRef}
-                {...stylex.props(styles.messages)}
+                {...stylex.props(styles.messages, isSidebar && styles.messagesCompact)}
                 style={{ paddingBottom: hasMessages ? composerScrollInset : 0 }}
               >
                 <ChatPageMessagesPanel
@@ -238,7 +245,7 @@ export const ChatPageView = (props: {
       </div>
 
       <ChatPageHistoryDrawer
-        isOpen={isHistoryDrawerOpen}
+        isOpen={!isSidebar && isHistoryDrawerOpen}
         sessions={sessions}
         activeSessionId={activeSessionId}
         isHistoryPanelBusy={isHistoryPanelBusy}

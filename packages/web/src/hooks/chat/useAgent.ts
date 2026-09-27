@@ -7,9 +7,15 @@ import {
 } from "@memora/ai-core";
 import { command, getSnapshot, subscribe } from "@/lib/agent-runtime/client";
 import { EMPTY_REFERENCE_SCOPE } from "@/lib/chat/tools/shared";
-import { normalizeTurnInput, toAgentHistoryMessages } from "./useAgent/input";
+import { normalizeTurnInput, toAgentHistoryMessages, withQuoteForModel } from "./useAgent/input";
 import type { ChatMessage, UseAgentOptions, UseAgentReturn } from "./useAgent/types";
-export type { AgentStatus, ChatMessage, ChatTurnInput, ThinkingStep } from "./useAgent/types";
+export type {
+  AgentStatus,
+  ChatMessage,
+  ChatMessageQuote,
+  ChatTurnInput,
+  ThinkingStep,
+} from "./useAgent/types";
 
 export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   const { sessionId } = options;
@@ -48,13 +54,15 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         if (!options.providerConfig)
           throw new Error("Select a configured provider and model before sending a message.");
         const normalized = normalizeTurnInput(input);
+        const quote = turnOptions?.existingUserMessage?.quote ?? turnOptions?.userMessageQuote;
+        const modelText = withQuoteForModel(normalized.text, quote);
         const id = turnOptions?.existingUserMessage?.id ?? crypto.randomUUID();
         const agentInput: AgentMessage = {
           id,
           role: "user",
           createdAt: Date.now(),
           content: [
-            ...(normalized.text ? [{ type: "text" as const, text: normalized.text }] : []),
+            ...(modelText ? [{ type: "text" as const, text: modelText }] : []),
             ...normalized.images.map((image) => ({
               type: "image" as const,
               mimeType: image.attachment.mimeType,
@@ -67,6 +75,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
           role: "user",
           content: turnOptions?.userMessageContent ?? normalized.text,
           attachments: normalized.images.map((image) => image.attachment),
+          ...(quote ? { quote } : {}),
         };
         // Capture page-derived scope and configuration before the first asynchronous boundary.
         const scope = structuredClone(options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE);

@@ -1,4 +1,15 @@
-import { $getRoot, type EditorState, type LexicalNode, type LexicalNodeConfig } from "lexical";
+import {
+  $createParagraphNode,
+  $getRoot,
+  $getSelection,
+  $getState,
+  $setSelection,
+  $setState,
+  createState,
+  type EditorState,
+  type LexicalNode,
+  type LexicalNodeConfig,
+} from "lexical";
 import { $isCodeNode, CodeHighlightNode, CodeNode } from "@lexical/code";
 import { LinkNode } from "@lexical/link";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -33,7 +44,13 @@ import {
   MULTILINE_MATH_BLOCK_TRANSFORMER,
   SETEXT_HEADING_TRANSFORMER,
   TABLE_TRANSFORMER,
+  setTableCellTransformers,
 } from "@/components/editor/lexical/imageMarkdownTransformer";
+import {
+  LEXICAL_LIST_INDENT_WIDTH,
+  normalizeMarkdownListIndent,
+  restoreMarkdownListIndent,
+} from "@/lib/editor/markdownListIndent";
 
 const isDefaultLinkTransformer = (transformer: (typeof TRANSFORMERS)[number]): boolean => {
   const dependencies = "dependencies" in transformer ? transformer.dependencies : undefined;
@@ -42,6 +59,34 @@ const isDefaultLinkTransformer = (transformer: (typeof TRANSFORMERS)[number]): b
 
 const DEFAULT_WYSIWYG_TRANSFORMERS = TRANSFORMERS.filter((transformer) => {
   return !isDefaultLinkTransformer(transformer);
+});
+
+// Lexical only reads a lowercase "x" as checked, so "- [X] done" would come back unchecked.
+export const TASK_LIST_TRANSFORMER: ElementTransformer = {
+  ...CHECK_LIST,
+  replace: (parentNode, children, match, isImport) => {
+    const normalizedMatch = match.map((value, index) =>
+      index === 3 ? value?.toLowerCase() : value,
+    );
+    return CHECK_LIST.replace(parentNode, children, normalizedMatch, isImport);
+  },
+};
+
+const listIndentWidthState = createState("markdownListIndentWidth", {
+  parse: (value: unknown): number => {
+    return typeof value === "number" && Number.isInteger(value) && value > 0
+      ? value
+      : LEXICAL_LIST_INDENT_WIDTH;
+  },
+});
+
+// YAML front matter is kept as-is outside the editable content. It must start with a "key:" line
+// and have no blank lines, so a note that opens with a "---" rule is not mistaken for it.
+const FRONT_MATTER_REGEXP =
+  /^---[ \t]*\r?\n[\w"'-][^\r\n]*:[^\r\n]*\r?\n(?:[^\r\n]*\S[^\r\n]*\r?\n)*?(?:---|\.\.\.)[ \t]*(?:\r?\n[ \t]*)*(?:\r?\n|$)/;
+
+const frontMatterState = createState("markdownFrontMatter", {
+  parse: (value: unknown): string => (typeof value === "string" ? value : ""),
 });
 
 const CODE_FENCE_EXPORT_SENTINEL = "__MEMORA_CODE_FENCE__";
@@ -119,7 +164,7 @@ export const WYSIWYG_TRANSFORMERS = [
   HORIZONTAL_RULE_TRANSFORMER,
   MULTILINE_MATH_BLOCK_TRANSFORMER,
   MATH_BLOCK_TRANSFORMER,
-  CHECK_LIST,
+  TASK_LIST_TRANSFORMER,
   TABLE_TRANSFORMER,
   SETEXT_HEADING_TRANSFORMER,
   HTML_IMAGE_TRANSFORMER,
@@ -131,14 +176,41 @@ export const WYSIWYG_TRANSFORMERS = [
   ...DEFAULT_WYSIWYG_TRANSFORMERS,
 ];
 
+setTableCellTransformers(WYSIWYG_TRANSFORMERS);
+
 export const importWysiwygMarkdown = (markdown: string): void => {
-  $convertFromMarkdownString(markdown, WYSIWYG_TRANSFORMERS, $getRoot());
+  const frontMatter = markdown.match(FRONT_MATTER_REGEXP)?.[0] ?? "";
+  const { indentWidth, markdown: normalizedMarkdown } = normalizeMarkdownListIndent(
+    markdown.slice(frontMatter.length),
+  );
+  const root = $getRoot();
+  $convertFromMarkdownString(normalizedMarkdown, WYSIWYG_TRANSFORMERS, root);
+  $setState(root, listIndentWidthState, indentWidth);
+  $setState(root, frontMatterState, frontMatter);
 };
 
 export const exportWysiwygMarkdown = (editorState: EditorState): string => {
-  return editorState
-    .read(() => $convertToMarkdownString(WYSIWYG_TRANSFORMERS))
-    .replaceAll(`${CODE_FENCE_EXPORT_SENTINEL}\n\n`, "")
-    .replaceAll(`\n\n${CODE_FENCE_EXPORT_SENTINEL}`, "")
-    .replaceAll(CODE_FENCE_EXPORT_SENTINEL, "");
+  return editorState.read(() => {
+    const markdown = $convertToMarkdownString(WYSIWYG_TRANSFORMERS)
+      .replaceAll(`${CODE_FENCE_EXPORT_SENTINEL}\n\n`, "")
+      .replaceAll(`\n\n${CODE_FENCE_EXPORT_SENTINEL}`, "")
+      .replaceAll(CODE_FENCE_EXPORT_SENTINEL, "");
+    const root = $getRoot();
+    const body = restoreMarkdownListIndent(markdown, $getState(root, listIndentWidthState));
+    return `${$getState(root, frontMatterState)}${body}`;
+  });
+};
+
+// Converts pasted markdown into editor nodes without touching the current document.
+export const $createNodesFromMarkdown = (markdown: string): LexicalNode[] => {
+  const selection = $getSelection()?.clone() ?? null;
+  const container = $createParagraphNode();
+  $convertFromMarkdownString(
+    normalizeMarkdownListIndent(markdown).markdown,
+    WYSIWYG_TRANSFORMERS,
+    container,
+  );
+  // The markdown import moves the caret into the container; put it back.
+  $setSelection(selection);
+  return container.getChildren();
 };
