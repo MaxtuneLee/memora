@@ -132,6 +132,9 @@ const styles = stylex.create({
 const TYPESAFE_CREDENTIAL = { id: "typesafe", baseUrl: "https://api.typesafe.ai" };
 const ATTEMPTS_PER_QUESTION = 3;
 
+/** Question IDs typed into the filter, separated by commas or spaces; none means all questions. */
+const questionIdsOf = (text: string): string[] => text.split(/[\s,]+/).filter(Boolean);
+
 type ImportState =
   | { status: "idle" }
   | { status: "importing" }
@@ -189,6 +192,7 @@ export default function AgentEvaluation() {
   const [dataFiles, setDataFiles] = useState<File[]>([]);
   const [questionsFile, setQuestionsFile] = useState<File | null>(null);
   const [concurrency, setConcurrency] = useState(3);
+  const [questionFilter, setQuestionFilter] = useState("");
   const [run, setRun] = useState<RunState>({ status: "idle" });
   const controller = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => controller.current?.abort(), []);
@@ -238,9 +242,24 @@ export default function AgentEvaluation() {
     activeSessionId: "evaluation",
   });
 
+  const filterIds = questionIdsOf(questionFilter);
+  const selection =
+    state.status === "imported"
+      ? {
+          questions: filterIds.length
+            ? state.data.questions.filter(({ questionId }) => filterIds.includes(questionId))
+            : state.data.questions,
+          unknown: filterIds.filter(
+            (id) => !state.data.questions.some(({ questionId }) => questionId === id),
+          ),
+        }
+      : undefined;
+
   const runEvaluation = async () => {
-    if (state.status !== "imported" || !providerConfig || !jevKey) return;
-    const { questions, lectures, fileLectures, cues, revisions } = state.data;
+    if (state.status !== "imported" || !providerConfig || !jevKey || !selection?.questions.length)
+      return;
+    const { lectures, fileLectures, cues, revisions } = state.data;
+    const { questions } = selection;
     const next = new AbortController();
     controller.current = next;
     setRun({
@@ -392,6 +411,22 @@ export default function AgentEvaluation() {
             />
           </label>
           <label {...stylex.props(styles.field)}>
+            Questions to run
+            <input
+              type="text"
+              placeholder="All questions, or IDs such as q02, q15"
+              value={questionFilter}
+              disabled={run.status === "running"}
+              onChange={(event) => setQuestionFilter(event.target.value)}
+              {...stylex.props(styles.number, styles.key)}
+            />
+            <span {...stylex.props(styles.input)}>
+              {selection?.unknown.length
+                ? `Not in the questions file: ${selection.unknown.join(", ")}`
+                : `${selection?.questions.length ?? 0} of ${state.data.questions.length} questions, ${ATTEMPTS_PER_QUESTION} attempts each`}
+            </span>
+          </label>
+          <label {...stylex.props(styles.field)}>
             TypeSafe AI API key for the Jev judge
             <input
               type="password"
@@ -413,7 +448,13 @@ export default function AgentEvaluation() {
           <div {...stylex.props(styles.actions)}>
             <button
               type="button"
-              disabled={run.status === "running" || !providerConfig || !jevKey}
+              disabled={
+                run.status === "running" ||
+                !providerConfig ||
+                !jevKey ||
+                !selection?.questions.length ||
+                selection.unknown.length > 0
+              }
               onClick={() => void runEvaluation()}
               {...stylex.props(styles.button)}
             >
@@ -477,6 +518,21 @@ export default function AgentEvaluation() {
                 {...stylex.props(styles.button)}
               >
                 {exporting ? "Exporting…" : "Export JSON"}
+              </button>
+              <button
+                type="button"
+                disabled={shown.summary.passed === shown.attempts.length}
+                onClick={() =>
+                  setQuestionFilter(
+                    shown.summary.questions
+                      .filter(({ passes, attempts }) => passes < attempts)
+                      .map(({ questionId }) => questionId)
+                      .join(", "),
+                  )
+                }
+                {...stylex.props(styles.button)}
+              >
+                Select questions that did not pass
               </button>
             </div>
             <p {...stylex.props(styles.description)}>
