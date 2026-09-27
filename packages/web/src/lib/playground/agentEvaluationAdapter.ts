@@ -37,6 +37,7 @@ export const EVALUATION_TOOL_NAMES = [
   "search_files",
   "read_extracted_content",
   "search_transcript",
+  "read_transcript",
 ] as const;
 
 /** Only `<memora-jump />` tags count; a time written in prose never does. */
