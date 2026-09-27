@@ -57,6 +57,7 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 
 ## Cross-session history
 - If the user asks about previous chats, earlier conclusions, or "what we discussed before", call list_chat_sessions and read_chat_session as needed.
+- If the question is about the user themselves — their plans, dates, decisions, or anything they may have told you before (for example "remind me…", "what did I say…", "我之前说过…") — check list_chat_sessions and read_chat_session first, before searching the library.
 - Summarize history in user-friendly language. Do not reveal internal IDs or storage details.
 
 ## Interactive widgets

@@ -70,6 +70,43 @@ The pass rate went from 9/72 to 71/75 in one day, but most of that was the evalu
 - **Agent**: three `read_file` calls still guessed `/files/<id>/transcript.json`; each attempt recovered through search. One `recall_message` with an unknown recall ID and one `grep_files` on a file path instead of a folder; neither affected the answer.
 - **Next**: the set is saturated. Harder questions (#59) are the only way to see further agent changes.
 
+## Memory evaluation
+
+From 2026-09-27 the agent's memory is evaluated alongside QA, with rules instead of a judge:
+
+- **Using stored preferences**: QA questions answered under a memory profile (`zh`, `brief`, `bullets`, `zh-bullets`); an attempt passes only if it passes QA and follows the profile's rules. Runs are logged in the runs table with the profile in the scope column.
+- **Saving preferences**: 16 single-message cases (6 lasting preferences, 4 one-off requests, 3 profile facts, 3 sensitive details). Scored on whether the agent calls `remember_user_preference` exactly when it should, and whether the saved notice is English and names the preference.
+- **Cross-session recall**: 7 cases over 6 fixed past sessions: plain recall, a decision that was later changed (must give the latest), a Chinese question about an English chat, and a topic never discussed (must say so).
+
+Neither writes to the user's memory or reads the user's chats. Cases and profiles live in `~/memora-eval-data/memory/`.
+
+### Memory runs
+
+| #   | Date (UTC)       | Evaluation | Scope                      | Conc. | Code                  | Prompt   | Cases    | Passed  | Save TP / FP / FN / TN | Notices passed | Recall passed | Tokens (in / cached / out)   |
+| --- | ---------------- | ---------- | -------------------------- | ----- | --------------------- | -------- | -------- | ------- | ---------------------- | -------------- | ------------- | ---------------------------- |
+| M1  | 2026-09-27 11:15 | 922de5ef   | 4 × 3 (d01, o02, r02, r07) | 6     | e8860c1 + uncommitted | 13fa87f7 | f67ea437 | 11 / 12 | 3 / 0 / 0 / 3          | 3 / 3          | 5 / 6         | 37,979 / 122,751 / 13,597    |
+| M2  | 2026-09-27 12:01 | dc70ba47   | 23 × 3                     | 9     | e8860c1 + uncommitted | 13fa87f7 | 84c23a4d | 68 / 69 | 18 / 0 / 0 / 30        | 18 / 18        | 20 / 21       | 238,475 / 1,173,872 / 82,563 |
+| M3  | 2026-09-27 12:37 | 94d57ea8   | 1 × 3 (r05)                | 3     | e8860c1 + uncommitted | 8f750460 | c103186d | 3 / 3   | —                      | —              | 3 / 3         | 10,530 / 24,960 / 2,250      |
+
+### Run M1: smoke run of the memory evaluation (uncommitted)
+
+- **Showed**: saves and skips were all right; d01's notices were English ("User prefers the assistant to respond in Simplified Chinese."). r02 gave 512 each time, from the later of two batch-size chats. Every recall attempt read the expected session. The user's real memory stayed empty.
+- **Answer key**: r07 #1 correctly said diffusion was never discussed, then summarised other chats with "we agreed", which the "does not invent a conclusion" rule caught. The rule now only matches a conclusion about diffusion (cases file 84c23a4d); all three answers pass it.
+- **Next**: the full memory set, and QA runs under the `zh` and `brief` profiles.
+
+### Run M2: full memory set (uncommitted)
+
+- **Showed**: 68/69. Saving was perfect: 18 of 18 lasting preferences saved, none of the 30 one-off, personal-fact, or sensitive messages saved, and all 18 notices well-formed (d02, asked in Chinese, came back as "User prefers answers to state the conclusion first…"). Every recall attempt read the expected session; r02 took the later decision (512) and r07 said diffusion never came up, all 3/3. Median latency 43.2 s at concurrency 9, 7.8 min in all.
+- **Answer key**: r05 #3 answered correctly in Chinese ("10 月 3 日"), which the date pattern did not allow; it now accepts spaces around 月 and 日, and a word boundary keeps "13 October" out (cases file c103186d). With it, the run is 69/69.
+- **Agent**: asked "Remind me when my exam is.", every r05 attempt searched the library first (13 to 19 tool calls) and reached `list_chat_sessions` only near the end; the prompt sends only questions about "previous chats" to the session tools, so personal facts are looked for in files first. r05 #3 also answered an English question in Chinese.
+- **Next**: like QA, the set passes almost everything; harder cases would separate agents (combining two chats, a preference that replaces an older one, a message mixing a lasting preference with a one-off request). Profile runs under `zh` and `brief` still need a run after the Memora tabs reload.
+
+### Run M3: chat history before the library (uncommitted)
+
+- **Changed**: the system prompt now says that a question about the user themselves (their plans, dates, decisions, or anything they may have told the agent, such as "remind me…") checks `list_chat_sessions` and `read_chat_session` before searching the library. Prompt revision 13fa87f7 → 8f750460.
+- **Showed**: r05 3/3, each attempt starting with `list_chat_sessions`: 2 to 4 tool calls instead of 13 to 19, 4 to 8 s instead of about 160 s (concurrency 3 here, 9 in M2, so latency is only roughly comparable), and 10.5k uncached input tokens for all three instead of 37.0k. Two attempts still ran `search_files` alongside. All answers were in English.
+- **Next**: the rest of the recall cases and the full QA set, to check that lecture questions do not now start in chat history.
+
 ## Open follow-ups
 
 - Harder questions (#59): questions the library cannot answer (needs questions without evidence), questions that need three or more passages, exact-quote questions.
