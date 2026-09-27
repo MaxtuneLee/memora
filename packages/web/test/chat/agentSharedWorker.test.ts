@@ -275,6 +275,73 @@ describe("agent SharedWorker protocol", () => {
     await vi.waitFor(() => expect(second.snapshot()?.outcome).toBe("completed"));
   });
 
+  it("keeps tool calls and results before a resent message and falls back without a match", async () => {
+    const text = (id: string, role: "user" | "assistant", value: string) => ({
+      id,
+      role,
+      content: [{ type: "text" as const, text: value }],
+      createdAt: 1,
+    });
+    const earlier = [
+      text("first", "user", "first"),
+      {
+        id: "call",
+        role: "assistant" as const,
+        content: [{ type: "tool_call" as const, id: "t1", name: "read_file", arguments: {} }],
+        createdAt: 1,
+      },
+      {
+        id: "result",
+        role: "tool" as const,
+        content: [{ type: "tool_result" as const, id: "t1", name: "read_file", result: "data" }],
+        createdAt: 1,
+      },
+      text("answer", "assistant", "answer"),
+    ];
+    const rebuilt = [text("first", "user", "first"), text("answer", "assistant", "answer")];
+    state.records.set("replay", {
+      id: "replay",
+      schemaVersion: 2,
+      title: "Saved",
+      createdAt: 1,
+      updatedAt: 1,
+      messages: [],
+      references: [],
+      agentStore: {
+        "memora-chat:replay": {
+          history: [...earlier, text("second", "user", "second"), text("reply", "assistant", "x")],
+          compaction: { compactedThrough: "call", strippedThrough: "reply" },
+        },
+      },
+    });
+    const port = connect();
+    await port.request({ type: "subscribe", sessionId: "replay" });
+    const history = () => state.records.get("replay")?.agentStore["memora-chat:replay"]?.history;
+
+    await port.request({
+      type: "reset",
+      sessionId: "replay",
+      messages: [],
+      history: rebuilt,
+      replayFrom: "second",
+    });
+    expect(history()).toEqual(earlier);
+    // The cut removed the stripped-through message, so every kept message was sent stripped.
+    expect(state.records.get("replay")?.agentStore["memora-chat:replay"]?.compaction).toEqual({
+      compactedThrough: "call",
+      strippedThrough: "answer",
+    });
+
+    await port.request({
+      type: "reset",
+      sessionId: "replay",
+      messages: [],
+      history: rebuilt,
+      replayFrom: "missing",
+    });
+    expect(history()).toEqual(rebuilt);
+  });
+
   it("retains interrupted and queued messages after a worker restart without resuming them", async () => {
     const pending = submission("queued");
     state.records.set("recover", {

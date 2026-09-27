@@ -25,6 +25,7 @@ const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
   "transcription",
   "sessionTitle",
   "memoryExtraction",
+  "contextCompaction",
 ];
 
 const styles = stylex.create({
@@ -143,7 +144,7 @@ function FeatureModelRow({
     label: LOCAL_MODELS.find((entry) => entry.id === modelId)?.name ?? modelId,
   }));
   const sourceOptions = [
-    ...(feature === "assistant" ? [] : [{ value: "local", label: "On this device" }]),
+    ...(localOptions.length === 0 ? [] : [{ value: "local", label: "On this device" }]),
     { value: "cloud", label: "Cloud" },
     ...(canInheritChatModel(feature) ? [{ value: "inherit", label: "Follow chat model" }] : []),
   ];

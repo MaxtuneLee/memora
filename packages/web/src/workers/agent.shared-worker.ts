@@ -1,4 +1,13 @@
-import { createAgent, createInMemoryAdapter, type PersistenceAdapter } from "@memora/ai-core";
+import {
+  CACHE_TTL_MS,
+  COMPACTION_KEY,
+  type Agent,
+  createAgent,
+  createInMemoryAdapter,
+  rebaseCompaction,
+  type CompactionState,
+  type PersistenceAdapter,
+} from "@memora/ai-core";
 import { createRemotePiRuntime } from "@memora/ai-provider-pi";
 import * as v from "valibot";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
@@ -7,6 +16,7 @@ import {
   updateChatSession,
   deleteChatSession,
 } from "@/lib/chat/chatSessionStorage";
+import { historyBeforeReplay } from "@/lib/agent-runtime/replayHistory";
 import { SessionRuntime, emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
 import type {
   AgentRequest,
@@ -106,6 +116,26 @@ const invokeTool = (
   });
 };
 
+/** Written before the provider cache expires, so the recap request is served mostly from cache. */
+const RECAP_DELAY_MS = CACHE_TTL_MS - 60_000;
+const recapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+const writeRecap = async (
+  runtime: SessionRuntime,
+  last: AgentSubmission,
+  createRunner: (submission: AgentSubmission) => Promise<Agent>,
+): Promise<void> => {
+  recapTimers.delete(runtime.snapshot.sessionId);
+  if (deletedSessions.has(runtime.snapshot.sessionId)) return;
+  if (runtime.snapshot.activeRunId || runtime.snapshot.pending.length) return;
+  try {
+    const text = await (await createRunner(last)).generateRecap();
+    if (text) await runtime.setRecap(text);
+  } catch (error) {
+    console.warn("Could not write a recap:", error);
+  }
+};
+
 const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRuntime> => {
   let promise = sessions.get(sessionId);
   if (promise) return promise;
@@ -131,6 +161,39 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
       snapshot.approval = undefined;
       snapshot.status = { type: "idle" };
     }
+    const createRunner = async (submission: AgentSubmission) => {
+      const adapter = memoryAdapter ?? createOpfsSessionPersistenceAdapter(sessionId);
+      const memory = await adapter.load(`memora-chat:${sessionId}`, "memory");
+      const persistence: PersistenceAdapter = {
+        save: (agentId, key, value) => adapter.save(agentId, key, value),
+        remove: (agentId, key) => adapter.remove(agentId, key),
+        list: (agentId) => adapter.list(agentId),
+        grep: (agentId, pattern) => adapter.grep(agentId, pattern),
+        load: async <T>(agentId: string, key: string): Promise<T | null> =>
+          key === "memory" ? (structuredClone(memory) as T | null) : adapter.load<T>(agentId, key),
+      };
+      const model = createRemotePiRuntime(submission.provider);
+      const agent = createAgent({
+        config: submission.config,
+        ...model,
+        persistence,
+        ...(submission.compactionProvider
+          ? { compactionModel: createRemotePiRuntime(submission.compactionProvider) }
+          : {}),
+      });
+      for (const prompt of submission.prompts) agent.addPromptSegment(prompt);
+      for (const tool of submission.tools)
+        agent.registerTool({
+          type: "function",
+          name: tool.name,
+          description: tool.description,
+          parameters: v.unknown(),
+          jsonSchema: tool.parameters,
+          execute: (args) => invokeTool(sessionId, submission, tool.name, args),
+        });
+      await agent.init();
+      return agent;
+    };
     const runtime = new SessionRuntime({
       snapshot,
       publish,
@@ -147,33 +210,14 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
           agentStore: { ...session.agentStore, runtime: { snapshot: next } },
         }));
       },
-      createRunner: async (submission) => {
-        const adapter = memoryAdapter ?? createOpfsSessionPersistenceAdapter(sessionId);
-        const memory = await adapter.load(`memora-chat:${sessionId}`, "memory");
-        const persistence: PersistenceAdapter = {
-          save: (agentId, key, value) => adapter.save(agentId, key, value),
-          remove: (agentId, key) => adapter.remove(agentId, key),
-          list: (agentId) => adapter.list(agentId),
-          grep: (agentId, pattern) => adapter.grep(agentId, pattern),
-          load: async <T>(agentId: string, key: string): Promise<T | null> =>
-            key === "memory"
-              ? (structuredClone(memory) as T | null)
-              : adapter.load<T>(agentId, key),
-        };
-        const model = createRemotePiRuntime(submission.provider);
-        const agent = createAgent({ config: submission.config, ...model, persistence });
-        for (const prompt of submission.prompts) agent.addPromptSegment(prompt);
-        for (const tool of submission.tools)
-          agent.registerTool({
-            type: "function",
-            name: tool.name,
-            description: tool.description,
-            parameters: v.unknown(),
-            jsonSchema: tool.parameters,
-            execute: (args) => invokeTool(sessionId, submission, tool.name, args),
-          });
-        await agent.init();
-        return agent;
+      createRunner,
+      onIdle: (last) => {
+        if (memoryAdapter) return;
+        clearTimeout(recapTimers.get(sessionId));
+        recapTimers.set(
+          sessionId,
+          setTimeout(() => void writeRecap(runtime, last, createRunner), RECAP_DELAY_MS),
+        );
       },
     });
     if (snapshot.outcome === "interrupted") await runtime.checkpoint();
@@ -287,36 +331,59 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       publish(runtime.snapshot);
       break;
     }
+    case "steer-pending":
+      await runtime.steerPending(request.submissionId);
+      break;
     case "patch-message":
       runtime.patchMessage(request.message);
       break;
-    case "reset":
+    case "reset": {
       if (runtime.snapshot.activeRunId || runtime.snapshot.pending.length)
         throw new Error("Stop the session and let queued messages finish before editing history.");
-      if (transientAdapters.has(request.sessionId)) {
-        await transientAdapters
-          .get(request.sessionId)
-          ?.save(`memora-chat:${request.sessionId}`, "history", request.history);
+      const agentKey = `memora-chat:${request.sessionId}`;
+      const transient = transientAdapters.get(request.sessionId);
+      if (transient) {
+        const history = historyBeforeReplay(await transient.load(agentKey, "history"), request);
+        await transient.save(agentKey, "history", history);
+        await transient.save(
+          agentKey,
+          COMPACTION_KEY,
+          rebaseCompaction(
+            await transient.load<CompactionState>(agentKey, COMPACTION_KEY),
+            history,
+          ),
+        );
       } else
-        await updateChatSession(request.sessionId, (session) => ({
-          ...session,
-          messages: request.messages,
-          agentStore: {
-            ...session.agentStore,
-            [`memora-chat:${request.sessionId}`]: {
-              ...session.agentStore[`memora-chat:${request.sessionId}`],
-              history: request.history,
+        await updateChatSession(request.sessionId, (session) => {
+          const store = session.agentStore[agentKey];
+          const history = historyBeforeReplay(store?.history, request);
+          return {
+            ...session,
+            messages: request.messages,
+            agentStore: {
+              ...session.agentStore,
+              [agentKey]: {
+                ...store,
+                history,
+                [COMPACTION_KEY]: rebaseCompaction(
+                  store?.[COMPACTION_KEY] as CompactionState | undefined,
+                  history,
+                ),
+              },
             },
-          },
-        }));
+          };
+        });
       runtime.replaceSnapshot({
         ...emptySessionSnapshot(request.sessionId, request.messages),
         revision: runtime.snapshot.revision + 1,
       });
       await runtime.checkpoint();
       break;
+    }
     case "delete":
       deletedSessions.add(request.sessionId);
+      clearTimeout(recapTimers.get(request.sessionId));
+      recapTimers.delete(request.sessionId);
       cancelTools(request.sessionId);
       await runtime.stopAll();
       if (transientAdapters.has(request.sessionId)) transientAdapters.delete(request.sessionId);

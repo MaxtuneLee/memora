@@ -15,6 +15,8 @@ export interface AgentSubmission {
   mode: DeliveryMode;
   config: AgentConfig;
   provider: Omit<RemotePiProviderConfig, "onUsage">;
+  /** Writes summaries and recaps; the chat provider when absent. */
+  compactionProvider?: Omit<RemotePiProviderConfig, "onUsage">;
   prompts: Array<{ id: string; priority: number; content: string }>;
   tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
   scope: ResolvedReferenceScope;
@@ -34,14 +36,24 @@ export interface SessionSnapshot {
   outcome?: "completed" | "failed" | "aborted" | "interrupted";
   approval?: { id: string; request: WriteApprovalRequest };
   iterations?: number;
+  /** A recap written while the session sat idle, shown until the next message. */
+  recap?: string;
 }
 export type AgentCommand =
   | { type: "subscribe"; sessionId: string; storage?: "memory" }
   | { type: "unsubscribe"; sessionId: string }
   | { type: "submit"; sessionId: string; submission: AgentSubmission; storage?: "memory" }
   | { type: "abort"; sessionId: string; runId: string }
-  | { type: "reset"; sessionId: string; messages: ChatMessage[]; history: AgentMessage[] }
+  | {
+      type: "reset";
+      sessionId: string;
+      messages: ChatMessage[];
+      history: AgentMessage[];
+      /** Keep the stored history before this message; `history` is the fallback. */
+      replayFrom?: string;
+    }
   | { type: "patch-message"; sessionId: string; message: ChatMessage }
+  | { type: "steer-pending"; sessionId: string; submissionId: string }
   | { type: "delete"; sessionId: string }
   | { type: "approval"; sessionId: string; approvalId: string; decision: WriteApprovalDecision }
   | { type: "host-ready" }

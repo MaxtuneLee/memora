@@ -113,10 +113,91 @@ describe("session execution", () => {
     await h.runtime.submit(submission("d", "steer"));
     expect(h.steering).toEqual(["c", "d"]);
     expect(h.runtime.snapshot.pending.map((item) => item.id)).toEqual(["b"]);
+    // Until the model reads them, steers follow the reply they were sent during.
+    expect(h.runtime.snapshot.messages.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "user",
+    ]);
     h.releases.get("a")?.();
     await vi.waitFor(() => expect(h.calls).toEqual(["a", "b"]));
     h.releases.get("b")?.();
     await vi.waitFor(() => expect(h.runtime.snapshot.activeRunId).toBeUndefined());
+  });
+
+  it("reports the last submission when idle and clears a recap on the next message", async () => {
+    const idle: string[] = [];
+    const runtime = new SessionRuntime({
+      snapshot: emptySessionSnapshot("recap"),
+      publish: () => {},
+      save: async () => {},
+      onIdle: (last) => idle.push(last.id),
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {},
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+    await runtime.submit(submission("a"));
+    await vi.waitFor(() => expect(idle).toEqual(["a"]));
+    await runtime.setRecap("You were reading about rivers.");
+    expect(runtime.snapshot.recap).toBe("You were reading about rivers.");
+    await runtime.submit(submission("b"));
+    expect(runtime.snapshot.recap).toBeUndefined();
+    await vi.waitFor(() => expect(idle).toEqual(["a", "b"]));
+  });
+
+  it("steers a queued message into the running task", async () => {
+    const h = harness();
+    await h.runtime.submit(submission("a"));
+    await vi.waitFor(() => expect(h.calls).toEqual(["a"]));
+    await h.runtime.submit(submission("b"));
+    expect(await h.runtime.steerPending("b")).toBe(true);
+    expect(h.steering).toEqual(["b"]);
+    expect(h.runtime.snapshot.pending).toEqual([]);
+    expect(h.runtime.snapshot.messages.at(-1)?.id).toBe("b");
+    h.releases.get("a")?.();
+    await vi.waitFor(() => expect(h.runtime.snapshot.activeRunId).toBeUndefined());
+    // It ran inside "a", not as its own task.
+    expect(h.calls).toEqual(["a"]);
+  });
+
+  it.each([
+    ["ends the reply at a steer and answers it in a new reply", "one", ["a", "one", "c", "two"]],
+    ["moves a reply with nothing in it below the steer", "", ["a", "c", "two"]],
+  ])("%s", async (_name, before, expected) => {
+    let consume: () => void = () => {};
+    const read = new Promise<void>((resolve) => {
+      consume = resolve;
+    });
+    const runtime = new SessionRuntime({
+      snapshot: emptySessionSnapshot("steer"),
+      publish: () => {},
+      save: async () => {},
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {
+          if (before) yield { type: "text-delta", delta: before } as AgentEvent;
+          await read;
+          yield { type: "steer-consumed", messageIds: ["c"] } as AgentEvent;
+          yield { type: "text-delta", delta: "two" } as AgentEvent;
+        },
+        steer: () => true,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+    await runtime.submit(submission("a"));
+    await vi.waitFor(() => expect(runtime.snapshot.activeRunId).toBe("a"));
+    await runtime.submit(submission("c", "steer"));
+    consume();
+    await vi.waitFor(() => expect(runtime.snapshot.activeRunId).toBeUndefined());
+    expect(
+      runtime.snapshot.messages.map((message) =>
+        message.role === "user" ? message.id : message.content,
+      ),
+    ).toEqual(expected);
   });
 
   it.each(["stop", "failure"])(

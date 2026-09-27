@@ -26,6 +26,13 @@ export const AI_FEATURES = [
     description: "Extract lasting communication preferences.",
   },
   {
+    id: "contextCompaction",
+    label: "Long conversations",
+    task: "chat",
+    description:
+      "Summarize earlier turns when a conversation outgrows the chat model, and write a recap when you step away.",
+  },
+  {
     id: "imageExtraction",
     label: "Images and scanned pages",
     task: "vision",
@@ -74,6 +81,7 @@ export interface AiModelRouting {
   transcription: ModelTarget;
   sessionTitle: FeatureModelRoute;
   memoryExtraction: FeatureModelRoute;
+  contextCompaction: FeatureModelRoute;
   imageExtraction: ModelTarget;
   formulaRecognition: ModelTarget;
   embedding: ModelTarget;
@@ -84,6 +92,7 @@ export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   transcription: { source: "local", modelId: nemotron35AsrStreamingManifest.id },
   sessionTitle: { source: "inherit", featureId: "assistant" },
   memoryExtraction: { source: "inherit", featureId: "assistant" },
+  contextCompaction: { source: "inherit", featureId: "assistant" },
   imageExtraction: { source: "local", modelId: "paddle-document-pipeline" },
   formulaRecognition: { source: "local", modelId: "texo" },
   embedding: { source: "local", modelId: "bge-m3" },
@@ -96,13 +105,15 @@ export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   transcription: ["whisper-base-timestamped", nemotron35AsrStreamingManifest.id],
   sessionTitle: LOCAL_CHAT_MODELS,
   memoryExtraction: LOCAL_CHAT_MODELS,
+  // Runs inside the agent worker, which only reaches cloud models.
+  contextCompaction: [],
   imageExtraction: ["paddle-document-pipeline"],
   formulaRecognition: ["texo"],
   embedding: ["bge-m3", "bge-small-en"],
 };
 
 export const canInheritChatModel = (feature: AiFeatureId): boolean =>
-  feature === "sessionTitle" || feature === "memoryExtraction";
+  feature === "sessionTitle" || feature === "memoryExtraction" || feature === "contextCompaction";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

@@ -6,7 +6,7 @@ The chat runtime is hosted by `src/workers/agent.shared-worker.ts`. Every connec
 
 Idle sessions start ordinary work. During execution, pending messages wait in receipt order and steer messages join the next model request in receipt order. Steer can pass an earlier pending message. The runtime decides delivery using its current state, so a late steer starts new work if the preceding task has already ended. Accepted steer messages that have not reached a model call when execution stops remain queued for execution.
 
-Settings provides a global pending/steer default. The composer exposes a single-message override while execution is active. Changing the setting does not change messages already accepted. Stop targets a run ID, so a delayed stop cannot cancel its successor; after stopping or failure, pending work continues. Switching session or unsubscribing does not stop work. Deleting a session stops its current task, drops its queue, waits for execution to settle, and removes storage.
+Settings decides whether a message sent during execution waits or steers; the composer has no per-message choice. A waiting message can be steered from the queue while the task runs. Changing the setting does not change messages already accepted. Stop targets a run ID, so a delayed stop cannot cancel its successor; after stopping or failure, pending work continues. Switching session or unsubscribing does not stop work. Deleting a session stops its current task, drops its queue, waits for execution to settle, and removes storage.
 
 ## Execution and data ownership
 
@@ -23,3 +23,5 @@ The page requests a checkpoint when it becomes hidden, and the worker checkpoint
 Complete observability will record each effective model request, raw and truncated tool results, stable event sequences, attempts, and query/export APIs. Agent evaluation will use fixed versioned course transcripts, independent sessions and memory, and concurrent runs, scoring timestamp evidence, answer key points, and citation support; ASR quality is excluded from those scores.
 
 The event contract, corpus format, scoring dimensions, and recovery boundary are specified in [Agent observability and evaluation, first version](agent-observability-evaluation.md).
+
+Context compaction and idle recaps are specified in [Agent context compaction](agent-context-compaction.md).

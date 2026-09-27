@@ -162,11 +162,12 @@ export const useChatController = ({
     return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
   }, [activeSessionId]);
 
-  const { agentConfig, providerConfig, isConfigured, selectedModelInfo } = useChatModelConfig({
-    providers,
-    settings,
-    activeSessionId,
-  });
+  const { agentConfig, providerConfig, compactionProviderConfig, isConfigured, selectedModelInfo } =
+    useChatModelConfig({
+      providers,
+      settings,
+      activeSessionId,
+    });
 
   const remoteTools = useMemo(
     () => [
@@ -188,7 +189,7 @@ export const useChatController = ({
 
   const {
     messages,
-    pendingCount,
+    pendingMessages,
     pendingWriteApproval,
     resolveWriteApproval,
     isStreaming,
@@ -196,6 +197,7 @@ export const useChatController = ({
     thinkingSteps,
     thinkingCollapsed,
     iterationLimitPrompt,
+    recap,
     error,
     send,
     continueAfterIterationLimit,
@@ -203,11 +205,13 @@ export const useChatController = ({
     abort: abortAgent,
     reset: resetAgent,
     updateMessage,
+    steerPending,
   } = useAgent({
     sessionId: activeSessionId || "bootstrap",
     initialMessages: activeSessionInitialMessages,
     config: agentConfig,
     providerConfig,
+    compactionProviderConfig,
     getReferenceScope: references.getReferenceScope,
     deliveryMode: settings.agentDeliveryMode ?? "pending",
     promptSegments: activePromptSegments,
@@ -238,18 +242,15 @@ export const useChatController = ({
   });
   closeImagePickerRef.current = composerImages.closeImagePicker;
 
-  const [deliveryOverride, setDeliveryOverride] = useState<"pending" | "steer" | null>(null);
-  const deliveryMode = deliveryOverride ?? settings.agentDeliveryMode ?? "pending";
-  const sendWithMode = useCallback<typeof send>(
+  const sendWithQuote = useCallback<typeof send>(
     async (input, options) => {
       // New messages carry the caller's quote (such as selected note text); edits and retries
       // keep the quote already on the message.
       const quote = options?.existingUserMessage ? undefined : (getTurnQuote?.() ?? undefined);
-      await send(input, { ...options, mode: deliveryMode, userMessageQuote: quote });
+      await send(input, { ...options, userMessageQuote: quote });
       onTurnSent?.();
-      setDeliveryOverride(null);
     },
-    [send, deliveryMode, getTurnQuote, onTurnSent],
+    [send, getTurnQuote, onTurnSent],
   );
 
   const turnActions = useChatTurnActions({
@@ -268,7 +269,7 @@ export const useChatController = ({
     closeImagePicker: composerImages.closeImagePicker,
     onComposerInputValueChange: references.handleComposerInputValueChange,
     prepareReferenceScopeForTurn: references.prepareReferenceScopeForTurn,
-    send: sendWithMode,
+    send: sendWithQuote,
     resetAgent,
     setActiveSessionInitialMessages,
     thinkingCollapsed,
@@ -277,7 +278,6 @@ export const useChatController = ({
 
   useEffect(() => {
     setMemoryUpdatedNotice(false);
-    setDeliveryOverride(null);
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -553,6 +553,7 @@ export const useChatController = ({
       isPreparingTurn: turnActions.isPreparingTurn,
       savingAttachmentIds: composerImages.savingImageAttachmentIdSet,
       iterationLimitPrompt: iterationLimitPrompt,
+      recap: recap,
       error: error,
       messagesContentRef: messagesContentRef,
       messagesScrollAreaRef: messagesScrollAreaRef,
@@ -567,9 +568,9 @@ export const useChatController = ({
       onDismissIterationLimitPrompt: dismissIterationLimitPrompt,
       onOpenSettings: openSettingsPanel,
       composerPanelProps: {
-        pendingCount,
-        deliveryMode,
-        onDeliveryModeChange: setDeliveryOverride,
+        pendingMessages,
+        deliveryMode: settings.agentDeliveryMode ?? "pending",
+        onSteerPending: steerPending,
         composerFadeHeight,
         composerOverlayRef,
         isStreaming,
