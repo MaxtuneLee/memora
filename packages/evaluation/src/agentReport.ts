@@ -1,9 +1,16 @@
 import type { AgentAttemptResult, AgentEvaluationResult, AttemptFailureReason } from "./agentTypes";
+import { UNCERTAIN_CONFIDENCE } from "./runAgentEvaluation";
 
-export type AttemptStatus = "passed" | "failed" | "error";
+export type AttemptStatus = "passed" | "uncertain" | "failed" | "error";
 
 export const attemptStatus = (attempt: AgentAttemptResult): AttemptStatus =>
-  attempt.passed ? "passed" : attempt.failure ? "error" : "failed";
+  attempt.passed
+    ? "passed"
+    : attempt.failure
+      ? "error"
+      : attempt.uncertain
+        ? "uncertain"
+        : "failed";
 
 const FAILURE_LABELS: Record<AttemptFailureReason, string> = {
   error: "Agent error",
@@ -27,30 +34,38 @@ export function attemptFailureReasons(attempt: AgentAttemptResult): string[] {
   });
   const verdict = attempt.coverage?.verdict;
   if (verdict) {
+    // Unsupported claims are shown with the verdict; they do not fail an attempt.
+    const unsure = (confidence: number) => confidence < UNCERTAIN_CONFIDENCE;
     for (const decision of verdict.requiredPoints)
-      if (!decision.supported) reasons.push(`Required point not supported: ${decision.point}`);
+      if (unsure(decision.confidence))
+        reasons.push(`Judge unsure whether this point is supported: ${decision.point}`);
+      else if (!decision.supported) reasons.push(`Required point not supported: ${decision.point}`);
     for (const decision of verdict.disallowedClaims)
-      if (decision.present) reasons.push(`Disallowed claim made: ${decision.claim}`);
-    if (verdict.unsupportedClaims.present)
-      reasons.push("The answer makes claims the cited transcript does not support");
+      if (unsure(decision.confidence))
+        reasons.push(`Judge unsure whether this claim was made: ${decision.claim}`);
+      else if (decision.present) reasons.push(`Disallowed claim made: ${decision.claim}`);
   }
   return reasons;
 }
 
 export interface AgentTokenTotals {
+  /** Input not served from the provider's prompt cache. */
   input: number;
+  /** Input served from the prompt cache; older results did not record it. */
+  cached: number;
   output: number;
   /** Attempts without token counts: no answer, or no settled Trace. */
   unknownAttempts: number;
 }
 
 export const agentTokenTotals = (attempts: AgentAttemptResult[]): AgentTokenTotals => {
-  const totals = { input: 0, output: 0, unknownAttempts: 0 };
+  const totals = { input: 0, cached: 0, output: 0, unknownAttempts: 0 };
   for (const attempt of attempts) {
     const tokens = (attempt.answer ?? attempt.trace)?.tokens;
     if (!tokens) totals.unknownAttempts += 1;
     else {
       totals.input += tokens.input;
+      totals.cached += tokens.cached ?? 0;
       totals.output += tokens.output;
     }
   }
@@ -80,6 +95,7 @@ const judgeUsage = (attempts: AgentAttemptResult[]): Record<string, number> => {
 export interface AgentEvaluationTotals {
   /** Shares of completed attempts; null before any attempt completes. */
   passRate: number | null;
+  uncertainRate: number | null;
   retrievalRate: number | null;
   coverageRate: number | null;
   /** Hits over all citations of every attempt; null without citations. */
@@ -105,6 +121,7 @@ export function agentEvaluationTotals(
   }
   return {
     passRate: rate(summary.passed),
+    uncertainRate: rate(summary.uncertain ?? 0),
     retrievalRate: rate(summary.retrievalPassed),
     coverageRate: rate(summary.coveragePassed),
     citationPrecision: citations === 0 ? null : hits / citations,

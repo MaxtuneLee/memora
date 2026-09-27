@@ -64,7 +64,13 @@ const TranscriptSchema = v.object({
 });
 
 const CuesSchema = v.array(
-  v.object({ cueId: v.string(), startMs: v.number(), endMs: v.number(), text: v.string() }),
+  v.object({
+    cueId: v.string(),
+    startMs: v.number(),
+    endMs: v.number(),
+    speaker: v.optional(v.string()),
+    text: v.string(),
+  }),
 );
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {

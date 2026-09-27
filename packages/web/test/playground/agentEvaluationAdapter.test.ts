@@ -167,23 +167,24 @@ describe("createWebAgentAdapter", () => {
   });
 
   it("sums tokens over every model call in the Trace, summaries included", async () => {
-    const response = (purpose: string, inputTokens: number, outputTokens: number) => ({
+    // Prompt-cache hits appear only in the total, beside the uncached input.
+    const response = (purpose: string, inputTokens: number, outputTokens: number, cached = 0) => ({
       ...event("model.response"),
       purpose,
-      usage: { inputTokens, outputTokens },
+      usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens + cached },
     });
     const runtime = fakeRuntime("completed", [
       event("run.started"),
       response("reply", 100, 10),
       response("summary", 40, 20),
-      response("reply", 300, 5),
+      response("reply", 300, 5, 1_900),
       event("run.settled"),
     ]);
     const adapter = await create(runtime);
 
     const answer = await adapter.answer(question, new AbortController().signal);
 
-    expect(answer.tokens).toEqual({ input: 440, output: 35 });
+    expect(answer.tokens).toEqual({ input: 440, cached: 1_900, output: 35 });
   });
 
   it("deletes the session when the Run fails and reports its Trace with the error", async () => {
@@ -205,7 +206,7 @@ describe("createWebAgentAdapter", () => {
       sessionId: submit.sessionId,
       runId: submit.submission.id,
       fallbackTrims: 1,
-      tokens: { input: 30, output: 2 },
+      tokens: { input: 30, cached: 0, output: 2 },
     });
     expect(runtime.live.size).toBe(0);
   });

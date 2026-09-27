@@ -13,8 +13,16 @@ const input: JudgeInput = {
   requiredPoints: ["It forces compression", "It drops noise"],
   disallowedClaims: ["It adds parameters"],
   citedCues: [
-    { lectureId: "lec11", cueId: "11-40", startMs: 100_000, endMs: 103_000, text: " compress" },
+    {
+      lectureId: "lec11",
+      cueId: "11-40",
+      startMs: 100_000,
+      endMs: 103_000,
+      speaker: "PHILLIP ISOLA",
+      text: " compress",
+    },
   ],
+  lectureNames: { lec11: "Deep Learning, lec11", lec12: "Deep Learning, lec12" },
   answer: "The bottleneck forces compression.",
 };
 
@@ -29,8 +37,17 @@ describe("buildJevRequest", () => {
     expect(request.state).toEqual({
       question: "Why use a bottleneck?",
       answer: "The bottleneck forces compression.",
+      // Only the cited lectures are named.
+      lectures: { lec11: "Deep Learning, lec11" },
       citedTranscript: [
-        { lecture: "lec11", cue: "11-40", startSec: 100, endSec: 103, text: "compress" },
+        {
+          lecture: "lec11",
+          cue: "11-40",
+          startSec: 100,
+          endSec: 103,
+          speaker: "PHILLIP ISOLA",
+          text: "compress",
+        },
       ],
     });
     expect(Object.keys(request.questions)).toEqual([
@@ -42,6 +59,7 @@ describe("buildJevRequest", () => {
     for (const question of Object.values(request.questions)) expect(question.type).toBe("noul");
     expect(request.questions.point_1.instructions).toContain("It drops noise");
     expect(request.questions.disallowed_0.instructions).toContain("It adds parameters");
+    expect(request.questions.unsupported.instructions).toContain("Lecture titles");
   });
 });
 

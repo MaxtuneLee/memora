@@ -700,7 +700,7 @@ const Footer = ({ run, status }: { run: TraceRun; status: string }) => {
     ["Turns", String(stats.turns)],
     [
       "Tokens",
-      `${stats.inputTokens.toLocaleString()} in · ${stats.outputTokens.toLocaleString()} out`,
+      `${stats.inputTokens.toLocaleString()} in · ${stats.cachedTokens.toLocaleString()} cached · ${stats.outputTokens.toLocaleString()} out`,
     ],
     ["Compactions", String(stats.compactions)],
   ];

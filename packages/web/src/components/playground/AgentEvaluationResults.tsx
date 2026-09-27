@@ -89,6 +89,7 @@ const styles = stylex.create({
   markers: { display: "flex", flexShrink: 0, gap: "0.25rem" },
   marker: { borderRadius: 9999, height: "0.625rem", width: "0.625rem" },
   passed: { backgroundColor: tokens.successText },
+  uncertain: { backgroundColor: tokens.infoText },
   failed: { backgroundColor: tokens.dangerText },
   error: { backgroundColor: tokens.warningText },
   pending: {
@@ -187,6 +188,7 @@ const duration = (ms: number) => {
 
 const STATUS_LABELS: Record<AttemptStatus, string> = {
   passed: "Passed",
+  uncertain: "Uncertain",
   failed: "Failed",
   error: "Error",
 };
@@ -199,6 +201,13 @@ export function AgentEvaluationSummaryView({ result }: { result: AgentEvaluation
   const judgeUsage = Object.entries(totals.judgeUsage);
   const cards: Array<[string, string, string?]> = [
     ["Pass rate", `${summary.passed} / ${completed} · ${percent(totals.passRate)}`],
+    [
+      "Uncertain",
+      summary.uncertain === undefined
+        ? "Not counted"
+        : `${summary.uncertain} / ${completed} · ${percent(totals.uncertainRate)}`,
+      "Jev was too close to call on a required point or disallowed claim",
+    ],
     [
       "Retrieval passed",
       `${summary.retrievalPassed} / ${completed} · ${percent(totals.retrievalRate)}`,
@@ -219,7 +228,7 @@ export function AgentEvaluationSummaryView({ result }: { result: AgentEvaluation
     ["Citation precision", percent(totals.citationPrecision)],
     [
       "Agent tokens",
-      `${count(totals.agentTokens.input)} in · ${count(totals.agentTokens.output)} out`,
+      `${count(totals.agentTokens.input)} in · ${count(totals.agentTokens.cached)} cached · ${count(totals.agentTokens.output)} out`,
       totals.agentTokens.unknownAttempts
         ? `${totals.agentTokens.unknownAttempts} attempts without a Trace are not counted`
         : undefined,
@@ -415,7 +424,7 @@ function AttemptDetail({
         {trace
           ? ` · ${
               trace.tokens
-                ? `${count(trace.tokens.input)} in · ${count(trace.tokens.output)} out tokens`
+                ? `${count(trace.tokens.input)} in · ${trace.tokens.cached === undefined ? "" : `${count(trace.tokens.cached)} cached · `}${count(trace.tokens.output)} out tokens`
                 : "Tokens unknown"
             } · Fallback trims ${trace.fallbackTrims === "unknown" ? "unknown" : trace.fallbackTrims}`
           : null}
@@ -475,7 +484,7 @@ function AttemptDetail({
           ))}
           <p {...stylex.props(styles.decision)}>
             {coverage.verdict.unsupportedClaims.present
-              ? "Makes unsupported claims"
+              ? "Makes unsupported claims (reported only)"
               : "No unsupported claims"}{" "}
             <span {...stylex.props(styles.confidence)}>
               {coverage.verdict.unsupportedClaims.confidence.toFixed(2)}

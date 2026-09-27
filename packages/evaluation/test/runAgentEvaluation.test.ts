@@ -358,17 +358,17 @@ describe("runAgentEvaluation", () => {
     expect(byQuestion(result.attempts, "none")[0].passed).toBe(false);
   });
 
-  it("fails coverage on a disallowed claim, an unsupported claim, or a missing decision", async () => {
+  it("fails coverage on a disallowed claim or a missing decision, not on unsupported claims", async () => {
     const verdicts: Record<string, (input: JudgeInput) => JudgeVerdict> = {
       disallowed: (input) => ({
         ...supported(input),
         disallowedClaims: [{ claim: "wrong", present: true, confidence: 0.6 }],
       }),
+      short: (input) => ({ ...supported(input), requiredPoints: [] }),
       unsupported: (input) => ({
         ...supported(input),
-        unsupportedClaims: { present: true, confidence: 0.55 },
+        unsupportedClaims: { present: true, confidence: 0.9 },
       }),
-      short: (input) => ({ ...supported(input), requiredPoints: [] }),
     };
     const result = await runAgentEvaluation({
       questions: Object.keys(verdicts).map((id) =>
@@ -379,14 +379,73 @@ describe("runAgentEvaluation", () => {
       judge: judge((input) => verdicts[input.question.split(" ")[2]](input)),
     });
 
-    for (const attempt of result.attempts) {
+    for (const id of ["disallowed", "short"])
+      for (const attempt of byQuestion(result.attempts, id))
+        expect(attempt).toMatchObject({ passed: false, coverage: { passed: false } });
+    for (const attempt of byQuestion(result.attempts, "unsupported"))
       expect(attempt).toMatchObject({
-        passed: false,
-        score: { retrieval: { passed: true } },
-        coverage: { passed: false },
+        passed: true,
+        coverage: { passed: true, verdict: { unsupportedClaims: { present: true } } },
       });
-    }
-    expect(result.summary).toMatchObject({ retrievalPassed: 9, coveragePassed: 0, passed: 0 });
+    expect(result.summary).toMatchObject({ retrievalPassed: 9, coveragePassed: 3, passed: 3 });
+  });
+
+  it("counts an attempt as uncertain when a gating decision is too close to call", async () => {
+    const verdicts: Record<string, (input: JudgeInput) => JudgeVerdict> = {
+      // Leans supported, leans unsupported: neither passes nor fails.
+      leansYes: (input) => ({
+        ...supported(input),
+        requiredPoints: [{ point: "point", supported: true, confidence: 0.55 }],
+      }),
+      leansNo: (input) => ({
+        ...supported(input),
+        requiredPoints: [{ point: "point", supported: false, confidence: 0.52 }],
+      }),
+      // A confident failure outweighs an uncertain decision elsewhere.
+      failed: (input) => ({
+        ...supported(input),
+        requiredPoints: [{ point: "point", supported: true, confidence: 0.55 }],
+        disallowedClaims: [{ claim: "wrong", present: true, confidence: 0.9 }],
+      }),
+    };
+    const result = await runAgentEvaluation({
+      questions: Object.keys(verdicts).map((id) => question(id, { disallowedClaims: ["wrong"] })),
+      corpus,
+      agent: agent(() => answer([cite(LEC11, 101)])),
+      judge: judge((input) => verdicts[input.question.split(" ")[2]](input)),
+    });
+
+    for (const id of ["leansYes", "leansNo"])
+      for (const attempt of byQuestion(result.attempts, id))
+        expect(attempt).toMatchObject({ passed: false, uncertain: true });
+    for (const attempt of byQuestion(result.attempts, "failed"))
+      expect(attempt.uncertain).toBeUndefined();
+    expect(result.summary).toMatchObject({ passed: 0, uncertain: 6 });
+  });
+
+  it("shows the judge 30 s of transcript around each citation, with lecture names", async () => {
+    const judged = judge();
+    await runAgentEvaluation({
+      questions: [question("q1")],
+      corpus: {
+        ...corpus,
+        lectureNames: { lec11: "Course, lec11" },
+        cues: {
+          lec11: [
+            { cueId: "far", startMs: 60_000, endMs: 69_000, text: "too early" },
+            { cueId: "near", startMs: 70_000, endMs: 72_000, text: "just before" },
+            { cueId: "cited", startMs: 100_000, endMs: 103_000, text: "cited" },
+            { cueId: "after", startMs: 133_000, endMs: 136_000, text: "just after" },
+            { cueId: "later", startMs: 135_000, endMs: 140_000, text: "too late" },
+          ],
+        },
+      },
+      agent: agent(() => answer([cite(LEC11, 101, 104)])),
+      judge: judged,
+    });
+
+    expect(judged.inputs[0].citedCues.map((cue) => cue.cueId)).toEqual(["near", "cited", "after"]);
+    expect(judged.inputs[0].lectureNames).toEqual({ lec11: "Course, lec11" });
   });
 
   it("stores the result with pinned revisions and judge records in its own directory", async () => {
@@ -455,7 +514,7 @@ describe("runAgentEvaluation", () => {
       model: "fake-model",
       passed: 3,
       completed: 3,
-      tokens: { input: 21, output: 9, unknownAttempts: 0 },
+      tokens: { input: 21, cached: 0, output: 9, unknownAttempts: 0 },
     });
   });
 });

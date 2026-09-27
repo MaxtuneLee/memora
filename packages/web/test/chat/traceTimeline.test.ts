@@ -34,7 +34,8 @@ const trace = (settled = true): TraceEvent[] => {
       type: "model.response",
       turn: 2,
       purpose: "reply",
-      usage: { inputTokens: 600, outputTokens: 80 },
+      // 2,000 prompt-cache hits appear only in the total.
+      usage: { inputTokens: 600, outputTokens: 80, totalTokens: 2_680 },
     }),
     at(950, { type: "trace.gap", dropped: 2, reason: "QuotaExceededError" }),
     ...(settled ? [at(1_000, { type: "run.settled", outcome: "completed" })] : []),
@@ -95,6 +96,7 @@ describe("trace timeline", () => {
       durationMs: 1_000,
       turns: 2,
       inputTokens: 1_600,
+      cachedTokens: 2_000,
       outputTokens: 100,
       compactions: 1,
     });

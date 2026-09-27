@@ -74,10 +74,10 @@ const readTraceFacts = async (
     if (!Array.isArray(events)) return { fallbackTrims: "unknown" };
     const run = readRun(events as TraceEvent[]);
     if (!run.complete) return { fallbackTrims: "unknown" };
-    const { inputTokens, outputTokens } = summarizeRun(run);
+    const { inputTokens, cachedTokens, outputTokens } = summarizeRun(run);
     return {
       fallbackTrims: run.events.filter((event) => event.type === "context.trimmed").length,
-      tokens: { input: inputTokens, output: outputTokens },
+      tokens: { input: inputTokens, cached: cachedTokens, output: outputTokens },
     };
   } catch {
     return { fallbackTrims: "unknown" };

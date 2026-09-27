@@ -177,7 +177,8 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 
 const historyLabel = (item: SavedAgentEvaluationSummary) => {
   const rate = item.completed ? ` (${Math.round((item.passed / item.completed) * 100)}%)` : "";
-  const tokens = `${(item.tokens.input + item.tokens.output).toLocaleString()} tokens`;
+  const { input, cached, output } = item.tokens;
+  const tokens = `${(input + cached + output).toLocaleString()} tokens`;
   return `${item.status === "canceled" ? "Canceled" : "Completed"} · ${item.passed} / ${item.completed} passed${rate} · ${tokens}`;
 };
 
@@ -239,7 +240,7 @@ export default function AgentEvaluation() {
 
   const runEvaluation = async () => {
     if (state.status !== "imported" || !providerConfig || !jevKey) return;
-    const { questions, fileLectures, cues, revisions } = state.data;
+    const { questions, lectures, fileLectures, cues, revisions } = state.data;
     const next = new AbortController();
     controller.current = next;
     setRun({
@@ -260,7 +261,14 @@ export default function AgentEvaluation() {
       const result = await evaluationClient.runAgent(
         {
           questions,
-          corpus: { fileLectures, cues, revisions },
+          corpus: {
+            fileLectures,
+            cues,
+            revisions,
+            lectureNames: Object.fromEntries(
+              lectures.map(({ lectureId, name }) => [lectureId, name]),
+            ),
+          },
           agent,
           judge: createJevJudge({ apiKey: jevKey, baseUrl: "/api/playground/typesafe" }),
           concurrency,

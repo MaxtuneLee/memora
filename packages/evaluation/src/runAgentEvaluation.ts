@@ -16,6 +16,10 @@ const ATTEMPTS_PER_QUESTION = 3;
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_ATTEMPT_TIMEOUT_MS = 5 * 60_000;
 const DEFAULT_TRACE_WAIT_MS = 10_000;
+/** Transcript the judge sees on each side of a citation, so a claim just outside it still counts. */
+export const JUDGE_CONTEXT_SEC = 30;
+/** Decisions this close to 50/50 neither pass nor fail an attempt; it is counted as uncertain. */
+export const UNCERTAIN_CONFIDENCE = 0.6;
 
 class Canceled extends Error {}
 
@@ -28,13 +32,35 @@ const untilAborted = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> =
     promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
 
-const coveragePassed = (question: EvaluationQuestion, verdict: JudgeVerdict): boolean =>
-  // A missing decision counts against the answer, so a short verdict cannot pass.
-  question.requiredPoints.every((_, index) => verdict.requiredPoints[index]?.supported === true) &&
-  (question.disallowedClaims ?? []).every(
-    (_, index) => verdict.disallowedClaims[index]?.present === false,
-  ) &&
-  !verdict.unsupportedClaims.present;
+/**
+ * Coverage from the gating decisions: every required point supported and no disallowed claim.
+ * Unsupported claims are reported but do not gate. A missing decision counts against the answer,
+ * so a short verdict cannot pass; a gating decision under `UNCERTAIN_CONFIDENCE` makes it uncertain.
+ */
+export const coverageOutcome = (
+  question: EvaluationQuestion,
+  verdict: JudgeVerdict,
+): "passed" | "failed" | "uncertain" => {
+  const decisions = [
+    ...question.requiredPoints.map((_, index) => {
+      const decision = verdict.requiredPoints[index];
+      return decision && { ok: decision.supported, confidence: decision.confidence };
+    }),
+    ...(question.disallowedClaims ?? []).map((_, index) => {
+      const decision = verdict.disallowedClaims[index];
+      return decision && { ok: !decision.present, confidence: decision.confidence };
+    }),
+  ];
+  if (
+    decisions.some(
+      (decision) => !decision || (!decision.ok && decision.confidence >= UNCERTAIN_CONFIDENCE),
+    )
+  )
+    return "failed";
+  return decisions.every((decision) => decision && decision.confidence >= UNCERTAIN_CONFIDENCE)
+    ? "passed"
+    : "uncertain";
+};
 
 const citedCues = (
   answer: AgentAnswer,
@@ -44,8 +70,10 @@ const citedCues = (
   for (const citation of answer.citations) {
     const lectureId = corpus.fileLectures[citation.fileId];
     if (lectureId === undefined) continue;
+    const startMs = (citation.startSec - JUDGE_CONTEXT_SEC) * 1000;
+    const endMs = (citation.endSec + JUDGE_CONTEXT_SEC) * 1000;
     for (const cue of corpus.cues[lectureId] ?? []) {
-      if (cue.startMs > citation.endSec * 1000 || cue.endMs < citation.startSec * 1000) continue;
+      if (cue.startMs > endMs || cue.endMs < startMs) continue;
       cues.set(`${lectureId}\u0000${cue.cueId}`, { ...cue, lectureId });
     }
   }
@@ -64,6 +92,7 @@ const buildSummary = (
     passed: attempts.filter((attempt) => attempt.passed).length,
     retrievalPassed: attempts.filter((attempt) => attempt.score?.retrieval.passed).length,
     coveragePassed: attempts.filter((attempt) => attempt.coverage?.passed).length,
+    uncertain: attempts.filter((attempt) => attempt.uncertain).length,
     failures,
     medianDistanceSec: median(
       attempts.flatMap((attempt) =>
@@ -169,6 +198,7 @@ export async function runAgentEvaluation(
             requiredPoints: question.requiredPoints,
             disallowedClaims: question.disallowedClaims ?? [],
             citedCues: citedCues(answer, corpus),
+            lectureNames: corpus.lectureNames ?? {},
             answer: answer.answer,
           },
           signal,
@@ -178,15 +208,17 @@ export async function runAgentEvaluation(
     } catch (error) {
       return failed("judge", error, { latencyMs, answer, score });
     }
-    const coverage = { passed: coveragePassed(question, verdict), verdict };
+    const outcome = coverageOutcome(question, verdict);
+    const uncertain = score.retrieval.passed && outcome === "uncertain";
     return {
       questionId: question.questionId,
       attempt,
-      passed: score.retrieval.passed && coverage.passed,
+      passed: score.retrieval.passed && outcome === "passed",
+      ...(uncertain ? { uncertain } : {}),
       latencyMs,
       answer,
       score,
-      coverage,
+      coverage: { passed: outcome === "passed", verdict },
     };
   };
 

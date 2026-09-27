@@ -61,7 +61,10 @@ const attempt = (overrides: Partial<AgentAttemptResult>): AgentAttemptResult => 
   ...overrides,
 });
 
-const answer = (citations: number, tokens?: { input: number; output: number }) => ({
+const answer = (
+  citations: number,
+  tokens?: { input: number; cached?: number; output: number },
+) => ({
   answer: "x",
   citations: Array.from({ length: citations }, () => ({ fileId: "f11", startSec: 1, endSec: 1 })),
   sessionId: "s",
@@ -72,7 +75,7 @@ const answer = (citations: number, tokens?: { input: number; output: number }) =
 
 const passed = attempt({
   passed: true,
-  answer: answer(2, { input: 1_000, output: 50 }),
+  answer: answer(2, { input: 1_000, cached: 4_000, output: 50 }),
   score: score(true, 1),
   coverage: { passed: true, verdict: verdict() },
 });
@@ -118,9 +121,11 @@ describe("citationHits", () => {
 });
 
 describe("attemptStatus", () => {
-  it("separates passed, failed, and errored attempts", () => {
-    expect([passed, retrievalMiss, timedOut].map(attemptStatus)).toEqual([
+  it("separates passed, uncertain, failed, and errored attempts", () => {
+    const uncertain = attempt({ uncertain: true });
+    expect([passed, uncertain, retrievalMiss, timedOut].map(attemptStatus)).toEqual([
       "passed",
+      "uncertain",
       "failed",
       "error",
     ]);
@@ -132,12 +137,35 @@ describe("attemptFailureReasons", () => {
     expect(attemptFailureReasons(passed)).toEqual([]);
   });
 
-  it("names the missed evidence group, unsupported point, disallowed claim, and unsupported claims", () => {
+  it("names the missed evidence group, unsupported point, and disallowed claim, not unsupported claims", () => {
     expect(attemptFailureReasons(retrievalMiss)).toEqual([
       "Evidence group 2 not cited (closest citation 40 s away)",
       "Required point not supported: second point",
       "Disallowed claim made: a wrong claim",
-      "The answer makes claims the cited transcript does not support",
+    ]);
+  });
+
+  it("names the decisions the judge was unsure of", () => {
+    expect(
+      attemptFailureReasons(
+        attempt({
+          uncertain: true,
+          score: score(true),
+          coverage: {
+            passed: false,
+            verdict: verdict({
+              requiredPoints: [
+                { point: "first point", supported: true, confidence: 0.9 },
+                { point: "second point", supported: false, confidence: 0.55 },
+              ],
+              disallowedClaims: [{ claim: "a wrong claim", present: false, confidence: 0.58 }],
+            }),
+          },
+        }),
+      ),
+    ).toEqual([
+      "Judge unsure whether this point is supported: second point",
+      "Judge unsure whether this claim was made: a wrong claim",
     ]);
   });
 
@@ -180,6 +208,7 @@ describe("agentEvaluationTotals", () => {
       passed: 1,
       retrievalPassed: 1,
       coveragePassed: 1,
+      uncertain: 0,
       failures: { error: 0, timeout: 1, "judge-error": 0 },
       medianDistanceSec: 1,
       questions: [],
@@ -198,7 +227,13 @@ describe("agentEvaluationTotals", () => {
 
   it("sums agent tokens from every attempt and Jev usage as reported", () => {
     const totals = agentEvaluationTotals(result);
-    expect(totals.agentTokens).toEqual({ input: 1_500, output: 70, unknownAttempts: 1 });
+    // The second attempt predates cached counts.
+    expect(totals.agentTokens).toEqual({
+      input: 1_500,
+      cached: 4_000,
+      output: 70,
+      unknownAttempts: 1,
+    });
     expect(totals.judgeUsage).toEqual({ input_tokens: 200, output_tokens: 8 });
   });
 
@@ -209,6 +244,7 @@ describe("agentEvaluationTotals", () => {
     };
     expect(agentEvaluationTotals({ ...result, attempts: [withTrace] }).agentTokens).toEqual({
       input: 9,
+      cached: 0,
       output: 1,
       unknownAttempts: 0,
     });

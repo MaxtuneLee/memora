@@ -1,7 +1,7 @@
 import type { JudgeAdapter, JudgeInput, JudgeVerdict } from "./agentTypes";
 
 /** Bump when the questions sent to Jev change, so older verdicts stay distinguishable. */
-export const JEV_PROMPT_VERSION = "jev-coverage-1";
+export const JEV_PROMPT_VERSION = "jev-coverage-2";
 export const JEV_DEFAULT_MODEL = "jev-latest";
 
 interface NoulQuestion {
@@ -15,11 +15,14 @@ export interface JevRequest {
   state: {
     question: string;
     answer: string;
+    /** Lecture ID → file name, which the answer may use to name the lecture. */
+    lectures: Record<string, string>;
     citedTranscript: Array<{
       lecture: string;
       cue: string;
       startSec: number;
       endSec: number;
+      speaker?: string;
       text: string;
     }>;
   };
@@ -39,18 +42,25 @@ export function buildJevRequest(input: JudgeInput, model: string): JevRequest {
     questions[`disallowed_${index}`] = noul(`Does the answer make this claim? Claim: ${claim}`);
   });
   questions.unsupported = noul(
-    "Does the answer make any factual claim that the cited transcript does not support?",
+    "Does the answer state a fact (a number, name, result, or something the speaker said) that the cited transcript contradicts or never mentions? Lecture titles, file names, and timestamps are not facts to check.",
   );
   return {
     model,
     state: {
       question: input.question,
       answer: input.answer,
+      lectures: Object.fromEntries(
+        [...new Set(input.citedCues.map((cue) => cue.lectureId))].map((id) => [
+          id,
+          input.lectureNames[id] ?? id,
+        ]),
+      ),
       citedTranscript: input.citedCues.map((cue) => ({
         lecture: cue.lectureId,
         cue: cue.cueId,
         startSec: cue.startMs / 1000,
         endSec: cue.endMs / 1000,
+        ...(cue.speaker ? { speaker: cue.speaker } : {}),
         text: cue.text.trim(),
       })),
     },

@@ -83,7 +83,7 @@ describe("parseEvaluationImport", () => {
     });
     expect(result.questions).toEqual([question]);
     expect(result.cues.lec11).toEqual([
-      { cueId: "lec11-0001", startMs: 1000, endMs: 2000, text: "So why" },
+      { cueId: "lec11-0001", startMs: 1000, endMs: 2000, speaker: "A", text: "So why" },
     ]);
     expect(result.lectures[0]).toMatchObject({ fileId: lec11Id, durationSec: 20 });
     // Entries keep their leading space, so search_transcript's joined text reads across cues.

@@ -30,14 +30,17 @@ export interface TranscriptCue {
   startMs: number;
   endMs: number;
   text: string;
+  speaker?: string;
 }
 
 /** What the playground import produced, as plain data. */
 export interface AgentEvaluationCorpus {
   /** Imported file ID → lecture ID. */
   fileLectures: Record<string, string>;
-  /** Cue file contents per lecture ID; the judge sees the text of the cited cues. */
+  /** Cue file contents per lecture ID; the judge sees the text around the cited cues. */
   cues: Record<string, TranscriptCue[]>;
+  /** Lecture ID → the name its file carries, so the judge can tell a title from a claim. */
+  lectureNames?: Record<string, string>;
   revisions: {
     /** SHA-256 of the questions file. */
     questions: string;
@@ -67,8 +70,11 @@ export interface AgentAnswer {
   sessionId: string;
   runId: string | null;
   usage?: Record<string, number>;
-  /** Summed over every model call in the Run's Trace, summaries included; absent without a settled Trace. */
-  tokens?: { input: number; output: number };
+  /**
+   * Summed over every model call in the Run's Trace, summaries included; absent without a settled
+   * Trace. `input` excludes prompt-cache hits, counted in `cached` (absent in older results).
+   */
+  tokens?: { input: number; cached?: number; output: number };
   fallbackTrims: number | "unknown";
 }
 
@@ -90,7 +96,9 @@ export interface JudgeInput {
   question: string;
   requiredPoints: string[];
   disallowedClaims: string[];
+  /** Cues overlapping each citation, widened by `JUDGE_CONTEXT_SEC` on both sides. */
   citedCues: Array<TranscriptCue & { lectureId: string }>;
+  lectureNames: Record<string, string>;
   answer: string;
 }
 
@@ -99,7 +107,7 @@ export interface JudgeVerdict {
   requiredPoints: Array<{ point: string; supported: boolean; confidence: number }>;
   /** One decision per disallowed claim, in input order. */
   disallowedClaims: Array<{ claim: string; present: boolean; confidence: number }>;
-  /** Whether the answer makes claims the cited cues do not support. */
+  /** Whether the answer states facts the transcript contradicts or never mentions; reported only. */
   unsupportedClaims: { present: boolean; confidence: number };
   rawOutput: string;
 }
@@ -131,6 +139,8 @@ export interface AgentAttemptResult {
   questionId: string;
   attempt: number;
   passed: boolean;
+  /** Retrieval passed and no gating judge decision failed, but one was too close to call. */
+  uncertain?: boolean;
   latencyMs: number;
   answer?: AgentAnswer;
   /** The Trace of an attempt that failed without an answer, when the adapter reported it. */
@@ -146,6 +156,8 @@ export interface AgentEvaluationSummary {
   passed: number;
   retrievalPassed: number;
   coveragePassed: number;
+  /** Absent in results saved before uncertain attempts were counted. */
+  uncertain?: number;
   failures: Record<AttemptFailureReason, number>;
   medianDistanceSec: number | null;
   questions: Array<{ questionId: string; passes: number; attempts: number }>;
