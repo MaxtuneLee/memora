@@ -1,4 +1,4 @@
-import { cat, file as opfsFile, grep, write as opfsWrite } from "@memora/fs";
+import { cat, file as opfsFile, grep, ls, write as opfsWrite } from "@memora/fs";
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
@@ -59,7 +59,22 @@ export const createFileTools = (
           }
         }
 
-        const content = await cat(payload.path);
+        let content: string;
+        try {
+          content = await cat(payload.path);
+        } catch (error) {
+          const missing =
+            error instanceof DOMException &&
+            (error.name === "NotFoundError" || error.name === "TypeMismatchError");
+          if (!missing) throw error;
+          // Show what the folder does hold, so a guessed file name can be corrected.
+          const folder = payload.path.slice(0, payload.path.lastIndexOf("/")) || "/";
+          const filesInFolder = await ls(folder, { includeDirs: false }).catch(() => null);
+          return {
+            error: `No file at ${payload.path}. Use a storagePath or transcriptPath from query_db.`,
+            ...(filesInFolder ? { filesInFolder } : { folderExists: false }),
+          };
+        }
         if (payload.offset == null && payload.limit == null) {
           return content;
         }
