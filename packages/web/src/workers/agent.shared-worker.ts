@@ -37,6 +37,11 @@ import type { WriteApprovalDecision } from "@/lib/chat/tools/shared";
 
 const ports = new Map<MessagePort, Set<string>>();
 const hosts = new Set<MessagePort>();
+/**
+ * The tab that last submitted to each session. Its tools run there, so a background tab that the
+ * browser froze does not stall another tab's Run.
+ */
+const submitters = new Map<string, MessagePort>();
 const transientAdapters = new Map<string, PersistenceAdapter>();
 const sessions = new Map<string, Promise<SessionRuntime>>();
 const toolCalls = new Map<
@@ -113,7 +118,11 @@ const invokeTool = (
   name: string,
   args: unknown,
 ): Promise<unknown> => {
-  const port = hosts.values().next().value as MessagePort | undefined;
+  const submitter = submitters.get(sessionId);
+  const port =
+    submitter && hosts.has(submitter)
+      ? submitter
+      : (hosts.values().next().value as MessagePort | undefined);
   if (!port)
     return Promise.reject(
       new Error("No connected workspace can execute tools. Reopen Memora and retry."),
@@ -298,6 +307,8 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
   }
   if (request.type === "disconnect") {
     hosts.delete(port);
+    for (const [sessionId, submitter] of submitters)
+      if (submitter === port) submitters.delete(sessionId);
     ports.get(port)?.clear();
     for (const [id, call] of toolCalls)
       if (call.port === port)
@@ -358,6 +369,7 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
       post(port, { type: "snapshot", snapshot: runtime.snapshot });
       break;
     case "submit":
+      submitters.set(request.sessionId, port);
       if (import.meta.env.DEV)
         acceptedInputs.set(request.submission.input.id, {
           submissionId: request.submission.id,
@@ -441,6 +453,7 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
     }
     case "delete":
       deletedSessions.add(request.sessionId);
+      submitters.delete(request.sessionId);
       clearTimeout(recapTimers.get(request.sessionId));
       recapTimers.delete(request.sessionId);
       cancelTools(request.sessionId);

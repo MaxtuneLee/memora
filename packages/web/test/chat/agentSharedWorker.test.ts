@@ -312,6 +312,19 @@ describe("agent SharedWorker protocol", () => {
     await vi.waitFor(() => expect(b.snapshot()?.outcome).toBe("completed"));
   });
 
+  it("runs tools in the tab that submitted, not the first tab that connected", async () => {
+    const first = connect();
+    const second = connect();
+    await first.request({ type: "host-ready" });
+    await second.request({ type: "host-ready" });
+    await second.request({ type: "subscribe", sessionId: "s" });
+    await second.request({ type: "submit", sessionId: "s", submission: submission("tool") });
+    await vi.waitFor(() =>
+      expect(second.messages.some((message) => message.type === "tool")).toBe(true),
+    );
+    expect(first.messages.some((message) => message.type === "tool")).toBe(false);
+  });
+
   it("routes tools through another connected workspace after the first disconnects", async () => {
     const first = connect();
     const second = connect();

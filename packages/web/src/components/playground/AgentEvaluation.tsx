@@ -14,13 +14,18 @@ import { useEffect, useRef, useState } from "react";
 import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
 import { chatProvidersQuery$ } from "@/lib/chat/queries";
 import { createChatTools } from "@/lib/chat/tools";
-import { readTrace } from "@/lib/agent-runtime/client";
 import { createWebAgentAdapter } from "@/lib/playground/agentEvaluationAdapter";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
+import {
+  evaluationExportJson,
+  installEvaluationDevApi,
+  type EvaluationDevApiHandlers,
+} from "@/lib/playground/evaluationDevApi";
 import {
   importEvaluationLectures,
   parseEvaluationImport,
   type EvaluationImport,
+  type EvaluationImportFile,
 } from "@/lib/playground/evaluationImport";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import type { provider as ProviderRow } from "@/livestore/provider";
@@ -143,18 +148,8 @@ type ImportState =
 
 /** Downloads the result with each attempt's Trace inlined, keyed by `<sessionId>/<runId>`. */
 async function exportEvaluation(result: AgentEvaluationResult): Promise<void> {
-  const traces: Record<string, unknown> = {};
-  for (const attempt of result.attempts) {
-    const trace = attempt.answer ?? attempt.trace;
-    if (!trace?.runId) continue;
-    // Traces exist only in development builds; a missing one is left out.
-    traces[`${trace.sessionId}/${trace.runId}`] = await readTrace(
-      trace.sessionId,
-      trace.runId,
-    ).catch(() => null);
-  }
   const url = URL.createObjectURL(
-    new Blob([JSON.stringify({ ...result, traces }, null, 2)], { type: "application/json" }),
+    new Blob([await evaluationExportJson(result)], { type: "application/json" }),
   );
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -255,11 +250,14 @@ export default function AgentEvaluation() {
         }
       : undefined;
 
-  const runEvaluation = async () => {
-    if (state.status !== "imported" || !providerConfig || !jevKey || !selection?.questions.length)
-      return;
-    const { lectures, fileLectures, cues, revisions } = state.data;
-    const { questions } = selection;
+  const runEvaluation = async (
+    data: EvaluationImport,
+    questions: EvaluationQuestion[],
+    concurrency: number,
+  ): Promise<void> => {
+    if (!providerConfig) throw new Error("Choose a chat model in Settings first.");
+    if (!jevKey) throw new Error("Enter the TypeSafe AI API key for the Jev judge.");
+    const { lectures, fileLectures, cues, revisions } = data;
     const next = new AbortController();
     controller.current = next;
     setRun({
@@ -319,27 +317,52 @@ export default function AgentEvaluation() {
     }
   };
 
-  const importFiles = async () => {
-    if (!questionsFile) return;
+  const importData = async (
+    files: EvaluationImportFile[],
+    questions: EvaluationImportFile,
+  ): Promise<EvaluationImport> => {
     setState({ status: "importing" });
     try {
-      const read = async (file: File) => ({
-        name: file.name,
-        bytes: new Uint8Array(await file.arrayBuffer()),
-      });
-      const data = await parseEvaluationImport(
-        await Promise.all(dataFiles.map(read)),
-        await read(questionsFile),
-      );
+      const data = await parseEvaluationImport(files, questions);
       const { created, existing } = await importEvaluationLectures(data.lectures, store);
       setState({ status: "imported", data, created: created.length, existing: existing.length });
+      return data;
     } catch (error) {
-      setState({
-        status: "failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      setState({ status: "failed", message: errorMessage(error) });
+      throw error;
     }
   };
+
+  const importFiles = async () => {
+    if (!questionsFile) return;
+    const read = async (file: File) => ({
+      name: file.name,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
+    // A failure is shown from the import state.
+    await importData(await Promise.all(dataFiles.map(read)), await read(questionsFile)).catch(
+      () => {},
+    );
+  };
+
+  // Development only: lets a coding agent drive this page through `window.__memoraEval`.
+  const api = useRef<EvaluationDevApiHandlers>(undefined);
+  useEffect(() => {
+    api.current = {
+      data: state.status === "imported" ? state.data : undefined,
+      run,
+      shown,
+      importData,
+      runEvaluation,
+    };
+  });
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    return installEvaluationDevApi(() => {
+      if (!api.current) throw new Error("The evaluation page is still loading.");
+      return api.current;
+    });
+  }, []);
 
   return (
     <section {...stylex.props(styles.section)}>
@@ -455,7 +478,12 @@ export default function AgentEvaluation() {
                 !selection?.questions.length ||
                 selection.unknown.length > 0
               }
-              onClick={() => void runEvaluation()}
+              onClick={() => {
+                if (state.status === "imported" && selection)
+                  void runEvaluation(state.data, selection.questions, concurrency).catch(
+                    (error: unknown) => setRun({ status: "failed", message: errorMessage(error) }),
+                  );
+              }}
               {...stylex.props(styles.button)}
             >
               {run.status === "running"
