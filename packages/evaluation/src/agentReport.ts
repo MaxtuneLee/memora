@@ -45,6 +45,8 @@ export function attemptFailureReasons(attempt: AgentAttemptResult): string[] {
         reasons.push(`Judge unsure whether this claim was made: ${decision.claim}`);
       else if (decision.present) reasons.push(`Disallowed claim made: ${decision.claim}`);
   }
+  for (const check of attempt.preference?.checks ?? [])
+    if (!check.passed) reasons.push(`Preference not followed: ${check.label} (${check.detail})`);
   return reasons;
 }
 
@@ -58,7 +60,9 @@ export interface AgentTokenTotals {
   unknownAttempts: number;
 }
 
-export const agentTokenTotals = (attempts: AgentAttemptResult[]): AgentTokenTotals => {
+export const agentTokenTotals = (
+  attempts: Array<Pick<AgentAttemptResult, "answer" | "trace">>,
+): AgentTokenTotals => {
   const totals = { input: 0, cached: 0, output: 0, unknownAttempts: 0 };
   for (const attempt of attempts) {
     const tokens = (attempt.answer ?? attempt.trace)?.tokens;

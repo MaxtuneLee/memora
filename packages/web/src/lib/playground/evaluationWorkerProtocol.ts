@@ -13,6 +13,7 @@ import type {
   JudgeIdentity,
   JudgeInput,
   JudgeVerdict,
+  MemoryProfile,
 } from "@memora/evaluation";
 
 export type EvaluationWorkerRequest =
@@ -32,6 +33,7 @@ export type EvaluationWorkerRequest =
       agent: AgentIdentity;
       judge: JudgeIdentity;
       concurrency?: number;
+      memory?: MemoryProfile;
     }
   | { id: string; type: "cancel"; targetId: string }
   | { id: string; type: "model-result"; targetId: string; prediction?: string; error?: string }

@@ -5,10 +5,13 @@ import type { AgentCommand, SessionSnapshot } from "@/lib/agent-runtime/protocol
 import { emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 import { createChatTools } from "@/lib/chat/tools";
+import type { ToolHost } from "@/lib/agent-runtime/client";
 import {
   citationsFrom,
   createWebAgentAdapter,
+  createWebMemoryAdapter,
   EVALUATION_TOOL_NAMES,
+  MEMORY_EVALUATION_TOOL_NAMES,
 } from "@/lib/playground/agentEvaluationAdapter";
 
 const ANSWER =
@@ -29,7 +32,13 @@ const event = (type: string): TraceEvent => ({
  * Stands in for the agent runtime client; finishes each submission with the given outcome and
  * serves `trace` only once the session is deleted, as deletion flushes it.
  */
-const fakeRuntime = (outcome: Outcome, trace: TraceEvent[] = []) => {
+const fakeRuntime = (
+  outcome: Outcome,
+  trace: TraceEvent[] = [],
+  toolCalls: Array<{ name: string; args: unknown }> = [],
+) => {
+  const hosts = new Map<string, ToolHost>();
+  const toolResults: unknown[] = [];
   const snapshots = new Map<string, SessionSnapshot>();
   const listeners = new Map<string, () => void>();
   const commands: AgentCommand[] = [];
@@ -37,6 +46,12 @@ const fakeRuntime = (outcome: Outcome, trace: TraceEvent[] = []) => {
   return {
     commands,
     live,
+    hosts,
+    toolResults,
+    registerSessionToolHost: (sessionId: string, host: ToolHost) => {
+      hosts.set(sessionId, host);
+      return () => hosts.delete(sessionId);
+    },
     getSnapshot: (sessionId: string) => snapshots.get(sessionId) ?? emptySessionSnapshot(sessionId),
     subscribe: vi.fn((sessionId: string, listener: () => void, _storage?: "memory") => {
       listeners.set(sessionId, listener);
@@ -49,6 +64,23 @@ const fakeRuntime = (outcome: Outcome, trace: TraceEvent[] = []) => {
       if (command.type === "read-trace") return live.has(command.sessionId) ? [] : trace;
       if (command.type !== "submit" || outcome === "never") return;
       const { sessionId, submission } = command;
+      for (const { name, args } of toolCalls) {
+        const host = hosts.get(sessionId);
+        if (!host) throw new Error(`No tool host for ${sessionId}.`);
+        toolResults.push(
+          await host(
+            {
+              type: "tool",
+              callId: "c",
+              sessionId,
+              runId: submission.id,
+              name,
+              args,
+            } as Parameters<ToolHost>[0],
+            new AbortController().signal,
+          ),
+        );
+      }
       queueMicrotask(() => {
         snapshots.set(sessionId, {
           ...emptySessionSnapshot(sessionId),
@@ -226,5 +258,87 @@ describe("createWebAgentAdapter", () => {
       trace: { sessionId: expect.stringMatching(/^eval-/), fallbackTrims: "unknown" },
     });
     expect(runtime.live.size).toBe(0);
+  });
+
+  it("sends a question's notices as the session's stored preferences", async () => {
+    const runtime = fakeRuntime("completed");
+    const adapter = await create(runtime);
+
+    await adapter.answer(
+      { ...question, notices: ["User prefers answers in Chinese."] },
+      new AbortController().signal,
+    );
+
+    const submit = runtime.commands.find((command) => command.type === "submit");
+    if (submit?.type !== "submit") throw new Error("No submission.");
+    expect(submit.submission.memory).toEqual({ notices: ["User prefers answers in Chinese."] });
+  });
+});
+
+describe("createWebMemoryAdapter", () => {
+  const sessions = [
+    {
+      sessionId: "past-1",
+      title: "Batch size",
+      updatedAt: "2026-09-01T10:00:00.000Z",
+      messages: [{ role: "user" as const, content: "Let's use 512." }],
+    },
+  ];
+
+  it("runs tool calls against the fixture chats and keeps saved notices with the attempt", async () => {
+    const runtime = fakeRuntime(
+      "completed",
+      [],
+      [
+        { name: "list_chat_sessions", args: {} },
+        { name: "read_chat_session", args: { session_id: "past-1" } },
+        {
+          name: "remember_user_preference",
+          args: {
+            user_request: "Answer in Chinese from now on.",
+            assistant_reply: "OK.",
+            reason: "r",
+          },
+        },
+      ],
+    );
+    const adapter = await createWebMemoryAdapter({
+      provider: {
+        id: "p1",
+        name: "Provider",
+        baseUrl: "https://example.test",
+        apiFormat: "chat-completions",
+        models: [],
+        selectedModelId: "model-a",
+      },
+      config: { maxIterations: 20 },
+      sessions,
+      runtime,
+      createTools: (standIns) =>
+        createChatTools({ query: () => [] }, standIns).map((tool) =>
+          tool.name === "remember_user_preference"
+            ? { ...tool, execute: () => standIns.saveMemoryNotices(["User prefers Chinese."]) }
+            : tool,
+        ),
+    });
+
+    const reply = await adapter.converse(
+      { caseId: "r1", message: "What batch size did we pick?" },
+      new AbortController().signal,
+    );
+
+    expect(adapter.identity.tools.sort()).toEqual([...MEMORY_EVALUATION_TOOL_NAMES].sort());
+    expect(reply.toolCalls.map(({ name }) => name)).toEqual([
+      "list_chat_sessions",
+      "read_chat_session",
+      "remember_user_preference",
+    ]);
+    expect(runtime.toolResults[0]).toMatchObject([{ id: "past-1", title: "Batch size" }]);
+    expect(runtime.toolResults[1]).toMatchObject({
+      id: "past-1",
+      messages: [{ role: "user", content: "Let's use 512." }],
+    });
+    expect(reply.notices).toEqual(["User prefers Chinese."]);
+    expect(runtime.hosts.size).toBe(0);
   });
 });

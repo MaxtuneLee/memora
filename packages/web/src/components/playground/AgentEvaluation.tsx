@@ -1,20 +1,29 @@
 import {
   createJevJudge,
   listAgentEvaluationResults,
+  runMemoryEvaluation,
   readAgentEvaluationResult,
   saveAgentEvaluationResult,
   type AgentAttemptResult,
   type AgentEvaluationResult,
   type EvaluationQuestion,
+  type MemoryCase,
+  type MemoryEvaluationResult,
+  type MemoryProfile,
+  type PastSession,
   type SavedAgentEvaluationSummary,
 } from "@memora/evaluation";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
 import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
+import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 import { chatProvidersQuery$ } from "@/lib/chat/queries";
 import { createChatTools } from "@/lib/chat/tools";
-import { createWebAgentAdapter } from "@/lib/playground/agentEvaluationAdapter";
+import {
+  createWebAgentAdapter,
+  createWebMemoryAdapter,
+} from "@/lib/playground/agentEvaluationAdapter";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
 import {
   evaluationExportJson,
@@ -231,6 +240,7 @@ export default function AgentEvaluation() {
     TYPESAFE_CREDENTIAL,
     store.useQuery(providerCredentialsQuery$),
   ).trim();
+  const { createRuntime } = useFeatureModels();
   const { agentConfig, providerConfig, compactionProviderConfig } = useChatModelConfig({
     providers,
     settings,
@@ -254,6 +264,7 @@ export default function AgentEvaluation() {
     data: EvaluationImport,
     questions: EvaluationQuestion[],
     concurrency: number,
+    memory?: MemoryProfile,
   ): Promise<AgentEvaluationResult | undefined> => {
     if (!providerConfig) throw new Error("Choose a chat model in Settings first.");
     if (!jevKey) throw new Error("Enter the TypeSafe AI API key for the Jev judge.");
@@ -274,6 +285,7 @@ export default function AgentEvaluation() {
         compactionProvider: compactionProviderConfig,
         config: agentConfig,
         tools: createChatTools(store),
+        ...(memory ? { memoryProfileId: memory.profileId } : {}),
       });
       const result = await evaluationClient.runAgent(
         {
@@ -289,6 +301,7 @@ export default function AgentEvaluation() {
           agent,
           judge: createJevJudge({ apiKey: jevKey, baseUrl: "/api/playground/typesafe" }),
           concurrency,
+          ...(memory ? { memory } : {}),
         },
         {
           signal: next.signal,
@@ -317,6 +330,36 @@ export default function AgentEvaluation() {
     } finally {
       controller.current = undefined;
     }
+  };
+
+  // Development only: the memory evaluation has no controls on this page yet.
+  const runMemory = async (
+    file: { sessions: PastSession[]; cases: MemoryCase[]; revision: string },
+    concurrency: number,
+    signal: AbortSignal,
+  ): Promise<MemoryEvaluationResult> => {
+    if (!providerConfig) throw new Error("Choose a chat model in Settings first.");
+    if (!createRuntime("memoryExtraction", "background"))
+      throw new Error("Choose a model for Memory preferences in Settings first.");
+    const agent = await createWebMemoryAdapter({
+      provider: providerConfig,
+      compactionProvider: compactionProviderConfig,
+      config: agentConfig,
+      sessions: file.sessions,
+      createTools: (standIns) =>
+        createChatTools(store, {
+          ...standIns,
+          getMemoryExtractionRuntime: () => createRuntime("memoryExtraction", "background"),
+        }),
+    });
+    return runMemoryEvaluation({
+      cases: file.cases,
+      sessions: file.sessions,
+      revisions: { cases: file.revision },
+      agent,
+      concurrency,
+      signal,
+    });
   };
 
   const importData = async (
@@ -356,6 +399,7 @@ export default function AgentEvaluation() {
       shown,
       importData,
       runEvaluation,
+      runMemory,
     };
   });
   useEffect(() => {

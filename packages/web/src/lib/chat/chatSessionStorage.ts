@@ -11,7 +11,7 @@ import {
 } from "@/lib/chat/chatImageAttachments";
 
 const CHAT_SESSIONS_DIR = "/chat/sessions";
-const SESSION_SCHEMA_VERSION = 2 as const;
+export const SESSION_SCHEMA_VERSION = 2 as const;
 export const DEFAULT_CHAT_SESSION_TITLE = "New session";
 
 interface ChatSessionThinkingStep {
@@ -286,7 +286,7 @@ const parseRecord = (raw: string): ChatSessionRecord | null => {
   }
 };
 
-const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
+export const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
   return {
     id: record.id,
     title: record.title,

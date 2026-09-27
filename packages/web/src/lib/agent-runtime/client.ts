@@ -8,6 +8,7 @@ export type ToolHost = (
 ) => Promise<unknown>;
 let worker: SharedWorker | undefined;
 let toolHost: ToolHost | undefined;
+const sessionToolHosts = new Map<string, ToolHost>();
 const snapshots = new Map<string, SessionSnapshot>();
 // ponytail: a session's storage kind never changes, so entries live for the page.
 const memorySessions = new Set<string>();
@@ -88,8 +89,9 @@ function connection(): MessagePort {
       calls.set(message.callId, controller);
       void Promise.resolve()
         .then(() => {
-          if (!toolHost) throw new Error("Workspace tool service is unavailable.");
-          return toolHost(message, controller.signal);
+          const host = sessionToolHosts.get(message.sessionId) ?? toolHost;
+          if (!host) throw new Error("Workspace tool service is unavailable.");
+          return host(message, controller.signal);
         })
         .then(
           (result) => command({ type: "tool-result", callId: message.callId, result }),
@@ -251,6 +253,14 @@ export function registerToolHost(host: ToolHost): () => void {
   void command({ type: "host-ready" }).catch(console.error);
   return () => {
     if (toolHost === host) toolHost = undefined;
+  };
+}
+
+/** Runs one session's tool calls in place of the workspace host, as evaluations need. */
+export function registerSessionToolHost(sessionId: string, host: ToolHost): () => void {
+  sessionToolHosts.set(sessionId, host);
+  return () => {
+    if (sessionToolHosts.get(sessionId) === host) sessionToolHosts.delete(sessionId);
   };
 }
 

@@ -20,6 +20,8 @@ export interface AgentSubmission {
   prompts: Array<{ id: string; priority: number; content: string }>;
   tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
   scope: ResolvedReferenceScope;
+  /** Stored preferences for an in-memory session, in place of the user's; evaluations only. */
+  memory?: { notices: string[] };
 }
 export interface SessionSnapshot {
   sessionId: string;

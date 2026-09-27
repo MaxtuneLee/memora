@@ -11,6 +11,7 @@ import type {
   JudgeVerdict,
   RunAgentEvaluationOptions,
 } from "./agentTypes";
+import { answerProse, runTextChecks } from "./textChecks";
 
 const ATTEMPTS_PER_QUESTION = 3;
 const DEFAULT_CONCURRENCY = 3;
@@ -24,7 +25,7 @@ export const UNCERTAIN_CONFIDENCE = 0.6;
 class Canceled extends Error {}
 
 /** Settles with the promise, or rejects as soon as the signal aborts, even if the adapter ignores it. */
-const untilAborted = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> =>
+export const untilAborted = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(signal.reason);
     if (signal.aborted) return onAbort();
@@ -83,6 +84,7 @@ const citedCues = (
 const buildSummary = (
   questions: EvaluationQuestion[],
   attempts: AgentAttemptResult[],
+  withMemory: boolean,
 ): AgentEvaluationSummary => {
   const failures: Record<AttemptFailureReason, number> = { error: 0, timeout: 0, "judge-error": 0 };
   for (const attempt of attempts) if (attempt.failure) failures[attempt.failure.reason] += 1;
@@ -93,6 +95,9 @@ const buildSummary = (
     retrievalPassed: attempts.filter((attempt) => attempt.score?.retrieval.passed).length,
     coveragePassed: attempts.filter((attempt) => attempt.coverage?.passed).length,
     uncertain: attempts.filter((attempt) => attempt.uncertain).length,
+    ...(withMemory
+      ? { preferencePassed: attempts.filter((attempt) => attempt.preference?.passed).length }
+      : {}),
     failures,
     medianDistanceSec: median(
       attempts.flatMap((attempt) =>
@@ -114,7 +119,8 @@ const buildSummary = (
 
 /**
  * Runs every question three times against the agent, scores citations deterministically,
- * and judges coverage. Failed and timed-out attempts stay in the result; canceled ones are dropped.
+ * and judges coverage. With a memory profile, the agent answers under its notices and an attempt
+ * passes only if the answer also follows the profile's rules. Failed and timed-out attempts stay in the result; canceled ones are dropped.
  */
 export async function runAgentEvaluation(
   options: RunAgentEvaluationOptions,
@@ -129,7 +135,7 @@ export async function runAgentEvaluation(
   const now = options.now ?? (() => new Date());
   const startedAt = now();
   const outer = options.signal ?? new AbortController().signal;
-  const { corpus, agent, judge } = options;
+  const { corpus, agent, judge, memory } = options;
 
   const runAttempt = async (
     question: EvaluationQuestion,
@@ -164,7 +170,11 @@ export async function runAgentEvaluation(
     const started = performance.now();
     let answer: AgentAnswer;
     const answering = agent.answer(
-      { questionId: question.questionId, question: question.question },
+      {
+        questionId: question.questionId,
+        question: question.question,
+        ...(memory ? { notices: memory.notices } : {}),
+      },
       signal,
     );
     try {
@@ -189,6 +199,9 @@ export async function runAgentEvaluation(
     }
     const latencyMs = performance.now() - started;
     const score = scoreCitations(question, answer.citations, corpus.fileLectures);
+    const checks = memory ? runTextChecks(answerProse(answer.answer), memory.checks) : undefined;
+    const preference = checks && { passed: checks.every((check) => check.passed), checks };
+    const followed = preference?.passed ?? true;
     let verdict: JudgeVerdict;
     try {
       verdict = await untilAborted(
@@ -206,19 +219,25 @@ export async function runAgentEvaluation(
         signal,
       );
     } catch (error) {
-      return failed("judge", error, { latencyMs, answer, score });
+      return failed("judge", error, {
+        latencyMs,
+        answer,
+        score,
+        ...(preference ? { preference } : {}),
+      });
     }
     const outcome = coverageOutcome(question, verdict);
-    const uncertain = score.retrieval.passed && outcome === "uncertain";
+    const uncertain = score.retrieval.passed && followed && outcome === "uncertain";
     return {
       questionId: question.questionId,
       attempt,
-      passed: score.retrieval.passed && outcome === "passed",
+      passed: score.retrieval.passed && followed && outcome === "passed",
       ...(uncertain ? { uncertain } : {}),
       latencyMs,
       answer,
       score,
       coverage: { passed: outcome === "passed", verdict },
+      ...(preference ? { preference } : {}),
     };
   };
 
@@ -264,7 +283,8 @@ export async function runAgentEvaluation(
     },
     questions: options.questions,
     fileLectures: corpus.fileLectures,
+    ...(memory ? { memory } : {}),
     attempts,
-    summary: buildSummary(options.questions, attempts),
+    summary: buildSummary(options.questions, attempts, Boolean(memory)),
   };
 }

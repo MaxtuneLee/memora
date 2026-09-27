@@ -210,7 +210,7 @@ export const evaluationClient = {
   runAgent(
     options: Pick<
       RunAgentEvaluationOptions,
-      "questions" | "corpus" | "agent" | "judge" | "concurrency"
+      "questions" | "corpus" | "agent" | "judge" | "concurrency" | "memory"
     >,
     control?: { signal?: AbortSignal; onProgress?: (progress: AgentEvaluationProgress) => void },
   ): Promise<AgentEvaluationResult> {
@@ -246,6 +246,7 @@ export const evaluationClient = {
         agent: options.agent.identity,
         judge: options.judge.identity,
         concurrency: options.concurrency,
+        ...(options.memory ? { memory: options.memory } : {}),
       } satisfies EvaluationWorkerRequest);
     });
   },

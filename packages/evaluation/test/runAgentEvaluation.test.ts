@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AgentAttemptError,
+  attemptFailureReasons,
   listAgentEvaluationResults,
   readAgentEvaluationResult,
   runAgentEvaluation,
@@ -120,6 +121,38 @@ const byQuestion = <T extends { questionId: string }>(items: T[], questionId: st
   items.filter((item) => item.questionId === questionId);
 
 describe("runAgentEvaluation", () => {
+  it("answers under a memory profile's notices and fails answers that break its rules", async () => {
+    const seen: Array<string[] | undefined> = [];
+    const result = await runAgentEvaluation({
+      questions: [question("q1")],
+      corpus,
+      memory: {
+        profileId: "zh",
+        notices: ["User prefers answers in Simplified Chinese."],
+        checks: [{ type: "language", language: "zh" }],
+      },
+      agent: {
+        identity: agentIdentity,
+        answer: async ({ notices }) => {
+          seen.push(notices);
+          return {
+            ...answer([cite(LEC11, 101, 104)]),
+            answer: seen.length === 1 ? "自编码器压缩输入。" : "Autoencoders compress.",
+          };
+        },
+      },
+      judge: judge(),
+      concurrency: 1,
+    });
+
+    expect(seen).toEqual(Array(3).fill(["User prefers answers in Simplified Chinese."]));
+    expect(result.memory?.profileId).toBe("zh");
+    expect(result.summary).toMatchObject({ passed: 1, preferencePassed: 1, coveragePassed: 3 });
+    expect(attemptFailureReasons(result.attempts[1])).toEqual([
+      "Preference not followed: Language zh (CJK share 0.00)",
+    ]);
+  });
+
   it("runs three attempts per question and reports progress out of questions × 3", async () => {
     const progress: Array<[number, number]> = [];
     const result = await runAgentEvaluation({

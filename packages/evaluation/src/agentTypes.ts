@@ -1,3 +1,5 @@
+import type { MemoryProfile, TextCheckResult } from "./textChecks";
+
 export interface EvidenceWindow {
   lectureId: string;
   startCueId: string;
@@ -60,8 +62,13 @@ export interface AgentIdentity {
   settings: Record<string, string | number | boolean | null>;
 }
 
-/** The agent sees only the question text, never the answer key. */
-export type AgentQuestion = Pick<EvaluationQuestion, "questionId" | "question">;
+/**
+ * The agent sees only the question text, never the answer key; `notices` are the stored preferences
+ * it answers under, when the run uses a memory profile.
+ */
+export type AgentQuestion = Pick<EvaluationQuestion, "questionId" | "question"> & {
+  notices?: string[];
+};
 
 export interface AgentAnswer {
   answer: string;
@@ -147,6 +154,8 @@ export interface AgentAttemptResult {
   trace?: AttemptTrace;
   score?: CitationScore;
   coverage?: { passed: boolean; verdict: JudgeVerdict };
+  /** The memory profile's rules, checked on the answer; absent without a profile. */
+  preference?: { passed: boolean; checks: TextCheckResult[] };
   failure?: { reason: AttemptFailureReason; name: string; message: string };
 }
 
@@ -158,6 +167,8 @@ export interface AgentEvaluationSummary {
   coveragePassed: number;
   /** Absent in results saved before uncertain attempts were counted. */
   uncertain?: number;
+  /** Answers that followed the memory profile's rules; absent without a profile. */
+  preferencePassed?: number;
   failures: Record<AttemptFailureReason, number>;
   medianDistanceSec: number | null;
   questions: Array<{ questionId: string; passes: number; attempts: number }>;
@@ -184,6 +195,8 @@ export interface AgentEvaluationResult {
   questions?: EvaluationQuestion[];
   /** Imported file ID → lecture ID; absent in results saved before it was stored. */
   fileLectures?: Record<string, string>;
+  /** The stored preferences every attempt answered under, and the rules checked. */
+  memory?: MemoryProfile;
   attempts: AgentAttemptResult[];
   summary: AgentEvaluationSummary;
 }
@@ -199,6 +212,8 @@ export interface RunAgentEvaluationOptions {
   corpus: AgentEvaluationCorpus;
   agent: AgentAdapter;
   judge: JudgeAdapter;
+  /** Answer under these stored preferences; an attempt passes only if it also follows them. */
+  memory?: MemoryProfile;
   /** Attempts running at once; default 3. */
   concurrency?: number;
   /** Per-attempt limit covering the agent and the judge; default 5 minutes. */

@@ -128,6 +128,7 @@ async function execute(port: MessagePort, request: EvaluationWorkerRequest): Pro
         questions: request.questions,
         corpus: request.corpus,
         concurrency: request.concurrency,
+        ...(request.memory ? { memory: request.memory } : {}),
         signal: controller.signal,
         agent: {
           identity: request.agent,

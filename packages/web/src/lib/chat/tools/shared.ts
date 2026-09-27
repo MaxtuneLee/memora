@@ -1,3 +1,4 @@
+import type { ChatSessionRecord, ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import type { ShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
@@ -34,6 +35,13 @@ export interface CreateChatToolsOptions {
   showWidgetSkillTracker?: ShowWidgetSkillTracker;
   getMemoryExtractionRuntime?: () => PiModelRuntime | null;
   onMemoryUpdated?: () => void;
+  /** Where extracted notices go; the user's global memory when absent. */
+  saveMemoryNotices?: (notices: string[]) => Promise<{ updated: boolean; noticeCount: number }>;
+  /** The chats the session tools can see; the user's stored chats when absent. */
+  chatSessions?: {
+    list: () => Promise<ChatSessionSummary[]>;
+    load: (sessionId: string) => Promise<ChatSessionRecord | null>;
+  };
   requestWriteApproval?: (
     request: WriteApprovalRequest,
   ) => Promise<WriteApprovalDecision> | WriteApprovalDecision;

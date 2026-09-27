@@ -23,7 +23,7 @@ export const createChatTools = (
 ): ToolDefinition[] => {
   return [
     ...createWidgetTools(options),
-    ...createSessionTools(),
+    ...createSessionTools(options.chatSessions),
     ...createDatabaseTools(store, options),
     ...createFileTools(store, options),
     ...createTranscriptTools(store, options),

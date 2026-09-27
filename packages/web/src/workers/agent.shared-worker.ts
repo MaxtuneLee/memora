@@ -198,7 +198,10 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
         traced && import.meta.env.DEV
           ? new TraceRecorder(sessionId, submission.id, takeAcceptedInput)
           : undefined;
-      const memory = await adapter.load(`memora-chat:${sessionId}`, "memory");
+      const memory =
+        memoryAdapter && submission.memory
+          ? { notices: submission.memory.notices.map((text) => ({ text })) }
+          : await adapter.load(`memora-chat:${sessionId}`, "memory");
       const persistence: PersistenceAdapter = {
         save: (agentId, key, value) => adapter.save(agentId, key, value),
         remove: (agentId, key) => adapter.remove(agentId, key),
