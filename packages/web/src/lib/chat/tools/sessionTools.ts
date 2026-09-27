@@ -3,7 +3,14 @@ import * as v from "valibot";
 
 import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 
-export const createSessionTools = (): ToolDefinition[] => {
+import type { CreateChatToolsOptions } from "./shared";
+
+export const createSessionTools = (
+  source: NonNullable<CreateChatToolsOptions["chatSessions"]> = {
+    list: listChatSessions,
+    load: loadChatSession,
+  },
+): ToolDefinition[] => {
   return [
     {
       type: "function",
@@ -15,7 +22,7 @@ export const createSessionTools = (): ToolDefinition[] => {
       }),
       execute: async (params: unknown) => {
         const payload = params as { limit?: number };
-        const sessions = await listChatSessions();
+        const sessions = await source.list();
         const limit = Math.min(payload.limit ?? 10, 50);
         return sessions.slice(0, limit);
       },
@@ -31,7 +38,7 @@ export const createSessionTools = (): ToolDefinition[] => {
       }),
       execute: async (params: unknown) => {
         const payload = params as { session_id: string; max_messages?: number };
-        const session = await loadChatSession(payload.session_id);
+        const session = await source.load(payload.session_id);
         if (!session) {
           return { error: `Session '${payload.session_id}' was not found` };
         }

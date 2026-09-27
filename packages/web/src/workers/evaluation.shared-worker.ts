@@ -1,5 +1,12 @@
 import { openDataset } from "@memora/datasets";
-import { runEvaluation, type ModelAdapter } from "@memora/evaluation";
+import {
+  AgentAttemptError,
+  runAgentEvaluation,
+  runEvaluation,
+  type AgentAnswer,
+  type JudgeVerdict,
+  type ModelAdapter,
+} from "@memora/evaluation";
 import { getLocalModelManifest } from "@memora/local-model-runtime";
 
 import type {
@@ -8,34 +15,38 @@ import type {
 } from "@/lib/playground/evaluationWorkerProtocol";
 
 const operations = new Map<string, AbortController>();
-const modelRequests = new Map<
+const hostRequests = new Map<
   string,
-  { resolve: (prediction: string) => void; reject: (error: Error) => void }
+  { resolve: (value: unknown) => void; reject: (error: Error) => void }
 >();
 
 const post = (port: MessagePort, message: EvaluationWorkerResponse, transfer?: Transferable[]) =>
   port.postMessage(message, transfer ?? []);
 
-const requestModel = (
+/** Asks the Window to serve a model or adapter call, and cancels it there on abort. */
+const requestHost = <T>(
   port: MessagePort,
-  message: Extract<EvaluationWorkerResponse, { type: "model-request" }>,
+  message: Extract<EvaluationWorkerResponse, { type: "model-request" | "adapter-request" }>,
   signal?: AbortSignal,
-): Promise<string> =>
+): Promise<T> =>
   new Promise((resolve, reject) => {
-    const abort = () => {
-      modelRequests.delete(message.id);
-      post(port, { id: crypto.randomUUID(), type: "model-cancel", targetId: message.id });
-      reject(new DOMException("The operation was aborted.", "AbortError"));
-    };
+    const aborted = () => new DOMException("The operation was aborted.", "AbortError");
     if (signal?.aborted) {
-      abort();
+      reject(aborted());
       return;
     }
+    const abort = () => {
+      post(port, { id: crypto.randomUUID(), type: "model-cancel", targetId: message.id });
+      // A canceled agent call still answers, with its Trace; the runner waits for it briefly.
+      if (message.type === "adapter-request") return;
+      hostRequests.delete(message.id);
+      reject(aborted());
+    };
     signal?.addEventListener("abort", abort, { once: true });
-    modelRequests.set(message.id, {
-      resolve: (prediction) => {
+    hostRequests.set(message.id, {
+      resolve: (value) => {
         signal?.removeEventListener("abort", abort);
-        resolve(prediction);
+        resolve(value as T);
       },
       reject: (error) => {
         signal?.removeEventListener("abort", abort);
@@ -43,7 +54,9 @@ const requestModel = (
       },
     });
     const transfer =
-      message.operation === "transcribe" && message.pcm.buffer instanceof ArrayBuffer
+      message.type === "model-request" &&
+      message.operation === "transcribe" &&
+      message.pcm.buffer instanceof ArrayBuffer
         ? [message.pcm.buffer]
         : undefined;
     post(port, message, transfer);
@@ -62,7 +75,7 @@ const createLocalAsrAdapter = (
     inference: { language, priority: "background" },
   },
   initialize: async (signal) => {
-    await requestModel(
+    await requestHost(
       port,
       {
         id: crypto.randomUUID(),
@@ -74,7 +87,7 @@ const createLocalAsrAdapter = (
     );
   },
   predict: ({ pcm }, signal) =>
-    requestModel(
+    requestHost<string>(
       port,
       {
         id: crypto.randomUUID(),
@@ -93,16 +106,68 @@ async function execute(port: MessagePort, request: EvaluationWorkerRequest): Pro
     operations.get(request.targetId)?.abort();
     return;
   }
-  if (request.type === "model-result") {
-    const pending = modelRequests.get(request.targetId);
+  if (request.type === "model-result" || request.type === "adapter-result") {
+    const pending = hostRequests.get(request.targetId);
     if (!pending) return;
-    modelRequests.delete(request.targetId);
-    if (request.error) pending.reject(new Error(request.error));
-    else pending.resolve(request.prediction ?? "");
+    hostRequests.delete(request.targetId);
+    if (request.error)
+      pending.reject(
+        request.type === "adapter-result" && request.trace
+          ? new AgentAttemptError(request.error, request.trace)
+          : new Error(request.error),
+      );
+    else
+      pending.resolve(request.type === "model-result" ? (request.prediction ?? "") : request.value);
     return;
   }
   const controller = new AbortController();
   operations.set(request.id, controller);
+  if (request.type === "run-agent") {
+    try {
+      const result = await runAgentEvaluation({
+        questions: request.questions,
+        corpus: request.corpus,
+        concurrency: request.concurrency,
+        ...(request.memory ? { memory: request.memory } : {}),
+        signal: controller.signal,
+        agent: {
+          identity: request.agent,
+          answer: (question, signal) =>
+            requestHost<AgentAnswer>(
+              port,
+              {
+                id: crypto.randomUUID(),
+                type: "adapter-request",
+                runId: request.id,
+                adapter: "agent",
+                question,
+              },
+              signal,
+            ),
+        },
+        judge: {
+          identity: request.judge,
+          judge: (input, signal) =>
+            requestHost<JudgeVerdict>(
+              port,
+              {
+                id: crypto.randomUUID(),
+                type: "adapter-request",
+                runId: request.id,
+                adapter: "judge",
+                input,
+              },
+              signal,
+            ),
+        },
+        onProgress: (progress) => post(port, { id: request.id, type: "agent-progress", progress }),
+      });
+      post(port, { id: request.id, type: "agent-result", result });
+    } finally {
+      operations.delete(request.id);
+    }
+    return;
+  }
   const dataset = await openDataset(request.selection);
   try {
     const result = await runEvaluation({

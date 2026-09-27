@@ -1,3 +1,4 @@
+import type { ChatSessionRecord, ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
 import type { ShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
@@ -23,10 +24,12 @@ export type WriteApprovalDecision = "allow_once" | "allow_session" | "deny";
 
 export interface WriteApprovalRequest {
   path: string;
-  operation: "write" | "append";
+  operation: "create" | "write" | "append" | "replace";
   content: string;
   contentLength: number;
   overwrite: boolean;
+  /** The changes, for "replace". */
+  edits?: { oldText: string; newText: string }[];
 }
 
 export interface CreateChatToolsOptions {
@@ -34,13 +37,24 @@ export interface CreateChatToolsOptions {
   showWidgetSkillTracker?: ShowWidgetSkillTracker;
   getMemoryExtractionRuntime?: () => PiModelRuntime | null;
   onMemoryUpdated?: () => void;
+  /** Where extracted notices go; the user's global memory when absent. */
+  saveMemoryNotices?: (notices: string[]) => Promise<{ updated: boolean; noticeCount: number }>;
+  /** The chats the session tools can see; the user's stored chats when absent. */
+  chatSessions?: {
+    list: () => Promise<ChatSessionSummary[]>;
+    load: (sessionId: string) => Promise<ChatSessionRecord | null>;
+  };
   requestWriteApproval?: (
     request: WriteApprovalRequest,
   ) => Promise<WriteApprovalDecision> | WriteApprovalDecision;
 }
 
 // oxlint-disable-next-line @typescript-eslint/no-explicit-any
-export type StoreQueryable = { query: (...args: any[]) => any };
+export type StoreQueryable = {
+  query: (...args: any[]) => any;
+  /** Needed by tools that add or update library files. */
+  commit?: (...events: any[]) => void;
+};
 
 export interface ActiveFileRow {
   id: string;

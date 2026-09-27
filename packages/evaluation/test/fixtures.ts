@@ -1,4 +1,26 @@
+import type { ResultStorage } from "../src/results";
 import type { EvaluationResult } from "../src/types";
+
+export class MemoryResultStorage implements ResultStorage {
+  readonly files = new Map<string, string>();
+  failWriteWith?: Error;
+
+  async write(path: string, data: string) {
+    if (this.failWriteWith) throw this.failWriteWith;
+    this.files.set(path, data);
+  }
+  async readText(path: string) {
+    const value = this.files.get(path);
+    if (value === undefined) throw new DOMException("Missing", "NotFoundError");
+    return value;
+  }
+  async list(path: string) {
+    return [...this.files.keys()].filter((key) => key.startsWith(path));
+  }
+  async exists(path: string) {
+    return this.files.has(path);
+  }
+}
 
 export function sampleEvaluationResult(
   overrides: Partial<EvaluationResult> = {},

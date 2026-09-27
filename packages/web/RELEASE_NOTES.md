@@ -4,6 +4,17 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-09-28
+
+- Sources in the assistant's answers now appear as small numbered marks after the text they support. Click one to see the recordings and times it cites, and click a time to jump there.
+- Documents the assistant creates or edits appear as cards below its reply; click one to open it.
+
+## 2026-09-27
+
+- When you ask about something you saved, such as a lecture or recording, the assistant looks it up in your library before answering and links to the moments it used.
+- The assistant can now change specific parts of a text file instead of rewriting the whole file, and the approval dialog shows exactly what will be removed and added.
+- Documents the assistant creates for you now appear in your library like any other note.
+
 ## 2026-09-26.2
 
 - When you edit and resend an earlier message, the assistant still remembers the tool results and images from before it.

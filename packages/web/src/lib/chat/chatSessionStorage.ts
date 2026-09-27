@@ -1,5 +1,6 @@
 import { dir as opfsDir, file as opfsFile, glob, write as opfsWrite } from "@memora/fs";
 import type { TokenUsage } from "@memora/ai-core";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import { normalizeChatWidgets, type ChatWidget } from "@/lib/chat/showWidget";
 
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/lib/chat/chatImageAttachments";
 
 const CHAT_SESSIONS_DIR = "/chat/sessions";
-const SESSION_SCHEMA_VERSION = 2 as const;
+export const SESSION_SCHEMA_VERSION = 2 as const;
 export const DEFAULT_CHAT_SESSION_TITLE = "New session";
 
 interface ChatSessionThinkingStep {
@@ -28,12 +29,24 @@ export interface ChatSessionReference {
   name: string;
 }
 
+const normalizeFileCards = (value: unknown): ChatFileCard[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter(
+    (item): item is ChatFileCard =>
+      Boolean(item) &&
+      typeof item.fileId === "string" &&
+      typeof item.name === "string" &&
+      (item.action === "created" || item.action === "modified"),
+  );
+};
+
 export interface ChatSessionMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
+  files?: ChatFileCard[];
   thinkingSteps?: ChatSessionThinkingStep[];
   usage?: TokenUsage;
 }
@@ -194,6 +207,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
       normalizedMessage.widgets = widgets;
     }
 
+    const files = normalizeFileCards(value.files);
+    if (files && files.length > 0) {
+      normalizedMessage.files = files;
+    }
+
     const thinkingSteps = normalizeThinkingSteps(value.thinkingSteps);
     if (thinkingSteps && thinkingSteps.length > 0) {
       normalizedMessage.thinkingSteps = thinkingSteps;
@@ -286,7 +304,7 @@ const parseRecord = (raw: string): ChatSessionRecord | null => {
   }
 };
 
-const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
+export const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
   return {
     id: record.id,
     title: record.title,
