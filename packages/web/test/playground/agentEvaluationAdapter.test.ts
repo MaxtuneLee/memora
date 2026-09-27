@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { AgentCommand, SessionSnapshot } from "@/lib/agent-runtime/protocol";
 import { emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
+import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 import { createChatTools } from "@/lib/chat/tools";
 import {
   citationsFrom,
@@ -14,8 +15,20 @@ const ANSWER =
 
 type Outcome = "completed" | "failed" | "never";
 
-/** Stands in for the agent runtime client; finishes each submission with the given outcome. */
-const fakeRuntime = (outcome: Outcome) => {
+const event = (type: string): TraceEvent => ({
+  formatVersion: 1,
+  sessionId: "s",
+  runId: "r",
+  sequence: 0,
+  timestamp: 0,
+  type,
+});
+
+/**
+ * Stands in for the agent runtime client; finishes each submission with the given outcome and
+ * serves `trace` only once the session is deleted, as deletion flushes it.
+ */
+const fakeRuntime = (outcome: Outcome, trace: TraceEvent[] = []) => {
   const snapshots = new Map<string, SessionSnapshot>();
   const listeners = new Map<string, () => void>();
   const commands: AgentCommand[] = [];
@@ -32,6 +45,7 @@ const fakeRuntime = (outcome: Outcome) => {
     command: vi.fn(async (command: AgentCommand) => {
       commands.push(command);
       if (command.type === "delete") live.delete(command.sessionId);
+      if (command.type === "read-trace") return live.has(command.sessionId) ? [] : trace;
       if (command.type !== "submit" || outcome === "never") return;
       const { sessionId, submission } = command;
       queueMicrotask(() => {
@@ -118,6 +132,37 @@ describe("createWebAgentAdapter", () => {
       settings: { personality: "none", notices: "none" },
     });
     expect(adapter.identity.promptRevision).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it.each([
+    [
+      "counts fallback trims",
+      [
+        event("run.started"),
+        event("context.trimmed"),
+        event("context.trimmed"),
+        event("run.settled"),
+      ],
+      2,
+    ],
+    ["records zero trims", [event("run.started"), event("run.settled")], 0],
+    [
+      "records unknown without run.settled",
+      [event("run.started"), event("context.trimmed")],
+      "unknown",
+    ],
+  ] as const)("%s from the deleted session's Trace", async (_name, trace, expected) => {
+    const runtime = fakeRuntime("completed", [...trace]);
+    const adapter = await create(runtime);
+
+    const answer = await adapter.answer(question, new AbortController().signal);
+
+    expect(answer.fallbackTrims).toBe(expected);
+    expect(runtime.commands.at(-1)).toEqual({
+      type: "read-trace",
+      sessionId: answer.sessionId,
+      runId: answer.runId,
+    });
   });
 
   it("deletes the session when the Run fails", async () => {

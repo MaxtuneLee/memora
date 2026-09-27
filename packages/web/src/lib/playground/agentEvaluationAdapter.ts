@@ -3,6 +3,7 @@ import type { AgentAdapter, AgentAnswer, AgentCitation, JudgeAdapter } from "@me
 
 import * as agentRuntime from "@/lib/agent-runtime/client";
 import type { AgentSubmission, SessionSnapshot } from "@/lib/agent-runtime/protocol";
+import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
 import { EMPTY_REFERENCE_SCOPE, SYSTEM_PROMPT } from "@/lib/chat/tools";
 
@@ -52,9 +53,27 @@ const isFinished = (snapshot: SessionSnapshot, submissionId: string): boolean =>
     snapshot.outcome,
   );
 
+/** Counts the Run's `context.trimmed` events; a Trace that never settled (or none) is "unknown". */
+const readFallbackTrims = async (
+  runtime: RuntimeClient,
+  sessionId: string,
+  runId: string,
+): Promise<number | "unknown"> => {
+  try {
+    const events = await runtime.command({ type: "read-trace", sessionId, runId });
+    if (!Array.isArray(events)) return "unknown";
+    const types = (events as TraceEvent[]).map((event) => event.type);
+    if (!types.includes("run.settled")) return "unknown";
+    return types.filter((type) => type === "context.trimmed").length;
+  } catch {
+    return "unknown";
+  }
+};
+
 /**
  * Answers each question in a fresh `eval-<uuid>` in-memory session with the chat system prompt
- * and the read-only tools, and deletes the session afterwards, whatever the outcome.
+ * and the read-only tools, and deletes the session afterwards, whatever the outcome. Deleting
+ * flushes the Run's Trace, which is then read for the fallback trim count.
  */
 export async function createWebAgentAdapter(
   options: WebAgentAdapterOptions,
@@ -94,6 +113,7 @@ export async function createWebAgentAdapter(
       const submissionId = crypto.randomUUID();
       const messageId = crypto.randomUUID();
       let unsubscribe = () => {};
+      let result: Omit<AgentAnswer, "fallbackTrims">;
       try {
         const finished = new Promise<SessionSnapshot>((resolve, reject) => {
           if (signal.aborted) return reject(signal.reason);
@@ -138,14 +158,12 @@ export async function createWebAgentAdapter(
           throw new Error(snapshot.error ?? `The Run ended as ${snapshot.outcome}.`);
         const reply = snapshot.messages.findLast((message) => message.role === "assistant");
         const answer = reply?.content ?? "";
-        return {
+        result = {
           answer,
           citations: citationsFrom(answer),
           sessionId,
           runId: submissionId,
           ...(reply?.usage ? { usage: { ...reply.usage } as Record<string, number> } : {}),
-          // ponytail: #76 reads this from the Run's Trace.
-          fallbackTrims: "unknown",
         };
       } finally {
         unsubscribe();
@@ -153,6 +171,10 @@ export async function createWebAgentAdapter(
           .command({ type: "delete", sessionId, storage: "memory" })
           .catch((error: unknown) => console.error("Could not delete evaluation session:", error));
       }
+      return {
+        ...result,
+        fallbackTrims: await readFallbackTrims(runtime, sessionId, submissionId),
+      };
     },
   };
 }
