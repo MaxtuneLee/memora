@@ -7,6 +7,7 @@ import type {
 } from "@memora/ai-core";
 
 import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAttachments";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import type { ChatWidget } from "@/lib/chat/showWidget";
 
 // Text the user attached to a message from elsewhere, such as a selection in a note.
@@ -22,6 +23,7 @@ export interface ChatMessage {
   quote?: ChatMessageQuote;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
+  files?: ChatFileCard[];
   thinkingSteps?: ThinkingStep[];
   usage?: TokenUsage;
 }

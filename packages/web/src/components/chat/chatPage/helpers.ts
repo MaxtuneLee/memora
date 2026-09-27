@@ -26,6 +26,7 @@ export const toAgentMessages = (messages: ChatSessionMessage[]): AgentChatMessag
     ...(message.quote ? { quote: message.quote } : {}),
     attachments: message.attachments,
     widgets: message.widgets,
+    files: message.files,
     thinkingSteps: message.thinkingSteps,
     usage: message.usage,
   }));
@@ -203,6 +204,7 @@ export const buildSessionSignature = (
       content: message.content,
       attachments: message.attachments ?? [],
       widgets: message.widgets ?? [],
+      files: message.files ?? [],
       thinkingSteps: message.thinkingSteps ?? [],
       ...(message.usage ? { usage: message.usage } : {}),
     })),

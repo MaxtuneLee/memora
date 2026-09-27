@@ -26,7 +26,7 @@ export interface CompactionState {
 type ImageContent = Extract<AgentMessageContent, { type: "image" }>;
 type ToolResultContent = Extract<AgentMessageContent, { type: "tool_result" }>;
 
-interface Limits {
+export interface Limits {
   threshold: number;
   head: number;
   tail: number;
@@ -34,16 +34,26 @@ interface Limits {
 
 export const RECALL_TOOL_NAME = "recall_message";
 
-/** Every tool result, from the first time it is sent. */
-const WRITE_LIMITS: Limits = { threshold: 8_000, head: 6_000, tail: 1_500 };
-/** Tool results, assistant text, and tool-call string arguments in compacted messages. */
-const COMPACT_LIMITS: Limits = { threshold: 2_000, head: 1_000, tail: 500 };
-/** Once the cache has expired the prefix is rewritten anyway, so older messages shrink more. */
-const COLD_LIMITS: Limits = { threshold: 1_000, head: 500, tail: 250 };
+/** How history renders for the model. A Trace records these so it re-renders a request exactly. */
+export interface CompactionParameters {
+  /** Every tool result, from the first time it is sent. */
+  write: Limits;
+  /** Tool results, assistant text, and tool-call string arguments in compacted messages. */
+  compact: Limits;
+  /** Once the cache has expired the prefix is rewritten anyway, so older messages shrink more. */
+  cold: Limits;
+  /** The newest user turns, counting the one being answered, are never compacted. */
+  protectedTurns: number;
+}
+
+export const COMPACTION_PARAMETERS: CompactionParameters = {
+  write: { threshold: 8_000, head: 6_000, tail: 1_500 },
+  compact: { threshold: 2_000, head: 1_000, tail: 500 },
+  cold: { threshold: 1_000, head: 500, tail: 250 },
+  protectedTurns: 3,
+};
 /** Recall pages stay under the write limit so a recalled page is never shortened again. */
 const RECALL_PAGE_CHARS = 7_000;
-/** The newest user turns, counting the one being answered, are never compacted. */
-const PROTECTED_TURNS = 3;
 /** Stored tool results are capped so one huge output cannot bloat the session file. */
 export const STORED_TOOL_RESULT_MAX_CHARS = 100_000;
 /** Compact once the estimate passes this share of the input budget. */
@@ -99,12 +109,13 @@ const findLatestImage = (messages: AgentMessage[]): ImageContent | undefined => 
 const projectToolResult = (
   result: ToolResultContent,
   limits: Limits | undefined,
+  writeLimits: Limits,
   keptImage: ImageContent | undefined,
 ): ToolResultContent => {
   const text = stringify(result.result);
   const images = limits ? result.images?.filter((image) => image === keptImage) : result.images;
   const omittedImages = (result.images?.length ?? 0) - (images?.length ?? 0);
-  const applied = limits ?? WRITE_LIMITS;
+  const applied = limits ?? writeLimits;
   if (text.length <= applied.threshold && omittedImages === 0) return result;
   const shortened = shorten(text, applied, result.id);
   const { images: _images, ...rest } = result;
@@ -122,6 +133,7 @@ const projectToolResult = (
 const projectMessage = (
   message: AgentMessage,
   limits: Limits | undefined,
+  writeLimits: Limits,
   stripped: boolean,
   keptImage: ImageContent | undefined,
 ): AgentMessage => {
@@ -132,7 +144,9 @@ const projectMessage = (
     return {
       ...rest,
       content: message.content.map((item) =>
-        item.type === "tool_result" ? projectToolResult(item, limits, keptImage) : item,
+        item.type === "tool_result"
+          ? projectToolResult(item, limits, writeLimits, keptImage)
+          : item,
       ),
     };
   }
@@ -206,6 +220,7 @@ const indexOf = (messages: AgentMessage[], id: string | undefined): number =>
 export const projectHistory = (
   messages: AgentMessage[],
   state: CompactionState,
+  parameters: CompactionParameters,
 ): AgentMessage[] => {
   const summaryEnd = state.summary ? indexOf(messages, state.summary.through) : -1;
   const coldEnd = indexOf(messages, state.coldThrough);
@@ -217,8 +232,14 @@ export const projectHistory = (
   const projected = kept.flatMap((message, offset) => {
     const index = summaryEnd + 1 + offset;
     const limits =
-      index <= coldEnd ? COLD_LIMITS : index <= compactedEnd ? COMPACT_LIMITS : undefined;
-    const rendered = projectMessage(message, limits, index <= strippedEnd, keptImage);
+      index <= coldEnd ? parameters.cold : index <= compactedEnd ? parameters.compact : undefined;
+    const rendered = projectMessage(
+      message,
+      limits,
+      parameters.write,
+      index <= strippedEnd,
+      keptImage,
+    );
     const recap = recaps.get(message.id);
     return recap === undefined ? [rendered] : [recapMessage(message, recap), rendered];
   });
@@ -235,11 +256,11 @@ export const isTurnStart = (messages: AgentMessage[]): boolean =>
   messages[messages.length - 1]?.role === "user" && messages[messages.length - 2]?.role !== "tool";
 
 /** Index of the last message before the protected recent turns, or -1. */
-export const protectedBoundary = (messages: AgentMessage[]): number => {
+export const protectedBoundary = (messages: AgentMessage[], protectedTurns: number): number => {
   const userIndexes = messages.flatMap((message, index) =>
     message.role === "user" ? [index] : [],
   );
-  return (userIndexes[userIndexes.length - PROTECTED_TURNS] ?? 0) - 1;
+  return (userIndexes[userIndexes.length - protectedTurns] ?? 0) - 1;
 };
 
 /**
@@ -250,9 +271,10 @@ export const protectedBoundary = (messages: AgentMessage[]): number => {
 export const planCompaction = (
   messages: AgentMessage[],
   state: CompactionState,
+  parameters: CompactionParameters,
   cold = false,
 ): CompactionState | undefined => {
-  const boundary = protectedBoundary(messages);
+  const boundary = protectedBoundary(messages, parameters.protectedTurns);
   const compactedEnd = Math.max(boundary, indexOf(messages, state.compactedThrough));
   const coldEnd = Math.max(cold ? boundary : -1, indexOf(messages, state.coldThrough));
   const strippedEnd = Math.max(messages.length - 2, indexOf(messages, state.strippedThrough));

@@ -1,14 +1,18 @@
-import { cat, file as opfsFile, grep, write as opfsWrite } from "@memora/fs";
+import { cat, file as opfsFile, grep, ls, write as opfsWrite } from "@memora/fs";
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
-import { fileTable } from "@/livestore/file";
+import { fileEvents, fileTable } from "@/livestore/file";
 import { readExtractedContent } from "@/lib/content/artifactStorage";
 import { modelWorkerFactory } from "@/lib/model-worker";
 import { searchContent } from "@/lib/search/contentSearchService";
 import { readEmbeddingRuntime } from "@/lib/models/readEmbeddingRuntime";
 import { normalizeSettingsValue } from "@/livestore/setting";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
+import { saveTextDocument, type TextDocumentFileLike } from "@/lib/editor/documentPersistence";
+import { normalizeLogicalName, type WorkspaceFolderLike } from "@/lib/editor/logicalPaths";
+import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
@@ -25,6 +29,62 @@ const normalizeWritablePath = (value: string): string => {
 
 const isWritablePath = (path: string): boolean => {
   return WRITABLE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+};
+
+interface TextEdit {
+  old_text: string;
+  new_text: string;
+}
+
+/**
+ * Applies exact-text edits, each matched against the original content, so the
+ * model can change several places in one call without offsets shifting.
+ */
+export const applyTextEdits = (
+  content: string,
+  edits: readonly TextEdit[],
+): { content: string } | { error: string } => {
+  if (edits.length === 0) {
+    return { error: "replace needs edits: at least one { old_text, new_text }." };
+  }
+
+  const matches: { index: number; edit: TextEdit; editIndex: number }[] = [];
+  for (const [editIndex, edit] of edits.entries()) {
+    if (!edit.old_text) {
+      return { error: `edits[${editIndex}].old_text is empty.` };
+    }
+    const index = content.indexOf(edit.old_text);
+    if (index === -1) {
+      return {
+        error: `edits[${editIndex}].old_text was not found in the file. Read the file and copy the text exactly.`,
+      };
+    }
+    if (content.indexOf(edit.old_text, index + 1) !== -1) {
+      return {
+        error: `edits[${editIndex}].old_text matches more than one place. Include more surrounding text.`,
+      };
+    }
+    matches.push({ index, edit, editIndex });
+  }
+
+  matches.sort((a, b) => a.index - b.index);
+  for (let i = 1; i < matches.length; i++) {
+    const previous = matches[i - 1];
+    if (previous.index + previous.edit.old_text.length > matches[i].index) {
+      return {
+        error: `edits[${previous.editIndex}] and edits[${matches[i].editIndex}] overlap. Merge them into one edit.`,
+      };
+    }
+  }
+
+  let next = content;
+  for (const { index, edit } of matches.slice().reverse()) {
+    next = next.slice(0, index) + edit.new_text + next.slice(index + edit.old_text.length);
+  }
+  if (next === content) {
+    return { error: "The edits do not change the file." };
+  }
+  return { content: next };
 };
 
 export const createFileTools = (
@@ -59,7 +119,22 @@ export const createFileTools = (
           }
         }
 
-        const content = await cat(payload.path);
+        let content: string;
+        try {
+          content = await cat(payload.path);
+        } catch (error) {
+          const missing =
+            error instanceof DOMException &&
+            (error.name === "NotFoundError" || error.name === "TypeMismatchError");
+          if (!missing) throw error;
+          // Show what the folder does hold, so a guessed file name can be corrected.
+          const folder = payload.path.slice(0, payload.path.lastIndexOf("/")) || "/";
+          const filesInFolder = await ls(folder, { includeDirs: false }).catch(() => null);
+          return {
+            error: `No file at ${payload.path}. Use a storagePath or transcriptPath from query_db.`,
+            ...(filesInFolder ? { filesInFolder } : { folderExists: false }),
+          };
+        }
         if (payload.offset == null && payload.limit == null) {
           return content;
         }
@@ -122,18 +197,20 @@ export const createFileTools = (
       type: "function",
       name: "modify_text_file",
       description:
-        "Write or append UTF-8 text content to an OPFS path. Allowed paths must start with /chat/ or /files/.",
+        'Write, append, or edit UTF-8 text content at an OPFS path. Allowed paths must start with /chat/ or /files/. write and append take content. To change parts of an existing file, use operation "replace" with edits: each old_text must match exactly one place in the original file (include surrounding lines to make it unique) and must not overlap another edit; new_text replaces it. Put every change to one file in a single call; merge nearby changes into one edit.',
       parameters: v.object({
         path: v.string(),
-        operation: v.picklist(["write", "append"]),
-        content: v.string(),
+        operation: v.picklist(["write", "append", "replace"]),
+        content: v.optional(v.string()),
+        edits: v.optional(v.array(v.object({ old_text: v.string(), new_text: v.string() }))),
         overwrite: v.optional(v.boolean(), true),
       }),
       execute: async (params: unknown) => {
         const payload = params as {
           path: string;
-          operation: "write" | "append";
-          content: string;
+          operation: "write" | "append" | "replace";
+          content?: string;
+          edits?: TextEdit[];
           overwrite?: boolean;
         };
         const path = normalizeWritablePath(payload.path);
@@ -150,38 +227,139 @@ export const createFileTools = (
           };
         }
 
+        const targetFile = opfsFile(path);
+        const exists = await targetFile.exists();
+        // Library files need a database record, which only create_document adds.
+        if (!exists && path.startsWith("/files/")) {
+          return {
+            error: `No file at ${path}. To add a new document to the library, use create_document.`,
+          };
+        }
+        const libraryFile = (
+          store.query(
+            fileTable.where({ storagePath: path, deletedAt: null, purgedAt: null }),
+          ) as TextDocumentFileLike[]
+        )[0];
+        if (libraryFile && !store.commit) {
+          return { error: "Library files cannot be changed here." };
+        }
+
+        // Work out the new content before asking the user to approve it.
         const overwrite = payload.overwrite ?? true;
+        let nextContent: string;
+        if (payload.operation === "replace") {
+          if (!exists) {
+            return { error: `No file at ${path}.` };
+          }
+          const result = applyTextEdits(await targetFile.text(), payload.edits ?? []);
+          if ("error" in result) {
+            return result;
+          }
+          nextContent = result.content;
+        } else if (payload.content == null) {
+          return { error: `${payload.operation} needs content.` };
+        } else if (payload.operation === "write") {
+          if (exists && !overwrite) {
+            return { error: `${path} already exists. Set overwrite to replace it.` };
+          }
+          nextContent = payload.content;
+        } else {
+          nextContent = (exists ? await targetFile.text() : "") + payload.content;
+        }
+        const content = payload.content ?? "";
+        const edits = (payload.edits ?? []).map((edit) => ({
+          oldText: edit.old_text,
+          newText: edit.new_text,
+        }));
+
         const approval = await options.requestWriteApproval({
           path,
           operation: payload.operation,
-          content: payload.content,
-          contentLength: payload.content.length,
+          content,
+          contentLength:
+            payload.operation === "replace"
+              ? edits.reduce((total, edit) => total + edit.newText.length, 0)
+              : content.length,
           overwrite,
+          ...(payload.operation === "replace" && { edits }),
         });
         if (approval === "deny") {
           return { error: "User denied file modification request." };
         }
 
-        if (payload.operation === "write") {
-          await opfsWrite(path, payload.content, { overwrite });
-          return {
-            path,
-            operation: "write",
-            bytesWritten: payload.content.length,
-            overwrite,
-          };
+        if (libraryFile) {
+          const saved = await saveTextDocument({ file: libraryFile, text: nextContent });
+          store.commit?.(fileEvents.fileUpdated(saved.updatedEvent));
+        } else {
+          await opfsWrite(path, nextContent, { overwrite: true });
         }
-
-        const targetFile = opfsFile(path);
-        const existing = (await targetFile.exists()) ? await targetFile.text() : "";
-        const nextContent = `${existing}${payload.content}`;
-        await opfsWrite(path, nextContent, { overwrite: true });
 
         return {
           path,
-          operation: "append",
-          appendedBytes: payload.content.length,
+          ...(libraryFile && { fileId: libraryFile.id, name: libraryFile.name }),
+          operation: payload.operation,
           totalBytes: nextContent.length,
+          ...(payload.operation === "replace" && { editsApplied: edits.length }),
+        };
+      },
+    },
+    {
+      type: "function",
+      name: "create_document",
+      description:
+        "Create a new Markdown document in the user's library, where it shows up alongside their other files. Use this, not modify_text_file, whenever the user asks you to create a document or note. folder_id is optional; without it the document goes to the user's default note location. Returns the new file's id and storagePath; use modify_text_file on that storagePath for later changes.",
+      parameters: v.object({
+        name: v.pipe(v.string(), v.minLength(1)),
+        content: v.string(),
+        folder_id: v.optional(v.string()),
+      }),
+      execute: async (params: unknown) => {
+        const payload = params as { name: string; content: string; folder_id?: string };
+        if (!options.requestWriteApproval) {
+          return {
+            error:
+              "Creating a document requires user approval, but no approval handler is configured.",
+          };
+        }
+        if (!store.commit) {
+          return { error: "Documents cannot be created here." };
+        }
+
+        const files = store.query(desktopFilesQuery$) as TextDocumentFileLike[];
+        const folders = store.query(desktopFoldersQuery$) as WorkspaceFolderLike[];
+        if (payload.folder_id && !folders.some((folder) => folder.id === payload.folder_id)) {
+          return { error: `No folder with id ${payload.folder_id}.` };
+        }
+        const name = normalizeLogicalName(payload.name, "Untitled note");
+
+        const approval = await options.requestWriteApproval({
+          path: name,
+          operation: "create",
+          content: payload.content,
+          contentLength: payload.content.length,
+          overwrite: false,
+        });
+        if (approval === "deny") {
+          return { error: "User denied creating the document." };
+        }
+
+        const settings = normalizeSettingsValue(store.query(settingsDocumentQuery$));
+        const result = await createNewMarkdownNote({
+          settings: payload.folder_id
+            ? { defaultNoteLocationMode: "folder", defaultNoteFolderId: payload.folder_id }
+            : settings,
+          files,
+          folders,
+          initialContent: payload.content,
+          name,
+        });
+        store.commit(fileEvents.fileCreated(result.createdEvent));
+
+        return {
+          id: result.id,
+          name: result.meta.name,
+          storagePath: result.meta.storagePath,
+          folderId: result.meta.parentId ?? null,
         };
       },
     },

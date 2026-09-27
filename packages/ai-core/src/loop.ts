@@ -25,6 +25,7 @@ import * as v from "valibot";
 
 import {
   CACHE_TTL_MS,
+  COMPACTION_PARAMETERS,
   HIGH_WATERMARK,
   MAX_SUMMARY_FAILURES,
   MIN_SAVINGS,
@@ -45,12 +46,14 @@ import {
   getAssistantText,
   toAgentMessageContent,
   toPiContext,
+  toPiTool,
   toTokenUsage,
 } from "./pi";
 import { ContextManager, createContextManager } from "./context";
 import { ToolRegistry, createToolRegistry } from "./tools";
 import { PromptComposer, createPromptComposer } from "./prompt";
 import { InMemoryAdapter } from "./persistence";
+import type { ModelPurpose, TraceCallback, TraceRecordBody } from "./trace";
 import { generateId, now } from "./utils";
 
 const truncateResult = (result: unknown, maxChars: number): unknown => {
@@ -136,7 +139,14 @@ export interface AgentOptions {
   persistence?: PersistenceAdapter;
   /** Writes compaction summaries and idle recaps; defaults to the main model. */
   compactionModel?: { model: Model<Api>; stream: ModelStream };
+  /** Receives Trace records. A throw drops the record and is reported as a later `trace.gap`. */
+  trace?: TraceCallback;
 }
+
+type CompactedRecord = Extract<TraceRecordBody, { type: "context.compacted" }>;
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 export class Agent {
   readonly config: AgentConfig;
@@ -163,9 +173,15 @@ export class Agent {
   private compactionModel: { model: Model<Api>; stream: ModelStream };
   private state: LoopState;
   private abortController: AbortController | null = null;
+  private traceCallback: TraceCallback | undefined;
+  private traceDropped = 0;
+  private traceDropReason = "";
+  /** What the previous request in this Run sent, so unchanged prompts and tools are not repeated. */
+  private tracedRequest: { systemPrompt?: string; tools?: string } = {};
 
   constructor(options: AgentOptions) {
     this.config = options.config;
+    this.traceCallback = options.trace;
     this.model = options.model;
     this.stream = options.stream;
     this.compactionModel = options.compactionModel ?? {
@@ -236,6 +252,7 @@ export class Agent {
     };
     this.abortController = new AbortController();
     this.acceptingInput = true;
+    this.tracedRequest = {};
 
     try {
       const inputMessage: AgentMessage =
@@ -248,7 +265,7 @@ export class Agent {
             }
           : input;
 
-      await this.context.append(inputMessage);
+      await this.append(inputMessage);
 
       const hookCtx = this.createHookContext();
       if (this.hooks.onAfterInput) {
@@ -287,7 +304,7 @@ export class Agent {
               ? { providerMessage: thinkResult.providerMessage }
               : {}),
           };
-          await this.context.append(assistantMessage);
+          await this.append(assistantMessage);
 
           if (this.steeringInputs.length > 0) continue;
           this.acceptingInput = false;
@@ -319,7 +336,7 @@ export class Agent {
           ...(thinkResult.reasoning ? { reasoning: thinkResult.reasoning } : {}),
           ...(thinkResult.providerMessage ? { providerMessage: thinkResult.providerMessage } : {}),
         };
-        await this.context.append(assistantMessage);
+        await this.append(assistantMessage);
 
         const toolResultContents: AgentMessageContent[] = [];
 
@@ -331,6 +348,13 @@ export class Agent {
             await this.hooks.onBeforeAction(this.createHookContext(), toolCall);
           }
 
+          this.emit({
+            type: "tool.started",
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            arguments: toolCall.arguments,
+          });
+          const toolStarted = now();
           const { result: rawResult, isError } = await this.tools.execute(
             toolCall.name,
             toolCall.arguments,
@@ -342,10 +366,17 @@ export class Agent {
           const maxResultChars = this.config.compaction
             ? STORED_TOOL_RESULT_MAX_CHARS
             : (this.config.maxToolResultChars ?? 8000);
-          const result = truncateResult(
-            rawResult instanceof RecallOutput ? rawResult.text : rawResult,
-            maxResultChars,
-          );
+          const raw = rawResult instanceof RecallOutput ? rawResult.text : rawResult;
+          const result = truncateResult(raw, maxResultChars);
+          this.emit({
+            type: "tool.settled",
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            rawLength: stringifyToolResult(raw).length,
+            result,
+            isError,
+            durationMs: now() - toolStarted,
+          });
 
           yield {
             type: "tool-result",
@@ -400,7 +431,7 @@ export class Agent {
           await this.hooks.onBeforeObservation(this.createHookContext(), observationMessage);
         }
 
-        await this.context.append(observationMessage);
+        await this.append(observationMessage);
 
         if (this.hooks.onAfterObservation) {
           await this.hooks.onAfterObservation(this.createHookContext(), observationMessage);
@@ -426,6 +457,91 @@ export class Agent {
       this.acceptingInput = false;
       this.abortController = null;
     }
+  }
+
+  private async append(message: AgentMessage): Promise<void> {
+    await this.context.append(message);
+    this.emit({ type: "message.added", message });
+  }
+
+  /** Tracing never changes a decision: a throwing callback only costs the record. */
+  private emit(record: TraceRecordBody): void {
+    if (!this.traceCallback) return;
+    const turn = this.state.iteration;
+    try {
+      if (this.traceDropped > 0) {
+        this.traceCallback({
+          type: "trace.gap",
+          dropped: this.traceDropped,
+          reason: this.traceDropReason,
+          turn,
+        });
+        this.traceDropped = 0;
+      }
+      this.traceCallback({ ...record, turn });
+    } catch (error) {
+      this.traceDropped += 1;
+      this.traceDropReason = errorMessage(error);
+    }
+  }
+
+  /** `untrimmed` is the request before fitToContextWindow, `sent` what the provider gets. */
+  private traceRequest(
+    purpose: ModelPurpose,
+    systemPrompt: string,
+    untrimmed: AgentMessage[],
+    sent: AgentMessage[],
+    model: Model<Api>,
+    settings: { temperature?: number; maxTokens?: number },
+    instruction?: string,
+  ): void {
+    if (!this.traceCallback) return;
+    if (sent.length < untrimmed.length) {
+      const kept = new Set(sent.map((message) => message.id));
+      this.emit({
+        type: "context.trimmed",
+        purpose,
+        droppedMessageIds: untrimmed
+          .filter((message) => !kept.has(message.id))
+          .map((message) => message.id),
+        tokensBefore: this.estimateTokens(systemPrompt, untrimmed),
+        tokensAfter: this.estimateTokens(systemPrompt, sent),
+        contextWindow: this.model.contextWindow,
+      });
+    }
+    const tools = this.tools.list().map(toPiTool);
+    const toolsKey = JSON.stringify(tools);
+    this.emit({
+      type: "model.request",
+      purpose,
+      messageIds: sent.map((message) => message.id),
+      ...(this.config.compaction
+        ? { compaction: this.context.getCompaction(), parameters: COMPACTION_PARAMETERS }
+        : {}),
+      ...(instruction !== undefined ? { instruction } : {}),
+      model: { api: model.api, provider: model.provider, id: model.id },
+      settings,
+      ...(systemPrompt !== this.tracedRequest.systemPrompt ? { systemPrompt } : {}),
+      ...(toolsKey !== this.tracedRequest.tools ? { tools } : {}),
+    });
+    this.tracedRequest = { systemPrompt, tools: toolsKey };
+  }
+
+  private traceCompaction(
+    history: AgentMessage[],
+    systemPrompt: string,
+    record: Omit<CompactedRecord, "type" | "tokensBefore" | "tokensAfter" | "parameters">,
+  ): void {
+    if (!this.traceCallback) return;
+    const tokens = (state: CompactionState) =>
+      this.estimateTokens(systemPrompt, projectHistory(history, state, COMPACTION_PARAMETERS));
+    this.emit({
+      type: "context.compacted",
+      ...record,
+      tokensBefore: tokens(record.before),
+      tokensAfter: tokens(record.after),
+      parameters: COMPACTION_PARAMETERS,
+    });
   }
 
   private createHookContext(): HookContext {
@@ -492,7 +608,7 @@ export class Agent {
     systemPrompt: string,
   ): Promise<AgentMessage[]> {
     let state = this.context.getCompaction();
-    if (!isTurnStart(history)) return projectHistory(history, state);
+    if (!isTurnStart(history)) return projectHistory(history, state, COMPACTION_PARAMETERS);
 
     const input = history[history.length - 1]!;
     const lastReply = history
@@ -505,14 +621,23 @@ export class Agent {
         recap && recap.through === history[history.length - 2]?.id
           ? { ...state, recaps: [...(state.recaps ?? []), { before: input.id, text: recap.text }] }
           : state;
-      const next = planCompaction(history, withRecap, true) ?? withRecap;
+      const next = planCompaction(history, withRecap, COMPACTION_PARAMETERS, true) ?? withRecap;
       if (next !== state) {
+        this.traceCompaction(history, systemPrompt, {
+          layer: "cold",
+          trigger: "cache-expired",
+          before: state,
+          after: next,
+          ...(recap && withRecap !== state
+            ? { recap: { id: `recap:${input.id}`, text: recap.text } }
+            : {}),
+        });
         state = next;
         await this.context.setCompaction(state);
       }
     }
 
-    let projected = projectHistory(history, state);
+    let projected = projectHistory(history, state, COMPACTION_PARAMETERS);
     const window = this.model.contextWindow;
     if (window <= CONTEXT_SAFETY_TOKENS) return projected;
     const outputReserve = Math.min(
@@ -523,11 +648,17 @@ export class Agent {
     let tokens = this.estimateTokens(systemPrompt, projected);
     if (tokens <= budget * HIGH_WATERMARK) return projected;
 
-    const next = planCompaction(history, state);
+    const next = planCompaction(history, state, COMPACTION_PARAMETERS);
     if (next) {
-      const compacted = projectHistory(history, next);
+      const compacted = projectHistory(history, next, COMPACTION_PARAMETERS);
       const after = this.estimateTokens(systemPrompt, compacted);
       if (tokens - after >= budget * MIN_SAVINGS) {
+        this.traceCompaction(history, systemPrompt, {
+          layer: "microcompact",
+          trigger: "watermark",
+          before: state,
+          after: next,
+        });
         state = next;
         await this.context.setCompaction(state);
         projected = compacted;
@@ -545,7 +676,7 @@ export class Agent {
     systemPrompt: string,
   ): Promise<AgentMessage[] | undefined> {
     if ((state.summaryFailures ?? 0) >= MAX_SUMMARY_FAILURES) return undefined;
-    const boundary = protectedBoundary(history);
+    const boundary = protectedBoundary(history, COMPACTION_PARAMETERS.protectedTurns);
     const summarizedEnd = state.summary
       ? history.findIndex((message) => message.id === state.summary?.through)
       : -1;
@@ -554,25 +685,39 @@ export class Agent {
     try {
       const text = await this.complete(
         systemPrompt,
-        projectHistory(history.slice(0, boundary + 1), state),
+        projectHistory(history.slice(0, boundary + 1), state, COMPACTION_PARAMETERS),
         SUMMARY_INSTRUCTION,
         SUMMARY_MAX_TOKENS,
+        true,
       );
       next = {
-        ...(planCompaction(history, state) ?? state),
+        ...(planCompaction(history, state, COMPACTION_PARAMETERS) ?? state),
         summary: { through: history[boundary]!.id, text },
         summaryFailures: 0,
       };
     } catch (error) {
       if (this.abortController?.signal.aborted) throw error;
-      await this.context.setCompaction({
-        ...state,
-        summaryFailures: (state.summaryFailures ?? 0) + 1,
+      const failures = (state.summaryFailures ?? 0) + 1;
+      const failed = { ...state, summaryFailures: failures };
+      this.traceCompaction(history, systemPrompt, {
+        layer: "summary",
+        trigger: "watermark",
+        before: state,
+        after: failed,
+        summary: { outcome: "failed", error: errorMessage(error), failures },
       });
+      await this.context.setCompaction(failed);
       return undefined;
     }
+    this.traceCompaction(history, systemPrompt, {
+      layer: "summary",
+      trigger: "watermark",
+      before: state,
+      after: next,
+      summary: { outcome: "succeeded" },
+    });
     await this.context.setCompaction(next);
-    return projectHistory(history, next);
+    return projectHistory(history, next, COMPACTION_PARAMETERS);
   }
 
   /**
@@ -585,42 +730,66 @@ export class Agent {
     messages: AgentMessage[],
     instruction: string,
     maxTokens: number,
+    /** Summaries are traced; recaps are written outside any Run and are not. */
+    traced = false,
   ): Promise<string> {
-    const request = this.fitToContextWindow(
-      [
-        ...messages,
-        {
-          id: "compaction-instruction",
-          role: "user",
-          content: [{ type: "text", text: instruction }],
-          createdAt: now(),
-        },
-      ],
-      systemPrompt,
-    );
-    const { model, stream } = this.compactionModel;
-    const events = await stream(
-      model,
-      toPiContext({ systemPrompt, messages: request, tools: this.tools.list() }),
+    const untrimmed: AgentMessage[] = [
+      ...messages,
       {
-        maxTokens: Math.min(maxTokens, model.maxTokens || maxTokens),
-        ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
+        id: "compaction-instruction",
+        role: "user",
+        content: [{ type: "text", text: instruction }],
+        createdAt: now(),
       },
-    );
+    ];
+    const request = this.fitToContextWindow(untrimmed, systemPrompt);
+    const { model, stream } = this.compactionModel;
+    const settings = { maxTokens: Math.min(maxTokens, model.maxTokens || maxTokens) };
+    if (traced)
+      this.traceRequest("summary", systemPrompt, untrimmed, request, model, settings, instruction);
+    const started = now();
     let text = "";
     let final: AssistantMessage | undefined;
-    for await (const event of events) {
-      if (event.type === "text_delta") text += event.delta;
-      if (event.type === "done") final = event.message;
-      if (event.type === "error")
-        throw new Error(event.error.errorMessage || "Compaction request failed.");
+    const traceResponse = (error?: unknown) => {
+      if (!traced) return;
+      this.emit({
+        type: "model.response",
+        purpose: "summary",
+        text,
+        reasoning: final ? getAssistantReasoning(final) : "",
+        toolCalls: [],
+        ...(final ? { usage: toTokenUsage(final.usage), finishReason: final.stopReason } : {}),
+        durationMs: now() - started,
+        ...(error !== undefined ? { error: errorMessage(error) } : {}),
+      });
+    };
+    try {
+      const events = await stream(
+        model,
+        toPiContext({ systemPrompt, messages: request, tools: this.tools.list() }),
+        {
+          ...settings,
+          ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
+        },
+      );
+      for await (const event of events) {
+        if (event.type === "text_delta") text += event.delta;
+        if (event.type === "done") final = event.message;
+        if (event.type === "error")
+          throw new Error(event.error.errorMessage || "Compaction request failed.");
+      }
+      if (final) {
+        if (final.stopReason === "length") throw new Error("The summary was cut off.");
+        text = getAssistantText(final);
+      }
+      text = text.trim();
+      if (!text) throw new Error("The model returned no text.");
+    } catch (error) {
+      traceResponse(error);
+      throw error;
     }
-    if (final) {
-      if (final.stopReason === "length") throw new Error("The summary was cut off.");
-      text = getAssistantText(final);
-    }
-    if (!text.trim()) throw new Error("The model returned no text.");
-    return text.trim();
+    traceResponse();
+    return text;
   }
 
   /**
@@ -633,7 +802,7 @@ export class Agent {
     if (last?.role !== "assistant") return undefined;
     if ((await this.context.loadRecap())?.through === last.id) return undefined;
     const systemPrompt = await this.composeSystemPrompt();
-    const projected = projectHistory(history, this.context.getCompaction());
+    const projected = projectHistory(history, this.context.getCompaction(), COMPACTION_PARAMETERS);
     if (this.estimateTokens(systemPrompt, projected) < RECAP_MIN_TOKENS) return undefined;
     const text = await this.complete(systemPrompt, projected, RECAP_INSTRUCTION, RECAP_MAX_TOKENS);
     await this.context.saveRecap({ through: last.id, text });
@@ -652,17 +821,18 @@ export class Agent {
     const steered: string[] = [];
     while (this.steeringInputs.length > 0) {
       for (const message of this.takeUnconsumedSteering()) {
-        await this.context.append(message);
+        await this.append(message);
+        this.emit({ type: "input.applied", messageId: message.id });
         await this.hooks.onAfterInput?.(this.createHookContext(), message);
         steered.push(message.id);
       }
     }
     if (steered.length > 0) yield { type: "steer-consumed", messageIds: steered };
     const history = this.context.getMessages();
-    const messages = this.fitToContextWindow(
-      this.config.compaction ? await this.compactHistory(history, systemPrompt) : history,
-      systemPrompt,
-    );
+    const untrimmed = this.config.compaction
+      ? await this.compactHistory(history, systemPrompt)
+      : history;
+    const messages = this.fitToContextWindow(untrimmed, systemPrompt);
 
     let text = "";
     let reasoning = "";
@@ -670,78 +840,105 @@ export class Agent {
     let providerMessage: AssistantMessage | undefined;
     const toolCalls: AgentMessageContent[] = [];
 
-    const stream = await this.stream(
-      this.model,
-      toPiContext({ systemPrompt, messages, tools: this.tools.list() }),
-      {
-        ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
-        ...(this.config.maxTokens !== undefined ? { maxTokens: this.config.maxTokens } : {}),
-        ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
-      },
-    );
+    const settings = {
+      ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
+      ...(this.config.maxTokens !== undefined ? { maxTokens: this.config.maxTokens } : {}),
+    };
+    this.traceRequest("reply", systemPrompt, untrimmed, messages, this.model, settings);
+    const started = now();
+    const traceResponse = (error?: unknown) =>
+      this.emit({
+        type: "model.response",
+        purpose: "reply",
+        text,
+        reasoning,
+        toolCalls,
+        ...(usage ? { usage } : {}),
+        ...(providerMessage
+          ? { finishReason: providerMessage.stopReason }
+          : this.state.aborted
+            ? { finishReason: "aborted" }
+            : {}),
+        durationMs: now() - started,
+        ...(error !== undefined ? { error: errorMessage(error) } : {}),
+      });
 
-    for await (const event of stream) {
-      if (this.state.aborted) break;
+    try {
+      const stream = await this.stream(
+        this.model,
+        toPiContext({ systemPrompt, messages, tools: this.tools.list() }),
+        {
+          ...settings,
+          ...(this.abortController?.signal ? { signal: this.abortController.signal } : {}),
+        },
+      );
 
-      switch (event.type) {
-        case "text_delta":
-          text += event.delta;
-          yield { type: "text-delta", delta: event.delta };
-          break;
-        case "thinking_delta":
-          reasoning += event.delta;
-          yield { type: "reasoning-delta", delta: event.delta };
-          break;
-        case "thinking_end":
-          reasoning = event.content;
-          yield { type: "reasoning-done", text: event.content };
-          break;
-        case "toolcall_start": {
-          const toolCall = event.partial.content[event.contentIndex];
-          if (toolCall?.type === "toolCall") {
-            yield {
-              type: "tool-call-start",
-              toolCall: { id: toolCall.id, name: toolCall.name },
-            };
+      for await (const event of stream) {
+        if (this.state.aborted) break;
+
+        switch (event.type) {
+          case "text_delta":
+            text += event.delta;
+            yield { type: "text-delta", delta: event.delta };
+            break;
+          case "thinking_delta":
+            reasoning += event.delta;
+            yield { type: "reasoning-delta", delta: event.delta };
+            break;
+          case "thinking_end":
+            reasoning = event.content;
+            yield { type: "reasoning-done", text: event.content };
+            break;
+          case "toolcall_start": {
+            const toolCall = event.partial.content[event.contentIndex];
+            if (toolCall?.type === "toolCall") {
+              yield {
+                type: "tool-call-start",
+                toolCall: { id: toolCall.id, name: toolCall.name },
+              };
+            }
+            break;
           }
-          break;
-        }
-        case "toolcall_delta": {
-          const toolCall = event.partial.content[event.contentIndex];
-          if (toolCall?.type === "toolCall") {
-            yield { type: "tool-call-args-delta", toolCallId: toolCall.id, delta: event.delta };
+          case "toolcall_delta": {
+            const toolCall = event.partial.content[event.contentIndex];
+            if (toolCall?.type === "toolCall") {
+              yield { type: "tool-call-args-delta", toolCallId: toolCall.id, delta: event.delta };
+            }
+            break;
           }
-          break;
-        }
-        case "toolcall_end":
-          toolCalls.push({
-            type: "tool_call",
-            id: event.toolCall.id,
-            name: event.toolCall.name,
-            arguments: event.toolCall.arguments,
-          });
-          yield {
-            type: "tool-call-complete",
-            toolCall: {
+          case "toolcall_end":
+            toolCalls.push({
+              type: "tool_call",
               id: event.toolCall.id,
               name: event.toolCall.name,
               arguments: event.toolCall.arguments,
-            },
-          };
-          break;
-        case "done":
-          providerMessage = event.message;
-          usage = toTokenUsage(event.message.usage);
-          break;
-        case "error":
-          if (event.reason === "aborted" || this.abortController?.signal.aborted) {
-            this.state.aborted = true;
+            });
+            yield {
+              type: "tool-call-complete",
+              toolCall: {
+                id: event.toolCall.id,
+                name: event.toolCall.name,
+                arguments: event.toolCall.arguments,
+              },
+            };
             break;
-          }
-          throw new Error(event.error.errorMessage || "Pi model request failed.");
-        default:
-          break;
+          case "done":
+            providerMessage = event.message;
+            usage = toTokenUsage(event.message.usage);
+            break;
+          case "error":
+            if (event.reason === "aborted" || this.abortController?.signal.aborted) {
+              this.state.aborted = true;
+              break;
+            }
+            throw new Error(event.error.errorMessage || "Pi model request failed.");
+          default:
+            break;
+        }
       }
+    } catch (error) {
+      traceResponse(error);
+      throw error;
     }
 
     if (providerMessage) {
@@ -753,6 +950,7 @@ export class Agent {
     if (usage) {
       yield { type: "usage", usage };
     }
+    traceResponse();
 
     return {
       text,

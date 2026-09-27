@@ -20,7 +20,7 @@ The page requests a checkpoint when it becomes hidden, and the worker checkpoint
 
 ## Follow-up scope
 
-Complete observability will record each effective model request, raw and truncated tool results, stable event sequences, attempts, and query/export APIs. Agent evaluation will use fixed versioned course transcripts, independent sessions and memory, and concurrent runs, scoring timestamp evidence, answer key points, and citation support; ASR quality is excluded from those scores.
+Complete observability will record each effective model request, raw tool results, context compaction, stable per-Run event sequences, and query/export APIs. Agent evaluation will use fixed versioned course transcripts, independent sessions and memory in a dedicated browser profile, three runs per question, scoring timestamp evidence, answer key points, and citation support; ASR quality is excluded from those scores.
 
 The event contract, corpus format, scoring dimensions, and recovery boundary are specified in [Agent observability and evaluation, first version](agent-observability-evaluation.md).
 

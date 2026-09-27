@@ -222,3 +222,51 @@ export const stripMemoraJumpMarkup = (content: string): string => {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 };
+
+export const MEMORA_CITE_TAG = "memora-cite";
+
+export interface CitedMarkdown {
+  markdown: string;
+  /** citations[n - 1] holds the moments behind the marker numbered n. */
+  citations: MediaJumpCardData[][];
+}
+
+// A marker after these lines would break the block, so it gets its own paragraph.
+const BLOCK_LINE_PATTERN = /^(```|~~~|\||\$\$)/;
+
+/** Replaces each run of adjacent jump tags with one numbered citation marker after the text it follows. */
+export const buildCitedMarkdown = (content: string): CitedMarkdown => {
+  const citations: MediaJumpCardData[][] = [];
+  let markdown = "";
+  let group: MediaJumpCardData[] = [];
+
+  const flush = (): void => {
+    if (group.length === 0) return;
+    citations.push(group);
+    group = [];
+    const marker = `<${MEMORA_CITE_TAG} index="${citations.length}"></${MEMORA_CITE_TAG}>`;
+    const body = markdown.trimEnd();
+    const trailing = markdown.slice(body.length);
+    const lastLine = body.slice(body.lastIndexOf("\n") + 1).trimStart();
+    markdown =
+      !body || BLOCK_LINE_PATTERN.test(lastLine)
+        ? `${body}${body ? "\n\n" : ""}${marker}${trailing}`
+        : `${body}${marker}${trailing}`;
+  };
+
+  for (const part of parseMemoraJumpContent(content)) {
+    if (part.type === "jump") {
+      group.push(part.jumpCard);
+      continue;
+    }
+    flush();
+    markdown += part.content;
+  }
+  flush();
+
+  return { markdown: markdown.replace(/\n{3,}/g, "\n\n").trimEnd(), citations };
+};
+
+export const getMediaJumpHref = (jumpCard: MediaJumpCardData): string => {
+  return `/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(String(jumpCard.startSec))}`;
+};

@@ -2,6 +2,7 @@ import type { TokenUsage } from "@memora/ai-core";
 
 import type { ChatMessageQuote, ThinkingStep } from "@/hooks/chat/useAgent";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 
 export interface ChatMessageData {
@@ -11,6 +12,7 @@ export interface ChatMessageData {
   quote?: ChatMessageQuote;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidgetData[];
+  files?: ChatFileCard[];
   thinkingSteps?: ThinkingStep[];
   usage?: TokenUsage;
 }

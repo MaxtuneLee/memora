@@ -1,5 +1,6 @@
 import type { Agent, AgentEvent, AgentMessage } from "@memora/ai-core";
 import type { ChatMessage } from "@/hooks/chat/useAgent/types";
+import { fileCardFromToolResult } from "@/lib/chat/chatFileCards";
 import {
   parsePartialShowWidgetArguments,
   sanitizeShowWidgetArguments,
@@ -19,6 +20,8 @@ export interface SessionRuntimeOptions {
   publish: (snapshot: SessionSnapshot) => void;
   /** Called when the queue has drained, with the submission that ran last. */
   onIdle?: (lastSubmission: AgentSubmission) => void;
+  /** Called once per Run with its terminal outcome, before the session goes idle. */
+  onRunSettled?: (runId: string, snapshot: SessionSnapshot) => Promise<void>;
 }
 
 /** One owner serializes each session; different instances run independently. */
@@ -234,6 +237,16 @@ export class SessionRuntime {
         this.snapshot.thinkingSteps = this.snapshot.thinkingSteps.map((step) =>
           step.id === event.toolCall.id ? { ...step, status: "done" } : step,
         );
+        const fileCard = fileCardFromToolResult(event.toolCall.name, event.result);
+        if (fileCard) {
+          // One card per file; a later edit of a file this reply created keeps "created".
+          this.updateAssistant((message) => ({
+            ...message,
+            files: message.files?.some((item) => item.fileId === fileCard.fileId)
+              ? message.files
+              : [...(message.files ?? []), fileCard],
+          }));
+        }
         if (event.toolCall.name === "show_widget") {
           this.updateAssistant((message) => ({
             ...message,
@@ -402,6 +415,7 @@ export class SessionRuntime {
           );
           this.steering.clear();
           this.runner = undefined;
+          await this.options.onRunSettled?.(submission.id, this.snapshot);
           this.updateAssistant((message) => ({
             ...message,
             thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),

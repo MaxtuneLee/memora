@@ -4,7 +4,7 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
-## 2026-09-27
+## 2026-09-28.2
 
 - The note editor no longer jumps the cursor into a code block when a note contains a divider, and typing inside bold or italic text keeps the formatting.
 - Tables: the first column is no longer shown as a header, bold, links and code in cells are kept, and a new options button on the selected cell lets you insert or delete rows and columns, set column alignment, or delete the table. Press Tab in the last cell to add a row, or type a header row and a `| --- |` row and press Enter to create a table.
@@ -12,6 +12,17 @@ the release id (use the release date, and add `.2` for a second release on the s
 - Pasting Markdown text shows it formatted instead of as raw symbols.
 - More notes open in Preview: lists indented with 2 spaces, aligned or padded tables, `***` dividers, underlined headings, and front matter are kept as written. Tasks marked `[X]` stay checked.
 - The note editor has a Chat button that opens a chat panel on the right. It is a normal chat, so it appears in Chat history. Selected text in the note is attached to your next message. Changes the chat suggests are marked in the note, with removed text struck through and new text highlighted, and you accept or reject each one.
+
+## 2026-09-28
+
+- Sources in the assistant's answers now appear as small numbered marks after the text they support. Click one to see the recordings and times it cites, and click a time to jump there.
+- Documents the assistant creates or edits appear as cards below its reply; click one to open it.
+
+## 2026-09-27
+
+- When you ask about something you saved, such as a lecture or recording, the assistant looks it up in your library before answering and links to the moments it used.
+- The assistant can now change specific parts of a text file instead of rewriting the whole file, and the approval dialog shows exactly what will be removed and added.
+- Documents the assistant creates for you now appear in your library like any other note.
 
 ## 2026-09-26.2
 

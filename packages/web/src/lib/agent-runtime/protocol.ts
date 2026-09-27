@@ -20,6 +20,8 @@ export interface AgentSubmission {
   prompts: Array<{ id: string; priority: number; content: string }>;
   tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
   scope: ResolvedReferenceScope;
+  /** Stored preferences for an in-memory session, in place of the user's; evaluations only. */
+  memory?: { notices: string[] };
 }
 export interface SessionSnapshot {
   sessionId: string;
@@ -39,10 +41,10 @@ export interface SessionSnapshot {
   /** A recap written while the session sat idle, shown until the next message. */
   recap?: string;
 }
-export type AgentCommand =
-  | { type: "subscribe"; sessionId: string; storage?: "memory" }
-  | { type: "unsubscribe"; sessionId: string }
-  | { type: "submit"; sessionId: string; submission: AgentSubmission; storage?: "memory" }
+/** `storage: "memory"` keeps a session (such as an evaluation attempt) off chat-session storage. */
+type SessionCommand =
+  | { type: "subscribe"; sessionId: string }
+  | { type: "submit"; sessionId: string; submission: AgentSubmission }
   | { type: "abort"; sessionId: string; runId: string }
   | {
       type: "reset";
@@ -55,16 +57,24 @@ export type AgentCommand =
   | { type: "patch-message"; sessionId: string; message: ChatMessage }
   | { type: "steer-pending"; sessionId: string; submissionId: string }
   | { type: "delete"; sessionId: string }
-  | { type: "approval"; sessionId: string; approvalId: string; decision: WriteApprovalDecision }
+  | { type: "approval"; sessionId: string; approvalId: string; decision: WriteApprovalDecision };
+export type AgentCommand =
+  | (SessionCommand & { storage?: "memory" })
+  | { type: "unsubscribe"; sessionId: string }
   | { type: "host-ready" }
   | { type: "checkpoint" }
   | { type: "disconnect" }
   | { type: "tool-result"; callId: string; result?: unknown; error?: string }
   | { type: "request-approval"; callId: string; request: WriteApprovalRequest }
-  | { type: "memory-updated"; sessionId: string };
+  | { type: "memory-updated"; sessionId: string }
+  // Development Traces. Replies carry the Run IDs, the parsed Trace, or its JSONL text.
+  | { type: "list-runs"; sessionId: string }
+  | { type: "read-trace"; sessionId: string; runId: string }
+  | { type: "export-trace"; sessionId: string; runId: string }
+  | { type: "clear-traces" };
 export type AgentRequest = AgentCommand & { requestId: string };
 export type AgentResponse =
-  | { type: "reply"; requestId: string; error?: string }
+  | { type: "reply"; requestId: string; error?: string; result?: unknown }
   | { type: "snapshot"; snapshot: SessionSnapshot }
   | {
       type: "tool";

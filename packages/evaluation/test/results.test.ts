@@ -1,34 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { EvaluationError } from "../src/errors";
-import {
-  listEvaluationResults,
-  readEvaluationResult,
-  saveEvaluationResult,
-  type ResultStorage,
-} from "../src/results";
-import { sampleEvaluationResult as result } from "./fixtures";
-
-class MemoryResultStorage implements ResultStorage {
-  readonly files = new Map<string, string>();
-  failWriteWith?: Error;
-
-  async write(path: string, data: string) {
-    if (this.failWriteWith) throw this.failWriteWith;
-    this.files.set(path, data);
-  }
-  async readText(path: string) {
-    const value = this.files.get(path);
-    if (value === undefined) throw new DOMException("Missing", "NotFoundError");
-    return value;
-  }
-  async list(path: string) {
-    return [...this.files.keys()].filter((key) => key.startsWith(path));
-  }
-  async exists(path: string) {
-    return this.files.has(path);
-  }
-}
+import { listEvaluationResults, readEvaluationResult, saveEvaluationResult } from "../src/results";
+import { MemoryResultStorage, sampleEvaluationResult as result } from "./fixtures";
 
 describe("evaluation result persistence", () => {
   it("saves and reads back a completed result unchanged", async () => {
