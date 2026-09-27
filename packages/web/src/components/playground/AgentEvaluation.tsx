@@ -1,11 +1,16 @@
-import { saveAgentEvaluationResult, type AgentEvaluationResult } from "@memora/evaluation";
+import {
+  createJevJudge,
+  saveAgentEvaluationResult,
+  spotChecks,
+  type AgentEvaluationResult,
+} from "@memora/evaluation";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
 import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
 import { chatProvidersQuery$ } from "@/lib/chat/queries";
 import { createChatTools } from "@/lib/chat/tools";
-import { createWebAgentAdapter, UNJUDGED } from "@/lib/playground/agentEvaluationAdapter";
+import { createWebAgentAdapter } from "@/lib/playground/agentEvaluationAdapter";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
 import {
   importEvaluationLectures,
@@ -14,6 +19,11 @@ import {
 } from "@/lib/playground/evaluationImport";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import type { provider as ProviderRow } from "@/livestore/provider";
+import {
+  providerCredentialEvents,
+  providerCredentialsQuery$,
+  readProviderApiKey,
+} from "@/livestore/providerCredential";
 import type { setting } from "@/livestore/setting";
 import { useAppStore } from "@/livestore/store";
 import { tokens } from "../../styles/stylex.stylex";
@@ -57,6 +67,7 @@ const styles = stylex.create({
     padding: "0.25rem 0.5rem",
     width: "5rem",
   },
+  key: { width: "20rem", maxWidth: "100%" },
   actions: { display: "flex", gap: "0.5rem" },
   button: {
     alignSelf: "flex-start",
@@ -91,6 +102,10 @@ const styles = stylex.create({
   },
 });
 
+// Stored like provider keys: device-local, never exported.
+const TYPESAFE_CREDENTIAL = { id: "typesafe", baseUrl: "https://api.typesafe.ai" };
+const SPOT_CHECKS_SHOWN = 10;
+
 type ImportState =
   | { status: "idle" }
   | { status: "importing" }
@@ -116,6 +131,10 @@ export default function AgentEvaluation() {
 
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
+  const jevKey = readProviderApiKey(
+    TYPESAFE_CREDENTIAL,
+    store.useQuery(providerCredentialsQuery$),
+  ).trim();
   const { agentConfig, providerConfig, compactionProviderConfig } = useChatModelConfig({
     providers,
     settings,
@@ -123,7 +142,7 @@ export default function AgentEvaluation() {
   });
 
   const runEvaluation = async () => {
-    if (state.status !== "imported" || !providerConfig) return;
+    if (state.status !== "imported" || !providerConfig || !jevKey) return;
     const { questions, fileLectures, cues, revisions } = state.data;
     const next = new AbortController();
     controller.current = next;
@@ -140,7 +159,7 @@ export default function AgentEvaluation() {
           questions,
           corpus: { fileLectures, cues, revisions },
           agent,
-          judge: UNJUDGED,
+          judge: createJevJudge({ apiKey: jevKey, baseUrl: "/api/playground/typesafe" }),
           concurrency,
         },
         {
@@ -253,10 +272,29 @@ export default function AgentEvaluation() {
               {...stylex.props(styles.number)}
             />
           </label>
+          <label {...stylex.props(styles.field)}>
+            TypeSafe AI API key for the Jev judge
+            <input
+              type="password"
+              autoComplete="off"
+              value={jevKey}
+              disabled={run.status === "running"}
+              onChange={(event) =>
+                store.commit(
+                  providerCredentialEvents.providerCredentialSet({
+                    providerId: TYPESAFE_CREDENTIAL.id,
+                    baseUrl: TYPESAFE_CREDENTIAL.baseUrl,
+                    apiKey: event.target.value,
+                  }),
+                )
+              }
+              {...stylex.props(styles.number, styles.key)}
+            />
+          </label>
           <div {...stylex.props(styles.actions)}>
             <button
               type="button"
-              disabled={run.status === "running" || !providerConfig}
+              disabled={run.status === "running" || !providerConfig || !jevKey}
               onClick={() => void runEvaluation()}
               {...stylex.props(styles.button)}
             >
@@ -289,11 +327,27 @@ export default function AgentEvaluation() {
           <p {...stylex.props(styles.summary)}>
             {run.result.status === "canceled" ? "Canceled. " : ""}
             {run.result.summary.passed} of {run.result.summary.plannedAttempts} attempts passed;
-            retrieval passed {run.result.summary.retrievalPassed}.{" "}
+            retrieval passed {run.result.summary.retrievalPassed}, coverage passed{" "}
+            {run.result.summary.coveragePassed}.{" "}
             {run.saveError
               ? `The result could not be saved: ${run.saveError}`
               : `Saved as ${run.result.evaluationId}.`}
           </p>
+          <div>
+            <h3 {...stylex.props(styles.field)}>Review these first</h3>
+            <ol {...stylex.props(styles.summary)}>
+              {spotChecks(run.result)
+                .slice(0, SPOT_CHECKS_SHOWN)
+                .map((check) => (
+                  <li key={`${check.questionId}-${check.attempt}`}>
+                    {check.questionId} attempt {check.attempt}: retrieval{" "}
+                    {check.retrievalPassed ? "passed" : "failed"}, coverage{" "}
+                    {check.coveragePassed ? "passed" : "failed"}, lowest confidence{" "}
+                    {check.minConfidence.toFixed(2)}
+                  </li>
+                ))}
+            </ol>
+          </div>
           <pre {...stylex.props(styles.pre)}>{JSON.stringify(run.result.summary, null, 2)}</pre>
         </>
       ) : null}

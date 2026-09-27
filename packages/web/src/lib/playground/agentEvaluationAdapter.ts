@@ -1,5 +1,5 @@
 import { toPiTool, type AgentConfig, type ToolDefinition } from "@memora/ai-core";
-import type { AgentAdapter, AgentAnswer, AgentCitation, JudgeAdapter } from "@memora/evaluation";
+import type { AgentAdapter, AgentAnswer, AgentCitation } from "@memora/evaluation";
 
 import * as agentRuntime from "@/lib/agent-runtime/client";
 import type { AgentSubmission, SessionSnapshot } from "@/lib/agent-runtime/protocol";
@@ -178,22 +178,3 @@ export async function createWebAgentAdapter(
     },
   };
 }
-
-/** Stands in until a real judge is registered: nothing is judged, so coverage never passes. */
-export const UNJUDGED: JudgeAdapter = {
-  identity: { judge: "none", model: "none", promptVersion: "none" },
-  judge: async (input) => ({
-    requiredPoints: input.requiredPoints.map((point) => ({
-      point,
-      supported: false,
-      confidence: 0,
-    })),
-    disallowedClaims: input.disallowedClaims.map((claim) => ({
-      claim,
-      present: false,
-      confidence: 0,
-    })),
-    unsupportedClaims: { present: false, confidence: 0 },
-    rawOutput: "Not judged.",
-  }),
-};

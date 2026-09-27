@@ -47,6 +47,13 @@ const nanoBeirProxy = {
   rewrite: (requestPath: string) => requestPath.replace(/^\/api\/playground\/nanobeir/u, "/rows"),
 };
 
+// TypeSafe AI rejects browser origins, so the playground's Jev judge goes through the dev server.
+const typeSafeProxy = {
+  target: "https://api.typesafe.ai",
+  changeOrigin: true,
+  rewrite: (requestPath: string) => requestPath.replace(/^\/api\/playground\/typesafe/u, ""),
+};
+
 const config = {
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
@@ -223,6 +230,7 @@ const config = {
     port: 9003,
     proxy: {
       "/api/playground/nanobeir": nanoBeirProxy,
+      "/api/playground/typesafe": typeSafeProxy,
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
@@ -244,6 +252,7 @@ const config = {
   preview: {
     proxy: {
       "/api/playground/nanobeir": nanoBeirProxy,
+      "/api/playground/typesafe": typeSafeProxy,
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
