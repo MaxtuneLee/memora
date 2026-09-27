@@ -21,6 +21,7 @@ Runs are driven and recorded with the `agent-eval` skill (`.agents/skills/agent-
 | 3   | 2026-09-27 06:28 | 8a76bcd5   | 2 × 3 (q15, q20) | 36    | a387dac | 13fa87f7 | jev-coverage-2 | 64cc3afe  | 5 / 6   | 1         | 0      | 6         | 1           | 58,299 / 284,544 / 17,652        | 20.5 s         |
 | 4   | 2026-09-27 06:36 | 917b0f6f   | 25 × 3           | 9     | 1f0b413 | 13fa87f7 | jev-coverage-2 | b502a703  | 71 / 75 | 1         | 3      | 72        | 10          | 535,045 / 2,732,160 / 172,279    | 16.7 s         |
 | 5   | 2026-09-27 07:25 | f6ba44e4   | 2 × 3 (q15, q25) | 6     | 55884ae | 13fa87f7 | jev-coverage-2 | c44ce355  | 6 / 6   | 0         | 0      | 6         | 2           | 66,636 / 313,088 / 20,352        | 21.7 s         |
+| 6   | 2026-09-27 07:43 | 231c7f5c   | 25 × 3           | 9     | d436c6d | 13fa87f7 | jev-coverage-2 | c44ce355  | 75 / 75 | 0         | 0      | 75        | 10          | 493,499 / 2,410,880 / 153,985    | 10.9 s         |
 
 ## Trend
 
@@ -61,6 +62,13 @@ The pass rate went from 9/72 to 71/75 in one day, but most of that was the evalu
 
 - **Changed**: `window.__memoraEval` API and dev-server data endpoint (02ee408); results saved to disk when a run ends (55884ae, run on the uncommitted change). The first attempt at this run stalled with every session stuck on its first tool call: the agent worker sent tool calls to the first tab that connected, a background tab the browser had frozen. Tool calls now go to the tab that submitted (02ee408).
 - **Showed**: q15 and q25 both 3/3 with the fixed key; 36 s for 6 attempts at concurrency 6; no tool errors.
+
+### Run 6: full set after the key fixes (d436c6d)
+
+- **Changed**: no agent or judge change since run 4; the q25 key fix (run 4) and the tool-call routing fix (02ee408) are now measured on the full set.
+- **Showed**: 75/75, no uncertain decisions, retrieval 75/75. Unsupported claims 10, same as run 4. Median latency 10.9 s against 16.7 s in run 4 at the same concurrency, and fewer tokens (493k against 535k uncached); likely provider-side variance, since nothing in the agent changed.
+- **Agent**: three `read_file` calls still guessed `/files/<id>/transcript.json`; each attempt recovered through search. One `recall_message` with an unknown recall ID and one `grep_files` on a file path instead of a folder; neither affected the answer.
+- **Next**: the set is saturated. Harder questions (#59) are the only way to see further agent changes.
 
 ## Open follow-ups
 
