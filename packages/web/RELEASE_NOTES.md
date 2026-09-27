@@ -7,6 +7,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 ## 2026-09-27
 
 - When you ask about something you saved, such as a lecture or recording, the assistant looks it up in your library before answering and links to the moments it used.
+- The assistant can now change specific parts of a text file instead of rewriting the whole file, and the approval dialog shows exactly what will be removed and added.
 
 ## 2026-09-26.2
 

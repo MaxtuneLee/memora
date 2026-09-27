@@ -27,6 +27,62 @@ const isWritablePath = (path: string): boolean => {
   return WRITABLE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 };
 
+interface TextEdit {
+  old_text: string;
+  new_text: string;
+}
+
+/**
+ * Applies exact-text edits, each matched against the original content, so the
+ * model can change several places in one call without offsets shifting.
+ */
+export const applyTextEdits = (
+  content: string,
+  edits: readonly TextEdit[],
+): { content: string } | { error: string } => {
+  if (edits.length === 0) {
+    return { error: "replace needs edits: at least one { old_text, new_text }." };
+  }
+
+  const matches: { index: number; edit: TextEdit; editIndex: number }[] = [];
+  for (const [editIndex, edit] of edits.entries()) {
+    if (!edit.old_text) {
+      return { error: `edits[${editIndex}].old_text is empty.` };
+    }
+    const index = content.indexOf(edit.old_text);
+    if (index === -1) {
+      return {
+        error: `edits[${editIndex}].old_text was not found in the file. Read the file and copy the text exactly.`,
+      };
+    }
+    if (content.indexOf(edit.old_text, index + 1) !== -1) {
+      return {
+        error: `edits[${editIndex}].old_text matches more than one place. Include more surrounding text.`,
+      };
+    }
+    matches.push({ index, edit, editIndex });
+  }
+
+  matches.sort((a, b) => a.index - b.index);
+  for (let i = 1; i < matches.length; i++) {
+    const previous = matches[i - 1];
+    if (previous.index + previous.edit.old_text.length > matches[i].index) {
+      return {
+        error: `edits[${previous.editIndex}] and edits[${matches[i].editIndex}] overlap. Merge them into one edit.`,
+      };
+    }
+  }
+
+  let next = content;
+  for (const { index, edit } of matches.slice().reverse()) {
+    next = next.slice(0, index) + edit.new_text + next.slice(index + edit.old_text.length);
+  }
+  if (next === content) {
+    return { error: "The edits do not change the file." };
+  }
+  return { content: next };
+};
+
 export const createFileTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
@@ -137,18 +193,20 @@ export const createFileTools = (
       type: "function",
       name: "modify_text_file",
       description:
-        "Write or append UTF-8 text content to an OPFS path. Allowed paths must start with /chat/ or /files/.",
+        'Write, append, or edit UTF-8 text content at an OPFS path. Allowed paths must start with /chat/ or /files/. write and append take content. To change parts of an existing file, use operation "replace" with edits: each old_text must match exactly one place in the original file (include surrounding lines to make it unique) and must not overlap another edit; new_text replaces it. Put every change to one file in a single call; merge nearby changes into one edit.',
       parameters: v.object({
         path: v.string(),
-        operation: v.picklist(["write", "append"]),
-        content: v.string(),
+        operation: v.picklist(["write", "append", "replace"]),
+        content: v.optional(v.string()),
+        edits: v.optional(v.array(v.object({ old_text: v.string(), new_text: v.string() }))),
         overwrite: v.optional(v.boolean(), true),
       }),
       execute: async (params: unknown) => {
         const payload = params as {
           path: string;
-          operation: "write" | "append";
-          content: string;
+          operation: "write" | "append" | "replace";
+          content?: string;
+          edits?: TextEdit[];
           overwrite?: boolean;
         };
         const path = normalizeWritablePath(payload.path);
@@ -165,37 +223,72 @@ export const createFileTools = (
           };
         }
 
+        // Check the edits apply before asking the user to approve them.
+        let replacedContent: string | null = null;
+        if (payload.operation === "replace") {
+          const targetFile = opfsFile(path);
+          if (!(await targetFile.exists())) {
+            return { error: `No file at ${path}.` };
+          }
+          const result = applyTextEdits(await targetFile.text(), payload.edits ?? []);
+          if ("error" in result) {
+            return result;
+          }
+          replacedContent = result.content;
+        } else if (payload.content == null) {
+          return { error: `${payload.operation} needs content.` };
+        }
+        const content = payload.content ?? "";
+        const edits = (payload.edits ?? []).map((edit) => ({
+          oldText: edit.old_text,
+          newText: edit.new_text,
+        }));
+
         const overwrite = payload.overwrite ?? true;
         const approval = await options.requestWriteApproval({
           path,
           operation: payload.operation,
-          content: payload.content,
-          contentLength: payload.content.length,
+          content,
+          contentLength:
+            payload.operation === "replace"
+              ? edits.reduce((total, edit) => total + edit.newText.length, 0)
+              : content.length,
           overwrite,
+          ...(payload.operation === "replace" && { edits }),
         });
         if (approval === "deny") {
           return { error: "User denied file modification request." };
         }
 
         if (payload.operation === "write") {
-          await opfsWrite(path, payload.content, { overwrite });
+          await opfsWrite(path, content, { overwrite });
           return {
             path,
             operation: "write",
-            bytesWritten: payload.content.length,
+            bytesWritten: content.length,
             overwrite,
+          };
+        }
+
+        if (replacedContent !== null) {
+          await opfsWrite(path, replacedContent, { overwrite: true });
+          return {
+            path,
+            operation: "replace",
+            editsApplied: edits.length,
+            totalBytes: replacedContent.length,
           };
         }
 
         const targetFile = opfsFile(path);
         const existing = (await targetFile.exists()) ? await targetFile.text() : "";
-        const nextContent = `${existing}${payload.content}`;
+        const nextContent = `${existing}${content}`;
         await opfsWrite(path, nextContent, { overwrite: true });
 
         return {
           path,
           operation: "append",
-          appendedBytes: payload.content.length,
+          appendedBytes: content.length,
           totalBytes: nextContent.length,
         };
       },

@@ -24,10 +24,12 @@ export type WriteApprovalDecision = "allow_once" | "allow_session" | "deny";
 
 export interface WriteApprovalRequest {
   path: string;
-  operation: "write" | "append";
+  operation: "write" | "append" | "replace";
   content: string;
   contentLength: number;
   overwrite: boolean;
+  /** The changes, for "replace". */
+  edits?: { oldText: string; newText: string }[];
 }
 
 export interface CreateChatToolsOptions {

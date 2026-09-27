@@ -28,6 +28,20 @@ const styles = stylex.create({
   },
   detailLine: { marginTop: 4 },
   detailLabel: { color: tokens.textStrong, fontWeight: 500 },
+  diff: {
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    display: "flex",
+    flexDirection: "column",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: 12,
+    gap: 1,
+    maxHeight: 280,
+    overflow: "auto",
+  },
+  diffLines: { margin: 0, paddingBlock: 6, paddingInline: 10, whiteSpace: "pre-wrap" },
+  removed: { backgroundColor: tokens.dangerSurface, color: tokens.dangerText },
+  added: { backgroundColor: tokens.successSurface, color: tokens.successText },
   actions: {
     alignItems: "center",
     display: "flex",
@@ -63,9 +77,18 @@ interface ToolWriteApprovalDialogProps {
   onDeny: () => void;
 }
 
+const prefixLines = (text: string, prefix: string): string =>
+  text
+    .split("\n")
+    .map((line) => `${prefix} ${line}`)
+    .join("\n");
+
 const describeOperation = (request: WriteApprovalRequest): string => {
   if (request.operation === "append") {
     return "Append text";
+  }
+  if (request.operation === "replace") {
+    return "Replace text";
   }
   return request.overwrite ? "Write text (overwrite allowed)" : "Write text (create only)";
 };
@@ -110,6 +133,23 @@ export function ToolWriteApprovalDialog({
               <span {...stylex.props(styles.detailLabel)}>Content length:</span>{" "}
               {request.contentLength.toLocaleString()} chars
             </p>
+          </div>
+        )}
+
+        {request?.edits && request.edits.length > 0 && (
+          <div {...stylex.props(styles.diff)}>
+            {request.edits.map((edit, index) => (
+              <div key={index}>
+                <pre {...stylex.props(styles.diffLines, styles.removed)}>
+                  {prefixLines(edit.oldText, "-")}
+                </pre>
+                {edit.newText && (
+                  <pre {...stylex.props(styles.diffLines, styles.added)}>
+                    {prefixLines(edit.newText, "+")}
+                  </pre>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
