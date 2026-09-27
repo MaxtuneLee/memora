@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AgentAttemptError,
   listAgentEvaluationResults,
   readAgentEvaluationResult,
   runAgentEvaluation,
@@ -206,6 +207,7 @@ describe("runAgentEvaluation", () => {
       questions: [question("flaky"), question("judged")],
       corpus,
       attemptTimeoutMs: 20,
+      traceWaitMs: 10,
       agent: agent((questionId) => {
         const call = (calls.get(questionId) ?? 0) + 1;
         calls.set(questionId, call);
@@ -237,6 +239,43 @@ describe("runAgentEvaluation", () => {
       { questionId: "flaky", passes: 1, attempts: 3 },
       { questionId: "judged", passes: 0, attempts: 3 },
     ]);
+  });
+
+  it("keeps the Trace of attempts that failed or timed out without an answer", async () => {
+    const trace = (runId: string) => ({
+      sessionId: `eval-${runId}`,
+      runId,
+      fallbackTrims: "unknown" as const,
+    });
+    let calls = 0;
+    const result = await runAgentEvaluation({
+      questions: [question("q1")],
+      corpus,
+      concurrency: 1,
+      attemptTimeoutMs: 20,
+      agent: agent((_, signal) => {
+        calls += 1;
+        if (calls === 1) throw new AgentAttemptError("provider unavailable", trace("run-error"));
+        // Honors the signal the way the Web adapter does: rejects with its Trace once aborted.
+        if (calls === 2)
+          return new Promise<AgentAnswer>((_resolve, reject) =>
+            signal.addEventListener("abort", () =>
+              setTimeout(() => reject(new AgentAttemptError("aborted", trace("run-timeout"))), 5),
+            ),
+          );
+        return answer([cite(LEC11, 101)]);
+      }),
+      judge: judge(),
+    });
+
+    expect(
+      result.attempts.map(({ failure, trace }) => ({ reason: failure?.reason, trace })),
+    ).toEqual([
+      { reason: "error", trace: trace("run-error") },
+      { reason: "timeout", trace: trace("run-timeout") },
+      { reason: undefined, trace: undefined },
+    ]);
+    expect(result.attempts[0].failure?.message).toBe("provider unavailable");
   });
 
   it("scores grouped evidence with alternatives, timestamp distance, and citation precision", async () => {

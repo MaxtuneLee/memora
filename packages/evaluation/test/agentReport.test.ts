@@ -202,6 +202,18 @@ describe("agentEvaluationTotals", () => {
     expect(totals.judgeUsage).toEqual({ input_tokens: 200, output_tokens: 8 });
   });
 
+  it("counts the tokens of a failed attempt's Trace", () => {
+    const withTrace = {
+      ...timedOut,
+      trace: { sessionId: "s", runId: "r", fallbackTrims: 0, tokens: { input: 9, output: 1 } },
+    };
+    expect(agentEvaluationTotals({ ...result, attempts: [withTrace] }).agentTokens).toEqual({
+      input: 9,
+      output: 1,
+      unknownAttempts: 0,
+    });
+  });
+
   it("has no rates without completed attempts", () => {
     const totals = agentEvaluationTotals({ ...result, attempts: [] });
     expect(totals).toMatchObject({ passRate: null, citationPrecision: null });

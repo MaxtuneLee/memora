@@ -1,5 +1,10 @@
 import { toPiTool, type AgentConfig, type ToolDefinition } from "@memora/ai-core";
-import type { AgentAdapter, AgentAnswer, AgentCitation } from "@memora/evaluation";
+import {
+  AgentAttemptError,
+  type AgentAdapter,
+  type AgentAnswer,
+  type AgentCitation,
+} from "@memora/evaluation";
 
 import * as agentRuntime from "@/lib/agent-runtime/client";
 import type { AgentSubmission, SessionSnapshot } from "@/lib/agent-runtime/protocol";
@@ -82,7 +87,8 @@ const readTraceFacts = async (
 /**
  * Answers each question in a fresh `eval-<uuid>` in-memory session with the chat system prompt
  * and the read-only tools, and deletes the session afterwards, whatever the outcome. Deleting
- * flushes the Run's Trace, which is then read for the fallback trim count and token totals.
+ * flushes the Run's Trace, which is then read for the fallback trim count and token totals. A
+ * failed or canceled attempt throws `AgentAttemptError` carrying the same Trace facts.
  */
 export async function createWebAgentAdapter(
   options: WebAgentAdapterOptions,
@@ -122,7 +128,8 @@ export async function createWebAgentAdapter(
       const submissionId = crypto.randomUUID();
       const messageId = crypto.randomUUID();
       let unsubscribe = () => {};
-      let result: Omit<AgentAnswer, "fallbackTrims" | "tokens">;
+      let result: Omit<AgentAnswer, "fallbackTrims" | "tokens"> | undefined;
+      let failure: unknown;
       try {
         const finished = new Promise<SessionSnapshot>((resolve, reject) => {
           if (signal.aborted) return reject(signal.reason);
@@ -174,13 +181,22 @@ export async function createWebAgentAdapter(
           runId: submissionId,
           ...(reply?.usage ? { usage: { ...reply.usage } as Record<string, number> } : {}),
         };
+      } catch (error) {
+        failure = error;
       } finally {
         unsubscribe();
         await runtime
           .command({ type: "delete", sessionId, storage: "memory" })
           .catch((error: unknown) => console.error("Could not delete evaluation session:", error));
       }
-      return { ...result, ...(await readTraceFacts(runtime, sessionId, submissionId)) };
+      const facts = await readTraceFacts(runtime, sessionId, submissionId);
+      if (!result)
+        throw new AgentAttemptError(
+          failure instanceof Error ? failure.message : String(failure),
+          { sessionId, runId: submissionId, ...facts },
+          { cause: failure },
+        );
+      return { ...result, ...facts };
     },
   };
 }

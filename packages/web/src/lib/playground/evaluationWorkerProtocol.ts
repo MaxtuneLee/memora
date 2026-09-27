@@ -6,6 +6,7 @@ import type {
   AgentEvaluationResult,
   AgentIdentity,
   AgentQuestion,
+  AttemptTrace,
   EvaluationProgress,
   EvaluationQuestion,
   EvaluationResult,
@@ -40,6 +41,8 @@ export type EvaluationWorkerRequest =
       targetId: string;
       value?: AgentAnswer | JudgeVerdict;
       error?: string;
+      /** The Trace of a failed or canceled agent attempt. */
+      trace?: AttemptTrace;
     };
 
 export type EvaluationWorkerResponse =

@@ -1,12 +1,13 @@
 import type { DatasetSelection } from "@memora/datasets";
-import type {
-  AgentAdapter,
-  AgentEvaluationProgress,
-  AgentEvaluationResult,
-  EvaluationProgress,
-  EvaluationResult,
-  JudgeAdapter,
-  RunAgentEvaluationOptions,
+import {
+  AgentAttemptError,
+  type AgentAdapter,
+  type AgentEvaluationProgress,
+  type AgentEvaluationResult,
+  type EvaluationProgress,
+  type EvaluationResult,
+  type JudgeAdapter,
+  type RunAgentEvaluationOptions,
 } from "@memora/evaluation";
 
 import { localModelClient } from "../local-model/client";
@@ -102,6 +103,7 @@ async function handleAdapterRequest(
       type: "adapter-result",
       targetId: message.id,
       error: error instanceof Error ? error.message : String(error),
+      ...(error instanceof AgentAttemptError ? { trace: error.trace } : {}),
     });
   } finally {
     modelOperations.delete(message.id);

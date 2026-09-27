@@ -47,7 +47,7 @@ export interface AgentTokenTotals {
 export const agentTokenTotals = (attempts: AgentAttemptResult[]): AgentTokenTotals => {
   const totals = { input: 0, output: 0, unknownAttempts: 0 };
   for (const attempt of attempts) {
-    const tokens = attempt.answer?.tokens;
+    const tokens = (attempt.answer ?? attempt.trace)?.tokens;
     if (!tokens) totals.unknownAttempts += 1;
     else {
       totals.input += tokens.input;

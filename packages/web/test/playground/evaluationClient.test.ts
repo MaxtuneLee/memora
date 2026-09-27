@@ -102,6 +102,8 @@ describe("evaluationClient.run", () => {
   });
 });
 
+const TRACE = { sessionId: "eval-s", runId: "run-1", fallbackTrims: "unknown" } as const;
+
 describe("evaluationClient.runAgent", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -190,12 +192,14 @@ describe("evaluationClient.runAgent", () => {
   });
 
   it("aborts the adapter call when the worker cancels it, and cancels the run on abort", async () => {
+    // Imported after the module reset, so it is the class the client sees.
+    const { AgentAttemptError } = await import("@memora/evaluation");
     let seen: AbortSignal | undefined;
     const answer = vi.fn(
       (_question: unknown, signal: AbortSignal) =>
         new Promise((_resolve, reject) => {
           seen = signal;
-          signal.addEventListener("abort", () => reject(new Error("Canceled.")));
+          signal.addEventListener("abort", () => reject(new AgentAttemptError("Canceled.", TRACE)));
         }),
     );
     const controller = new AbortController();
@@ -222,7 +226,12 @@ describe("evaluationClient.runAgent", () => {
     expect(seen?.aborted).toBe(true);
     await vi.waitFor(() =>
       expect(port.messages).toContainEqual(
-        expect.objectContaining({ type: "adapter-result", targetId: "a1", error: "Canceled." }),
+        expect.objectContaining({
+          type: "adapter-result",
+          targetId: "a1",
+          error: "Canceled.",
+          trace: TRACE,
+        }),
       ),
     );
 

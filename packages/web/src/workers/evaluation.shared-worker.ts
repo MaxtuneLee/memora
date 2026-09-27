@@ -1,5 +1,6 @@
 import { openDataset } from "@memora/datasets";
 import {
+  AgentAttemptError,
   runAgentEvaluation,
   runEvaluation,
   type AgentAnswer,
@@ -29,15 +30,18 @@ const requestHost = <T>(
   signal?: AbortSignal,
 ): Promise<T> =>
   new Promise((resolve, reject) => {
-    const abort = () => {
-      hostRequests.delete(message.id);
-      post(port, { id: crypto.randomUUID(), type: "model-cancel", targetId: message.id });
-      reject(new DOMException("The operation was aborted.", "AbortError"));
-    };
+    const aborted = () => new DOMException("The operation was aborted.", "AbortError");
     if (signal?.aborted) {
-      abort();
+      reject(aborted());
       return;
     }
+    const abort = () => {
+      post(port, { id: crypto.randomUUID(), type: "model-cancel", targetId: message.id });
+      // A canceled agent call still answers, with its Trace; the runner waits for it briefly.
+      if (message.type === "adapter-request") return;
+      hostRequests.delete(message.id);
+      reject(aborted());
+    };
     signal?.addEventListener("abort", abort, { once: true });
     hostRequests.set(message.id, {
       resolve: (value) => {
@@ -106,7 +110,12 @@ async function execute(port: MessagePort, request: EvaluationWorkerRequest): Pro
     const pending = hostRequests.get(request.targetId);
     if (!pending) return;
     hostRequests.delete(request.targetId);
-    if (request.error) pending.reject(new Error(request.error));
+    if (request.error)
+      pending.reject(
+        request.type === "adapter-result" && request.trace
+          ? new AgentAttemptError(request.error, request.trace)
+          : new Error(request.error),
+      );
     else
       pending.resolve(request.type === "model-result" ? (request.prediction ?? "") : request.value);
     return;

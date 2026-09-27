@@ -1,4 +1,5 @@
 import { AGENT_SCORER_VERSION, CITATION_TOLERANCE_SEC, median, scoreCitations } from "./agentScore";
+import { AgentAttemptError } from "./errors";
 import type {
   AgentAnswer,
   AgentAttemptResult,
@@ -14,6 +15,7 @@ import type {
 const ATTEMPTS_PER_QUESTION = 3;
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_ATTEMPT_TIMEOUT_MS = 5 * 60_000;
+const DEFAULT_TRACE_WAIT_MS = 10_000;
 
 class Canceled extends Error {}
 
@@ -94,6 +96,7 @@ export async function runAgentEvaluation(
     throw new RangeError("Concurrency must be a positive integer.");
   if (!Number.isFinite(attemptTimeoutMs) || attemptTimeoutMs <= 0)
     throw new RangeError("The attempt timeout must be a positive number.");
+  const traceWaitMs = options.traceWaitMs ?? DEFAULT_TRACE_WAIT_MS;
   const now = options.now ?? (() => new Date());
   const startedAt = now();
   const outer = options.signal ?? new AbortController().signal;
@@ -131,13 +134,29 @@ export async function runAgentEvaluation(
 
     const started = performance.now();
     let answer: AgentAnswer;
+    const answering = agent.answer(
+      { questionId: question.questionId, question: question.question },
+      signal,
+    );
     try {
-      answer = await untilAborted(
-        agent.answer({ questionId: question.questionId, question: question.question }, signal),
-        signal,
-      );
+      answer = await untilAborted(answering, signal);
     } catch (error) {
-      return failed("agent", error, { latencyMs: performance.now() - started });
+      const latencyMs = performance.now() - started;
+      // A timed-out adapter still deletes its session and reads the Trace; wait for that briefly.
+      const reported =
+        !signal.aborted || outer.aborted
+          ? error
+          : await Promise.race([
+              answering.then(
+                () => undefined,
+                (late: unknown) => late,
+              ),
+              new Promise<undefined>((resolve) => setTimeout(resolve, traceWaitMs)),
+            ]);
+      return failed("agent", error, {
+        latencyMs,
+        ...(reported instanceof AgentAttemptError ? { trace: reported.trace } : {}),
+      });
     }
     const latencyMs = performance.now() - started;
     const score = scoreCitations(question, answer.citations, corpus.fileLectures);

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { AgentAttemptError } from "@memora/evaluation";
+
 import type { EvaluationWorkerRequest } from "@/lib/playground/evaluationWorkerProtocol";
 
 const { openDataset, runEvaluation, runAgentEvaluation } = vi.hoisted(() => ({
@@ -9,7 +11,11 @@ const { openDataset, runEvaluation, runAgentEvaluation } = vi.hoisted(() => ({
 }));
 
 vi.mock("@memora/datasets", () => ({ openDataset }));
-vi.mock("@memora/evaluation", () => ({ runEvaluation, runAgentEvaluation }));
+vi.mock("@memora/evaluation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@memora/evaluation")>()),
+  runEvaluation,
+  runAgentEvaluation,
+}));
 
 class TestMessagePort {
   onmessage: ((event: MessageEvent<EvaluationWorkerRequest>) => void) | null = null;
@@ -188,8 +194,9 @@ describe("agent evaluation in the shared worker", () => {
     );
   });
 
-  it("rejects the adapter call with the Window's error and cancels on abort", async () => {
+  it("rejects the adapter call with the Window's error and, on abort, cancels it and keeps its Trace", async () => {
     let seen: unknown;
+    let late: unknown;
     runAgentEvaluation.mockImplementation(async (options) => {
       await options.agent
         .answer({ questionId: "q1", question: "Why?" }, new AbortController().signal)
@@ -200,7 +207,7 @@ describe("agent evaluation in the shared worker", () => {
         controller.signal,
       );
       controller.abort();
-      await pending.catch(() => {});
+      late = await pending.catch((error: unknown) => error);
       return {};
     });
     const port = await connectWorker();
@@ -212,11 +219,20 @@ describe("agent evaluation in the shared worker", () => {
       data: { id: "r1", type: "adapter-result", targetId: first.id, error: "Provider refused." },
     } as MessageEvent);
 
-    await vi.waitFor(() =>
-      expect(port.messages).toContainEqual({ id: "agent-run-1", type: "agent-result", result: {} }),
-    );
+    await vi.waitFor(() => expect(port.messages).toHaveLength(3));
     expect(seen).toBe("Provider refused.");
     const second = port.messages[1] as { id: string };
     expect(port.messages[2]).toMatchObject({ type: "model-cancel", targetId: second.id });
+
+    // The Window answers the canceled call once it has deleted the session and read its Trace.
+    const trace = { sessionId: "eval-s", runId: "run-1", fallbackTrims: "unknown" };
+    port.onmessage?.({
+      data: { id: "r2", type: "adapter-result", targetId: second.id, error: "Aborted.", trace },
+    } as MessageEvent);
+    await vi.waitFor(() =>
+      expect(port.messages).toContainEqual({ id: "agent-run-1", type: "agent-result", result: {} }),
+    );
+    expect(late).toBeInstanceOf(AgentAttemptError);
+    expect(late).toMatchObject({ message: "Aborted.", trace });
   });
 });

@@ -72,6 +72,9 @@ export interface AgentAnswer {
   fallbackTrims: number | "unknown";
 }
 
+/** Where an attempt's Trace lives, and what was read from it. */
+export type AttemptTrace = Pick<AgentAnswer, "sessionId" | "runId" | "fallbackTrims" | "tokens">;
+
 export interface AgentAdapter {
   identity: AgentIdentity;
   answer(question: AgentQuestion, signal: AbortSignal): Promise<AgentAnswer>;
@@ -130,6 +133,8 @@ export interface AgentAttemptResult {
   passed: boolean;
   latencyMs: number;
   answer?: AgentAnswer;
+  /** The Trace of an attempt that failed without an answer, when the adapter reported it. */
+  trace?: AttemptTrace;
   score?: CitationScore;
   coverage?: { passed: boolean; verdict: JudgeVerdict };
   failure?: { reason: AttemptFailureReason; name: string; message: string };
@@ -187,6 +192,8 @@ export interface RunAgentEvaluationOptions {
   /** Per-attempt limit covering the agent and the judge; default 5 minutes. */
   attemptTimeoutMs?: number;
   signal?: AbortSignal;
+  /** How long a timed-out attempt waits for the adapter to report its Trace; default 10 seconds. */
+  traceWaitMs?: number;
   onProgress?: (progress: AgentEvaluationProgress) => void;
   now?: () => Date;
   createId?: () => string;

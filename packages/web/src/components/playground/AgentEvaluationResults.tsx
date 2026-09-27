@@ -401,7 +401,9 @@ function AttemptDetail({
   // Jump parts come in citation order, so the nth jump is the nth citation.
   let jumps = 0;
   const citationIndex = parts.map((part) => (part.type === "jump" ? jumps++ : -1));
-  const runId = answer?.runId;
+  // Failed attempts without an answer may still carry their Trace.
+  const trace = answer ?? attempt.trace;
+  const runId = trace?.runId;
   return (
     <article {...stylex.props(styles.attempt)}>
       <div {...stylex.props(styles.attemptHead)}>
@@ -410,12 +412,12 @@ function AttemptDetail({
       </div>
       <p {...stylex.props(styles.meta)}>
         {duration(attempt.latencyMs)}
-        {answer
+        {trace
           ? ` · ${
-              answer.tokens
-                ? `${count(answer.tokens.input)} in · ${count(answer.tokens.output)} out tokens`
+              trace.tokens
+                ? `${count(trace.tokens.input)} in · ${count(trace.tokens.output)} out tokens`
                 : "Tokens unknown"
-            } · Fallback trims ${answer.fallbackTrims === "unknown" ? "unknown" : answer.fallbackTrims}`
+            } · Fallback trims ${trace.fallbackTrims === "unknown" ? "unknown" : trace.fallbackTrims}`
           : null}
       </p>
       {reasons.length ? (
@@ -481,8 +483,8 @@ function AttemptDetail({
           </p>
         </div>
       ) : null}
-      {answer && runId && onOpenTrace ? (
-        <Button onClick={() => onOpenTrace({ sessionId: answer.sessionId, runId })}>
+      {trace && runId && onOpenTrace ? (
+        <Button onClick={() => onOpenTrace({ sessionId: trace.sessionId, runId })}>
           Open trace
         </Button>
       ) : null}

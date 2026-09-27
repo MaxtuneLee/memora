@@ -1,3 +1,4 @@
+import { AgentAttemptError } from "@memora/evaluation";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { AgentCommand, SessionSnapshot } from "@/lib/agent-runtime/protocol";
@@ -185,13 +186,27 @@ describe("createWebAgentAdapter", () => {
     expect(answer.tokens).toEqual({ input: 440, output: 35 });
   });
 
-  it("deletes the session when the Run fails", async () => {
-    const runtime = fakeRuntime("failed");
+  it("deletes the session when the Run fails and reports its Trace with the error", async () => {
+    const runtime = fakeRuntime("failed", [
+      event("run.started"),
+      event("context.trimmed"),
+      { ...event("model.response"), usage: { inputTokens: 30, outputTokens: 2 } },
+      event("run.settled"),
+    ]);
     const adapter = await create(runtime);
 
-    await expect(adapter.answer(question, new AbortController().signal)).rejects.toThrow(
-      "Provider refused.",
-    );
+    const error = await adapter.answer(question, new AbortController().signal).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AgentAttemptError);
+    expect(error.message).toBe("Provider refused.");
+    const submit = runtime.commands.find((command) => command.type === "submit");
+    if (submit?.type !== "submit") throw new Error("No submission.");
+    expect(error.trace).toEqual({
+      sessionId: submit.sessionId,
+      runId: submit.submission.id,
+      fallbackTrims: 1,
+      tokens: { input: 30, output: 2 },
+    });
     expect(runtime.live.size).toBe(0);
   });
 
@@ -205,6 +220,10 @@ describe("createWebAgentAdapter", () => {
     controller.abort(new DOMException("Canceled.", "AbortError"));
 
     await expect(pending).rejects.toThrow("Canceled.");
+    // A Trace cut short has no run.settled; it can still be opened.
+    await expect(pending).rejects.toMatchObject({
+      trace: { sessionId: expect.stringMatching(/^eval-/), fallbackTrims: "unknown" },
+    });
     expect(runtime.live.size).toBe(0);
   });
 });
