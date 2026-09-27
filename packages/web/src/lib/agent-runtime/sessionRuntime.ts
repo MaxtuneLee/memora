@@ -1,5 +1,6 @@
 import type { Agent, AgentEvent, AgentMessage } from "@memora/ai-core";
 import type { ChatMessage } from "@/hooks/chat/useAgent/types";
+import { fileCardFromToolResult } from "@/lib/chat/chatFileCards";
 import {
   parsePartialShowWidgetArguments,
   sanitizeShowWidgetArguments,
@@ -236,6 +237,16 @@ export class SessionRuntime {
         this.snapshot.thinkingSteps = this.snapshot.thinkingSteps.map((step) =>
           step.id === event.toolCall.id ? { ...step, status: "done" } : step,
         );
+        const fileCard = fileCardFromToolResult(event.toolCall.name, event.result);
+        if (fileCard) {
+          // One card per file; a later edit of a file this reply created keeps "created".
+          this.updateAssistant((message) => ({
+            ...message,
+            files: message.files?.some((item) => item.fileId === fileCard.fileId)
+              ? message.files
+              : [...(message.files ?? []), fileCard],
+          }));
+        }
         if (event.toolCall.name === "show_widget") {
           this.updateAssistant((message) => ({
             ...message,

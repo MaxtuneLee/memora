@@ -296,6 +296,7 @@ export const createFileTools = (
 
         return {
           path,
+          ...(libraryFile && { fileId: libraryFile.id, name: libraryFile.name }),
           operation: payload.operation,
           totalBytes: nextContent.length,
           ...(payload.operation === "replace" && { editsApplied: edits.length }),

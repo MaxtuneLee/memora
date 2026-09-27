@@ -1,5 +1,6 @@
 import { dir as opfsDir, file as opfsFile, glob, write as opfsWrite } from "@memora/fs";
 import type { TokenUsage } from "@memora/ai-core";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import { normalizeChatWidgets, type ChatWidget } from "@/lib/chat/showWidget";
 
 import {
@@ -28,12 +29,24 @@ export interface ChatSessionReference {
   name: string;
 }
 
+const normalizeFileCards = (value: unknown): ChatFileCard[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter(
+    (item): item is ChatFileCard =>
+      Boolean(item) &&
+      typeof item.fileId === "string" &&
+      typeof item.name === "string" &&
+      (item.action === "created" || item.action === "modified"),
+  );
+};
+
 export interface ChatSessionMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
+  files?: ChatFileCard[];
   thinkingSteps?: ChatSessionThinkingStep[];
   usage?: TokenUsage;
 }
@@ -192,6 +205,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
     const widgets = normalizeChatWidgets(value.widgets);
     if (widgets && widgets.length > 0) {
       normalizedMessage.widgets = widgets;
+    }
+
+    const files = normalizeFileCards(value.files);
+    if (files && files.length > 0) {
+      normalizedMessage.files = files;
     }
 
     const thinkingSteps = normalizeThinkingSteps(value.thinkingSteps);

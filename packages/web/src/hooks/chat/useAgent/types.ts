@@ -7,6 +7,7 @@ import type {
 } from "@memora/ai-core";
 
 import type { ChatImageAttachment, ChatInputImage } from "@/lib/chat/chatImageAttachments";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import type { ChatWidget } from "@/lib/chat/showWidget";
 
 export interface ChatMessage {
@@ -15,6 +16,7 @@ export interface ChatMessage {
   content: string;
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
+  files?: ChatFileCard[];
   thinkingSteps?: ThinkingStep[];
   usage?: TokenUsage;
 }
