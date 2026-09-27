@@ -3,7 +3,9 @@ import type { AgentAdapter, AgentAnswer, AgentCitation } from "@memora/evaluatio
 
 import * as agentRuntime from "@/lib/agent-runtime/client";
 import type { AgentSubmission, SessionSnapshot } from "@/lib/agent-runtime/protocol";
+import { readRun } from "@/lib/agent-runtime/traceReader";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
+import { summarizeRun } from "@/lib/agent-runtime/traceTimeline";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
 import { EMPTY_REFERENCE_SCOPE, SYSTEM_PROMPT } from "@/lib/chat/tools";
 
@@ -53,27 +55,34 @@ const isFinished = (snapshot: SessionSnapshot, submissionId: string): boolean =>
     snapshot.outcome,
   );
 
-/** Counts the Run's `context.trimmed` events; a Trace that never settled (or none) is "unknown". */
-const readFallbackTrims = async (
+/**
+ * Counts the Run's `context.trimmed` events and sums the tokens of every model call; a Trace that
+ * never settled (or none) gives "unknown" trims and no tokens.
+ */
+const readTraceFacts = async (
   runtime: RuntimeClient,
   sessionId: string,
   runId: string,
-): Promise<number | "unknown"> => {
+): Promise<Pick<AgentAnswer, "fallbackTrims" | "tokens">> => {
   try {
     const events = await runtime.command({ type: "read-trace", sessionId, runId });
-    if (!Array.isArray(events)) return "unknown";
-    const types = (events as TraceEvent[]).map((event) => event.type);
-    if (!types.includes("run.settled")) return "unknown";
-    return types.filter((type) => type === "context.trimmed").length;
+    if (!Array.isArray(events)) return { fallbackTrims: "unknown" };
+    const run = readRun(events as TraceEvent[]);
+    if (!run.complete) return { fallbackTrims: "unknown" };
+    const { inputTokens, outputTokens } = summarizeRun(run);
+    return {
+      fallbackTrims: run.events.filter((event) => event.type === "context.trimmed").length,
+      tokens: { input: inputTokens, output: outputTokens },
+    };
   } catch {
-    return "unknown";
+    return { fallbackTrims: "unknown" };
   }
 };
 
 /**
  * Answers each question in a fresh `eval-<uuid>` in-memory session with the chat system prompt
  * and the read-only tools, and deletes the session afterwards, whatever the outcome. Deleting
- * flushes the Run's Trace, which is then read for the fallback trim count.
+ * flushes the Run's Trace, which is then read for the fallback trim count and token totals.
  */
 export async function createWebAgentAdapter(
   options: WebAgentAdapterOptions,
@@ -113,7 +122,7 @@ export async function createWebAgentAdapter(
       const submissionId = crypto.randomUUID();
       const messageId = crypto.randomUUID();
       let unsubscribe = () => {};
-      let result: Omit<AgentAnswer, "fallbackTrims">;
+      let result: Omit<AgentAnswer, "fallbackTrims" | "tokens">;
       try {
         const finished = new Promise<SessionSnapshot>((resolve, reject) => {
           if (signal.aborted) return reject(signal.reason);
@@ -171,10 +180,7 @@ export async function createWebAgentAdapter(
           .command({ type: "delete", sessionId, storage: "memory" })
           .catch((error: unknown) => console.error("Could not delete evaluation session:", error));
       }
-      return {
-        ...result,
-        fallbackTrims: await readFallbackTrims(runtime, sessionId, submissionId),
-      };
+      return { ...result, ...(await readTraceFacts(runtime, sessionId, submissionId)) };
     },
   };
 }

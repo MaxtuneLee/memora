@@ -1,8 +1,12 @@
 import {
   createJevJudge,
+  listAgentEvaluationResults,
+  readAgentEvaluationResult,
   saveAgentEvaluationResult,
-  spotChecks,
+  type AgentAttemptResult,
   type AgentEvaluationResult,
+  type EvaluationQuestion,
+  type SavedAgentEvaluationSummary,
 } from "@memora/evaluation";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
@@ -27,6 +31,8 @@ import {
 import type { setting } from "@/livestore/setting";
 import { useAppStore } from "@/livestore/store";
 import { tokens } from "../../styles/stylex.stylex";
+
+import { AgentAttemptList, AgentEvaluationSummaryView } from "./AgentEvaluationResults";
 
 const styles = stylex.create({
   section: {
@@ -92,6 +98,25 @@ const styles = stylex.create({
     whiteSpace: "pre-wrap",
   },
   summary: { color: tokens.text, fontSize: "0.875rem", lineHeight: "1.25rem" },
+  history: { display: "flex", flexDirection: "column" },
+  historyRow: {
+    alignItems: "center",
+    backgroundColor: { default: "transparent", ":hover": tokens.hover },
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    color: tokens.text,
+    display: "flex",
+    fontSize: "0.875rem",
+    gap: "1rem",
+    justifyContent: "space-between",
+    paddingBlock: "0.625rem",
+    paddingInline: "0.5rem",
+    textAlign: "left",
+    width: "100%",
+  },
+  historyRowSelected: { backgroundColor: tokens.selected },
+  historyMeta: { color: tokens.textMuted, fontSize: "0.75rem", fontVariantNumeric: "tabular-nums" },
   pre: {
     backgroundColor: tokens.surfaceMuted,
     borderRadius: "0.75rem",
@@ -104,7 +129,7 @@ const styles = stylex.create({
 
 // Stored like provider keys: device-local, never exported.
 const TYPESAFE_CREDENTIAL = { id: "typesafe", baseUrl: "https://api.typesafe.ai" };
-const SPOT_CHECKS_SHOWN = 10;
+const ATTEMPTS_PER_QUESTION = 3;
 
 type ImportState =
   | { status: "idle" }
@@ -114,9 +139,24 @@ type ImportState =
 
 type RunState =
   | { status: "idle" }
-  | { status: "running"; completed: number; total: number }
+  | {
+      status: "running";
+      completed: number;
+      total: number;
+      attempts: AgentAttemptResult[];
+      questions: EvaluationQuestion[];
+      fileLectures: Record<string, string>;
+    }
   | { status: "failed"; message: string }
   | { status: "done"; result: AgentEvaluationResult; saveError?: string };
+
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+const historyLabel = (item: SavedAgentEvaluationSummary) => {
+  const rate = item.completed ? ` (${Math.round((item.passed / item.completed) * 100)}%)` : "";
+  const tokens = `${(item.tokens.input + item.tokens.output).toLocaleString()} tokens`;
+  return `${item.status === "canceled" ? "Canceled" : "Completed"} · ${item.passed} / ${item.completed} passed${rate} · ${tokens}`;
+};
 
 export default function AgentEvaluation() {
   const store = useAppStore();
@@ -128,6 +168,38 @@ export default function AgentEvaluation() {
   const [run, setRun] = useState<RunState>({ status: "idle" });
   const controller = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => controller.current?.abort(), []);
+  const [history, setHistory] = useState<SavedAgentEvaluationSummary[]>([]);
+  const [shown, setShown] = useState<AgentEvaluationResult>();
+  const [openError, setOpenError] = useState<string>();
+
+  const openResult = async (evaluationId: string) => {
+    setOpenError(undefined);
+    try {
+      setShown(await readAgentEvaluationResult(evaluationId));
+    } catch (error) {
+      setOpenError(errorMessage(error));
+    }
+  };
+
+  // Opens the latest saved evaluation.
+  useEffect(() => {
+    let cancelled = false;
+    void listAgentEvaluationResults().then(
+      async (items) => {
+        if (cancelled) return;
+        setHistory(items);
+        if (!items[0]) return;
+        const latest = await readAgentEvaluationResult(items[0].evaluationId).catch(
+          () => undefined,
+        );
+        if (!cancelled && latest) setShown((current) => current ?? latest);
+      },
+      (error: unknown) => setOpenError(errorMessage(error)),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
@@ -146,7 +218,14 @@ export default function AgentEvaluation() {
     const { questions, fileLectures, cues, revisions } = state.data;
     const next = new AbortController();
     controller.current = next;
-    setRun({ status: "running", completed: 0, total: questions.length * 3 });
+    setRun({
+      status: "running",
+      completed: 0,
+      total: questions.length * ATTEMPTS_PER_QUESTION,
+      attempts: [],
+      questions,
+      fileLectures,
+    });
     try {
       const agent = await createWebAgentAdapter({
         provider: providerConfig,
@@ -164,18 +243,26 @@ export default function AgentEvaluation() {
         },
         {
           signal: next.signal,
-          onProgress: ({ completed, total }) => setRun({ status: "running", completed, total }),
+          // Attempts show as they finish, not only at the end.
+          onProgress: ({ completed, attempt }) =>
+            setRun((current) =>
+              current.status === "running"
+                ? { ...current, completed, attempts: [...current.attempts, attempt] }
+                : current,
+            ),
         },
       );
       let saveError: string | undefined;
       try {
         await saveAgentEvaluationResult(result);
       } catch (error) {
-        saveError = error instanceof Error ? error.message : String(error);
+        saveError = errorMessage(error);
       }
       setRun({ status: "done", result, saveError });
+      setShown(result);
+      void listAgentEvaluationResults().then(setHistory, () => {});
     } catch (error) {
-      setRun({ status: "failed", message: error instanceof Error ? error.message : String(error) });
+      setRun({ status: "failed", message: errorMessage(error) });
     } finally {
       controller.current = undefined;
     }
@@ -322,34 +409,68 @@ export default function AgentEvaluation() {
           {run.message}
         </p>
       ) : null}
-      {run.status === "done" ? (
+      {run.status === "done" && run.saveError ? (
+        <p role="alert" {...stylex.props(styles.error)}>
+          The result could not be saved: {run.saveError}
+        </p>
+      ) : null}
+      {openError ? (
+        <p role="alert" {...stylex.props(styles.error)}>
+          {openError}
+        </p>
+      ) : null}
+      {run.status === "running" ? (
+        <AgentAttemptList
+          questions={run.questions}
+          attempts={run.attempts}
+          attemptsPerQuestion={ATTEMPTS_PER_QUESTION}
+          fileLectures={run.fileLectures}
+        />
+      ) : shown ? (
         <>
-          <p {...stylex.props(styles.summary)}>
-            {run.result.status === "canceled" ? "Canceled. " : ""}
-            {run.result.summary.passed} of {run.result.summary.plannedAttempts} attempts passed;
-            retrieval passed {run.result.summary.retrievalPassed}, coverage passed{" "}
-            {run.result.summary.coveragePassed}.{" "}
-            {run.saveError
-              ? `The result could not be saved: ${run.saveError}`
-              : `Saved as ${run.result.evaluationId}.`}
-          </p>
           <div>
-            <h3 {...stylex.props(styles.field)}>Review these first</h3>
-            <ol {...stylex.props(styles.summary)}>
-              {spotChecks(run.result)
-                .slice(0, SPOT_CHECKS_SHOWN)
-                .map((check) => (
-                  <li key={`${check.questionId}-${check.attempt}`}>
-                    {check.questionId} attempt {check.attempt}: retrieval{" "}
-                    {check.retrievalPassed ? "passed" : "failed"}, coverage{" "}
-                    {check.coveragePassed ? "passed" : "failed"}, lowest confidence{" "}
-                    {check.minConfidence.toFixed(2)}
-                  </li>
-                ))}
-            </ol>
+            <h2 {...stylex.props(styles.title)}>Results</h2>
+            <p {...stylex.props(styles.description)}>
+              {new Date(shown.startedAt).toLocaleString()} · {shown.agent.model} · judged by{" "}
+              {shown.judge.model}
+              {shown.status === "canceled" ? " · Canceled" : ""}
+            </p>
           </div>
-          <pre {...stylex.props(styles.pre)}>{JSON.stringify(run.result.summary, null, 2)}</pre>
+          <AgentEvaluationSummaryView result={shown} />
+          <AgentAttemptList
+            key={shown.evaluationId}
+            questions={
+              shown.questions ?? shown.summary.questions.map(({ questionId }) => ({ questionId }))
+            }
+            attempts={shown.attempts}
+            attemptsPerQuestion={shown.config.attemptsPerQuestion}
+            fileLectures={shown.fileLectures}
+          />
         </>
+      ) : null}
+      {history.length ? (
+        <div>
+          <h2 {...stylex.props(styles.title)}>History</h2>
+          <div {...stylex.props(styles.history)}>
+            {history.map((item) => (
+              <button
+                key={item.evaluationId}
+                type="button"
+                aria-current={item.evaluationId === shown?.evaluationId}
+                onClick={() => void openResult(item.evaluationId)}
+                {...stylex.props(
+                  styles.historyRow,
+                  item.evaluationId === shown?.evaluationId && styles.historyRowSelected,
+                )}
+              >
+                <span>
+                  {new Date(item.startedAt).toLocaleString()} · {item.model}
+                </span>
+                <span {...stylex.props(styles.historyMeta)}>{historyLabel(item)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       ) : null}
     </section>
   );

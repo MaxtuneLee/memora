@@ -722,13 +722,23 @@ const runLabel = (run: TraceRun, runId: string): string => {
   return `${time} · ${text} · ${run.outcome ?? "incomplete"}`;
 };
 
+// A stored Run has no live session to follow.
+const NO_LIVE_SESSION = { activeRunId: undefined, revision: 0 };
+const ignoreLiveSession = () => () => {};
+
 export const ChatPageTracePanel = ({
   sessionId,
   inputMessageId,
+  runId: storedRunId,
 }: {
   sessionId: string;
   /** Opens the Run that took this user message; the latest Run otherwise. */
   inputMessageId?: string;
+  /**
+   * Shows only this stored Run, read-only, without subscribing to the session: the session may
+   * be deleted, and subscribing would recreate it.
+   */
+  runId?: string;
 }) => {
   const [runs, setRuns] = useState<Array<{ runId: string; run: TraceRun }>>([]);
   const [runId, setRunId] = useState<string | null>(null);
@@ -736,8 +746,15 @@ export const ChatPageTracePanel = ({
   const [query, setQuery] = useState("");
   const [scale, setScale] = useState<TimelineScale>("duration");
   const live = useSyncExternalStore(
-    useCallback((listener: () => void) => subscribe(sessionId, listener), [sessionId]),
-    useCallback(() => getSnapshot(sessionId), [sessionId]),
+    useCallback(
+      (listener: () => void) =>
+        storedRunId ? ignoreLiveSession() : subscribe(sessionId, listener),
+      [sessionId, storedRunId],
+    ),
+    useCallback(
+      () => (storedRunId ? NO_LIVE_SESSION : getSnapshot(sessionId)),
+      [sessionId, storedRunId],
+    ),
   );
   const followed = useRef<{ runId?: string; readAt: number }>({ readAt: 0 });
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -748,7 +765,7 @@ export const ChatPageTracePanel = ({
     let cancelled = false;
     // ponytail: reads every Run of the session to order the picker by start time; add a
     // summary command to the worker if sessions grow long enough for this to be slow.
-    void listTraceRuns(sessionId)
+    void (storedRunId ? Promise.resolve([storedRunId]) : listTraceRuns(sessionId))
       .then((ids) =>
         Promise.all(
           ids.map(async (id) => ({ runId: id, run: readRun(await readTrace(sessionId, id)) })),
@@ -772,7 +789,7 @@ export const ChatPageTracePanel = ({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, inputMessageId]);
+  }, [sessionId, inputMessageId, storedRunId]);
 
   // Follows the active Run by re-reading its Trace as the session snapshot changes, at most once
   // a second, and once more after it settles.
@@ -901,13 +918,15 @@ export const ChatPageTracePanel = ({
         <Button onClick={handleExport} disabled={!runId}>
           Export JSON
         </Button>
-        <Button
-          variant="destructive"
-          onClick={handleClear}
-          onBlur={() => setConfirmingClear(false)}
-        >
-          {confirmingClear ? "Click again to clear" : "Clear all traces"}
-        </Button>
+        {storedRunId ? null : (
+          <Button
+            variant="destructive"
+            onClick={handleClear}
+            onBlur={() => setConfirmingClear(false)}
+          >
+            {confirmingClear ? "Click again to clear" : "Clear all traces"}
+          </Button>
+        )}
       </div>
       {error ? <p {...stylex.props(styles.empty)}>{error}</p> : null}
       {run && selectedRow ? (

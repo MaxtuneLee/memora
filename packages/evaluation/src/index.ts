@@ -1,4 +1,5 @@
 export * from "./agentQuestions";
+export * from "./agentReport";
 export * from "./agentScore";
 export * from "./agentTypes";
 export * from "./audioFeatures";

@@ -211,6 +211,8 @@ export async function runAgentEvaluation(
       attemptTimeoutMs,
       toleranceSec: CITATION_TOLERANCE_SEC,
     },
+    questions: options.questions,
+    fileLectures: corpus.fileLectures,
     attempts,
     summary: buildSummary(options.questions, attempts),
   };

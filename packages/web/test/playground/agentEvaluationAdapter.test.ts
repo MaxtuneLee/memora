@@ -165,6 +165,26 @@ describe("createWebAgentAdapter", () => {
     });
   });
 
+  it("sums tokens over every model call in the Trace, summaries included", async () => {
+    const response = (purpose: string, inputTokens: number, outputTokens: number) => ({
+      ...event("model.response"),
+      purpose,
+      usage: { inputTokens, outputTokens },
+    });
+    const runtime = fakeRuntime("completed", [
+      event("run.started"),
+      response("reply", 100, 10),
+      response("summary", 40, 20),
+      response("reply", 300, 5),
+      event("run.settled"),
+    ]);
+    const adapter = await create(runtime);
+
+    const answer = await adapter.answer(question, new AbortController().signal);
+
+    expect(answer.tokens).toEqual({ input: 440, output: 35 });
+  });
+
   it("deletes the session when the Run fails", async () => {
     const runtime = fakeRuntime("failed");
     const adapter = await create(runtime);

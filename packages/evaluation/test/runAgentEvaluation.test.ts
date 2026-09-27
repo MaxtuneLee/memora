@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listAgentEvaluationResults,
   readAgentEvaluationResult,
   runAgentEvaluation,
   saveAgentEvaluationResult,
@@ -370,6 +371,8 @@ describe("runAgentEvaluation", () => {
       agent: agentIdentity,
       judge: { judge: "fake-judge", model: "fake-jev", promptVersion: "judge-1" },
       config: { scorerVersion: 1, attemptsPerQuestion: 3, toleranceSec: 5 },
+      questions: [question("q1")],
+      fileLectures: corpus.fileLectures,
     });
     expect(read.attempts[0]).toMatchObject({
       answer: { sessionId: "eval-session", runId: "run-1", fallbackTrims: 0 },
@@ -383,6 +386,37 @@ describe("runAgentEvaluation", () => {
     });
     await expect(readAgentEvaluationResult("missing", { storage })).rejects.toMatchObject({
       code: "not-found",
+    });
+  });
+
+  it("lists saved agent evaluations newest first and skips corrupted ones", async () => {
+    const storage = new MemoryResultStorage();
+    const times = ["2026-01-01T00:00:00.000Z", "2026-01-02T00:00:00.000Z"];
+    for (const [index, id] of ["eval-older", "eval-newer"].entries()) {
+      const result = await runAgentEvaluation({
+        questions: [question("q1")],
+        corpus,
+        agent: agent(() => ({ ...answer([cite(LEC11, 101)]), tokens: { input: 7, output: 3 } })),
+        judge: judge(),
+        createId: () => id,
+        now: () => new Date(times[index]),
+      });
+      await saveAgentEvaluationResult(result, { storage });
+    }
+    await storage.write("/memora/agent-evaluations/broken.json", "{ not json");
+
+    const listed = await listAgentEvaluationResults({ storage });
+
+    expect(listed.map((item) => item.evaluationId)).toEqual(["eval-newer", "eval-older"]);
+    expect(listed[0]).toEqual({
+      evaluationId: "eval-newer",
+      status: "completed",
+      startedAt: times[1],
+      finishedAt: times[1],
+      model: "fake-model",
+      passed: 3,
+      completed: 3,
+      tokens: { input: 21, output: 9, unknownAttempts: 0 },
     });
   });
 });

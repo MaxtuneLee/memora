@@ -67,6 +67,8 @@ export interface AgentAnswer {
   sessionId: string;
   runId: string | null;
   usage?: Record<string, number>;
+  /** Summed over every model call in the Run's Trace, summaries included; absent without a settled Trace. */
+  tokens?: { input: number; output: number };
   fallbackTrims: number | "unknown";
 }
 
@@ -161,6 +163,10 @@ export interface AgentEvaluationResult {
     attemptTimeoutMs: number;
     toleranceSec: number;
   };
+  /** The questions with their answer keys; absent in results saved before they were stored. */
+  questions?: EvaluationQuestion[];
+  /** Imported file ID → lecture ID; absent in results saved before it was stored. */
+  fileLectures?: Record<string, string>;
   attempts: AgentAttemptResult[];
   summary: AgentEvaluationSummary;
 }

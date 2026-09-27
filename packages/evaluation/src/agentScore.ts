@@ -21,6 +21,23 @@ export const median = (values: number[]): number | null => {
 const distanceSec = (citation: AgentCitation, window: EvidenceWindow): number =>
   Math.max(0, window.startMs / 1000 - citation.endSec, citation.startSec - window.endMs / 1000);
 
+/** Per citation, whether it lands within tolerance of any evidence window of the question. */
+export function citationHits(
+  question: Pick<EvaluationQuestion, "evidence">,
+  citations: AgentCitation[],
+  fileLectures: Record<string, string>,
+): boolean[] {
+  return citations.map((citation) =>
+    question.evidence.some((windows) =>
+      windows.some(
+        (window) =>
+          fileLectures[citation.fileId] === window.lectureId &&
+          distanceSec(citation, window) <= CITATION_TOLERANCE_SEC,
+      ),
+    ),
+  );
+}
+
 /**
  * Deterministic citation scoring: pure, and versioned by `AGENT_SCORER_VERSION`.
  * `fileLectures` maps each imported file ID to its lecture ID.
@@ -44,15 +61,7 @@ export function scoreCitations(
   const measured = groups.flatMap((group) =>
     group.distanceSec === null ? [] : [group.distanceSec],
   );
-  const hits = citations.filter((citation) =>
-    question.evidence.some((windows) =>
-      windows.some(
-        (window) =>
-          fileLectures[citation.fileId] === window.lectureId &&
-          distanceSec(citation, window) <= CITATION_TOLERANCE_SEC,
-      ),
-    ),
-  ).length;
+  const hits = citationHits(question, citations, fileLectures).filter(Boolean).length;
   return {
     scorerVersion: AGENT_SCORER_VERSION,
     retrieval: { passed: groups.every((group) => group.hit), groups },
