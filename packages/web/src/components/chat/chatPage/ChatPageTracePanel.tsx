@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { AgentMessage } from "@memora/ai-core";
 import * as stylex from "@stylexjs/stylex";
 
@@ -6,9 +6,29 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { TabSelect } from "@/components/ui/TabSelect";
-import { clearTraces, exportTrace, listTraceRuns, readTrace } from "@/lib/agent-runtime/client";
-import { readRun, renderRequest, type TraceRun } from "@/lib/agent-runtime/traceReader";
+import {
+  clearTraces,
+  exportTrace,
+  getSnapshot,
+  listTraceRuns,
+  readTrace,
+  subscribe,
+} from "@/lib/agent-runtime/client";
+import {
+  pairOf,
+  readRun,
+  renderRequest,
+  runForInput,
+  toolDefinition,
+  type TraceRun,
+} from "@/lib/agent-runtime/traceReader";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
+import {
+  layoutTimeline,
+  summarizeRun,
+  type TimelineBar,
+  type TimelineScale,
+} from "@/lib/agent-runtime/traceTimeline";
 import { tokens } from "../../../styles/stylex.stylex";
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -184,7 +204,85 @@ const styles = stylex.create({
     paddingInline: 8,
   },
   empty: { color: tokens.textMuted, paddingBlock: 40, paddingInline: 16, textAlign: "center" },
+  strip: {
+    borderBottomColor: tokens.border,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    overflowX: "auto",
+    paddingBottom: 10,
+    paddingInline: 16,
+    paddingTop: 8,
+  },
+  lane: {
+    alignItems: "center",
+    display: "grid",
+    gridTemplateColumns: "52px minmax(480px, 1fr)",
+    height: 20,
+  },
+  laneLabel: { color: tokens.textSoft, fontSize: "0.6875rem", paddingRight: 8, textAlign: "right" },
+  track: { height: 12, position: "relative" },
+  bar: {
+    borderRadius: 2,
+    borderWidth: 0,
+    cursor: "pointer",
+    height: 12,
+    minWidth: 3,
+    padding: 0,
+    position: "absolute",
+    top: 0,
+  },
+  barSelected: {
+    outlineColor: tokens.text,
+    outlineOffset: 1,
+    outlineStyle: "solid",
+    outlineWidth: 2,
+  },
+  barInput: { backgroundColor: tokens.chart1 },
+  barRun: { backgroundColor: tokens.textSoft },
+  barModel: { backgroundColor: tokens.chart5 },
+  barTool: { backgroundColor: tokens.chart3 },
+  barCompaction: {
+    backgroundImage: `repeating-linear-gradient(45deg, ${tokens.warningText} 0 2px, transparent 2px 5px)`,
+  },
+  barGap: { backgroundColor: tokens.dangerText },
+  footer: {
+    borderTopColor: tokens.border,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    color: tokens.textMuted,
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    fontVariantNumeric: "tabular-nums",
+    gap: "6px 16px",
+    paddingBlock: 8,
+    paddingInline: 16,
+  },
+  footerValue: { color: tokens.text, fontWeight: 500 },
 });
+
+const BAR_STYLES = {
+  input: styles.barInput,
+  run: styles.barRun,
+  model: styles.barModel,
+  tool: styles.barTool,
+  compaction: styles.barCompaction,
+  gap: styles.barGap,
+} as const;
+
+const LANE_LABELS = [
+  ["input", "Input"],
+  ["model", "Model"],
+  ["tools", "Tools"],
+] as const;
+
+const SCALE_OPTIONS = [
+  { value: "duration", label: "Duration" },
+  { value: "turns", label: "Turns" },
+] as const;
+
+// Traces are written at the end of each model turn, every second, and at the end of the Run.
+const LIVE_READ_MS = 1_000;
 
 type Kind = "neutral" | "input" | "model" | "tool" | "bad";
 
@@ -214,9 +312,6 @@ const contentText = (message: AgentMessage): string =>
       return `[image ${item.mimeType}]`;
     })
     .join("\n");
-
-const findAfter = (events: TraceEvent[], from: TraceEvent, match: (event: TraceEvent) => boolean) =>
-  events.find((event) => event.sequence > from.sequence && match(event));
 
 /** One row per step: a response folds into its request, a settlement into its tool start. */
 const toRows = (events: TraceEvent[]): Row[] =>
@@ -277,7 +372,7 @@ const toRows = (events: TraceEvent[]): Row[] =>
           },
         ];
       case "model.request": {
-        const pair = findAfter(events, event, (next) => next.type === "model.response");
+        const pair = pairOf(events, event);
         const calls = (pair?.toolCalls as unknown[] | undefined)?.length ?? 0;
         return [
           {
@@ -297,11 +392,7 @@ const toRows = (events: TraceEvent[]): Row[] =>
         ];
       }
       case "tool.started": {
-        const pair = findAfter(
-          events,
-          event,
-          (next) => next.type === "tool.settled" && next.toolCallId === event.toolCallId,
-        );
+        const pair = pairOf(events, event);
         return [
           {
             event,
@@ -387,7 +478,36 @@ const MessageRow = ({ id, role, text }: { id: string; role: string; text: string
   </details>
 );
 
-type DetailTab = "summary" | "request" | "response" | "arguments" | "result";
+const Schema = ({ definition }: { definition: unknown }) =>
+  definition ? (
+    <>
+      <p {...stylex.props(styles.hint)}>
+        From the latest tool definitions recorded before this call.
+      </p>
+      <Pre>{JSON.stringify(definition, null, 2)}</Pre>
+    </>
+  ) : (
+    <p {...stylex.props(styles.hint)}>No definition of this tool was recorded before the call.</p>
+  );
+
+type DetailTab = "summary" | "request" | "response" | "arguments" | "result" | "schema" | "timing";
+
+const seconds = (ms: number): string => `${(ms / 1000).toFixed(2)} s`;
+
+/** When a call started and settled, as clock time and time into the Run. */
+const timingOf = (run: TraceRun, row: Row): Array<[string, unknown]> => {
+  const origin = run.startedAt ?? row.event.timestamp;
+  const clock = (event: TraceEvent) =>
+    `${new Date(event.timestamp).toLocaleTimeString()} · ${seconds(event.timestamp - origin)} into the Run`;
+  return [
+    ["Started", clock(row.event)],
+    ["Ended", row.pair ? clock(row.pair) : "not yet"],
+    [
+      "Duration",
+      row.pair?.durationMs === undefined ? undefined : `${preview(row.pair.durationMs)} ms`,
+    ],
+  ];
+};
 
 const summaryOf = (row: Row): Array<[string, unknown]> => {
   const {
@@ -433,9 +553,18 @@ const summaryOf = (row: Row): Array<[string, unknown]> => {
 const Detail = ({ run, row }: { run: TraceRun; row: Row }) => {
   const tabs: Array<{ value: DetailTab; label: string }> = [{ value: "summary", label: "Summary" }];
   if (row.event.type === "model.request")
-    tabs.push({ value: "request", label: "Request" }, { value: "response", label: "Response" });
+    tabs.push(
+      { value: "request", label: "Request" },
+      { value: "response", label: "Response" },
+      { value: "timing", label: "Timing" },
+    );
   if (row.event.type === "tool.started")
-    tabs.push({ value: "arguments", label: "Arguments" }, { value: "result", label: "Result" });
+    tabs.push(
+      { value: "arguments", label: "Arguments" },
+      { value: "result", label: "Result" },
+      { value: "schema", label: "Schema" },
+      { value: "timing", label: "Timing" },
+    );
   const [selected, setSelected] = useState<DetailTab>("summary");
   const tab = tabs.some((item) => item.value === selected) ? selected : "summary";
   const request = useMemo(
@@ -511,8 +640,78 @@ const Detail = ({ run, row }: { run: TraceRun; row: Row }) => {
             <p {...stylex.props(styles.hint)}>No result was recorded.</p>
           )
         ) : null}
+        {tab === "schema" ? <Schema definition={toolDefinition(run.events, row.event)} /> : null}
+        {tab === "timing" ? <KeyValues entries={timingOf(run, row)} /> : null}
       </div>
     </aside>
+  );
+};
+
+const Timeline = ({
+  bars,
+  rows,
+  selected,
+  onSelect,
+}: {
+  bars: TimelineBar[];
+  rows: Row[];
+  selected: number | undefined;
+  onSelect: (sequence: number) => void;
+}) => {
+  const rowOf = new Map(rows.map((row) => [row.event.sequence, row]));
+  return (
+    <div role="group" aria-label="Timeline" {...stylex.props(styles.strip)}>
+      {LANE_LABELS.map(([lane, label]) => (
+        <div key={lane} {...stylex.props(styles.lane)}>
+          <span {...stylex.props(styles.laneLabel)}>{label}</span>
+          <div {...stylex.props(styles.track)}>
+            {bars
+              .filter((bar) => bar.lane === lane)
+              .map((bar) => {
+                const row = rowOf.get(bar.sequence);
+                return (
+                  <button
+                    key={bar.sequence}
+                    type="button"
+                    aria-label={row ? `${row.label}: ${row.line}` : String(bar.sequence)}
+                    aria-pressed={bar.sequence === selected}
+                    onClick={() => onSelect(bar.sequence)}
+                    {...stylex.props(
+                      styles.bar,
+                      BAR_STYLES[bar.kind],
+                      bar.sequence === selected && styles.barSelected,
+                    )}
+                    style={{ left: `${bar.left * 100}%`, width: `${bar.width * 100}%` }}
+                  />
+                );
+              })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const Footer = ({ run, status }: { run: TraceRun; status: string }) => {
+  const stats = summarizeRun(run);
+  const items: Array<[string, string]> = [
+    ["Status", status],
+    ["Duration", seconds(stats.durationMs)],
+    ["Turns", String(stats.turns)],
+    [
+      "Tokens",
+      `${stats.inputTokens.toLocaleString()} in · ${stats.outputTokens.toLocaleString()} out`,
+    ],
+    ["Compactions", String(stats.compactions)],
+  ];
+  return (
+    <div {...stylex.props(styles.footer)}>
+      {items.map(([label, value]) => (
+        <span key={label}>
+          {label} <span {...stylex.props(styles.footerValue)}>{value}</span>
+        </span>
+      ))}
+    </div>
   );
 };
 
@@ -523,11 +722,25 @@ const runLabel = (run: TraceRun, runId: string): string => {
   return `${time} · ${text} · ${run.outcome ?? "incomplete"}`;
 };
 
-export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
+export const ChatPageTracePanel = ({
+  sessionId,
+  inputMessageId,
+}: {
+  sessionId: string;
+  /** Opens the Run that took this user message; the latest Run otherwise. */
+  inputMessageId?: string;
+}) => {
   const [runs, setRuns] = useState<Array<{ runId: string; run: TraceRun }>>([]);
   const [runId, setRunId] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [scale, setScale] = useState<TimelineScale>("duration");
+  const live = useSyncExternalStore(
+    useCallback((listener: () => void) => subscribe(sessionId, listener), [sessionId]),
+    useCallback(() => getSnapshot(sessionId), [sessionId]),
+  );
+  const followed = useRef<{ runId?: string; readAt: number }>({ readAt: 0 });
+  const rowsRef = useRef<HTMLDivElement>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -545,7 +758,11 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
         if (cancelled) return;
         loaded.sort((a, b) => (b.run.startedAt ?? 0) - (a.run.startedAt ?? 0));
         setRuns(loaded);
-        setRunId(loaded[0]?.runId ?? null);
+        setRunId(
+          (inputMessageId ? runForInput(loaded, inputMessageId) : undefined) ??
+            loaded[0]?.runId ??
+            null,
+        );
         setSelected(null);
         setError(null);
       })
@@ -555,10 +772,41 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, inputMessageId]);
+
+  // Follows the active Run by re-reading its Trace as the session snapshot changes, at most once
+  // a second, and once more after it settles.
+  const activeRunId = live.activeRunId;
+  useEffect(() => {
+    const follow = followed.current;
+    if (activeRunId) follow.runId = activeRunId;
+    const target = follow.runId;
+    if (!target) return;
+    const timer = setTimeout(
+      () => {
+        follow.readAt = Date.now();
+        if (!activeRunId) follow.runId = undefined;
+        void readTrace(sessionId, target)
+          .then((events) => {
+            const run = readRun(events);
+            setRuns((current) =>
+              current.some((item) => item.runId === target)
+                ? current.map((item) => (item.runId === target ? { runId: target, run } : item))
+                : [{ runId: target, run }, ...current],
+            );
+            setRunId((current) => current ?? target);
+          })
+          // Nothing written yet; the next snapshot tries again.
+          .catch(() => {});
+      },
+      Math.max(0, follow.readAt + LIVE_READ_MS - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [sessionId, activeRunId, live.revision]);
 
   const run = runs.find((item) => item.runId === runId)?.run;
   const rows = useMemo(() => (run ? toRows(run.events) : []), [run]);
+  const bars = useMemo(() => (run ? layoutTimeline(run, scale) : []), [run, scale]);
   const selectedRow = rows.find((row) => row.event.sequence === selected) ?? rows[0];
   const needle = query.trim().toLowerCase();
   const visible = needle
@@ -597,6 +845,16 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
       );
   }, [confirmingClear]);
 
+  const selectFromTimeline = useCallback((sequence: number) => {
+    setSelected(sequence);
+    setQuery("");
+    requestAnimationFrame(() =>
+      rowsRef.current
+        ?.querySelector(`[data-sequence="${sequence}"]`)
+        ?.scrollIntoView({ block: "nearest" }),
+    );
+  }, []);
+
   const startedAt = run?.startedAt ?? 0;
   const turnOf = useMemo(
     () =>
@@ -625,6 +883,12 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
             placeholder="No Runs recorded"
           />
         </div>
+        <TabSelect
+          aria-label="Timeline scale"
+          value={scale}
+          onValueChange={setScale}
+          options={SCALE_OPTIONS}
+        />
         <div {...stylex.props(styles.search)}>
           <Input
             type="search"
@@ -647,8 +911,16 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
       </div>
       {error ? <p {...stylex.props(styles.empty)}>{error}</p> : null}
       {run && selectedRow ? (
+        <Timeline
+          bars={bars}
+          rows={rows}
+          selected={selectedRow.event.sequence}
+          onSelect={selectFromTimeline}
+        />
+      ) : null}
+      {run && selectedRow ? (
         <div {...stylex.props(styles.split)}>
-          <div {...stylex.props(styles.rows)}>
+          <div ref={rowsRef} {...stylex.props(styles.rows)}>
             {visible.length ? null : <p {...stylex.props(styles.empty)}>No events match.</p>}
             {visible.map((row, index) => {
               const rowTurn = turnOf.get(row.event.sequence) ?? 0;
@@ -664,6 +936,7 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
                   {head}
                   <button
                     type="button"
+                    data-sequence={row.event.sequence}
                     onClick={() => setSelected(row.event.sequence)}
                     {...stylex.props(styles.row, row === selectedRow && styles.rowSelected)}
                   >
@@ -695,6 +968,12 @@ export const ChatPageTracePanel = ({ sessionId }: { sessionId: string }) => {
       ) : error ? null : (
         <p {...stylex.props(styles.empty)}>No Runs recorded for this session yet.</p>
       )}
+      {run ? (
+        <Footer
+          run={run}
+          status={run.outcome ?? (runId === activeRunId ? "running" : "incomplete")}
+        />
+      ) : null}
     </section>
   );
 };

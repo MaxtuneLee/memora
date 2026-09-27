@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { ConfirmDialog } from "@/components/desktop";
 import { MotionConfig, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
@@ -138,6 +138,21 @@ export const ChatPageView = (props: {
     onCloseHistoryDrawer,
   } = props;
   const [view, setView] = useState<"chat" | "trace">("chat");
+  // The user message that started (or steered) the Run to open in the Trace tab.
+  const [traceInputId, setTraceInputId] = useState<string>();
+  const { messages } = composerPanelProps;
+  const handleViewChange = useCallback((next: "chat" | "trace") => {
+    setView(next);
+    setTraceInputId(undefined);
+  }, []);
+  const handleViewTrace = useCallback(
+    (assistantMessageId: string) => {
+      const index = messages.findIndex((message) => message.id === assistantMessageId);
+      setTraceInputId(messages.slice(0, index).findLast((message) => message.role === "user")?.id);
+      setView("trace");
+    },
+    [messages],
+  );
 
   return (
     <MotionConfig reducedMotion="user">
@@ -162,14 +177,14 @@ export const ChatPageView = (props: {
               <TabSelect
                 aria-label="Chat view"
                 value={view}
-                onValueChange={setView}
+                onValueChange={handleViewChange}
                 options={VIEW_OPTIONS}
               />
             </div>
           ) : null}
           {ChatPageTracePanel && view === "trace" && activeSessionId ? (
             <Suspense fallback={null}>
-              <ChatPageTracePanel sessionId={activeSessionId} />
+              <ChatPageTracePanel sessionId={activeSessionId} inputMessageId={traceInputId} />
             </Suspense>
           ) : null}
           <div {...stylex.props(styles.content, view === "trace" && styles.hidden)}>
@@ -208,6 +223,7 @@ export const ChatPageView = (props: {
                   onSendWidgetPrompt={onSendWidgetPrompt}
                   onEditMessage={onEditMessage}
                   onRetryMessage={onRetryMessage}
+                  onViewTrace={ChatPageTracePanel ? handleViewTrace : undefined}
                   onToggleThinking={onToggleThinking}
                   onContinueAfterIterationLimit={onContinueAfterIterationLimit}
                   onDismissIterationLimitPrompt={onDismissIterationLimitPrompt}

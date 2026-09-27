@@ -96,6 +96,7 @@ interface ChatPageMessagesPanelProps {
   onSendWidgetPrompt: (text: string) => Promise<void>;
   onEditMessage: (messageId: string, nextText: string) => Promise<void>;
   onRetryMessage: (assistantMessageId: string) => Promise<void>;
+  onViewTrace?: (assistantMessageId: string) => void;
   onToggleThinking: () => void;
   onContinueAfterIterationLimit: () => Promise<void>;
   onDismissIterationLimitPrompt: () => void;
@@ -124,6 +125,7 @@ export const ChatPageMessagesPanel = ({
   onSendWidgetPrompt,
   onEditMessage,
   onRetryMessage,
+  onViewTrace,
   onToggleThinking,
   onContinueAfterIterationLimit,
   onDismissIterationLimitPrompt,
@@ -165,6 +167,7 @@ export const ChatPageMessagesPanel = ({
                 ? onRetryMessage
                 : undefined
             }
+            onViewTrace={message.role === "assistant" ? onViewTrace : undefined}
             actionsDisabled={isStreaming || isPreparingTurn}
             mascotLayoutId={message.id === firstAssistantId ? mascotLayoutId : undefined}
             onToggleThinking={isCurrentAssistant ? onToggleThinking : undefined}

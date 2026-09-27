@@ -99,3 +99,46 @@ export const renderRequest = (events: TraceEvent[], request: TraceEvent): Render
     messages: messageIds.map((id) => ({ id, message: byId.get(id) })),
   };
 };
+
+/** The event that completes this one: a request's response, or a tool start's settlement. */
+export const pairOf = (events: TraceEvent[], event: TraceEvent): TraceEvent | undefined => {
+  if (event.type === "model.request")
+    return events.find((next) => next.sequence > event.sequence && next.type === "model.response");
+  if (event.type === "tool.started")
+    return events.find(
+      (next) =>
+        next.sequence > event.sequence &&
+        next.type === "tool.settled" &&
+        next.toolCallId === event.toolCallId,
+    );
+  return undefined;
+};
+
+/** The definition of a started tool, from the latest tool definitions recorded before the call. */
+export const toolDefinition = (events: TraceEvent[], started: TraceEvent): unknown => {
+  let tools: unknown[] | undefined;
+  for (const event of events) {
+    if (event.sequence > started.sequence) break;
+    if (event.type === "model.request" && Array.isArray(event.tools)) tools = event.tools;
+  }
+  return tools?.find((tool) => (tool as { name?: unknown }).name === started.name);
+};
+
+/** The latest Run that took this message as its starting input or absorbed it as a steer. */
+export const runForInput = (
+  runs: Array<{ runId: string; run: TraceRun }>,
+  messageId: string,
+): string | undefined =>
+  runs
+    .filter(({ run }) =>
+      run.events.some((event) =>
+        event.type === "run.started"
+          ? (event.submission as { input?: { id?: string } } | undefined)?.input?.id === messageId
+          : event.type === "input.applied" && event.messageId === messageId,
+      ),
+    )
+    .reduce<{ runId: string; run: TraceRun } | undefined>(
+      (latest, item) =>
+        !latest || (item.run.startedAt ?? 0) > (latest.run.startedAt ?? 0) ? item : latest,
+      undefined,
+    )?.runId;

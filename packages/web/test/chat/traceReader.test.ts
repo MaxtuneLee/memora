@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { AgentMessage, CompactionParameters } from "@memora/ai-core";
 
-import { readRun, renderRequest } from "@/lib/agent-runtime/traceReader";
+import {
+  pairOf,
+  readRun,
+  renderRequest,
+  runForInput,
+  toolDefinition,
+} from "@/lib/agent-runtime/traceReader";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 
 const text = (id: string, role: AgentMessage["role"], body: string): AgentMessage => ({
@@ -107,5 +113,71 @@ describe("trace reader", () => {
     const events = trace();
     const request = renderRequest(events, { ...events[2]!, messageIds: ["missing"] });
     expect(request.messages).toEqual([{ id: "missing", message: undefined }]);
+  });
+
+  it("pairs a request with its response and a tool start with its settlement", () => {
+    const events = trace();
+    expect(pairOf(events, events[2]!)?.type).toBe("model.response");
+    expect(pairOf(events, events[5]!)).toBeUndefined();
+    const started = event({ type: "tool.started", toolCallId: "c1", name: "read_file" });
+    expect(pairOf([...events, started], started)).toBeUndefined();
+    const other = event({ type: "tool.settled", toolCallId: "c2", name: "read_file" });
+    const settled = event({ type: "tool.settled", toolCallId: "c1", name: "read_file" });
+    expect(pairOf([...events, started, other, settled], started)).toBe(settled);
+  });
+
+  it("finds the tool definition in effect when the call started", () => {
+    sequence = 0;
+    const definition = (description: string) => ({
+      name: "read_file",
+      description,
+      parameters: { type: "object" },
+    });
+    const request = (tools?: unknown[]) =>
+      event({
+        type: "model.request",
+        purpose: "reply",
+        messageIds: [],
+        ...(tools ? { tools } : {}),
+      });
+    const events = [
+      request([definition("old")]),
+      event({ type: "tool.started", toolCallId: "c1", name: "read_file" }),
+      request(),
+      event({ type: "tool.started", toolCallId: "c2", name: "read_file" }),
+      request([definition("new")]),
+      event({ type: "tool.started", toolCallId: "c3", name: "read_file" }),
+      event({ type: "tool.started", toolCallId: "c4", name: "write_file" }),
+    ];
+    expect(toolDefinition(events, events[1]!)).toEqual(definition("old"));
+    expect(toolDefinition(events, events[3]!)).toEqual(definition("old"));
+    expect(toolDefinition(events, events[5]!)).toEqual(definition("new"));
+    expect(toolDefinition(events, events[6]!)).toBeUndefined();
+  });
+
+  it("finds the latest Run that took a message as its input or a steer", () => {
+    const started = (runId: string, at: number, inputId: string): TraceEvent => ({
+      formatVersion: 1,
+      sessionId: "s",
+      runId,
+      sequence: 0,
+      timestamp: at,
+      type: "run.started",
+      submission: { input: text(inputId, "user", "question") },
+    });
+    const steer = {
+      ...started("r2", 20, "u2"),
+      sequence: 3,
+      type: "input.applied",
+      messageId: "u3",
+    };
+    const runs = [
+      { runId: "r1", run: readRun([started("r1", 10, "u1")]) },
+      { runId: "r2", run: readRun([started("r2", 20, "u2"), steer]) },
+      { runId: "r3", run: readRun([started("r3", 30, "u1")]) },
+    ];
+    expect(runForInput(runs, "u1")).toBe("r3");
+    expect(runForInput(runs, "u3")).toBe("r2");
+    expect(runForInput(runs, "missing")).toBeUndefined();
   });
 });
