@@ -1976,14 +1976,19 @@ export const WysiwygDocumentEditor = forwardRef<
     }
 
     isImportingRef.current = true;
-    editor.update(() => {
-      importWysiwygMarkdown(text);
-      // Outside changes append content (an attached image), so keep the caret at the end rather
-      // than jumping to the top of the document.
-      if ($getSelection() !== null) {
-        $getRoot().selectEnd();
-      }
-    });
+    // Discrete so the change listener runs while isImportingRef is set and does not write the
+    // re-exported Markdown back over the outside change.
+    editor.update(
+      () => {
+        importWysiwygMarkdown(text);
+        // Outside changes append content (an attached image) or come from chat edits, so keep
+        // the caret at the end rather than jumping to the top of the document.
+        if ($getSelection() !== null) {
+          $getRoot().selectEnd();
+        }
+      },
+      { discrete: true },
+    );
     latestMarkdownRef.current = text;
     isImportingRef.current = false;
   }, [text]);

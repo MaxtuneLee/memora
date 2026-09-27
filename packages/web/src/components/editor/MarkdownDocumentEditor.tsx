@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } 
 import {
   ArrowLeftIcon,
   CaretDownIcon,
+  ChatCircleIcon,
   CodeIcon,
   DotsThreeVerticalIcon,
   FloppyDiskIcon,
@@ -94,6 +95,7 @@ const styles = stylex.create({
   headerEnd: {
     alignItems: "center",
     display: "flex",
+    gap: "0.5rem",
     justifyContent: "flex-end",
     justifySelf: { default: "auto", "@media (min-width: 768px)": "end" },
   },
@@ -115,6 +117,10 @@ const styles = stylex.create({
       backgroundColor: tokens.hover,
       borderColor: tokens.borderStrong,
     },
+  },
+  chatToggleActive: {
+    backgroundColor: tokens.hover,
+    borderColor: tokens.borderStrong,
   },
   menuTriggerIconFrame: {
     alignItems: "center",
@@ -257,6 +263,8 @@ interface MarkdownDocumentEditorProps {
   txtUpgradeDialogOpen: boolean;
   onConfirmTxtUpgrade: () => void;
   onCancelTxtUpgrade: () => void;
+  isChatOpen?: boolean;
+  onToggleChat?: () => void;
 }
 
 const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"]): string => {
@@ -302,6 +310,8 @@ export function MarkdownDocumentEditor({
   txtUpgradeDialogOpen,
   onConfirmTxtUpgrade,
   onCancelTxtUpgrade,
+  isChatOpen = false,
+  onToggleChat,
 }: MarkdownDocumentEditorProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
@@ -431,6 +441,25 @@ export function MarkdownDocumentEditor({
         </div>
 
         <div {...stylex.props(styles.headerEnd)}>
+          {onToggleChat ? (
+            <button
+              type="button"
+              aria-pressed={isChatOpen}
+              title={isChatOpen ? "Close chat" : "Chat about this note"}
+              className={`memora-interactive ${
+                stylex.props(styles.menuTrigger, isChatOpen && styles.chatToggleActive).className
+              }`}
+              onClick={onToggleChat}
+            >
+              <span {...stylex.props(styles.menuTriggerIconFrame)}>
+                <ChatCircleIcon
+                  className={stylex.props(styles.menuLargeIcon).className}
+                  weight="bold"
+                />
+              </span>
+              <span {...stylex.props(styles.menuTriggerLabel)}>Chat</span>
+            </button>
+          ) : null}
           <AppMenu>
             <AppMenuTrigger
               className={`memora-interactive ${stylex.props(styles.menuTrigger).className}`}

@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 
+import { DocumentChatSidebar } from "@/components/editor/DocumentChatSidebar";
 import { MarkdownDocumentEditor } from "@/components/editor/MarkdownDocumentEditor";
 import { useDocumentEditorFile } from "@/hooks/editor/useDocumentEditorFile";
 import {
@@ -23,6 +32,7 @@ import { resolveRelativeWorkspacePath, type WorkspaceFolderLike } from "@/lib/ed
 import { parseLineAnchor, parseReferenceLink } from "@/lib/editor/referenceLinks";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
+import { registerDocumentToolTarget } from "@/lib/chat/tools/documentTools";
 import { folderEvents } from "@/livestore/folder";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
 import { tokens } from "../../styles/stylex.stylex";
@@ -80,9 +90,15 @@ const styles = stylex.create({
     transitionProperty: "background-color",
   },
   page: {
+    alignItems: "flex-start",
     backgroundColor: tokens.canvas,
     color: tokens.text,
+    display: "flex",
     minHeight: "100vh",
+  },
+  pageBody: {
+    flex: 1,
+    minWidth: 0,
     paddingBlock: "1rem",
     paddingInline: "1.25rem",
     "@media (min-width: 640px)": {
@@ -493,6 +509,44 @@ function DocumentEditorSession({
     [editorFile],
   );
 
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  // The text before the chat's latest run of edits, and what the chat left, so it can be undone.
+  const [chatEdit, setChatEdit] = useState<{ before: string; after: string } | null>(null);
+  const chatSessionId = `document-chat:${file.id}`;
+  const chatTargetRef = useRef({ editorFile, editorMode, guardWysiwygEntry, handleTextChange });
+  useLayoutEffect(() => {
+    chatTargetRef.current = { editorFile, editorMode, guardWysiwygEntry, handleTextChange };
+  });
+
+  const applyChatText = useCallback((nextText: string): void => {
+    const latest = chatTargetRef.current;
+    latest.handleTextChange(nextText);
+    // Leave Preview when the new Markdown would not convert cleanly, as when opening the note.
+    if (latest.editorMode === "wysiwyg") {
+      latest.guardWysiwygEntry();
+    }
+  }, []);
+
+  const chatFileName = activeFile?.name ?? file.name;
+  useEffect(() => {
+    return registerDocumentToolTarget(chatSessionId, {
+      fileName: chatFileName,
+      getText: () => chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
+      applyText: (nextText) => {
+        const before = chatTargetRef.current.editorFile.getCanonicalSnapshot().text;
+        setChatEdit((current) => ({ before: current?.before ?? before, after: nextText }));
+        applyChatText(nextText);
+      },
+    });
+  }, [applyChatText, chatFileName, chatSessionId]);
+
+  const handleUndoChatEdit = useCallback((): void => {
+    if (chatEdit) {
+      applyChatText(chatEdit.before);
+    }
+    setChatEdit(null);
+  }, [applyChatText, chatEdit]);
+
   const handleAttachImage = useCallback(
     async (image: File): Promise<void> => {
       setWysiwygSafetyDiagnostics([]);
@@ -668,68 +722,85 @@ function DocumentEditorSession({
   }, [editorFile, guardWysiwygEntry]);
 
   return (
-    <div {...stylex.props(styles.session)}>
-      {editorFile.isLoading ? (
-        <div {...stylex.props(styles.loading)}>Loading document...</div>
-      ) : editorFile.loadError ? (
-        <div {...stylex.props(styles.loadError)}>
-          <h1 {...stylex.props(styles.loadErrorTitle)}>Unable to load document</h1>
-          <p {...stylex.props(styles.loadErrorDescription)}>{editorFile.loadError}</p>
-          <div {...stylex.props(styles.errorActions)}>
-            <button
-              type="button"
-              {...stylex.props(styles.errorButton, styles.retryButton)}
-              onClick={() => editorFile.reload()}
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              {...stylex.props(styles.errorButton, styles.errorBackButton)}
-              onClick={() => {
+    <>
+      <div {...stylex.props(styles.pageBody)}>
+        <div {...stylex.props(styles.session)}>
+          {editorFile.isLoading ? (
+            <div {...stylex.props(styles.loading)}>Loading document...</div>
+          ) : editorFile.loadError ? (
+            <div {...stylex.props(styles.loadError)}>
+              <h1 {...stylex.props(styles.loadErrorTitle)}>Unable to load document</h1>
+              <p {...stylex.props(styles.loadErrorDescription)}>{editorFile.loadError}</p>
+              <div {...stylex.props(styles.errorActions)}>
+                <button
+                  type="button"
+                  {...stylex.props(styles.errorButton, styles.retryButton)}
+                  onClick={() => editorFile.reload()}
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  {...stylex.props(styles.errorButton, styles.errorBackButton)}
+                  onClick={() => {
+                    void handleGoBack();
+                  }}
+                >
+                  Go back
+                </button>
+              </div>
+            </div>
+          ) : activeFile ? (
+            <MarkdownDocumentEditor
+              file={activeFile}
+              text={text}
+              editorMode={editorMode}
+              onTextChange={handleTextChange}
+              onTitleChange={editorFile.renameTitle}
+              onSave={() => {
+                void editorFile.saveNow();
+              }}
+              onRequestSource={() => {
+                void handleRequestSource();
+              }}
+              onRequestWysiwyg={() => {
+                void handleRequestWysiwyg();
+              }}
+              onAttachImage={handleAttachImage}
+              onGoBack={() => {
                 void handleGoBack();
               }}
-            >
-              Go back
-            </button>
-          </div>
+              saveState={editorFile.saveState}
+              saveError={editorFile.saveError}
+              referenceNotice={referenceNotice}
+              wysiwygSafetyNotice={wysiwygSafetyNotice}
+              wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
+              isAttachingImage={editorFile.isAttachingImage}
+              focusedLineStart={focusedLineRange?.startLine ?? null}
+              focusedLineEnd={focusedLineRange?.endLine ?? null}
+              txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
+              onConfirmTxtUpgrade={() => {
+                void handleConfirmTxtUpgrade();
+              }}
+              onCancelTxtUpgrade={() => editorFile.cancelTxtUpgrade()}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen((open) => !open)}
+            />
+          ) : null}
         </div>
-      ) : activeFile ? (
-        <MarkdownDocumentEditor
-          file={activeFile}
-          text={text}
-          editorMode={editorMode}
-          onTextChange={handleTextChange}
-          onTitleChange={editorFile.renameTitle}
-          onSave={() => {
-            void editorFile.saveNow();
-          }}
-          onRequestSource={() => {
-            void handleRequestSource();
-          }}
-          onRequestWysiwyg={() => {
-            void handleRequestWysiwyg();
-          }}
-          onAttachImage={handleAttachImage}
-          onGoBack={() => {
-            void handleGoBack();
-          }}
-          saveState={editorFile.saveState}
-          saveError={editorFile.saveError}
-          referenceNotice={referenceNotice}
-          wysiwygSafetyNotice={wysiwygSafetyNotice}
-          wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
-          isAttachingImage={editorFile.isAttachingImage}
-          focusedLineStart={focusedLineRange?.startLine ?? null}
-          focusedLineEnd={focusedLineRange?.endLine ?? null}
-          txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
-          onConfirmTxtUpgrade={() => {
-            void handleConfirmTxtUpgrade();
-          }}
-          onCancelTxtUpgrade={() => editorFile.cancelTxtUpgrade()}
+      </div>
+      {isChatOpen && activeFile ? (
+        <DocumentChatSidebar
+          fileName={chatFileName}
+          sessionId={chatSessionId}
+          canUndoEdit={chatEdit !== null && chatEdit.after === text}
+          onUndoEdit={handleUndoChatEdit}
+          onKeepEdit={() => setChatEdit(null)}
+          onTurnStart={() => setChatEdit(null)}
+          onClose={() => setIsChatOpen(false)}
         />
       ) : null}
-    </div>
+    </>
   );
 }
 
