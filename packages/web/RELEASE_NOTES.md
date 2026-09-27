@@ -11,6 +11,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 - Tab and Shift+Tab indent and outdent list items, Backspace at the start of a list item, heading, or quote turns it back into plain text, and typing `[ ] ` in a list item makes it a task.
 - Pasting Markdown text shows it formatted instead of as raw symbols.
 - More notes open in Preview: lists indented with 2 spaces, aligned or padded tables, `***` dividers, underlined headings, and front matter are kept as written. Tasks marked `[X]` stay checked.
+- The note editor has a Chat button that opens a chat panel on the right. Ask about the note or ask for changes, and the edits go straight into the note, with an Undo button in the panel.
 
 ## 2026-09-26
 
