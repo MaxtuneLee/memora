@@ -23,6 +23,7 @@ import {
   type WysiwygDocumentEditorHandle,
 } from "@/components/editor/WysiwygDocumentEditor";
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
+import { measureTextLength } from "@/lib/editor/wordCount";
 import { getFileExtension } from "@/lib/editor/editableTextDocument";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 import { tokens } from "../../styles/stylex.stylex";
@@ -186,6 +187,21 @@ const styles = stylex.create({
     minWidth: 0,
   },
   editor: { minWidth: 0 },
+  footer: {
+    borderTopColor: tokens.borderSoft,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    color: tokens.textSoft,
+    columnGap: "1rem",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.8125rem",
+    lineHeight: "1.25rem",
+    marginBottom: "3rem",
+    marginTop: "2rem",
+    paddingTop: "1rem",
+    rowGap: "0.25rem",
+  },
 });
 
 interface MarkdownDocumentEditorProps {
@@ -213,6 +229,18 @@ interface MarkdownDocumentEditorProps {
   changeReview?: ReactNode;
   onSelectionTextChange?: (text: string | null) => void;
 }
+
+const DOCUMENT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const formatDocumentDate = (timestamp: number): string => {
+  return Number.isFinite(timestamp) ? DOCUMENT_DATE_FORMAT.format(timestamp) : "Unknown";
+};
 
 const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"]): string => {
   switch (saveState) {
@@ -261,6 +289,7 @@ export function MarkdownDocumentEditor({
 }: MarkdownDocumentEditorProps) {
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
   const wysiwygRef = useRef<WysiwygDocumentEditorHandle | null>(null);
+  const textLength = measureTextLength(text);
   const isSourceMode = editorMode === "source";
   const titleParts = getDocumentTitleParts(file.name);
   const [titleValue, setTitleValue] = useState(titleParts.title);
@@ -487,6 +516,14 @@ export function MarkdownDocumentEditor({
           onNavigate={handleOutlineNavigate}
         />
       </div>
+
+      <footer {...stylex.props(styles.footer)}>
+        <span>
+          {textLength.count.toLocaleString()} {textLength.unit}
+        </span>
+        <span>Created {formatDocumentDate(file.createdAt)}</span>
+        <span>Edited {formatDocumentDate(file.updatedAt)}</span>
+      </footer>
 
       <TxtToMarkdownConfirmDialog
         fileName={file.name}
