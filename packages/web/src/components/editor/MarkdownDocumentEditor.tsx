@@ -181,7 +181,7 @@ const styles = stylex.create({
   },
   editorLayout: {
     display: "grid",
-    gap: { default: "0.75rem", "@media (min-width: 1024px)": "1.25rem" },
+    gap: "0.75rem",
     gridTemplateColumns: "minmax(0, 1fr) auto",
     minWidth: 0,
   },
