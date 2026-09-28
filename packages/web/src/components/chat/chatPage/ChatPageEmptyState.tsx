@@ -23,7 +23,15 @@ const styles = stylex.create({
   error: { color: tokens.dangerText, fontSize: 12, textAlign: "center" },
   persona: { height: 80, width: 80 },
   personaFill: { height: "100%", width: "100%" },
-  title: { color: tokens.textStrong, fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em" },
+  // The greeting and the question sit on separate lines.
+  title: {
+    color: tokens.textStrong,
+    fontSize: 24,
+    fontWeight: 600,
+    letterSpacing: "-0.025em",
+    textWrap: "balance",
+    whiteSpace: "pre-line",
+  },
   configure: {
     alignItems: "center",
     backgroundColor: tokens.warningSurface,

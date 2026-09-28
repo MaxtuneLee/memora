@@ -523,8 +523,8 @@ export const useChatController = ({
   const onboardingGreetingName = resolveGreetingName(settings.onboardingName);
   const effectiveGreetingName = onboardingGreetingName ?? greetingName;
   const greetingTitle = effectiveGreetingName
-    ? `${timeGreeting}, ${effectiveGreetingName}. What can I help you with today?`
-    : `${timeGreeting}. What can I help you with today?`;
+    ? `${timeGreeting}, ${effectiveGreetingName}.\nWhat can I help you with today?`
+    : `${timeGreeting}.\nWhat can I help you with today?`;
   const isHistoryPanelBusy = turnActions.isPreparingTurn;
 
   return {
