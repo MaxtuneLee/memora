@@ -1,10 +1,13 @@
 import {
   $createParagraphNode,
+  $createTextNode,
   $getRoot,
   $getSelection,
   $getState,
   $setSelection,
+  $isElementNode,
   $setState,
+  createEditor,
   createState,
   type EditorState,
   type LexicalNode,
@@ -19,6 +22,7 @@ import {
   CHECK_LIST,
   TRANSFORMERS,
   type ElementTransformer,
+  type MultilineElementTransformer,
 } from "@lexical/markdown";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
@@ -26,8 +30,18 @@ import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
 import { $isCodeFenceNode, CodeFenceNode } from "@/components/editor/lexical/CodeFenceNode";
 import { ImageNode } from "@/components/editor/lexical/ImageNode";
-import { MathNode } from "@/components/editor/lexical/MathNode";
+import {
+  $isMathNode,
+  MathNode,
+  getMathNodeSourceText,
+  mathTextFormatState,
+} from "@/components/editor/lexical/MathNode";
 import { MarkdownLinkNode } from "@/components/editor/lexical/MarkdownLinkNode";
+import {
+  $createRawMarkdownNode,
+  $isRawMarkdownNode,
+  RawMarkdownNode,
+} from "@/components/editor/lexical/RawMarkdownNode";
 import {
   MarkdownHeadingNode,
   MarkdownListItemNode,
@@ -126,6 +140,24 @@ const CODE_BLOCK_WITH_FENCES_TRANSFORMER: ElementTransformer = {
   type: "element",
 };
 
+// Private-use characters that cannot appear in a note mark the lines kept as editable Markdown.
+export const RAW_MARKDOWN_START = "\uE010";
+export const RAW_MARKDOWN_END = "\uE011";
+
+const RAW_MARKDOWN_TRANSFORMER: MultilineElementTransformer = {
+  dependencies: [RawMarkdownNode],
+  export: (node: LexicalNode) => {
+    return $isRawMarkdownNode(node) ? node.getText() : null;
+  },
+  regExpEnd: new RegExp(`^${RAW_MARKDOWN_END}$`),
+  regExpStart: new RegExp(`^${RAW_MARKDOWN_START}$`),
+  replace: (rootNode, _children, _startMatch, _endMatch, linesInBetween) => {
+    // The first and last entries are what follows and precedes the markers on their own lines.
+    rootNode.append($createRawMarkdownNode((linesInBetween ?? []).slice(1, -1).join("\n")));
+  },
+  type: "multiline-element",
+};
+
 const markdownLinkReplacement = {
   replace: LinkNode,
   with: (node: LinkNode) => {
@@ -153,12 +185,14 @@ export const WYSIWYG_NODES: ReadonlyArray<LexicalNodeConfig> = [
   MarkdownListItemNode,
   MathNode,
   QuoteNode,
+  RawMarkdownNode,
   TableCellNode,
   TableNode,
   TableRowNode,
 ];
 
 export const WYSIWYG_TRANSFORMERS = [
+  RAW_MARKDOWN_TRANSFORMER,
   CODE_FENCE_MARKDOWN_TRANSFORMER,
   CODE_BLOCK_WITH_FENCES_TRANSFORMER,
   HORIZONTAL_RULE_TRANSFORMER,
@@ -189,9 +223,59 @@ export const importWysiwygMarkdown = (markdown: string): void => {
   $setState(root, frontMatterState, frontMatter);
 };
 
+const $collectFormattedInlineMath = (node: LexicalNode, found: MathNode[] = []): MathNode[] => {
+  if ($isMathNode(node) && !node.getDisplayMode() && $getState(node, mathTextFormatState) !== 0) {
+    found.push(node);
+  } else if ($isElementNode(node)) {
+    for (const child of node.getChildren()) {
+      $collectFormattedInlineMath(child, found);
+    }
+  }
+  return found;
+};
+
+const inlineMathPlaceholder = (index: number): string => `\uE000${index}\uE001`;
+const INLINE_MATH_PLACEHOLDER_REGEXP = /\uE000(\d+)\uE001/g;
+
+// Lexical closes "**" before any node that is not text, so formatted inline formulas are
+// exported as formatted placeholder text and swapped back afterwards.
+const exportWithFormattedInlineMath = (editorState: EditorState): string | null => {
+  const hasFormattedMath = editorState.read(
+    () => $collectFormattedInlineMath($getRoot()).length > 0,
+  );
+  if (!hasFormattedMath) {
+    return null;
+  }
+
+  const exportEditor = createEditor({
+    nodes: WYSIWYG_NODES,
+    onError: (error) => {
+      throw error;
+    },
+  });
+  exportEditor.setEditorState(exportEditor.parseEditorState(editorState.toJSON()));
+  const formulas: string[] = [];
+  exportEditor.update(
+    () => {
+      for (const mathNode of $collectFormattedInlineMath($getRoot())) {
+        formulas.push(getMathNodeSourceText(mathNode.getFormula(), mathNode.getInlineDelimiter()));
+        const placeholder = $createTextNode(inlineMathPlaceholder(formulas.length - 1));
+        placeholder.setFormat($getState(mathNode, mathTextFormatState));
+        mathNode.replace(placeholder);
+      }
+    },
+    { discrete: true },
+  );
+  return exportEditor
+    .getEditorState()
+    .read(() => $convertToMarkdownString(WYSIWYG_TRANSFORMERS))
+    .replace(INLINE_MATH_PLACEHOLDER_REGEXP, (_, index: string) => formulas[Number(index)] ?? "");
+};
+
 export const exportWysiwygMarkdown = (editorState: EditorState): string => {
+  const markdownWithFormattedMath = exportWithFormattedInlineMath(editorState);
   return editorState.read(() => {
-    const markdown = $convertToMarkdownString(WYSIWYG_TRANSFORMERS)
+    const markdown = (markdownWithFormattedMath ?? $convertToMarkdownString(WYSIWYG_TRANSFORMERS))
       .replaceAll(`${CODE_FENCE_EXPORT_SENTINEL}\n\n`, "")
       .replaceAll(`\n\n${CODE_FENCE_EXPORT_SENTINEL}`, "")
       .replaceAll(CODE_FENCE_EXPORT_SENTINEL, "");

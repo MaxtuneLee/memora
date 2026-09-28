@@ -83,6 +83,17 @@ test("read_document returns a line range", async () => {
   ).resolves.toMatchObject({ content: "b\nc", endLine: 3, startLine: 2, totalLines: 4 });
 });
 
+test("read_document includes Preview issues only when there are some", async () => {
+  const target = createTarget("a");
+  await expect(getTool(target, "read_document").execute({})).resolves.not.toHaveProperty(
+    "previewIssues",
+  );
+  target.getPreviewIssues = () => ['Line 1: "a" would become "b".'];
+  await expect(getTool(target, "read_document").execute({})).resolves.toMatchObject({
+    previewIssues: ['Line 1: "a" would become "b".'],
+  });
+});
+
 test("write_document replaces the whole document", async () => {
   const target = createTarget("old");
   await getTool(target, "write_document").execute({ content: "# New" });

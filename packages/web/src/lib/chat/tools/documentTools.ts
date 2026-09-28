@@ -7,6 +7,8 @@ export interface DocumentToolTarget {
   fileName: string;
   getText: () => string;
   applyText: (nextText: string) => void;
+  // Why Preview could not show the document as written, one message per spot; empty when it can.
+  getPreviewIssues?: () => readonly string[];
 }
 
 const targets = new Map<string, DocumentToolTarget>();
@@ -98,6 +100,7 @@ export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[
         const endLine = Math.min(payload.end_line ?? lines.length, lines.length);
         const content = lines.slice(startLine - 1, endLine).join("\n");
         const truncated = content.length > MAX_READ_CHARACTERS;
+        const previewIssues = target.getPreviewIssues?.() ?? [];
         return {
           fileName: target.fileName,
           totalLines: lines.length,
@@ -107,6 +110,7 @@ export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[
           ...(truncated
             ? { truncated: true, note: "Read the rest with start_line/end_line." }
             : {}),
+          ...(previewIssues.length > 0 ? { previewIssues } : {}),
         };
       },
     },
@@ -160,5 +164,6 @@ The user is editing the Markdown document "${fileName}" in the editor next to th
 - Keep the document's existing Markdown style, headings, and language unless the user asks otherwise.
 - Edits are shown to the user as suggestions they accept or reject. read_document returns the document with your pending suggestions applied. After editing, say briefly what changed instead of repeating the document.
 - A message may start with <quoted_text> the user selected in the note; "this" or "here" refers to it.
-- Only edit when the user asks for a change. For questions, answer in the chat.`,
+- Only edit when the user asks for a change. For questions, answer in the chat.
+- When read_document returns previewIssues, Preview mode cannot show the document without changing its Markdown at those lines. If the user asks about Preview, formatting errors, or why the note opened as code, explain them and offer to fix them with edit_document.`,
 });

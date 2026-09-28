@@ -125,3 +125,37 @@ test("does not treat a leading rule as front matter", () => {
   });
   expect(roundTrip(markdown)).toBe(markdown);
 });
+
+test("keeps inline formulas inside bold and italic text", () => {
+  for (const markdown of [
+    "a，**下游使用 $h$**",
+    "**x $h$** y",
+    "**$h$**",
+    "*a $h$*",
+    "**a $h$ b** and $y$",
+  ]) {
+    expect(preflightMarkdownForWysiwyg(markdown)).toEqual({
+      roundTrippedText: markdown,
+      safe: true,
+    });
+  }
+});
+
+test("pairs bold markers next to full-width punctuation like CommonMark does", () => {
+  const markdown =
+    "- 为什么要近？**(a) 对扰动和噪声鲁棒**（05:03–05:18）；**(b) 下游映射更稳定、更容易学**——同类聚在一起";
+  expect(preflightMarkdownForWysiwyg(markdown)).toEqual({ roundTrippedText: markdown, safe: true });
+});
+
+test("closes bold after full-width punctuation followed by CJK text", () => {
+  for (const markdown of [
+    "- 有效的度量看两件事：**表征的几何（一致性 consistency / 分离性 separation）**与**对扰动的鲁棒性**",
+    "- 必须找到模型当前判断错误的**难负样本（hard negative / 错位的负例）**才能加速学习",
+    "- **正负对的选择（增广）**负责第三件事：**鲁棒性/不变性**——模型要对增广引入的扰动不变",
+  ]) {
+    expect(preflightMarkdownForWysiwyg(markdown)).toEqual({
+      roundTrippedText: markdown,
+      safe: true,
+    });
+  }
+});

@@ -43,6 +43,7 @@ import {
   $isMathNode,
   MathNode,
   getMathNodeSourceText,
+  mathTextFormatState,
   type InlineMathDelimiter,
 } from "@/components/editor/lexical/MathNode";
 
@@ -719,7 +720,9 @@ export const INLINE_MATH_TRANSFORMER: TextMatchTransformer = {
       return;
     }
 
-    textNode.replace($createMathNode(math.formula, false, false, math.delimiter));
+    const mathNode = $createMathNode(math.formula, false, false, math.delimiter);
+    $setState(mathNode, mathTextFormatState, textNode.getFormat());
+    textNode.replace(mathNode);
   },
   trigger: "$",
   type: "text-match",

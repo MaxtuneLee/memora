@@ -4,6 +4,16 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-09-29
+
+- The end of a note shows its word count (character count for Chinese, Japanese, or Korean text), when it was created, and when it was last edited.
+- The note chat panel slides open and closed, and the note narrows alongside it. The Actions menu is gone from the note header.
+- The outline beside a note takes less room, and its titles open over the note on hover.
+- More notes open in Preview: blank lines the editor adds or removes between blocks no longer block it, bold text next to full-width punctuation such as （） and ；, and formulas inside bold or italic text, are kept as written.
+- Parts of a note that Preview cannot show as written stay as editable Markdown in Preview instead of sending the whole note to Code. Fix one and it shows formatted once you click away.
+- The note chat knows which lines Preview cannot show and can explain or fix them.
+- The greeting in a new chat puts the question on its own line.
+
 ## 2026-09-28.2
 
 - The note editor no longer jumps the cursor into a code block when a note contains a divider, and typing inside bold or italic text keeps the formatting.

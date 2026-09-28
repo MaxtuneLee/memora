@@ -21,6 +21,7 @@ import {
   type TextDocumentFileLike,
 } from "@/lib/editor/documentPersistence";
 import {
+  normalizeMarkdownRoundTripText,
   preflightMarkdownForWysiwyg,
   type MarkdownPreflightResult,
   type MarkdownSafetyDiagnostic,
@@ -521,7 +522,17 @@ function DocumentEditorSession({
       return false;
     }
 
-    setWysiwygSafetyDiagnostics([]);
+    // Safe differences are only blank lines, so save the note in the editor's layout right away.
+    if (
+      normalizeMarkdownRoundTripText(result.roundTrippedText) !==
+      normalizeMarkdownRoundTripText(before.text)
+    ) {
+      editorFile.updateText(
+        before.text.endsWith("\n") ? `${result.roundTrippedText}\n` : result.roundTrippedText,
+      );
+    }
+    // Blocks Preview keeps as source still have diagnostics, for Code mode and the chat.
+    setWysiwygSafetyDiagnostics(result.diagnostics ?? []);
     setWysiwygSafetyNotice(null);
     setEditorMode("wysiwyg");
     return true;
@@ -545,9 +556,21 @@ function DocumentEditorSession({
   // The ref gives the chat tools the latest proposal before React re-renders.
   const [chatProposal, setChatProposalState] = useState<string | null>(null);
   const chatProposalRef = useRef<string | null>(null);
-  const chatTargetRef = useRef({ editorFile, editorMode, guardWysiwygEntry, handleTextChange });
+  const chatTargetRef = useRef({
+    editorFile,
+    editorMode,
+    guardWysiwygEntry,
+    handleTextChange,
+    wysiwygSafetyDiagnostics,
+  });
   useLayoutEffect(() => {
-    chatTargetRef.current = { editorFile, editorMode, guardWysiwygEntry, handleTextChange };
+    chatTargetRef.current = {
+      editorFile,
+      editorMode,
+      guardWysiwygEntry,
+      handleTextChange,
+      wysiwygSafetyDiagnostics,
+    };
   });
 
   const handleChatSessionChange = useCallback(
@@ -584,6 +607,8 @@ function DocumentEditorSession({
       getText: () =>
         chatProposalRef.current ?? chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
       applyText: setChatProposal,
+      getPreviewIssues: () =>
+        chatTargetRef.current.wysiwygSafetyDiagnostics.map((diagnostic) => diagnostic.message),
     });
   }, [chatFileName, chatSessionId, setChatProposal]);
 

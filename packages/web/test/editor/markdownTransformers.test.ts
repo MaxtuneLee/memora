@@ -406,7 +406,7 @@ test("round trips consecutive empty-alt markdown images", () => {
 });
 
 test("keeps the production custom transformer order", () => {
-  expect(WYSIWYG_TRANSFORMERS.slice(2, 14)).toEqual([
+  expect(WYSIWYG_TRANSFORMERS.slice(3, 15)).toEqual([
     HORIZONTAL_RULE_TRANSFORMER,
     MULTILINE_MATH_BLOCK_TRANSFORMER,
     MATH_BLOCK_TRANSFORMER,

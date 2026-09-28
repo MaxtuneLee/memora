@@ -94,9 +94,13 @@ import { WysiwygFormattingToolbar } from "@/components/editor/WysiwygFormattingT
 import { MathEditorPopover } from "@/components/editor/MathEditorPopover";
 import { MarkdownKeyboardPlugin } from "@/components/editor/MarkdownKeyboardPlugin";
 import { MarkdownPastePlugin } from "@/components/editor/MarkdownPastePlugin";
+import { RawMarkdownPlugin } from "@/components/editor/RawMarkdownPlugin";
 import { SlashCommandPlugin } from "@/components/editor/SlashCommandPlugin";
 import { TableActionsPlugin } from "@/components/editor/TableActionsPlugin";
-import { normalizeMarkdownRoundTripText } from "@/lib/editor/markdownRoundTripGuard";
+import {
+  normalizeMarkdownRoundTripText,
+  prepareMarkdownForWysiwyg,
+} from "@/lib/editor/markdownRoundTripGuard";
 import {
   WYSIWYG_NODES,
   WYSIWYG_TRANSFORMERS,
@@ -1945,7 +1949,7 @@ export const WysiwygDocumentEditor = forwardRef<
     return {
       editorState: (editor: LexicalEditor) => {
         editor.update(() => {
-          importWysiwygMarkdown(text);
+          importWysiwygMarkdown(prepareMarkdownForWysiwyg(text));
         });
       },
       namespace: "memora-document-editor",
@@ -2018,7 +2022,7 @@ export const WysiwygDocumentEditor = forwardRef<
     // re-exported Markdown back over the outside change.
     editor.update(
       () => {
-        importWysiwygMarkdown(text);
+        importWysiwygMarkdown(prepareMarkdownForWysiwyg(text));
         // Outside changes append content (an attached image) or come from chat edits, so keep
         // the caret at the end rather than jumping to the top of the document.
         if ($getSelection() !== null) {
@@ -2110,6 +2114,7 @@ export const WysiwygDocumentEditor = forwardRef<
         <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />
         <MarkdownKeyboardPlugin />
         <MarkdownPastePlugin />
+        <RawMarkdownPlugin />
         <SlashCommandPlugin />
         <WysiwygFormattingToolbar />
         <MathEditorPopover />

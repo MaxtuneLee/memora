@@ -6,7 +6,7 @@ import type {
   SerializedLexicalNode,
   Spread,
 } from "lexical";
-import { $createNodeSelection, $setSelection, DecoratorNode } from "lexical";
+import { $createNodeSelection, $setSelection, DecoratorNode, createState } from "lexical";
 import type { JSX, KeyboardEvent, MouseEvent } from "react";
 import katex from "katex";
 import * as stylex from "@stylexjs/stylex";
@@ -94,7 +94,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
       undefined,
       serializedNode.multilineMarkdown ?? false,
       serializedNode.inlineDelimiter ?? "$$",
-    );
+    ).updateFromJSON(serializedNode);
   }
 
   constructor(
@@ -277,6 +277,12 @@ export const $createMathNode = (
 ): MathNode => {
   return new MathNode(formula, displayMode, undefined, multilineMarkdown, inlineDelimiter);
 };
+
+// The bold, italic, or strikethrough of the text an inline formula was written in, as a
+// TextNode format, so Markdown export keeps "**a $x$ b**" instead of "**a** $x$ **b**".
+export const mathTextFormatState = createState("textFormat", {
+  parse: (value: unknown): number => (typeof value === "number" ? value : 0),
+});
 
 export const $isMathNode = (node: LexicalNode | null | undefined): node is MathNode => {
   return node instanceof MathNode;
