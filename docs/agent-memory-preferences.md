@@ -12,7 +12,6 @@ The chat agent keeps the user's lasting communication preferences as notices in 
 | Precedence in the system prompt  | Implemented | `mergeSystemPromptWithMemory` in `packages/ai-core/src/loop.ts`     |
 | Memory evaluation "change" cases | Implemented | `SaveCase.notices` in `packages/evaluation/src/memoryEvaluation.ts` |
 | Forget tool, edit in Settings    | Not started |                                                                     |
-| Personality updated from notices | Not started |                                                                     |
 
 Web paths are relative to `packages/web/src`.
 
@@ -52,6 +51,8 @@ The tool's storage is injected through `CreateChatToolsOptions.memoryNotices` (`
 - sorts notices by `updatedAt`, newest first, and appends the date each was saved, for example `- User prefers replies in Chinese. (saved 2026-09-20)`;
 - states the precedence under the heading: the newer of two conflicting notices wins, a request in the current conversation overrides them, and notices override the assistant style in the personality context (the last rule appears only when there is a personality).
 
+The personality is not model-generated and is not changed by notices. Since ADR-0005 it is a fixed template filled from the Personalization settings (name, primary use case, assistant style, custom instructions) and rebuilt whenever the user edits them. The user keeps it current in settings; notices only need a rule for when the two disagree, and a preference stated in chat is the more specific of the two.
+
 Notices given without a time, as in the evaluation profiles, keep their order and have no date. The system prompt changes only when the notices change, so the prompt cache is unaffected between those writes.
 
 ## Why notices are superseded, not expired
@@ -86,5 +87,4 @@ The cases file lives outside the repository (`~/memora-eval-data/memory/`), so t
 ## Not done yet
 
 - A way to forget a preference without stating a new one in chat, beyond `remove` from the extractor, and editing a notice in Settings > Memory (only deleting is possible).
-- The onboarding personality (`Personality.md`) is not updated from notices. The prompt says notices win over its assistant style, but the old style text stays in the prompt.
 - A cap on the number of notices.
