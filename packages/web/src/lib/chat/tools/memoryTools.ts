@@ -1,18 +1,30 @@
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
-import { extractNoticeCandidatesWithAI } from "@/lib/chat/noticeExtractor";
-import { upsertGlobalMemoryNotices } from "@/lib/settings/personalityStorage";
+import { extractNoticeChangesWithAI, hasNoticeChanges } from "@/lib/chat/noticeExtractor";
+import {
+  applyGlobalMemoryNoticeChanges,
+  loadGlobalMemoryData,
+} from "@/lib/settings/personalityStorage";
 
 import type { CreateChatToolsOptions } from "./shared";
 
+const globalMemoryNotices: NonNullable<CreateChatToolsOptions["memoryNotices"]> = {
+  list: async () => (await loadGlobalMemoryData())?.notices ?? [],
+  apply: async (changes) => {
+    const { updated, memory } = await applyGlobalMemoryNoticeChanges(changes);
+    return { updated, noticeCount: memory.notices.length };
+  },
+};
+
 export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefinition[] => {
+  const memoryNotices = options.memoryNotices ?? globalMemoryNotices;
   return [
     {
       type: "function",
       name: "remember_user_preference",
       description:
-        "Store a durable user communication preference in long-term memory. Use only for future-facing interaction preferences, not one-off task instructions.",
+        "Store a durable user communication preference in long-term memory, or change or remove one listed under Stable User Preferences when the user changes or withdraws it. Use only for future-facing interaction preferences, not one-off task instructions.",
       parameters: v.object({
         user_request: v.string(),
         assistant_reply: v.string(),
@@ -34,25 +46,22 @@ export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefiniti
             };
           }
 
-          const notices = await extractNoticeCandidatesWithAI({
+          const notices = await memoryNotices.list();
+          const changes = await extractNoticeChangesWithAI({
             runtime,
             userMessage: payload.user_request,
             assistantMessage: payload.assistant_reply,
+            notices,
           });
-          if (notices.length === 0) {
+          if (!hasNoticeChanges(changes)) {
             return {
               updated: false,
-              noticeCount: 0,
-              message: "No durable preference found.",
+              noticeCount: notices.length,
+              message: "No preference to add, change, or remove.",
             };
           }
 
-          const result = options.saveMemoryNotices
-            ? await options.saveMemoryNotices(notices)
-            : await upsertGlobalMemoryNotices(notices).then(({ updated, memory }) => ({
-                updated,
-                noticeCount: memory.notices.length,
-              }));
+          const result = await memoryNotices.apply(changes);
           if (result.updated) {
             options.onMemoryUpdated?.();
           }

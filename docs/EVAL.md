@@ -76,6 +76,7 @@ From 2026-09-27 the agent's memory is evaluated alongside QA, with rules instead
 
 - **Using stored preferences**: QA questions answered under a memory profile (`zh`, `brief`, `bullets`, `zh-bullets`); an attempt passes only if it passes QA and follows the profile's rules. Runs are logged in the runs table with the profile in the scope column.
 - **Saving preferences**: 16 single-message cases (6 lasting preferences, 4 one-off requests, 3 profile facts, 3 sensitive details). Scored on whether the agent calls `remember_user_preference` exactly when it should, and whether the saved notice is English and names the preference.
+- **Changing a saved preference** (from 2026-09-28): save cases can list `notices` already saved before the message; category `change` cases check that the new preference replaced the old one (`noticeChecks` run on all saved notices after the Run). See `docs/agent-memory-preferences.md`.
 - **Cross-session recall**: 7 cases over 6 fixed past sessions: plain recall, a decision that was later changed (must give the latest), a Chinese question about an English chat, and a topic never discussed (must say so).
 
 Neither writes to the user's memory or reads the user's chats. Cases and profiles live in `~/memora-eval-data/memory/`.

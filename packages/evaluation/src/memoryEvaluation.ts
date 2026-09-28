@@ -31,10 +31,16 @@ export interface PastSession {
 export interface SaveCase {
   caseId: string;
   kind: "save";
-  category: "durable" | "one-off" | "profile-fact" | "sensitive";
+  /** "change" changes or withdraws one of the case's saved notices. */
+  category: "durable" | "change" | "one-off" | "profile-fact" | "sensitive";
   message: string;
+  /** Preferences already saved when the message is sent; none when absent. */
+  notices?: string[];
   expect: "save" | "skip";
-  /** Rules the saved notices must follow, checked on all of them joined by line breaks. */
+  /**
+   * Rules the saved notices must follow after the Run, the case's own included, checked on all of
+   * them joined by line breaks.
+   */
   noticeChecks?: TextCheck[];
 }
 
@@ -77,8 +83,9 @@ const MemoryCasesFileSchema = v.pipe(
           v.object({
             caseId: nonEmpty,
             kind: v.literal("save"),
-            category: v.picklist(["durable", "one-off", "profile-fact", "sensitive"]),
+            category: v.picklist(["durable", "change", "one-off", "profile-fact", "sensitive"]),
             message: nonEmpty,
+            notices: v.optional(v.array(nonEmpty)),
             expect: v.picklist(["save", "skip"]),
             noticeChecks: v.optional(v.array(TextCheckSchema)),
           }),
@@ -124,7 +131,10 @@ export interface MemoryReply {
   answer: string;
   /** Every tool call of the Run, in order. */
   toolCalls: Array<{ name: string; args: unknown }>;
-  /** Notices the preference tool would have stored; nothing reaches the user's real memory. */
+  /**
+   * The saved notices after the Run: the case's own with the preference tool's changes applied.
+   * Nothing reaches the user's real memory.
+   */
   notices: string[];
   sessionId: string;
   runId: string | null;
@@ -134,8 +144,14 @@ export interface MemoryReply {
 
 export interface MemoryAdapter {
   identity: AgentIdentity;
-  /** Answers one message in a fresh session that sees only the evaluation's past sessions. */
-  converse(input: { caseId: string; message: string }, signal: AbortSignal): Promise<MemoryReply>;
+  /**
+   * Answers one message in a fresh session that sees only the evaluation's past sessions, with
+   * `notices` as the saved preferences.
+   */
+  converse(
+    input: { caseId: string; message: string; notices?: string[] },
+    signal: AbortSignal,
+  ): Promise<MemoryReply>;
 }
 
 export interface MemoryAttemptResult {
@@ -149,7 +165,7 @@ export interface MemoryAttemptResult {
   save?: {
     /** The agent called the preference tool. */
     called: boolean;
-    /** The extractor produced at least one notice. */
+    /** The saved notices differ from the case's own after the Run. */
     stored: boolean;
     decisionCorrect: boolean;
     /** Checked only when a save was expected and made. */
@@ -222,20 +238,23 @@ export function scoreSaveCase(
   reply: Pick<MemoryReply, "toolCalls" | "notices">,
 ): NonNullable<MemoryAttemptResult["save"]> {
   const called = reply.toolCalls.some(({ name }) => name === REMEMBER_TOOL);
-  const stored = reply.notices.length > 0;
+  const before = item.notices ?? [];
+  const stored = [...reply.notices].sort().join("\n") !== [...before].sort().join("\n");
   const noticeChecks =
     item.expect === "save" && called
       ? stored
         ? [
-            ...reply.notices.flatMap((notice) =>
-              runTextChecks(notice, [NOTICE_FORM]).map((check) => ({
-                ...check,
-                label: `Notice in English: ${notice}`,
-              })),
-            ),
+            ...reply.notices
+              .filter((notice) => !before.includes(notice))
+              .flatMap((notice) =>
+                runTextChecks(notice, [NOTICE_FORM]).map((check) => ({
+                  ...check,
+                  label: `Notice in English: ${notice}`,
+                })),
+              ),
             ...runTextChecks(reply.notices.join("\n"), item.noticeChecks ?? []),
           ]
-        : [{ label: "Notice stored", passed: false, detail: "the extractor found no preference" }]
+        : [{ label: "Notice stored", passed: false, detail: "the saved notices did not change" }]
       : [];
   return { called, stored, decisionCorrect: called === (item.expect === "save"), noticeChecks };
 }
@@ -357,7 +376,14 @@ export async function runMemoryEvaluation(
     let reply: MemoryReply;
     try {
       reply = await untilAborted(
-        options.agent.converse({ caseId: item.caseId, message: item.message }, signal),
+        options.agent.converse(
+          {
+            caseId: item.caseId,
+            message: item.message,
+            ...(item.kind === "save" && item.notices ? { notices: item.notices } : {}),
+          },
+          signal,
+        ),
         signal,
       );
     } catch (error) {

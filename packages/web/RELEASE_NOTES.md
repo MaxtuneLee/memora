@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-09-28.3
+
+- When you change or take back a preference you told the assistant earlier, such as the language it replies in, it now updates or removes the saved preference in Settings > Memory instead of keeping both.
+
 ## 2026-09-28.2
 
 - The note editor no longer jumps the cursor into a code block when a note contains a divider, and typing inside bold or italic text keeps the formatting.

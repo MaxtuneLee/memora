@@ -94,7 +94,14 @@ const NOTICES_MEMORY_KEY = "notices";
 
 interface MemoryNotice {
   text: string;
+  /** When the preference was last saved or changed; unknown for notices given as plain text. */
+  updatedAt?: number;
 }
+
+const savedAt = (notice: MemoryNotice): number | null => {
+  const { updatedAt } = notice;
+  return typeof updatedAt === "number" && Number.isFinite(updatedAt) ? updatedAt : null;
+};
 
 const mergeSystemPromptWithMemory = (
   systemPrompt: string,
@@ -103,9 +110,14 @@ const mergeSystemPromptWithMemory = (
 ): string => {
   const normalizedSystemPrompt = systemPrompt.trim();
   const normalizedPersonality = personalityText.trim();
+  // Newest first, so a preference that replaced an older one is read before it.
   const normalizedNotices = notices
-    .map((notice) => (typeof notice.text === "string" ? notice.text.trim() : ""))
-    .filter((notice) => notice.length > 0);
+    .map((notice) => ({
+      text: typeof notice.text === "string" ? notice.text.trim() : "",
+      updatedAt: savedAt(notice),
+    }))
+    .filter((notice) => notice.text.length > 0)
+    .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
 
   const memorySections: string[] = [];
   if (normalizedPersonality) {
@@ -113,10 +125,23 @@ const mergeSystemPromptWithMemory = (
   }
 
   if (normalizedNotices.length > 0) {
+    const precedence = [
+      "Newest first. If two of these conflict, follow the newer one.",
+      "A request the user makes in the current conversation overrides them.",
+      ...(normalizedPersonality
+        ? ["They override the assistant style in the personality context."]
+        : []),
+    ].join(" ");
     memorySections.push(
-      ["## Stable User Preferences", ...normalizedNotices.map((notice) => `- ${notice}`)].join(
-        "\n",
-      ),
+      [
+        "## Stable User Preferences",
+        precedence,
+        ...normalizedNotices.map(({ text, updatedAt }) =>
+          updatedAt === null
+            ? `- ${text}`
+            : `- ${text} (saved ${new Date(updatedAt).toISOString().slice(0, 10)})`,
+        ),
+      ].join("\n"),
     );
   }
 

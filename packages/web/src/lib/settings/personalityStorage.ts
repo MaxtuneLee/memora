@@ -280,46 +280,84 @@ const normalizeNoticeLookupKey = (text: string): string => {
     .toLowerCase();
 };
 
-export const upsertGlobalMemoryNotices = async (
-  noticeTexts: string[],
-): Promise<{ updated: boolean; memory: GlobalMemoryData }> => {
-  const now = Date.now();
-  const existing = (await loadGlobalMemoryData()) ?? { notices: [] };
-  const notices = [...existing.notices];
-  let updated = false;
+/** What one exchange changes in the saved notices. */
+export interface MemoryNoticeChanges {
+  add: string[];
+  /** Saved notices whose preference changed, by ID, with their new text. */
+  replace: Array<{ id: string; text: string }>;
+  /** IDs of saved notices the user withdrew or that no longer hold. */
+  remove: string[];
+}
 
-  for (const noticeText of noticeTexts) {
-    const text = normalizeNoticeText(noticeText);
-    if (!text) {
+/**
+ * Applies the changes to a copy of the notices. A replaced notice keeps its ID and creation time;
+ * a replace naming an unknown ID is added instead. Text that matches another notice refreshes that
+ * one rather than making a duplicate.
+ */
+export const applyMemoryNoticeChanges = (
+  notices: MemoryNotice[],
+  changes: MemoryNoticeChanges,
+  now: number,
+): { updated: boolean; notices: MemoryNotice[] } => {
+  const replacedIds = new Set(changes.replace.map(({ id }) => id));
+  const removeIds = new Set(changes.remove.filter((id) => !replacedIds.has(id)));
+  let next = notices.filter((notice) => !removeIds.has(notice.id));
+  let updated = next.length !== notices.length;
+  const added: string[] = [...changes.add];
+
+  const refresh = (index: number): void => {
+    if (next[index].updatedAt === now) return;
+    next[index] = { ...next[index], updatedAt: now };
+    updated = true;
+  };
+
+  for (const change of changes.replace) {
+    const text = normalizeNoticeText(change.text);
+    if (!text) continue;
+    const index = next.findIndex((notice) => notice.id === change.id);
+    if (index < 0) {
+      added.push(text);
       continue;
     }
-
     const lookupKey = normalizeNoticeLookupKey(text);
-    const existingIndex = notices.findIndex(
-      (notice) => normalizeNoticeLookupKey(notice.text) === lookupKey,
+    const duplicate = next.findIndex(
+      (notice) => notice.id !== change.id && normalizeNoticeLookupKey(notice.text) === lookupKey,
     );
-
-    if (existingIndex >= 0) {
-      const current = notices[existingIndex];
-      if (current.updatedAt !== now) {
-        notices[existingIndex] = {
-          ...current,
-          updatedAt: now,
-        };
-        updated = true;
-      }
+    if (duplicate >= 0) {
+      refresh(duplicate);
+      next = next.filter((notice) => notice.id !== change.id);
+      updated = true;
       continue;
     }
-
-    notices.push({
-      id: crypto.randomUUID(),
-      text,
-      createdAt: now,
-      updatedAt: now,
-    });
+    if (next[index].text === text) {
+      refresh(index);
+      continue;
+    }
+    next[index] = { ...next[index], text, updatedAt: now };
     updated = true;
   }
 
+  for (const noticeText of added) {
+    const text = normalizeNoticeText(noticeText);
+    if (!text) continue;
+    const lookupKey = normalizeNoticeLookupKey(text);
+    const index = next.findIndex((notice) => normalizeNoticeLookupKey(notice.text) === lookupKey);
+    if (index >= 0) {
+      refresh(index);
+      continue;
+    }
+    next.push({ id: crypto.randomUUID(), text, createdAt: now, updatedAt: now });
+    updated = true;
+  }
+
+  return { updated, notices: next };
+};
+
+export const applyGlobalMemoryNoticeChanges = async (
+  changes: MemoryNoticeChanges,
+): Promise<{ updated: boolean; memory: GlobalMemoryData }> => {
+  const existing = (await loadGlobalMemoryData()) ?? { notices: [] };
+  const { updated, notices } = applyMemoryNoticeChanges(existing.notices, changes, Date.now());
   const nextMemory: GlobalMemoryData = {
     personality: existing.personality,
     notices,

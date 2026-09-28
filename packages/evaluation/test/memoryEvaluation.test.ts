@@ -166,4 +166,47 @@ describe("runMemoryEvaluation", () => {
     expect(byCase("s-durable").join("\n")).toMatch(/Notice in English.*failed/);
     expect(byCase("r-latest")).toEqual(["Did not read later"]);
   });
+
+  it("passes a changed preference only when the old notice is gone, and hands the adapter the saved notices", async () => {
+    const change: MemoryCase = {
+      caseId: "s-change",
+      kind: "save",
+      category: "change",
+      message: "Actually, answer in Chinese from now on.",
+      notices: ["User prefers answers in English."],
+      expect: "save",
+      noticeChecks: [
+        { type: "pattern", pattern: "chinese" },
+        { type: "pattern", pattern: "english", expect: "noMatch" },
+      ],
+    };
+    const given: Array<string[] | undefined> = [];
+    const answers = [
+      ["User prefers answers in Chinese."],
+      ["User prefers answers in English.", "User prefers answers in Chinese."],
+      ["User prefers answers in English."],
+    ];
+    const result = await runMemoryEvaluation({
+      cases: [change],
+      sessions: [],
+      revisions: { cases: "sha" },
+      agent: {
+        identity,
+        converse: async ({ notices }) => {
+          given.push(notices);
+          return reply({ toolCalls: [remember], notices: answers[given.length - 1] });
+        },
+      },
+      concurrency: 1,
+    });
+
+    expect(given).toEqual([change.notices, change.notices, change.notices]);
+    expect(result.attempts.map(({ passed }) => passed)).toEqual([true, false, false]);
+    expect(result.attempts[1].save?.noticeChecks.find(({ passed }) => !passed)?.label).toMatch(
+      /english/,
+    );
+    expect(memoryAttemptReasons(change, result.attempts[2]).join("\n")).toMatch(
+      /the saved notices did not change/,
+    );
+  });
 });

@@ -31,6 +31,8 @@ vi.mock("@memora/fs", () => ({
 }));
 
 const {
+  applyGlobalMemoryNoticeChanges,
+  applyMemoryNoticeChanges,
   buildPersonalityMarkdown,
   loadGlobalMemoryData,
   saveGlobalMemoryData,
@@ -88,4 +90,85 @@ test("saving a profile is instant and preserves existing notices", async () => {
   expect(memory?.notices).toEqual([
     { id: "n1", text: "Prefers metric units", createdAt: 0, updatedAt: 0 },
   ]);
+});
+
+const notice = (id: string, text: string, time = 0) => ({
+  id,
+  text,
+  createdAt: time,
+  updatedAt: time,
+});
+
+test("a changed preference replaces the old notice in place", () => {
+  const result = applyMemoryNoticeChanges(
+    [notice("n1", "User prefers replies in English."), notice("n2", "User prefers bullet points.")],
+    { add: [], replace: [{ id: "n1", text: "User prefers replies in Chinese." }], remove: [] },
+    100,
+  );
+
+  expect(result.updated).toBe(true);
+  expect(result.notices).toEqual([
+    { id: "n1", text: "User prefers replies in Chinese.", createdAt: 0, updatedAt: 100 },
+    notice("n2", "User prefers bullet points."),
+  ]);
+});
+
+test("removes withdrawn notices, and a replace wins over a remove of the same notice", () => {
+  const result = applyMemoryNoticeChanges(
+    [notice("n1", "User prefers short answers."), notice("n2", "User prefers emoji.")],
+    {
+      add: [],
+      replace: [{ id: "n1", text: "User prefers detailed answers." }],
+      remove: ["n1", "n2"],
+    },
+    100,
+  );
+
+  expect(result.notices.map(({ id, text }) => ({ id, text }))).toEqual([
+    { id: "n1", text: "User prefers detailed answers." },
+  ]);
+});
+
+test("a replace with an unknown ID is added, and matching text refreshes instead of duplicating", () => {
+  const result = applyMemoryNoticeChanges(
+    [notice("n1", "User prefers tables."), notice("n2", "User prefers prose.")],
+    {
+      add: ["user prefers tables"],
+      replace: [
+        { id: "missing", text: "User prefers metric units." },
+        { id: "n2", text: "User prefers tables." },
+      ],
+      remove: [],
+    },
+    100,
+  );
+
+  expect(result.notices.map(({ id, text, updatedAt }) => ({ id, text, updatedAt }))).toEqual([
+    { id: "n1", text: "User prefers tables.", updatedAt: 100 },
+    expect.objectContaining({ text: "User prefers metric units.", updatedAt: 100 }),
+  ]);
+});
+
+test("reports no update when nothing changes", () => {
+  const notices = [notice("n1", "User prefers tables.", 100)];
+  expect(
+    applyMemoryNoticeChanges(
+      notices,
+      { add: ["User prefers tables."], replace: [], remove: [] },
+      100,
+    ),
+  ).toEqual({ updated: false, notices });
+});
+
+test("applies changes to the global memory file", async () => {
+  await saveGlobalMemoryData({ notices: [notice("n1", "User prefers replies in English.")] });
+
+  const { updated } = await applyGlobalMemoryNoticeChanges({
+    add: [],
+    replace: [],
+    remove: ["n1"],
+  });
+
+  expect(updated).toBe(true);
+  expect(await loadGlobalMemoryData()).toBeNull();
 });

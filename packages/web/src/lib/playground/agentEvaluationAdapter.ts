@@ -25,6 +25,7 @@ import { summarizeRun } from "@/lib/agent-runtime/traceTimeline";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
 import { EMPTY_REFERENCE_SCOPE, SYSTEM_PROMPT } from "@/lib/chat/tools";
 import type { CreateChatToolsOptions } from "@/lib/chat/tools/shared";
+import { applyMemoryNoticeChanges, type MemoryNotice } from "@/lib/settings/personalityStorage";
 
 import { sha256Hex } from "./evaluationImport";
 
@@ -276,7 +277,7 @@ export async function createWebAgentAdapter(
 export interface WebMemoryAdapterOptions extends Omit<WebAgentAdapterOptions, "tools"> {
   /** The chat tools, built with the evaluation's stand-ins for memory and chat history. */
   createTools: (
-    standIns: Required<Pick<CreateChatToolsOptions, "saveMemoryNotices" | "chatSessions">>,
+    standIns: Required<Pick<CreateChatToolsOptions, "memoryNotices" | "chatSessions">>,
   ) => ToolDefinition[];
   sessions: PastSession[];
 }
@@ -300,8 +301,9 @@ const toRecord = (session: PastSession): ChatSessionRecord => {
 
 /**
  * Answers each memory case in a fresh in-memory session whose tool calls run in this Window: the
- * preference tool extracts notices as usual but keeps them with the attempt instead of the user's
- * memory, and the session tools see only the evaluation's past sessions.
+ * preference tool starts from the case's saved notices and changes them as usual, but keeps them
+ * with the attempt instead of the user's memory, and the session tools see only the evaluation's
+ * past sessions.
  */
 export async function createWebMemoryAdapter(
   options: WebMemoryAdapterOptions,
@@ -316,7 +318,10 @@ export async function createWebMemoryAdapter(
   const prompt = chatPrompt();
   const describedTools = describeTools(
     options.createTools({
-      saveMemoryNotices: async () => ({ updated: false, noticeCount: 0 }),
+      memoryNotices: {
+        list: async () => [],
+        apply: async () => ({ updated: false, noticeCount: 0 }),
+      },
       chatSessions,
     }),
     MEMORY_EVALUATION_TOOL_NAMES,
@@ -324,14 +329,23 @@ export async function createWebMemoryAdapter(
 
   return {
     identity: await identityOf(options, prompt, describedTools, "none"),
-    async converse({ message }, signal): Promise<MemoryReply> {
+    async converse({ message, notices: saved = [] }, signal): Promise<MemoryReply> {
       const sessionId = `eval-${crypto.randomUUID()}`;
       const toolCalls: MemoryReply["toolCalls"] = [];
-      const notices: string[] = [];
+      let notices: MemoryNotice[] = saved.map((text, index) => ({
+        id: `saved-${index + 1}`,
+        text,
+        createdAt: 0,
+        updatedAt: 0,
+      }));
       const tools = options.createTools({
-        saveMemoryNotices: async (extracted) => {
-          notices.push(...extracted);
-          return { updated: extracted.length > 0, noticeCount: notices.length };
+        memoryNotices: {
+          list: async () => notices.map(({ id, text }) => ({ id, text })),
+          apply: async (changes) => {
+            const result = applyMemoryNoticeChanges(notices, changes, Date.now());
+            notices = result.notices;
+            return { updated: result.updated, noticeCount: notices.length };
+          },
         },
         chatSessions,
       });
@@ -347,9 +361,17 @@ export async function createWebMemoryAdapter(
           sessionId,
           text: message,
           tools: describedTools,
+          notices: saved,
           signal,
         });
-        return { answer: reply?.content ?? "", toolCalls, notices, sessionId, runId, ...facts };
+        return {
+          answer: reply?.content ?? "",
+          toolCalls,
+          notices: notices.map(({ text }) => text),
+          sessionId,
+          runId,
+          ...facts,
+        };
       } finally {
         release();
       }

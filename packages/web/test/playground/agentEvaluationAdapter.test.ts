@@ -285,7 +285,7 @@ describe("createWebMemoryAdapter", () => {
     },
   ];
 
-  it("runs tool calls against the fixture chats and keeps saved notices with the attempt", async () => {
+  it("runs tool calls against the fixture chats and keeps changed notices with the attempt", async () => {
     const runtime = fakeRuntime(
       "completed",
       [],
@@ -317,13 +317,27 @@ describe("createWebMemoryAdapter", () => {
       createTools: (standIns) =>
         createChatTools({ query: () => [] }, standIns).map((tool) =>
           tool.name === "remember_user_preference"
-            ? { ...tool, execute: () => standIns.saveMemoryNotices(["User prefers Chinese."]) }
+            ? {
+                ...tool,
+                execute: async () => {
+                  const [saved] = await standIns.memoryNotices.list();
+                  return standIns.memoryNotices.apply({
+                    add: [],
+                    replace: [{ id: saved.id, text: "User prefers Chinese." }],
+                    remove: [],
+                  });
+                },
+              }
             : tool,
         ),
     });
 
     const reply = await adapter.converse(
-      { caseId: "r1", message: "What batch size did we pick?" },
+      {
+        caseId: "r1",
+        message: "What batch size did we pick?",
+        notices: ["User prefers English."],
+      },
       new AbortController().signal,
     );
 
@@ -339,6 +353,9 @@ describe("createWebMemoryAdapter", () => {
       messages: [{ role: "user", content: "Let's use 512." }],
     });
     expect(reply.notices).toEqual(["User prefers Chinese."]);
+    const submit = runtime.commands.find((command) => command.type === "submit");
+    if (submit?.type !== "submit") throw new Error("No submission.");
+    expect(submit.submission.memory).toEqual({ notices: ["User prefers English."] });
     expect(runtime.hosts.size).toBe(0);
   });
 });

@@ -79,7 +79,7 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 3. use search_transcript to find moments in videos and audio, then read_transcript with the match's fileId and a time range to read the passage around it with timestamps
 4. use read_file or grep_files only when raw file content or exact offsets are needed; pass read_file a storagePath returned by query_db, never a path you built yourself. Read transcripts with read_transcript, not read_file
 4a. use search_files for document, OCR, and extracted content search; use read_extracted_content for the matching passage
-5. if the user states a lasting preference for how you should communicate in future turns, call remember_user_preference with a concise summary
+5. if the user states a lasting preference for how you should communicate in future turns, or changes or withdraws one of the Stable User Preferences, call remember_user_preference with a concise summary
 6. do NOT call remember_user_preference for one-off formatting requests, temporary constraints, factual profile details, or sensitive inferences
 7. only if the user explicitly asks: use create_document to create a new document, and modify_text_file to edit an existing file
 8. when presenting results, map internal data back to user-friendly file names, types, and timestamps`,
