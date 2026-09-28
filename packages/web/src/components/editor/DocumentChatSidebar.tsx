@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import * as stylex from "@stylexjs/stylex";
+import { motion, useReducedMotion, type Transition } from "motion/react";
 import {
   ArrowSquareOutIcon,
   ClockCounterClockwiseIcon,
@@ -16,29 +17,38 @@ import { createDocumentPromptSegment, createDocumentTools } from "@/lib/chat/too
 import { tokens } from "../../styles/stylex.stylex";
 
 const SIDEBAR_WIDTH = 420;
+// iOS-style drawer curve.
+const PANEL_TRANSITION: Transition = { duration: 0.32, ease: [0.32, 0.72, 0, 1] };
+const REDUCED_PANEL_TRANSITION: Transition = { duration: 0.2, ease: "easeOut" };
 // Long selections are sent whole; this only bounds what the input box previews.
 const SELECTION_PREVIEW_LENGTH = 280;
 
 const styles = stylex.create({
+  // The panel's width opens from zero, so on wide screens the note beside it narrows with it.
   root: {
+    boxShadow: { default: tokens.shadowLarge, "@media (min-width: 1024px)": "none" },
+    flexShrink: 0,
+    height: "100dvh",
+    maxWidth: "100vw",
+    overflow: "hidden",
+    position: { default: "fixed", "@media (min-width: 1024px)": "sticky" },
+    right: { default: 0, "@media (min-width: 1024px)": "auto" },
+    top: 0,
+    zIndex: { default: 40, "@media (min-width: 1024px)": 1 },
+  },
+  // Fixed width inside the opening frame, so the chat never reflows while it slides in.
+  panel: {
     backgroundColor: tokens.shell,
     borderLeftColor: tokens.border,
     borderLeftStyle: "solid",
     borderLeftWidth: 1,
-    boxShadow: { default: tokens.shadowLarge, "@media (min-width: 1024px)": "none" },
     display: "flex",
     flexDirection: "column",
-    flexShrink: 0,
-    height: "100dvh",
-    minWidth: 0,
-    position: { default: "fixed", "@media (min-width: 1024px)": "sticky" },
-    right: { default: 0, "@media (min-width: 1024px)": "auto" },
-    top: 0,
+    height: "100%",
     width: {
       default: `min(100vw, ${SIDEBAR_WIDTH}px)`,
       "@media (min-width: 1024px)": SIDEBAR_WIDTH,
     },
-    zIndex: { default: 40, "@media (min-width: 1024px)": 1 },
   },
   chat: { flex: 1, minHeight: 0, position: "relative" },
   header: {
@@ -179,6 +189,7 @@ export function DocumentChatSidebar({
   onClose,
 }: DocumentChatSidebarProps) {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion() ?? false;
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const quoteRef = useRef<ChatMessageQuote | null>(null);
   useLayoutEffect(() => {
@@ -280,68 +291,79 @@ export function DocumentChatSidebar({
     </div>
   );
 
+  // Reduced motion keeps a fade and drops the width change.
+  const closedState = reduceMotion
+    ? { opacity: 0, width: SIDEBAR_WIDTH }
+    : { opacity: 1, width: 0 };
+
   return (
-    <aside
+    <motion.aside
       aria-label="Chat about this note"
-      {...stylex.props(styles.root)}
       data-testid="document-chat-sidebar"
+      {...stylex.props(styles.root)}
+      initial={closedState}
+      animate={{ opacity: 1, width: SIDEBAR_WIDTH }}
+      exit={closedState}
+      transition={reduceMotion ? REDUCED_PANEL_TRANSITION : PANEL_TRANSITION}
     >
-      <ConfirmDialog
-        isOpen={apiKeyPromptOpen}
-        title="Add an API key to start chatting"
-        description="Chat runs on a cloud model. Add a provider and its API key in Settings. Your key stays on this device."
-        confirmLabel="Add API key"
-        cancelLabel="Not now"
-        onConfirm={confirmApiKeyPrompt}
-        onCancel={closeApiKeyPrompt}
-      />
-      {header}
-      <div {...stylex.props(styles.chat)}>
-        <ChatPageView
-          {...viewProps}
-          variant="sidebar"
-          composerPanelProps={{
-            ...viewProps.composerPanelProps,
-            placeholder: "Ask about this note...",
-            contextChip: selectionPreview
-              ? {
-                  label: "Selected text",
-                  preview: selectionPreview,
-                  onRemove: onClearSelection,
-                }
-              : null,
-          }}
+      <div {...stylex.props(styles.panel)}>
+        <ConfirmDialog
+          isOpen={apiKeyPromptOpen}
+          title="Add an API key to start chatting"
+          description="Chat runs on a cloud model. Add a provider and its API key in Settings. Your key stays on this device."
+          confirmLabel="Add API key"
+          cancelLabel="Not now"
+          onConfirm={confirmApiKeyPrompt}
+          onCancel={closeApiKeyPrompt}
         />
-        {isHistoryOpen ? (
-          <div {...stylex.props(styles.history)} role="list" aria-label="Chat history">
-            {viewProps.sessions.length === 0 ? (
-              <p {...stylex.props(styles.historyEmpty)}>No chats yet.</p>
-            ) : (
-              viewProps.sessions.map((session) => (
-                <button
-                  key={session.id}
-                  type="button"
-                  role="listitem"
-                  disabled={viewProps.isHistoryPanelBusy}
-                  onClick={() => {
-                    viewProps.onSelectSession(session.id);
-                    setIsHistoryOpen(false);
-                  }}
-                  {...stylex.props(
-                    styles.historyItem,
-                    session.id === viewProps.activeSessionId && styles.historyItemActive,
-                  )}
-                >
-                  <span {...stylex.props(styles.historyTitle)}>{session.title}</span>
-                  {session.preview ? (
-                    <span {...stylex.props(styles.historyPreview)}>{session.preview}</span>
-                  ) : null}
-                </button>
-              ))
-            )}
-          </div>
-        ) : null}
+        {header}
+        <div {...stylex.props(styles.chat)}>
+          <ChatPageView
+            {...viewProps}
+            variant="sidebar"
+            composerPanelProps={{
+              ...viewProps.composerPanelProps,
+              placeholder: "Ask about this note...",
+              contextChip: selectionPreview
+                ? {
+                    label: "Selected text",
+                    preview: selectionPreview,
+                    onRemove: onClearSelection,
+                  }
+                : null,
+            }}
+          />
+          {isHistoryOpen ? (
+            <div {...stylex.props(styles.history)} role="list" aria-label="Chat history">
+              {viewProps.sessions.length === 0 ? (
+                <p {...stylex.props(styles.historyEmpty)}>No chats yet.</p>
+              ) : (
+                viewProps.sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    role="listitem"
+                    disabled={viewProps.isHistoryPanelBusy}
+                    onClick={() => {
+                      viewProps.onSelectSession(session.id);
+                      setIsHistoryOpen(false);
+                    }}
+                    {...stylex.props(
+                      styles.historyItem,
+                      session.id === viewProps.activeSessionId && styles.historyItemActive,
+                    )}
+                  >
+                    <span {...stylex.props(styles.historyTitle)}>{session.title}</span>
+                    {session.preview ? (
+                      <span {...stylex.props(styles.historyPreview)}>{session.preview}</span>
+                    ) : null}
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

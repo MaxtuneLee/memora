@@ -9,17 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  ArrowLeftIcon,
-  CaretDownIcon,
-  ChatCircleIcon,
-  CodeIcon,
-  DotsThreeVerticalIcon,
-  FloppyDiskIcon,
-  ImageIcon,
-  PenIcon,
-  TableIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, ChatCircleIcon, CodeIcon, PenIcon } from "@phosphor-icons/react";
 
 import { SourceDocumentEditor } from "@/components/editor/SourceDocumentEditor";
 import {
@@ -32,7 +22,6 @@ import {
   WysiwygDocumentEditor,
   type WysiwygDocumentEditorHandle,
 } from "@/components/editor/WysiwygDocumentEditor";
-import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
 import { getFileExtension } from "@/lib/editor/editableTextDocument";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
@@ -149,55 +138,6 @@ const styles = stylex.create({
     fontWeight: 600,
     lineHeight: "1.25rem",
   },
-  caret: {
-    color: tokens.textSoft,
-    flexShrink: 0,
-    height: "0.875rem",
-    width: "0.875rem",
-  },
-  menuContent: { width: "248px" },
-  menuItem: {
-    alignItems: "center",
-    borderRadius: "1rem",
-    color: tokens.text,
-    display: "flex",
-    fontSize: "0.875rem",
-    gap: "0.75rem",
-    padding: "0.75rem",
-    textAlign: "left",
-    transition: "background-color 300ms",
-    width: "100%",
-    ":hover": { backgroundColor: tokens.hover },
-    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
-  },
-  menuItemIcon: {
-    alignItems: "center",
-    backgroundColor: tokens.surfaceMuted,
-    borderRadius: "9999px",
-    color: tokens.textMuted,
-    display: "flex",
-    flexShrink: 0,
-    height: "2.25rem",
-    justifyContent: "center",
-    width: "2.25rem",
-  },
-  menuItemCopy: { minWidth: 0 },
-  menuItemTitle: {
-    color: tokens.textStrong,
-    display: "block",
-    fontSize: "14px",
-    fontWeight: 600,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  menuItemDescription: {
-    color: tokens.textMuted,
-    display: "block",
-    fontSize: "13px",
-    lineHeight: "1.25rem",
-    marginTop: "0.25rem",
-  },
   saveStatus: {
     alignItems: "center",
     color: tokens.textSoft,
@@ -239,7 +179,6 @@ const styles = stylex.create({
     paddingBlock: "0.75rem",
     paddingInline: "1rem",
   },
-  hidden: { display: "none" },
   editorLayout: {
     display: "grid",
     gap: { default: "0.75rem", "@media (min-width: 1024px)": "1.25rem" },
@@ -255,17 +194,14 @@ interface MarkdownDocumentEditorProps {
   editorMode: EditorMode;
   onTextChange: (text: string) => void;
   onTitleChange: (name: string) => Promise<void>;
-  onSave: () => void;
   onRequestSource: () => void;
   onRequestWysiwyg: () => void;
-  onAttachImage: (file: File) => Promise<void>;
   onGoBack: () => void;
   saveState: "idle" | "dirty" | "saving" | "error";
   saveError?: string | null;
   referenceNotice?: string | null;
   wysiwygSafetyNotice?: string | null;
   wysiwygSafetyDiagnostics?: readonly MarkdownSafetyDiagnostic[];
-  isAttachingImage?: boolean;
   focusedLineStart?: number | null;
   focusedLineEnd?: number | null;
   txtUpgradeDialogOpen: boolean;
@@ -305,17 +241,14 @@ export function MarkdownDocumentEditor({
   editorMode,
   onTextChange,
   onTitleChange,
-  onSave,
   onRequestSource,
   onRequestWysiwyg,
-  onAttachImage,
   onGoBack,
   saveState,
   saveError,
   referenceNotice,
   wysiwygSafetyNotice,
   wysiwygSafetyDiagnostics = [],
-  isAttachingImage = false,
   focusedLineStart = null,
   focusedLineEnd = null,
   txtUpgradeDialogOpen,
@@ -326,7 +259,6 @@ export function MarkdownDocumentEditor({
   changeReview = null,
   onSelectionTextChange,
 }: MarkdownDocumentEditorProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
   const wysiwygRef = useRef<WysiwygDocumentEditorHandle | null>(null);
   const isSourceMode = editorMode === "source";
@@ -473,74 +405,6 @@ export function MarkdownDocumentEditor({
               <span {...stylex.props(styles.menuTriggerLabel)}>Chat</span>
             </button>
           ) : null}
-          <AppMenu>
-            <AppMenuTrigger
-              className={`memora-interactive ${stylex.props(styles.menuTrigger).className}`}
-            >
-              <span {...stylex.props(styles.menuTriggerIconFrame)}>
-                <DotsThreeVerticalIcon
-                  className={stylex.props(styles.menuLargeIcon).className}
-                  weight="bold"
-                />
-              </span>
-              <span {...stylex.props(styles.menuTriggerLabel)}>Actions</span>
-              <CaretDownIcon
-                data-dashboard-menu-caret=""
-                className={stylex.props(styles.caret).className}
-                weight="bold"
-              />
-            </AppMenuTrigger>
-            <AppMenuContent className={stylex.props(styles.menuContent).className}>
-              <AppMenuItem
-                disabled={saveState === "saving" || isAttachingImage}
-                className={stylex.props(styles.menuItem).className}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={onSave}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <FloppyDiskIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>Save</span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    {getSaveStatusLabel(saveState)}
-                  </span>
-                </span>
-              </AppMenuItem>
-              <AppMenuItem
-                disabled={isAttachingImage}
-                className={stylex.props(styles.menuItem).className}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <ImageIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>
-                    {isAttachingImage ? "Attaching image..." : "Attach image"}
-                  </span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    Store images beside the current note
-                  </span>
-                </span>
-              </AppMenuItem>
-              <AppMenuItem
-                disabled={isSourceMode}
-                className={stylex.props(styles.menuItem).className}
-                onClick={() => wysiwygRef.current?.insertTable()}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <TableIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>Insert table</span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    Available in preview mode only
-                  </span>
-                </span>
-              </AppMenuItem>
-            </AppMenuContent>
-          </AppMenu>
         </div>
       </header>
 
@@ -591,22 +455,6 @@ export function MarkdownDocumentEditor({
           {wysiwygSafetyNotice}
         </div>
       ) : null}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className={stylex.props(styles.hidden).className}
-        onChange={(event) => {
-          const image = event.currentTarget.files?.[0];
-          event.currentTarget.value = "";
-          if (!image) {
-            return;
-          }
-
-          void onAttachImage(image);
-        }}
-      />
 
       <div {...stylex.props(styles.editorLayout)}>
         <div {...stylex.props(styles.editor)}>

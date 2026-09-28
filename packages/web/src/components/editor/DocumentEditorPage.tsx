@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import * as stylex from "@stylexjs/stylex";
+import { AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 
@@ -624,15 +625,6 @@ function DocumentEditorSession({
     return chatProposal === null ? 0 : computeDiffHunks(text, chatProposal).length;
   }, [chatProposal, text]);
 
-  const handleAttachImage = useCallback(
-    async (image: File): Promise<void> => {
-      setWysiwygSafetyDiagnostics([]);
-      setWysiwygSafetyNotice(null);
-      await editorFile.attachImage(image);
-    },
-    [editorFile],
-  );
-
   useEffect(() => {
     handledInitialReference.current = false;
     handledInitialFocus.current = false;
@@ -834,16 +826,12 @@ function DocumentEditorSession({
               editorMode={editorMode}
               onTextChange={handleTextChange}
               onTitleChange={editorFile.renameTitle}
-              onSave={() => {
-                void editorFile.saveNow();
-              }}
               onRequestSource={() => {
                 void handleRequestSource();
               }}
               onRequestWysiwyg={() => {
                 void handleRequestWysiwyg();
               }}
-              onAttachImage={handleAttachImage}
               onGoBack={() => {
                 void handleGoBack();
               }}
@@ -852,7 +840,6 @@ function DocumentEditorSession({
               referenceNotice={referenceNotice}
               wysiwygSafetyNotice={wysiwygSafetyNotice}
               wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
-              isAttachingImage={editorFile.isAttachingImage}
               focusedLineStart={focusedLineRange?.startLine ?? null}
               focusedLineEnd={focusedLineRange?.endLine ?? null}
               txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
@@ -879,19 +866,22 @@ function DocumentEditorSession({
           ) : null}
         </div>
       </div>
-      {isChatOpen && activeFile ? (
-        <DocumentChatSidebar
-          fileName={chatFileName}
-          initialSessionId={chatSessionId}
-          onActiveSessionChange={handleChatSessionChange}
-          selectionText={selectionText}
-          onClearSelection={() => setSelectionText(null)}
-          pendingChangeCount={pendingChangeCount}
-          onAcceptAllChanges={handleAcceptAllChanges}
-          onRejectAllChanges={handleRejectAllChanges}
-          onClose={() => setIsChatOpen(false)}
-        />
-      ) : null}
+      <AnimatePresence initial={false}>
+        {isChatOpen && activeFile ? (
+          <DocumentChatSidebar
+            key="document-chat"
+            fileName={chatFileName}
+            initialSessionId={chatSessionId}
+            onActiveSessionChange={handleChatSessionChange}
+            selectionText={selectionText}
+            onClearSelection={() => setSelectionText(null)}
+            pendingChangeCount={pendingChangeCount}
+            onAcceptAllChanges={handleAcceptAllChanges}
+            onRejectAllChanges={handleRejectAllChanges}
+            onClose={() => setIsChatOpen(false)}
+          />
+        ) : null}
+      </AnimatePresence>
     </>
   );
 }
