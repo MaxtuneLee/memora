@@ -303,3 +303,54 @@ describe("SessionRuntime stream publishing", () => {
     vi.useRealTimers();
   });
 });
+
+describe("file cards", () => {
+  it("adds a card to the reply for a document create_document made", async () => {
+    let snapshot = emptySessionSnapshot("session");
+    const runtime = new SessionRuntime({
+      snapshot,
+      publish: (next) => {
+        snapshot = next;
+      },
+      save: async () => {},
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {
+          const events: AgentEvent[] = [
+            {
+              type: "tool-result",
+              toolCall: { id: "call-1", name: "create_document" },
+              result: {
+                id: "doc-1",
+                name: "Lecture notes.md",
+                storagePath: "/files/doc-1/doc-1.markdown",
+                folderId: null,
+              },
+              isError: false,
+            },
+            {
+              type: "done",
+              message: {
+                id: "reply",
+                role: "assistant",
+                createdAt: 2,
+                content: [{ type: "text", text: "Saved." }],
+              },
+            },
+          ];
+          yield* events;
+        },
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+
+    await runtime.submit(submission("create"));
+    await vi.waitFor(() => expect(snapshot.status.type).toBe("idle"));
+
+    const reply = snapshot.messages.find((message) => message.role === "assistant");
+    expect(reply?.files).toEqual([
+      { fileId: "doc-1", name: "Lecture notes.md", action: "created" },
+    ]);
+  });
+});
