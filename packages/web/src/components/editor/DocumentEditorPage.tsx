@@ -875,6 +875,15 @@ function DocumentEditorSession({
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen((open) => !open)}
               onSelectionTextChange={setSelectionText}
+              wysiwygReview={
+                chatProposal !== null
+                  ? {
+                      proposedText: chatProposal,
+                      onAcceptHunk: handleAcceptChange,
+                      onRejectHunk: handleRejectChange,
+                    }
+                  : null
+              }
               changeReview={
                 chatProposal !== null ? (
                   <DocumentChangeReview

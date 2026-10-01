@@ -38,6 +38,11 @@ import {
 } from "@/components/editor/lexical/MathNode";
 import { MarkdownLinkNode } from "@/components/editor/lexical/MarkdownLinkNode";
 import {
+  $createDiffHunkNode,
+  $isDiffHunkNode,
+  DiffHunkNode,
+} from "@/components/editor/lexical/DiffHunkNode";
+import {
   $createRawMarkdownNode,
   $isRawMarkdownNode,
   RawMarkdownNode,
@@ -158,6 +163,28 @@ const RAW_MARKDOWN_TRANSFORMER: MultilineElementTransformer = {
   type: "multiline-element",
 };
 
+// Mark a change from chat in a note under review; the line between them is the change's index.
+export const DIFF_HUNK_START = "\uE012";
+export const DIFF_HUNK_END = "\uE013";
+
+const DIFF_HUNK_TRANSFORMER: MultilineElementTransformer = {
+  dependencies: [DiffHunkNode],
+  export: (node: LexicalNode) => {
+    return $isDiffHunkNode(node)
+      ? `${DIFF_HUNK_START}\n${node.getHunkIndex()}\n${DIFF_HUNK_END}`
+      : null;
+  },
+  regExpEnd: new RegExp(`^${DIFF_HUNK_END}$`),
+  regExpStart: new RegExp(`^${DIFF_HUNK_START}$`),
+  replace: (rootNode, _children, _startMatch, _endMatch, linesInBetween) => {
+    const index = Number((linesInBetween ?? []).slice(1, -1).join(""));
+    if (Number.isInteger(index)) {
+      rootNode.append($createDiffHunkNode(index));
+    }
+  },
+  type: "multiline-element",
+};
+
 const markdownLinkReplacement = {
   replace: LinkNode,
   with: (node: LinkNode) => {
@@ -174,6 +201,7 @@ export const WYSIWYG_NODES: ReadonlyArray<LexicalNodeConfig> = [
   CodeFenceNode,
   CodeHighlightNode,
   CodeNode,
+  DiffHunkNode,
   HorizontalRuleNode,
   HeadingNode,
   MarkdownHeadingNode,
@@ -207,6 +235,7 @@ export const WYSIWYG_TRANSFORMERS = [
   INLINE_MATH_TRANSFORMER,
   HTML_ANCHOR_TRANSFORMER,
   MARKDOWN_LINK_TRANSFORMER,
+  DIFF_HUNK_TRANSFORMER,
   ...DEFAULT_WYSIWYG_TRANSFORMERS,
 ];
 

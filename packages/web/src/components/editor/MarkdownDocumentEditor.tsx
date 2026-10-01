@@ -2,6 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,7 @@ import { TxtToMarkdownConfirmDialog } from "@/components/editor/TxtToMarkdownCon
 import {
   WysiwygDocumentEditor,
   type WysiwygDocumentEditorHandle,
+  type WysiwygDocumentReview,
 } from "@/components/editor/WysiwygDocumentEditor";
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
 import { measureTextLength } from "@/lib/editor/wordCount";
@@ -204,6 +206,14 @@ const styles = stylex.create({
   },
 });
 
+const findScrollParent = (element: HTMLElement | null): HTMLElement | null => {
+  let parent = element?.parentElement ?? null;
+  while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) {
+    parent = parent.parentElement;
+  }
+  return parent;
+};
+
 interface MarkdownDocumentEditorProps {
   file: TextDocumentFileLike;
   text: string;
@@ -225,8 +235,10 @@ interface MarkdownDocumentEditorProps {
   onCancelTxtUpgrade: () => void;
   isChatOpen?: boolean;
   onToggleChat?: () => void;
-  // Shown in place of the editor while chat suggestions wait for review.
+  // Shown in place of the source editor while chat suggestions wait for review.
   changeReview?: ReactNode;
+  // The same suggestions in Preview, which marks them in the note instead of replacing the editor.
+  wysiwygReview?: WysiwygDocumentReview | null;
   onSelectionTextChange?: (text: string | null) => void;
 }
 
@@ -285,12 +297,16 @@ export function MarkdownDocumentEditor({
   isChatOpen = false,
   onToggleChat,
   changeReview = null,
+  wysiwygReview = null,
   onSelectionTextChange,
 }: MarkdownDocumentEditorProps) {
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
   const wysiwygRef = useRef<WysiwygDocumentEditorHandle | null>(null);
+  const editorBoxRef = useRef<HTMLDivElement | null>(null);
+  const scrollTopRef = useRef(0);
   const textLength = measureTextLength(text);
   const isSourceMode = editorMode === "source";
+  const isReviewing = isSourceMode && changeReview !== null && changeReview !== undefined;
   const titleParts = getDocumentTitleParts(file.name);
   const [titleValue, setTitleValue] = useState(titleParts.title);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -298,6 +314,29 @@ export function MarkdownDocumentEditor({
   const headings = useMemo(() => parseMarkdownHeadings(text), [text]);
   const activeHeadingId =
     activeHeadingIndex === null ? null : (headings[activeHeadingIndex]?.id ?? null);
+
+  // Swapping the editor for the change review (and back) rebuilds the page content, which would
+  // otherwise leave the note scrolled to the top. The last scroll position is kept in a ref because
+  // the browser clamps the real one before the layout effect runs.
+  useEffect(() => {
+    const scroller = findScrollParent(editorBoxRef.current);
+    if (!scroller) {
+      return;
+    }
+    const target = scroller;
+    const remember = (): void => {
+      scrollTopRef.current = target.scrollTop;
+    };
+    target.addEventListener("scroll", remember, { passive: true });
+    return () => target.removeEventListener("scroll", remember);
+  }, []);
+
+  useLayoutEffect(() => {
+    const scroller = findScrollParent(editorBoxRef.current);
+    if (scroller) {
+      scroller.scrollTop = scrollTopRef.current;
+    }
+  }, [isReviewing]);
 
   useEffect(() => {
     setTitleValue(titleParts.title);
@@ -486,8 +525,8 @@ export function MarkdownDocumentEditor({
       ) : null}
 
       <div {...stylex.props(styles.editorLayout)}>
-        <div {...stylex.props(styles.editor)}>
-          {changeReview ? (
+        <div ref={editorBoxRef} {...stylex.props(styles.editor)}>
+          {isSourceMode && changeReview ? (
             changeReview
           ) : isSourceMode ? (
             <SourceDocumentEditor
@@ -504,6 +543,7 @@ export function MarkdownDocumentEditor({
             <WysiwygDocumentEditor
               ref={wysiwygRef}
               text={text}
+              review={wysiwygReview}
               onActiveHeadingChange={handleActiveHeadingChange}
               onSelectionTextChange={onSelectionTextChange}
               onTextChange={onTextChange}

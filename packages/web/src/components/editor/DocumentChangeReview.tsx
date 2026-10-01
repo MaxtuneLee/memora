@@ -133,7 +133,7 @@ const trimFinalLineBreak = (text: string): string => {
 
 // One change marked in place: removed text struck through, added text highlighted, and the
 // accept and reject buttons at the end of the change, before its line break.
-function InlineChange({
+export function InlineChange({
   index,
   removed: removedLines,
   added: addedLines,

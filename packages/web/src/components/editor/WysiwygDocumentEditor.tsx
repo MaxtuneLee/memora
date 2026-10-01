@@ -26,6 +26,7 @@ import {
   IS_STRIKETHROUGH,
   COMMAND_PRIORITY_CRITICAL,
   HISTORY_MERGE_TAG,
+  SKIP_SCROLL_INTO_VIEW_TAG,
   KEY_BACKSPACE_COMMAND,
   KEY_DOWN_COMMAND,
   SELECTION_CHANGE_COMMAND,
@@ -90,6 +91,7 @@ import {
   parseMarkdownLinkedImage,
   parseMathBlock,
 } from "@/components/editor/lexical/imageMarkdownTransformer";
+import { DiffReviewContext, type DiffReviewValue } from "@/components/editor/lexical/DiffHunkNode";
 import { WysiwygFormattingToolbar } from "@/components/editor/WysiwygFormattingToolbar";
 import { MathEditorPopover } from "@/components/editor/MathEditorPopover";
 import { MarkdownKeyboardPlugin } from "@/components/editor/MarkdownKeyboardPlugin";
@@ -101,7 +103,10 @@ import {
   normalizeMarkdownRoundTripText,
   prepareMarkdownForWysiwyg,
 } from "@/lib/editor/markdownRoundTripGuard";
+import { computeDiffHunks, type DiffHunk } from "@/lib/editor/textDiff";
 import {
+  DIFF_HUNK_END,
+  DIFF_HUNK_START,
   WYSIWYG_NODES,
   WYSIWYG_TRANSFORMERS,
   exportWysiwygMarkdown,
@@ -114,8 +119,16 @@ export interface WysiwygDocumentEditorHandle {
   revealHeading: (headingIndex: number) => void;
 }
 
+/** Chat changes waiting for review: shown in the note as the Markdown that would change. */
+export interface WysiwygDocumentReview {
+  proposedText: string;
+  onAcceptHunk: (hunk: DiffHunk) => void;
+  onRejectHunk: (hunk: DiffHunk) => void;
+}
+
 interface WysiwygDocumentEditorProps {
   text: string;
+  review?: WysiwygDocumentReview | null;
   onActiveHeadingChange?: (headingIndex: number) => void;
   // Selected text while the editor has a range selection, or null once it collapses.
   onSelectionTextChange?: (text: string | null) => void;
@@ -1919,7 +1932,7 @@ export const WysiwygDocumentEditor = forwardRef<
   WysiwygDocumentEditorHandle,
   WysiwygDocumentEditorProps
 >(function WysiwygDocumentEditor(
-  { text, onActiveHeadingChange, onSelectionTextChange, onTextChange },
+  { text, review = null, onActiveHeadingChange, onSelectionTextChange, onTextChange },
   ref,
 ) {
   const editorRef = useRef<LexicalEditor | null>(null);
@@ -1931,8 +1944,48 @@ export const WysiwygDocumentEditor = forwardRef<
     onActiveHeadingChangeRef.current = onActiveHeadingChange;
   }, [onActiveHeadingChange]);
 
+  const proposedText = review?.proposedText ?? null;
+  // ponytail: a change is cut in at line boundaries, so one inside a code fence or formula block
+  // breaks that block while under review.
+  const reviewHunks = useMemo(
+    () => (proposedText === null ? null : computeDiffHunks(text, proposedText)),
+    [text, proposedText],
+  );
+  const reviewMarkdown = useMemo(() => {
+    if (!reviewHunks) {
+      return null;
+    }
+    let marked = "";
+    let offset = 0;
+    reviewHunks.forEach((hunk, index) => {
+      marked += `${text.slice(offset, hunk.baseFrom)}${DIFF_HUNK_START}\n${index}\n${DIFF_HUNK_END}\n`;
+      offset = hunk.baseTo;
+    });
+    return marked + text.slice(offset);
+  }, [text, reviewHunks]);
+  const onAcceptHunk = review?.onAcceptHunk;
+  const onRejectHunk = review?.onRejectHunk;
+  const reviewValue = useMemo<DiffReviewValue | null>(() => {
+    if (!reviewHunks || proposedText === null || !onAcceptHunk || !onRejectHunk) {
+      return null;
+    }
+    return {
+      hunks: reviewHunks.map((hunk) => ({
+        added: proposedText.slice(hunk.proposedFrom, hunk.proposedTo),
+        removed: text.slice(hunk.baseFrom, hunk.baseTo),
+      })),
+      onAccept: (index) => onAcceptHunk(reviewHunks[index]),
+      onReject: (index) => onRejectHunk(reviewHunks[index]),
+    };
+  }, [text, proposedText, reviewHunks, onAcceptHunk, onRejectHunk]);
+  const isReviewingRef = useRef(false);
+  const wasReviewingRef = useRef(false);
+
   const commitMarkdown = useCallback(
     (markdown: string): void => {
+      if (isReviewingRef.current) {
+        return;
+      }
       latestMarkdownRef.current = markdown;
       if (isImportingRef.current) {
         return;
@@ -2010,30 +2063,38 @@ export const WysiwygDocumentEditor = forwardRef<
       return;
     }
 
+    const isReviewing = reviewMarkdown !== null;
     if (
+      !isReviewing &&
+      !wasReviewingRef.current &&
       normalizeMarkdownRoundTripText(text) ===
-      normalizeMarkdownRoundTripText(latestMarkdownRef.current)
+        normalizeMarkdownRoundTripText(latestMarkdownRef.current)
     ) {
       return;
     }
 
+    isReviewingRef.current = isReviewing;
+    wasReviewingRef.current = isReviewing;
+    editor.setEditable(!isReviewing);
     isImportingRef.current = true;
     // Discrete so the change listener runs while isImportingRef is set and does not write the
-    // re-exported Markdown back over the outside change.
+    // re-exported Markdown back over the outside change. The scroll tag keeps the page where it is.
     editor.update(
       () => {
-        importWysiwygMarkdown(prepareMarkdownForWysiwyg(text));
+        importWysiwygMarkdown(reviewMarkdown ?? prepareMarkdownForWysiwyg(text));
         // Outside changes append content (an attached image) or come from chat edits, so keep
         // the caret at the end rather than jumping to the top of the document.
-        if ($getSelection() !== null) {
+        if (!isReviewing && $getSelection() !== null) {
           $getRoot().selectEnd();
         }
       },
-      { discrete: true },
+      { discrete: true, tag: [SKIP_SCROLL_INTO_VIEW_TAG] },
     );
-    latestMarkdownRef.current = text;
+    if (!isReviewing) {
+      latestMarkdownRef.current = text;
+    }
     isImportingRef.current = false;
-  }, [text]);
+  }, [text, reviewMarkdown]);
 
   useEffect(() => {
     if (!onActiveHeadingChangeRef.current) {
@@ -2097,60 +2158,62 @@ export const WysiwygDocumentEditor = forwardRef<
       data-surface="wysiwyg-document-editor"
       data-testid="wysiwyg-document-editor"
     >
-      <LexicalComposer initialConfig={initialConfig}>
-        <EditorRefPlugin editorRef={editorRef} />
-        <HistoryPlugin />
-        <ListPlugin />
-        <CheckListPlugin />
-        <HorizontalRulePlugin />
-        <LinkPlugin />
-        <TablePlugin hasCellMerge={false} />
-        <TableActionsPlugin />
-        {onSelectionTextChange ? (
-          <SelectionTextPlugin onSelectionTextChange={onSelectionTextChange} />
-        ) : null}
-        <CodeShikiPlugin />
-        <CodeFencePlugin />
-        <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />
-        <MarkdownKeyboardPlugin />
-        <MarkdownPastePlugin />
-        <RawMarkdownPlugin />
-        <SlashCommandPlugin />
-        <WysiwygFormattingToolbar />
-        <MathEditorPopover />
-        <OnChangePlugin
-          ignoreSelectionChange={true}
-          onChange={(editorState) => {
-            const markdown = exportWysiwygMarkdown(editorState);
-            commitMarkdown(markdown);
-          }}
-        />
-        <div {...stylex.props(editorStyles.editorContainer)}>
-          <RichTextPlugin
-            ErrorBoundary={LexicalErrorBoundary}
-            contentEditable={
-              <ContentEditable
-                aria-label="Document wysiwyg editor"
-                {...stylex.props(editorStyles.contentEditable)}
-                data-testid="wysiwyg-contenteditable"
-                style={{
-                  fontSize: "var(--document-editor-font-size, 16px)",
-                }}
-              />
-            }
-            placeholder={
-              <div
-                {...stylex.props(editorStyles.placeholder)}
-                style={{
-                  fontSize: "var(--document-editor-font-size, 16px)",
-                }}
-              >
-                {PLACEHOLDER}
-              </div>
-            }
+      <DiffReviewContext.Provider value={reviewValue}>
+        <LexicalComposer initialConfig={initialConfig}>
+          <EditorRefPlugin editorRef={editorRef} />
+          <HistoryPlugin />
+          <ListPlugin />
+          <CheckListPlugin />
+          <HorizontalRulePlugin />
+          <LinkPlugin />
+          <TablePlugin hasCellMerge={false} />
+          <TableActionsPlugin />
+          {onSelectionTextChange ? (
+            <SelectionTextPlugin onSelectionTextChange={onSelectionTextChange} />
+          ) : null}
+          <CodeShikiPlugin />
+          <CodeFencePlugin />
+          <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />
+          <MarkdownKeyboardPlugin />
+          <MarkdownPastePlugin />
+          <RawMarkdownPlugin />
+          <SlashCommandPlugin />
+          <WysiwygFormattingToolbar />
+          <MathEditorPopover />
+          <OnChangePlugin
+            ignoreSelectionChange={true}
+            onChange={(editorState) => {
+              const markdown = exportWysiwygMarkdown(editorState);
+              commitMarkdown(markdown);
+            }}
           />
-        </div>
-      </LexicalComposer>
+          <div {...stylex.props(editorStyles.editorContainer)}>
+            <RichTextPlugin
+              ErrorBoundary={LexicalErrorBoundary}
+              contentEditable={
+                <ContentEditable
+                  aria-label="Document wysiwyg editor"
+                  {...stylex.props(editorStyles.contentEditable)}
+                  data-testid="wysiwyg-contenteditable"
+                  style={{
+                    fontSize: "var(--document-editor-font-size, 16px)",
+                  }}
+                />
+              }
+              placeholder={
+                <div
+                  {...stylex.props(editorStyles.placeholder)}
+                  style={{
+                    fontSize: "var(--document-editor-font-size, 16px)",
+                  }}
+                >
+                  {PLACEHOLDER}
+                </div>
+              }
+            />
+          </div>
+        </LexicalComposer>
+      </DiffReviewContext.Provider>
     </section>
   );
 });
