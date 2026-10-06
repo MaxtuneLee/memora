@@ -18,8 +18,10 @@ const params=new URLSearchParams(location.search);
 const QUERY_ONLY=params.get('queries')==='1';
 const K=QUERY_ONLY?Number(params.get('k')??20):10;
 if(!Number.isInteger(K)||K<1||K>1000)throw Error('k must be a whole number from 1 to 1000.');
-const REPORT_FILE=QUERY_ONLY?`beir-dissertation-k${K}.json`:'beir-dissertation-v1.json';
-const PROGRESS_FILE=QUERY_ONLY?`beir-dissertation-k${K}-progress.json`:'beir-dissertation-progress.json';
+const MODEL_TAG='bge-small-en';
+const BASELINE_FILE=`beir-dissertation-${MODEL_TAG}-v1.json`;
+const REPORT_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}.json`:BASELINE_FILE;
+const PROGRESS_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}-progress.json`:`beir-dissertation-${MODEL_TAG}-progress.json`;
 const RETRIEVAL_DEPTH=Math.max(10,K);
 const CANDIDATE_K=5*(RETRIEVAL_DEPTH+1);
 const kControl=document.querySelector('#retrieval-k'),applyK=document.querySelector('#apply-k'),kStatus=document.querySelector('#k-status');
@@ -111,13 +113,13 @@ async function restoreSaved(){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
   try{
     if(QUERY_ONLY){
-      const baselineResponse=await fetch('/api/playground/eval-data/results/beir-dissertation-v1.json',{cache:'no-store',signal:controller.signal});
+      const baselineResponse=await fetch('/api/playground/eval-data/results/'+BASELINE_FILE,{cache:'no-store',signal:controller.signal});
       if(!baselineResponse.ok)throw Error('The completed @10 report is required for query-only evaluation.');
       queryBaseline=await baselineResponse.json();
       validateSavedReport(queryBaseline,10,{...report.config,metric:'graded ndcg_cut_10 (linear gain)',candidateK:55,queryOnly:false});
       if(queryBaseline.status!=='complete'||queryBaseline.results.length!==9||queryBaseline.errors.length)throw Error('The @10 baseline must contain nine complete results.');
       report.config.sourceReportSha256=await getVectorDbContentHash(JSON.stringify(queryBaseline));
-      report.config.sourceReport='beir-dissertation-v1.json';
+      report.config.sourceReport=BASELINE_FILE;
       report.datasets=structuredClone(queryBaseline.datasets);
       workerControl.value=String([1,2,4].includes(queryBaseline.config.embeddingWorkers)?queryBaseline.config.embeddingWorkers:2);
       rebuildControl.checked=false;rebuildControl.disabled=true;
@@ -387,7 +389,7 @@ await save();const vectors=new Map();
 if(!completedMethods(name).has('bm25')){await operation(`${scope}: initializing lexical database`,()=>db.initialize({...conf,chunkerVersion:'full-subsets-v3-'+name+'-lexical'}));const lt=performance.now();await index(db,scope,corpus,false);report.datasets.find(d=>d.name===name).lexicalIndexMs=performance.now()-lt;await evaluate(db,scope,queries,qrels,'bm25',vectors);}
 if(!completedMethods(name).has('dense')||!completedMethods(name).has('hybrid')){await operation(`${scope}: initializing semantic database`,()=>db.initialize({...conf,chunkerVersion:'full-subsets-v3-'+name+'-semantic'}));const start=performance.now();await index(db,scope,corpus,true);report.datasets.find(d=>d.name===name).embeddingIndexMs=performance.now()-start;await evaluate(db,scope,queries,qrels,'dense',vectors);await evaluate(db,scope,queries,qrels,'hybrid',vectors);}}
 
-stopMonitor();report.finishedAt=new Date().toISOString();report.status='complete';await save();const archive=(QUERY_ONLY?'beir-dissertation-k'+K+'-':'beir-dissertation-')+'w'+report.config.embeddingWorkers+'-'+report.startedAt.replace(/[:.]/g,'-')+'.json';await writeReport(archive,report);log('Complete. Full report saved to memora-eval-data/results/'+REPORT_FILE);}catch(e){stopMonitor();report.status=cancelled?'canceled':'failed';report.errors.push(String(e));retryTemporaryFailure=!cancelled&&/HTTP (408|429|500|502|503|504)|timed out|AbortError|Failed to fetch/i.test(String(e));await save().catch(()=>{});log(String(e));}finally{stopMonitor();renderWorkers();await saveProgress().catch(e=>eventLog('final progress save failed',{error:String(e)},'error'));stop.disabled=true;savedAvailable=true;resumeControl.disabled=false;resumeControl.checked=true;updateRunButton();workerControl.disabled=false;batchControl.disabled=false;rebuildControl.disabled=QUERY_ONLY;kControl.disabled=false;applyK.disabled=false;unmountDb();embeddingPool?.dispose();embeddingPool=null;runController=null;
+stopMonitor();report.finishedAt=new Date().toISOString();report.status='complete';await save();const archive=(QUERY_ONLY?'beir-dissertation-'+MODEL_TAG+'-k'+K+'-':'beir-dissertation-'+MODEL_TAG+'-')+'w'+report.config.embeddingWorkers+'-'+report.startedAt.replace(/[:.]/g,'-')+'.json';await writeReport(archive,report);log('Complete. Full report saved to memora-eval-data/results/'+REPORT_FILE);}catch(e){stopMonitor();report.status=cancelled?'canceled':'failed';report.errors.push(String(e));retryTemporaryFailure=!cancelled&&/HTTP (408|429|500|502|503|504)|timed out|AbortError|Failed to fetch/i.test(String(e));await save().catch(()=>{});log(String(e));}finally{stopMonitor();renderWorkers();await saveProgress().catch(e=>eventLog('final progress save failed',{error:String(e)},'error'));stop.disabled=true;savedAvailable=true;resumeControl.disabled=false;resumeControl.checked=true;updateRunButton();workerControl.disabled=false;batchControl.disabled=false;rebuildControl.disabled=QUERY_ONLY;kControl.disabled=false;applyK.disabled=false;unmountDb();embeddingPool?.dispose();embeddingPool=null;runController=null;
 if(retryTemporaryFailure&&autoRetryControl.checked){stop.disabled=false;log('Temporary failure. Saved items retained; continuing automatically in 60 seconds.');autoRetryTimer=setTimeout(()=>{autoRetryTimer=null;if(autoRetryControl.checked&&!cancelled)void button.onclick();},60000);}
 }};
 stop.onclick=()=>{cancelled=true;runController?.abort();if(autoRetryTimer){clearTimeout(autoRetryTimer);autoRetryTimer=null;stop.disabled=true;report.status='canceled';log('Automatic continuation stopped. Saved results retained.');void save().catch(e=>eventLog('save failed',{error:String(e)},'error'));}else log('Stopping the test.');};
