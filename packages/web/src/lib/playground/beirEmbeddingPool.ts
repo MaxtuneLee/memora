@@ -173,11 +173,13 @@ export class BeirEmbeddingPool {
   async warmup(signal?: AbortSignal): Promise<void> {
     if (this.warmed) return;
     try {
-      await Promise.all(
-        this.workers.map((_, id) =>
-          this.embedOnWorker(id, ["Memora embedding warmup"], signal, false, "warmup"),
-        ),
-      );
+      const warm = (id: number): Promise<Float32Array[]> =>
+        this.embedOnWorker(id, ["Memora embedding warmup"], signal, false, "warmup");
+      // Workers share one OPFS model cache but cannot see each other's downloads: a
+      // worker can read a file another is still writing. Let the first worker finish
+      // the download, then the rest load from the cache.
+      await warm(0);
+      await Promise.all(this.workers.slice(1).map((_, index) => warm(index + 1)));
       this.warmed = true;
     } catch (error) {
       this.controller.abort();
