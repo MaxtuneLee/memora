@@ -18,7 +18,7 @@ const params=new URLSearchParams(location.search);
 const QUERY_ONLY=params.get('queries')==='1';
 const K=QUERY_ONLY?Number(params.get('k')??20):10;
 if(!Number.isInteger(K)||K<1||K>1000)throw Error('k must be a whole number from 1 to 1000.');
-const MODEL_TAG='bge-small-en';
+const MODEL_TAG='bge-small-en-cls';
 const BASELINE_FILE=`beir-dissertation-${MODEL_TAG}-v1.json`;
 const REPORT_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}.json`:BASELINE_FILE;
 const PROGRESS_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}-progress.json`:`beir-dissertation-${MODEL_TAG}-progress.json`;

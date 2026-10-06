@@ -17,7 +17,7 @@ const script = readFileSync(new URL("../../beir-dissertation.html", import.meta.
     "",
   )
   .replace(/\}\s*$/, "");
-const root = "/api/playground/eval-data/results/beir-dissertation-bge-small-en-v1.json";
+const root = "/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-v1.json";
 const meta = {
   name: "scifact",
   corpusCount: 5183,
@@ -394,7 +394,7 @@ test("query-only k=20 keeps the baseline, reuses indexes and resumes vectors acr
   await opened.ready;
   await runInContext("button.onclick()", opened.context);
   const saved = JSON.parse(
-    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-k20.json") ?? "",
+    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ?? "",
   );
   expect(saved.status).toBe("complete");
   expect(saved.results).toHaveLength(9);
@@ -445,12 +445,12 @@ test("query-only k=20 keeps the baseline, reuses indexes and resumes vectors acr
   await changed.ready;
   await runInContext("button.onclick()", changed.context);
   expect(
-    JSON.parse(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-k30.json") ?? "")
+    JSON.parse(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k30.json") ?? "")
       .status,
   ).toBe("complete");
   expect(changed.embedding.queries).toHaveLength(0);
   expect(files.get(root)).toBe(original);
-  expect(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-k20.json")).toBe(
+  expect(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json")).toBe(
     JSON.stringify(saved, null, 2),
   );
 }, 30000);
@@ -463,7 +463,7 @@ test("query-only mode fails before searching when a saved index is unavailable",
   await opened.ready;
   await runInContext("button.onclick()", opened.context);
   const saved = JSON.parse(
-    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-k20.json") ?? "",
+    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ?? "",
   );
   expect(saved.status).toBe("failed");
   expect(saved.errors[0]).toContain("will not rebuild passages");
@@ -498,7 +498,7 @@ test("k=20 resumes the saved query item ahead of its main report", async () => {
   );
   runInContext("runController.abort()", first.context);
   await expect(running).rejects.toThrow();
-  const newRoot = "/api/playground/eval-data/results/beir-dissertation-bge-small-en-k20.json";
+  const newRoot = "/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json";
   expect(JSON.parse(files.get(newRoot) ?? "").inProgressEvaluations[0].cases).toHaveLength(0);
   const search = vi.fn(async (_input: { query: string }) => []);
   const second = page(files, search, { queryOnly: true, k: 20 });
