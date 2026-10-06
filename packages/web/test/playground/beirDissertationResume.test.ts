@@ -113,7 +113,7 @@ function page(
         signal?.throwIfAborted();
         return texts.map((text) => {
           if (!options.queryOnly) return new Float32Array([Number(text)]);
-          const vector = new Float32Array(1024);
+          const vector = new Float32Array(384);
           vector[0] = 1;
           return vector;
         });
@@ -155,6 +155,7 @@ function page(
     createVectorDbClient: () => db,
     getVectorDbContentHash: async () => "a".repeat(64),
     buildBgeIndexConfig: () => ({}),
+    BGE_SMALL_EN_QUERY_PREFIX: "",
     testDb: db,
     fetch: async (url: string, init?: { method?: string; body?: string }) => {
       requests.push(url);

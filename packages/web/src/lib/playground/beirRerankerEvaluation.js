@@ -89,9 +89,9 @@ async function restore(){
   }catch(error){restoreFailed=true;run.disabled=true;stage(String(error));log('restore failed',{error:String(error)});}
 }
 async function loadVector(meta,q,index){
-  const cfg=source.config,expected=await fingerprint({queries:meta.queriesSha256,model:cfg.model,dtype:cfg.dtype,pooling:cfg.pooling,normalized:cfg.normalized,dimensions:1024,protocol:'beir-query-vectors-v1'});if(meta.queryVectors.fingerprint!==expected)throw Error('Source query-vector settings differ.');
+  const cfg=source.config,expected=await fingerprint({queries:meta.queriesSha256,model:cfg.model,dtype:cfg.dtype,pooling:cfg.pooling,normalized:cfg.normalized,dimensions:384,protocol:'beir-query-vectors-v1'});if(meta.queryVectors.fingerprint!==expected)throw Error('Source query-vector settings differ.');
   const entry=JSON.parse(await read(`beir-query-vectors/${meta.name}/${expected}/items/${index}.json`));
-  const value=entry.result;if(entry.fingerprint!==expected||entry.itemId!==q.queryId||value.queryId!==q.queryId||value.queryText!==q.queryText||!Array.isArray(value.vector)||value.vector.length!==1024||value.vector.some(v=>!Number.isFinite(v))||Math.abs(Math.sqrt(value.vector.reduce((s,v)=>s+v*v,0))-1)>.02)throw Error('Saved query vector is missing or incompatible.');return new Float32Array(value.vector);
+  const value=entry.result;if(entry.fingerprint!==expected||entry.itemId!==q.queryId||value.queryId!==q.queryId||value.queryText!==q.queryText||!Array.isArray(value.vector)||value.vector.length!==384||value.vector.some(v=>!Number.isFinite(v))||Math.abs(Math.sqrt(value.vector.reduce((s,v)=>s+v*v,0))-1)>.02)throw Error('Saved query vector is missing or incompatible.');return new Float32Array(value.vector);
 }
 function renderWorkers(pool){workerStatus.textContent=pool.progress().map(s=>`${MODEL==='jev'?'API request':'Worker'} ${s.workerId+1}: ${s.phase}; document ${(s.startIndex??-1)+1}; ${s.completedTexts} scores; ${s.backend??"backend pending"}; last actual reply ${s.lastWorkerEventAt?Math.round((Date.now()-s.lastWorkerEventAt)/1000)+"s ago":"pending"}`).join("\n");}
 function makePool(count) {
@@ -129,7 +129,7 @@ async function evaluateDataset(name){
   const meta=source.datasets.find(d=>d.name===name),scope='full-beir-'+name,allQueries=source.results.find(r=>r.dataset===scope&&r.method==='hybrid').cases,queries=TRIAL?allQueries.slice(0,3):allQueries;
   if(report.results.filter(r=>r.dataset===scope).length===2){log('completed dataset retained',{dataset:name});return;}
   const directory=`${MODEL==='jev'?'beir-reranker-jev-checkpoints':MODEL==='base'?'beir-reranker-base-checkpoints':'beir-reranker-checkpoints'}/${settingsHash}/${name}`;
-  const conf={...buildBgeIndexConfig('bge-m3',0),chunkerName:'beir-document',chunkerVersion:'full-subsets-v3-'+name+'-semantic',modelRevision:'Xenova/bge-m3:q8',segmenterPipelineVersion:'full-beir-v3'};
+  const conf={...buildBgeIndexConfig('bge-small-en',0),chunkerName:'beir-document',chunkerVersion:'full-subsets-v3-'+name+'-semantic',modelRevision:'Xenova/bge-small-en-v1.5:q8',segmenterPipelineVersion:'full-beir-v3'};
   stage(`${name}: opening saved semantic index`);await db.initialize(conf);const [state]=await db.checkDocuments([{documentId:scope,contentHash:meta.corpusSha256}]);
   if(!state?.exists||!state.matches||state.indexedChunkCount!==meta.corpusCount)throw Error(`${name}: saved index is missing or differs. This test will not rebuild documents.`);report.indexChecks=report.indexChecks.filter(c=>c.dataset!==name);report.indexChecks.push({dataset:name,corpusSha256:meta.corpusSha256,documents:state.indexedChunkCount,reused:true});await save();
   const candidateFingerprint=await fingerprint({settingsHash,corpus:meta.corpusSha256,queries:meta.queriesSha256,config:conf,stage:'hybrid-candidates-v1'});

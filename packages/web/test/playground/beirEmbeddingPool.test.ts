@@ -87,7 +87,7 @@ vi.mock("../../src/lib/playground/bgeEmbeddingClient", () => ({
           );
         });
         if (state.fail && texts.includes("bad")) throw new Error("Inference failed");
-        return texts.map((t) => new Float32Array(1024).fill(Number(t) || 0));
+        return texts.map((t) => new Float32Array(384).fill(Number(t) || 0));
       } finally {
         state.active -= 1;
       }

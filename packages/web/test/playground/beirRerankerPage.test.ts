@@ -8,7 +8,7 @@ import { BEIR_RERANKER, getBeirRerankerProfile } from "@memora/local-model-runti
 import { rerankCandidateIds, scoreBeirRanking } from "../../src/lib/playground/beirRerankerMetrics";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-const model = { model: "Xenova/bge-m3", dtype: "q8", pooling: "cls", normalized: true };
+const model = { model: "Xenova/bge-small-en-v1.5", dtype: "q8", pooling: "mean", normalized: true };
 const names = ["scifact", "nfcorpus", "arguana"];
 const datasets = names.map((name) => ({
   name,
@@ -24,7 +24,7 @@ for (const d of datasets)
     JSON.stringify({
       queries: d.queriesSha256,
       ...model,
-      dimensions: 1024,
+      dimensions: 384,
       protocol: "beir-query-vectors-v1",
     }),
   );
@@ -91,7 +91,7 @@ function fixture(
         JSON.stringify({
           fingerprint: d.queryVectors.fingerprint,
           itemId: c.queryId,
-          result: { ...c, vector: [1, ...Array(1023).fill(0)] },
+          result: { ...c, vector: [1, ...Array(383).fill(0)] },
         }),
       );
     }

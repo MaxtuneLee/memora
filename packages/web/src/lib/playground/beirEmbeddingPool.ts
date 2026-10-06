@@ -4,6 +4,9 @@ import { BeirRerankerClient } from "./beirRerankerClient";
 import { createModelWorkerFactory } from "../model-worker/factory";
 import { BgeEmbeddingClient, type BgeWorkerUpdate } from "./bgeEmbeddingClient";
 
+export const BEIR_EMBEDDING_MODEL = "bge-small-en" as const;
+export const BEIR_EMBEDDING_DIMENSIONS = 384;
+
 interface WorkerStats {
   workerId: number;
   backend: string | null;
@@ -126,7 +129,7 @@ export class BeirEmbeddingPool {
     publish("dispatched");
     try {
       const vectors = await worker.client.embed(
-        "bge-m3",
+        BEIR_EMBEDDING_MODEL,
         texts,
         (update) => {
           worker.progress.lastWorkerEventAt = Date.now();
@@ -142,11 +145,11 @@ export class BeirEmbeddingPool {
         { signal: taskSignal, priority: "background" },
       );
       if (taskSignal.aborted) throw new Error("Canceled");
-      if (vectors.length !== texts.length || vectors.some((v) => v.length !== 1024)) {
-        throw new Error("BGE-M3 returned an incomplete embedding batch.");
+      if (vectors.length !== texts.length || vectors.some((v) => v.length !== BEIR_EMBEDDING_DIMENSIONS)) {
+        throw new Error("BGE returned an incomplete embedding batch.");
       }
       if (vectors.some((v) => !v.every(Number.isFinite))) {
-        throw new Error("BGE-M3 returned a non-finite embedding.");
+        throw new Error("BGE returned a non-finite embedding.");
       }
       if (recordStats) {
         worker.stats.texts += texts.length;
