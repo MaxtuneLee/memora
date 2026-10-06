@@ -40,7 +40,7 @@ const results = names.flatMap((name) =>
   })),
 );
 const source = JSON.stringify({ status: "complete", results, datasets, config: model, errors: [] });
-const sourcePath = "beir-dissertation-k20.json";
+const sourcePath = "beir-dissertation-bge-small-en-cls-k20.json";
 const script = readFileSync(
   new URL("../../src/lib/playground/beirRerankerEvaluation.js", import.meta.url),
   "utf8",
@@ -50,7 +50,7 @@ const script = readFileSync(
     "scifact:[5183,300],nfcorpus:[3633,323],arguana:[8674,1406]",
     "scifact:[35,2],nfcorpus:[35,2],arguana:[35,2]",
   )
-  .replace("246ec878d75be4daf257ed2c2f33e7b6cb6d64688ac7f88316c0c0a732010fb8", hash(source));
+  .replace("bf73d288750eba780029a7b837e4cb8b162b04d5bfc39181f18ab378b6280633", hash(source));
 
 class Element {
   textContent = "";
@@ -254,10 +254,10 @@ function fixture(
     JSON.parse(
       files.get(
         profile === "jev"
-          ? `beir-reranker-jev-k20-c30-v1${dataset ? "-" + dataset : ""}${trial ? "-trial" : ""}.json`
+          ? `beir-reranker-jev-bge-small-en-cls-k20-c30-v1${dataset ? "-" + dataset : ""}${trial ? "-trial" : ""}.json`
           : profile === "base"
-            ? `beir-reranker-base-fp32-webgpu-k20-c30-v1${trial ? "-trial" : ""}.json`
-            : "beir-reranker-k20-c30-v1.json",
+            ? `beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1${trial ? "-trial" : ""}.json`
+            : "beir-reranker-bge-small-en-cls-k20-c30-v1.json",
       ) ?? "{}",
     ) as StoredReport;
   return {
@@ -310,7 +310,7 @@ test("the actual page compares paired candidates, restores within a query, and p
     ),
   ).toBe(false);
   expect(p.requests.some((r) => r.path.includes("/pairs/0/items/29.json"))).toBe(true);
-  expect(p.files.get("beir-reranker-k20-c30-v1-progress.json")).toContain('"status": "complete"');
+  expect(p.files.get("beir-reranker-bge-small-en-cls-k20-c30-v1-progress.json")).toContain('"status": "complete"');
 });
 
 test("the actual page stops on a missing saved index without model loading or retrieval", async () => {
@@ -348,7 +348,7 @@ test("base model uses WebGPU and separate model checkpoints without overwriting 
   expect([...p.files.keys()].some((key) => key.includes("beir-reranker-base-checkpoints/"))).toBe(
     true,
   );
-  const output = JSON.parse(p.files.get("beir-reranker-base-fp32-webgpu-k20-c30-v1.json")!);
+  const output = JSON.parse(p.files.get("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")!);
   expect(output.config.reranker.modelId).toBe("Xenova/bge-reranker-base");
   expect(output.config.reranker.device).toBe("webgpu");
   expect(
@@ -365,7 +365,7 @@ test("a base speed trial saves only SciFact paired results in a separate report"
   expect(p.report().results).toHaveLength(2);
   expect(p.searches()).toBe(2);
   expect([...p.files.keys()].some((key) => key.includes("/nfcorpus/candidates/"))).toBe(false);
-  expect(p.files.has("beir-reranker-base-fp32-webgpu-k20-c30-v1.json")).toBe(false);
+  expect(p.files.has("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")).toBe(false);
   expect(p.files.get(sourcePath)).toBe(source);
 });
 
@@ -392,7 +392,7 @@ test("Jev uses raw probabilities, saves usage separately, and resumes document s
   }
   expect(p.report().status).toBe("complete");
   expect(p.report().results.length).toBe(2);
-  const report = JSON.parse(p.files.get("beir-reranker-jev-k20-c30-v1-trial.json")!);
+  const report = JSON.parse(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")!);
   expect(report.execution.backend).toBe("remote-api");
   expect(report.execution.pairConcurrency).toBe(4);
   expect(report.apiBilling.usage).toEqual({ input_tokens: 600, output_tokens: 60 });
@@ -408,13 +408,13 @@ test("Jev uses raw probabilities, saves usage separately, and resumes document s
 
 test("NFCorpus-only Jev evaluation runs every source query and preserves the SciFact trial", async () => {
   const p = fixture(true, false, "jev", false, "nfcorpus");
-  p.files.set("beir-reranker-jev-k20-c30-v1-trial.json", "preserve-scifact-trial");
+  p.files.set("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json", "preserve-scifact-trial");
   await p.ready;
   await p.nodes.get("saved-key")?.onclick?.();
   await p.run();
   expect(p.report().status).toBe("complete");
   expect(p.searches()).toBe(2);
-  const report = JSON.parse(p.files.get("beir-reranker-jev-k20-c30-v1-nfcorpus.json")!);
+  const report = JSON.parse(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-nfcorpus.json")!);
   expect(report.config.datasets).toEqual(["nfcorpus"]);
   expect(report.config.queryLimitPerDataset).toBeUndefined();
   expect(report.results).toHaveLength(2);
@@ -430,6 +430,6 @@ test("NFCorpus-only Jev evaluation runs every source query and preserves the Sci
       (k) => k.startsWith("scifact question") || k.startsWith("arguana question"),
     ),
   ).toBe(false);
-  expect(p.files.get("beir-reranker-jev-k20-c30-v1-trial.json")).toBe("preserve-scifact-trial");
+  expect(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")).toBe("preserve-scifact-trial");
   expect(p.files.get(sourcePath)).toBe(source);
 });
