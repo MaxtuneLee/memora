@@ -288,7 +288,7 @@ const createSchema = (nextConfig: VectorDbIndexConfig): void => {
   run("CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);");
   run("CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(chunk_content_hash);");
   run(
-    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, search_text, heading_path, tokenize = 'unicode61');",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, search_text, heading_path, tokenize = 'porter unicode61');",
   );
   run(
     `CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(chunk_rowid INTEGER PRIMARY KEY, document_id TEXT, embedding float[${nextConfig.dimensions}] distance_metric=cosine);`,
