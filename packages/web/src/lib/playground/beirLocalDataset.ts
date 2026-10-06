@@ -59,11 +59,12 @@ export function validateBeirQrelReferences(
   corpus: Pick<CorpusRow, "_id">[],
   qrels: QrelRow[],
 ): QrelRow[] {
-  const ids = new Set(corpus.map((row) => row._id));
+  // The Hugging Face rows API returns int64 qrel ids as numbers but corpus ids as strings.
+  const ids = new Set(corpus.map((row) => String(row._id)));
   const missing: QrelRow[] = [];
   for (const row of qrels) {
     if (!Number.isFinite(row.score) || row.score < 0) throw new Error("Invalid relevance grade");
-    if (ids.has(row["corpus-id"])) continue;
+    if (ids.has(String(row["corpus-id"]))) continue;
     const key = JSON.stringify([row["query-id"], row["corpus-id"], row.score]);
     if (name !== "arguana" || !ARGUANA_MISSING.has(key)) {
       throw new Error("Unexpected qrel document absent from corpus: " + row["corpus-id"]);

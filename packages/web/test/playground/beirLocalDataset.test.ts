@@ -101,6 +101,14 @@ test("retains only the five verified ArguAna missing positive pairs", () => {
   ).toThrow("absent from corpus");
 });
 
+test("accepts numeric qrel corpus ids from the Hugging Face rows API", () => {
+  const rows = [{ "query-id": 1, "corpus-id": 31715818, score: 1 }] as never;
+  expect(validateBeirQrelReferences("scifact", [{ _id: "31715818" }], rows)).toEqual([]);
+  expect(() => validateBeirQrelReferences("scifact", [{ _id: "1" }], rows)).toThrow(
+    "absent from corpus",
+  );
+});
+
 test("only a missing local file falls back to the download path", async () => {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 404 }));
   await expect(loadBeirSourceBundle("nfcorpus", { hash, fetcher })).resolves.toBeNull();
