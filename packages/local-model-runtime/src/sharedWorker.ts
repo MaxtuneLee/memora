@@ -65,6 +65,7 @@ const getTaskPool = (task: LocalModelTask): LocalModelPoolKey | undefined => {
     case "model.preload":
       return getLocalModelManifest(task.input.modelId)?.pool;
     case "embedding.generate":
+    case "reranker.score":
       return "embedding";
     case "formula.preload":
     case "formula.recognize":
@@ -84,7 +85,12 @@ const isTerminalStatusValue = (status: LocalModelTaskStatus): boolean => {
 };
 
 const isReplayOutputEvent = (event: LocalModelEvent): boolean => {
-  return event.type !== "status" && event.type !== "model-progress" && event.type !== "backend";
+  return (
+    event.type !== "status" &&
+    event.type !== "model-progress" &&
+    event.type !== "backend" &&
+    event.type !== "embedding-progress"
+  );
 };
 
 const eventsMatch = (left: LocalModelEvent, right: LocalModelEvent): boolean => {
@@ -168,7 +174,7 @@ export const startSharedModelWorkerRuntime = ({
           error,
         );
       });
-    } else {
+    } else if (event.type !== "embedding-progress") {
       schedulePersist(request);
     }
   };

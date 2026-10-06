@@ -54,15 +54,19 @@ type SharedWorkerResponse =
 
 const POOLS: LocalModelPoolKey[] = ["asr", "chat", "embedding", "formula"];
 
-const createSharedModelWorker = (pool: LocalModelPoolKey): SharedWorker => {
+const createSharedModelWorker = (
+  pool: LocalModelPoolKey,
+  namePrefix: string,
+  extendedLifetime: boolean,
+): SharedWorker => {
   switch (pool) {
     case "asr":
       return new SharedWorker(
         new URL("../../workers/localModel.shared-worker.ts", import.meta.url),
         {
           type: "module",
-          name: "memora-model-asr",
-          extendedLifetime: true,
+          name: `${namePrefix}-asr`,
+          extendedLifetime,
         },
       );
     case "chat":
@@ -70,8 +74,8 @@ const createSharedModelWorker = (pool: LocalModelPoolKey): SharedWorker => {
         new URL("../../workers/localModel.shared-worker.ts", import.meta.url),
         {
           type: "module",
-          name: "memora-model-chat",
-          extendedLifetime: true,
+          name: `${namePrefix}-chat`,
+          extendedLifetime,
         },
       );
     case "embedding":
@@ -79,8 +83,8 @@ const createSharedModelWorker = (pool: LocalModelPoolKey): SharedWorker => {
         new URL("../../workers/localModel.shared-worker.ts", import.meta.url),
         {
           type: "module",
-          name: "memora-model-embedding",
-          extendedLifetime: true,
+          name: `${namePrefix}-embedding`,
+          extendedLifetime,
         },
       );
     case "formula":
@@ -88,8 +92,8 @@ const createSharedModelWorker = (pool: LocalModelPoolKey): SharedWorker => {
         new URL("../../workers/localModel.shared-worker.ts", import.meta.url),
         {
           type: "module",
-          name: "memora-model-formula",
-          extendedLifetime: true,
+          name: `${namePrefix}-formula`,
+          extendedLifetime,
         },
       );
   }
@@ -121,7 +125,22 @@ export interface ModelWorkerFactory {
   vectorDb: VectorDbClient;
 }
 
-export const createModelWorkerFactory = (): ModelWorkerFactory => {
+export interface ModelWorkerFactoryOptions {
+  pools?: readonly LocalModelPoolKey[];
+  workerNamePrefix?: string;
+  debug?: boolean;
+  mountVectorDb?: boolean;
+  extendedLifetime?: boolean;
+}
+
+export const createModelWorkerFactory = (
+  options: ModelWorkerFactoryOptions = {},
+): ModelWorkerFactory => {
+  const pools = [...new Set(options.pools ?? POOLS)];
+  const debug = options.debug ?? true;
+  const debugLog = (...args: Parameters<typeof console.warn>): void => {
+    if (debug) console.warn(...args);
+  };
   const connections = new Map<LocalModelPoolKey, PoolConnection>();
   const pending = new Map<string, PendingRequest>();
   const vectorDb = createVectorDbClient();
@@ -144,8 +163,8 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const pushEvent = (request: PendingRequest, event: LocalModelEvent): void => {
-    if (import.meta.env.DEV) {
-      console.warn("[local-model-factory] event received", {
+    if (import.meta.env.DEV && debug) {
+      debugLog("[local-model-factory] event received", {
         pool: request.pool,
         requestId: request.requestId,
         type: event.type,
@@ -155,19 +174,21 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       });
     }
     if (event.type === "status") {
-      updateLocalModelWorkerStatus({
-        pool: request.pool,
-        requestId: request.requestId,
-        status: event.status,
-      });
-      if (event.status === "assigned") {
-        assignLocalModelWorkerRequest({
+      if (debug)
+        updateLocalModelWorkerStatus({
           pool: request.pool,
-          workerId: 0,
           requestId: request.requestId,
-          priority: request.priority,
-          task: request.task,
+          status: event.status,
         });
+      if (event.status === "assigned") {
+        if (debug)
+          assignLocalModelWorkerRequest({
+            pool: request.pool,
+            workerId: 0,
+            requestId: request.requestId,
+            priority: request.priority,
+            task: request.task,
+          });
       }
       if (event.status === "completed" || event.status === "failed" || event.status === "aborted") {
         request.closed = true;
@@ -187,8 +208,8 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
   };
 
   const handleResponse = (pool: LocalModelPoolKey, response: SharedWorkerResponse): void => {
-    if (import.meta.env.DEV) {
-      console.warn("[local-model-factory] response received", {
+    if (import.meta.env.DEV && debug) {
+      debugLog("[local-model-factory] response received", {
         pool,
         type: response.type,
         requestId: response.type === "event" ? response.requestId : undefined,
@@ -197,11 +218,12 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     }
     if (response.type === "debug") {
       if (response.payload.kind === "runtime-loaded") {
-        recordLocalModelWorkerRuntimeLoad({
-          pool,
-          workerId: 0,
-          event: response.payload,
-        });
+        if (debug)
+          recordLocalModelWorkerRuntimeLoad({
+            pool,
+            workerId: 0,
+            event: response.payload,
+          });
       }
       return;
     }
@@ -224,12 +246,16 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
 
   const connectPool = (pool: LocalModelPoolKey): void => {
     if (connections.has(pool)) return;
-    console.warn("[local-model-factory] connect pool", { pool });
-    const worker = createSharedModelWorker(pool);
+    debugLog("[local-model-factory] connect pool", { pool });
+    const worker = createSharedModelWorker(
+      pool,
+      options.workerNamePrefix ?? "memora-model",
+      options.extendedLifetime ?? true,
+    );
     const port = worker.port;
     const connection = { worker, port };
     connections.set(pool, connection);
-    registerLocalModelWorker({ pool, workerId: 0 });
+    if (debug) registerLocalModelWorker({ pool, workerId: 0 });
 
     port.addEventListener("message", (event: MessageEvent<SharedWorkerResponse>) => {
       handleResponse(pool, event.data);
@@ -255,7 +281,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       }
     });
     port.start();
-    console.warn("[local-model-factory] pool connected", { pool });
+    debugLog("[local-model-factory] pool connected", { pool });
 
     for (const request of pending.values()) {
       if (request.pool !== pool) continue;
@@ -282,7 +308,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     connection.port.postMessage({ type: "disconnect" } satisfies LocalModelSharedWorkerMessage);
     connection.port.close();
     connections.delete(pool);
-    clearLocalModelPoolDebug(pool);
+    if (debug) clearLocalModelPoolDebug(pool);
   };
 
   const cancel = (request: PendingRequest): void => {
@@ -336,11 +362,11 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
 
   return {
     mount() {
-      const unmountVectorDb = vectorDb.mount();
+      const unmountVectorDb = options.mountVectorDb === false ? () => {} : vectorDb.mount();
       mountCount += 1;
       if (mountCount === 1) {
-        console.warn("[local-model-factory] mount workers");
-        for (const pool of POOLS) connectPool(pool);
+        debugLog("[local-model-factory] mount workers");
+        for (const pool of pools) connectPool(pool);
       }
       let disposed = false;
       return () => {
@@ -350,7 +376,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
         mountCount = Math.max(0, mountCount - 1);
         if (mountCount === 0) {
           queueMicrotask(() => {
-            if (mountCount === 0) for (const pool of POOLS) disconnectPool(pool);
+            if (mountCount === 0) for (const pool of pools) disconnectPool(pool);
           });
         }
       };
@@ -424,7 +450,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
     },
     async *run(pool, input) {
       const request = createPendingRequest(pool, input);
-      console.warn("[local-model-factory] send run", {
+      debugLog("[local-model-factory] send run", {
         pool,
         requestId: request.requestId,
         task: input.task.kind,
@@ -433,7 +459,7 @@ export const createModelWorkerFactory = (): ModelWorkerFactory => {
       const abortHandler = () => cancel(request);
       input.signal?.addEventListener("abort", abortHandler, { once: true });
       sendRequest(request, input);
-      console.warn("[local-model-factory] run sent", { pool, requestId: request.requestId });
+      debugLog("[local-model-factory] run sent", { pool, requestId: request.requestId });
 
       try {
         while (!request.closed || request.events.length > 0) {

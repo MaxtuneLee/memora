@@ -4,6 +4,7 @@ import type { LocalEmbeddingModel, LocalModelExecutionBackend, LocalModelTask } 
 import type { SharedModelTaskContext } from "../sharedWorker";
 import { configureTransformersCache } from "../cache";
 import { reportWorkerRuntimeLoaded } from "../debug";
+import { createEmbeddingProgressReporter } from "./embeddingProgress";
 
 const MODELS: Record<LocalEmbeddingModel, { id: string; pooling: "mean" | "cls"; dtype: "q8" }> = {
   "bge-small-en": { id: "Xenova/bge-small-en-v1.5", pooling: "mean", dtype: "q8" },
@@ -100,25 +101,25 @@ export const runEmbeddingTask = async (
   task: Extract<LocalModelTask, { kind: "embedding.generate" }>,
   context: SharedModelTaskContext,
 ): Promise<void> => {
-  context.emit({ type: "status", status: "loading-model" });
-  const extractor = await getExtractor(task.input.model, context);
-  if (context.isCanceled()) return;
+  const progress = createEmbeddingProgressReporter(context, task.input.texts.length);
+  try {
+    const extractor = await getExtractor(task.input.model, context);
+    if (context.isCanceled()) return;
 
-  context.emit({ type: "status", status: "running" });
-  const output = await extractor(task.input.texts, {
-    pooling: MODELS[task.input.model].pooling,
-    normalize: true,
-  });
-  if (context.isCanceled()) return;
+    progress.running();
+    const output = await extractor(task.input.texts, {
+      pooling: MODELS[task.input.model].pooling,
+      normalize: true,
+    });
+    if (context.isCanceled()) return;
 
-  const values = output.data.slice();
-  const dimension = output.dims.at(-1);
-  if (!dimension || values.length % dimension !== 0) {
-    throw new Error("BGE returned an invalid embedding shape.");
+    const values = output.data.slice();
+    const dimension = output.dims.at(-1);
+    if (!dimension || values.length % dimension !== 0) {
+      throw new Error("BGE returned an invalid embedding shape.");
+    }
+    context.emit({ type: "embedding-complete", dimension, values: Array.from(values) });
+  } finally {
+    progress.dispose();
   }
-  context.emit({
-    type: "embedding-complete",
-    dimension,
-    values: Array.from(values),
-  });
 };

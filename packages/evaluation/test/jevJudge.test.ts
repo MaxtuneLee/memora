@@ -106,7 +106,7 @@ describe("createJevJudge", () => {
   it("posts to /v1/systemone with the key and reports API errors as failures", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const judge = createJevJudge({
-      apiKey: "key",
+      apiKey: "test-api-key",
       baseUrl: "/api/typesafe/",
       fetch: async (url, init) => {
         calls.push({ url, init });
@@ -123,6 +123,6 @@ describe("createJevJudge", () => {
       /403.*Must supply an API key/,
     );
     expect(calls[0].url).toBe("/api/typesafe/v1/systemone");
-    expect(calls[0].init?.headers).toMatchObject({ Authorization: "Bearer key" });
+    expect(calls[0].init?.headers).toMatchObject({ Authorization: "Bearer test-api-key" });
   });
 });

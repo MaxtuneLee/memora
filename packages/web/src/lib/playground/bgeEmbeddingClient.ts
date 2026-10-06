@@ -21,12 +21,16 @@ export interface BgeWorkerBackend {
   backend: BgeExecutionBackend;
 }
 
-export type BgeWorkerUpdate = BgeWorkerProgress | BgeWorkerBackend;
+export type BgeWorkerUpdate =
+  | BgeWorkerProgress
+  | BgeWorkerBackend
+  | (Extract<LocalEmbeddingEvent, { type: "status" }> & { label: string })
+  | (Extract<LocalEmbeddingEvent, { type: "embedding-progress" }> & { label: string });
 
 export class BgeEmbeddingClient {
-  private readonly workerFactory: ModelWorkerFactory;
+  private readonly workerFactory: Pick<ModelWorkerFactory, "run">;
 
-  constructor(workerFactory: ModelWorkerFactory = modelWorkerFactory) {
+  constructor(workerFactory: Pick<ModelWorkerFactory, "run"> = modelWorkerFactory) {
     this.workerFactory = workerFactory;
   }
 
@@ -44,6 +48,8 @@ export class BgeEmbeddingClient {
     }) as AsyncGenerator<LocalEmbeddingEvent>) {
       if (event.type === "backend") {
         onUpdate?.(event);
+      } else if (event.type === "status" || event.type === "embedding-progress") {
+        onUpdate?.({ ...event, label: event.type === "status" ? event.status : event.stage });
       } else if (event.type === "model-progress") {
         onUpdate?.({
           type: "progress",

@@ -14,3 +14,5 @@ export * from "./spotChecks";
 export * from "./textChecks";
 export * from "./types";
 export * from "./wav";
+export * from "./resumable";
+export * from "./jevReranker";

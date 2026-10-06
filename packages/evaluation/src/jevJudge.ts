@@ -117,19 +117,52 @@ export function createJevJudge(options: JevJudgeOptions): JudgeAdapter {
   return {
     identity: { judge: "jev", model, promptVersion: JEV_PROMPT_VERSION },
     async judge(input, signal) {
-      const response = await fetcher(`${baseUrl}/v1/systemone`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${options.apiKey}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(buildJevRequest(input, model)),
+      const { text } = await postJevRequest(
+        { ...options, fetch: fetcher, baseUrl },
+        buildJevRequest(input, model),
         signal,
-      });
-      const text = await response.text();
-      if (!response.ok) throw new Error(`Jev returned ${response.status}: ${text}`);
+      );
       return parseJevVerdict(input, text);
     },
   };
+}
+
+/** Shared transport; credentials are never returned with request metadata. */
+export async function postJevRequest(
+  options: JevJudgeOptions,
+  body: unknown,
+  signal: AbortSignal,
+): Promise<{ text: string; requestMs: number }> {
+  const baseUrl = (options.baseUrl ?? "https://api.typesafe.ai").replace(/\/+$/, "");
+  const fetcher = options.fetch ?? globalThis.fetch;
+  const started = performance.now();
+  const response = await fetcher(`${baseUrl}/v1/systemone`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.apiKey}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const text = await response.text();
+  if (!response.ok)
+    throw new JevHttpError(
+      response.status,
+      options.apiKey ? text.replaceAll(options.apiKey, "[redacted]") : text,
+      response.headers.get("retry-after"),
+    );
+  return { text, requestMs: performance.now() - started };
+}
+
+export class JevHttpError extends Error {
+  constructor(
+    readonly status: number,
+    detail: string,
+    readonly retryAfter: string | null,
+  ) {
+    super(`Jev returned ${status}: ${detail}`);
+    this.name = "JevHttpError";
+  }
 }
