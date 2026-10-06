@@ -374,7 +374,12 @@ export const startSharedModelWorkerRuntime = ({
 
   const disconnect = (port: MessagePort): void => {
     ports.delete(port);
-    for (const request of requests.values()) request.subscribers.delete(port);
+    for (const request of requests.values()) {
+      if (!request.subscribers.delete(port)) continue;
+      // A live audio stream can only be fed by the tab that opened it. Once that
+      // tab is gone, the stream would hold the pool forever waiting for chunks.
+      if (request.stream && request.subscribers.size === 0) cancelRequest(request);
+    }
   };
 
   const acknowledgeRejectedStreamChunk = (
@@ -410,6 +415,14 @@ export const startSharedModelWorkerRuntime = ({
     }
   };
 
+  const cancelRequest = (request: RequestState): void => {
+    if (isTerminalStatusValue(request.snapshot.status)) return;
+    request.canceled = true;
+    closeStream(request, "Stream was canceled.");
+    queue.remove(request.snapshot.requestId);
+    emit(request, { type: "status", status: "aborted" });
+  };
+
   const handleMessage = async (
     port: MessagePort,
     message: LocalModelSharedWorkerMessage,
@@ -423,13 +436,7 @@ export const startSharedModelWorkerRuntime = ({
         return;
       case "cancel": {
         const request = requests.get(message.requestId);
-        if (!request || isTerminalStatusValue(request.snapshot.status)) {
-          return;
-        }
-        request.canceled = true;
-        closeStream(request, "Stream was canceled.");
-        queue.remove(message.requestId);
-        emit(request, { type: "status", status: "aborted" });
+        if (request) cancelRequest(request);
         return;
       }
       case "stream-chunk": {
@@ -539,6 +546,8 @@ export const startSharedModelWorkerRuntime = ({
           .catch((error) => console.error("Shared model worker message failed.", error));
       },
     );
+    // Fired when the owning tab closes or reloads without sending "disconnect".
+    port.addEventListener("close", () => disconnect(port));
     port.start();
   });
 
