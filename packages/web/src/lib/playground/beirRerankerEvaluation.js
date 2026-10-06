@@ -129,7 +129,7 @@ async function evaluateDataset(name){
   const meta=source.datasets.find(d=>d.name===name),scope='full-beir-'+name,allQueries=source.results.find(r=>r.dataset===scope&&r.method==='hybrid').cases,queries=TRIAL?allQueries.slice(0,3):allQueries;
   if(report.results.filter(r=>r.dataset===scope).length===2){log('completed dataset retained',{dataset:name});return;}
   const directory=`${MODEL==='jev'?'beir-reranker-jev-checkpoints':MODEL==='base'?'beir-reranker-base-checkpoints':'beir-reranker-checkpoints'}/${settingsHash}/${name}`;
-  const conf={...buildBgeIndexConfig('bge-m3',0),chunkerName:'beir-document',chunkerVersion:'full-subsets-v2-'+name+'-semantic',modelRevision:'Xenova/bge-m3:q8',segmenterPipelineVersion:'full-beir-v2'};
+  const conf={...buildBgeIndexConfig('bge-m3',0),chunkerName:'beir-document',chunkerVersion:'full-subsets-v3-'+name+'-semantic',modelRevision:'Xenova/bge-m3:q8',segmenterPipelineVersion:'full-beir-v3'};
   stage(`${name}: opening saved semantic index`);await db.initialize(conf);const [state]=await db.checkDocuments([{documentId:scope,contentHash:meta.corpusSha256}]);
   if(!state?.exists||!state.matches||state.indexedChunkCount!==meta.corpusCount)throw Error(`${name}: saved index is missing or differs. This test will not rebuild documents.`);report.indexChecks=report.indexChecks.filter(c=>c.dataset!==name);report.indexChecks.push({dataset:name,corpusSha256:meta.corpusSha256,documents:state.indexedChunkCount,reused:true});await save();
   const candidateFingerprint=await fingerprint({settingsHash,corpus:meta.corpusSha256,queries:meta.queriesSha256,config:conf,stage:'hybrid-candidates-v1'});
