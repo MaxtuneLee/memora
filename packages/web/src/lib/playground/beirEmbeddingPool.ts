@@ -6,6 +6,8 @@ import { BgeEmbeddingClient, type BgeWorkerUpdate } from "./bgeEmbeddingClient";
 
 export const BEIR_EMBEDDING_MODEL = "bge-small-en" as const;
 export const BEIR_EMBEDDING_DIMENSIONS = 384;
+// BAAI's documented pooling for BGE v1.5 (1_Pooling/config.json), unlike the app default.
+export const BEIR_EMBEDDING_POOLING = "cls" as const;
 
 interface WorkerStats {
   workerId: number;
@@ -142,7 +144,7 @@ export class BeirEmbeddingPool {
           this.options.onUpdate?.(workerId, update);
           publish(update.type);
         },
-        { signal: taskSignal, priority: "background" },
+        { signal: taskSignal, priority: "background", pooling: BEIR_EMBEDDING_POOLING },
       );
       if (taskSignal.aborted) throw new Error("Canceled");
       if (vectors.length !== texts.length || vectors.some((v) => v.length !== BEIR_EMBEDDING_DIMENSIONS)) {

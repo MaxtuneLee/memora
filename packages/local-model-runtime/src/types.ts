@@ -136,6 +136,8 @@ export type LocalModelExecutionBackend = "webgpu" | "wasm";
 export interface LocalEmbeddingRequest {
   model: LocalEmbeddingModel;
   texts: string[];
+  // Overrides the model's default pooling; the BEIR evaluation uses the official CLS pooling.
+  pooling?: "mean" | "cls";
 }
 
 export interface LocalFormulaRequest {

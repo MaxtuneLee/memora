@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   peak: 0,
   disposed: 0,
   calls: [] as Array<{ workerId: number; texts: string[] }>,
+  poolings: [] as Array<string | undefined>,
   fail: false,
 }));
 
@@ -67,9 +68,10 @@ vi.mock("../../src/lib/playground/bgeEmbeddingClient", () => ({
       _model: string,
       texts: string[],
       update: (u: { type: "backend"; backend: "webgpu" }) => void,
-      options: { signal: AbortSignal },
+      options: { signal: AbortSignal; pooling?: string },
     ) {
       const workerId = this.factory.workerId;
+      state.poolings.push(options.pooling);
       state.calls.push({ workerId, texts });
       state.active += 1;
       state.peak = Math.max(state.peak, state.active);
@@ -103,6 +105,7 @@ import {
 beforeEach(() => {
   state.factories = [];
   state.calls = [];
+  state.poolings = [];
   state.active = 0;
   state.peak = 0;
   state.disposed = 0;
@@ -157,6 +160,7 @@ test("warms every worker once without counting warmup text as benchmark document
     await pool.warmup();
     await pool.warmup();
     expect(state.calls).toHaveLength(2);
+    expect(state.poolings).toEqual(["cls", "cls"]);
     expect(pool.stats().every((s) => s.backend === "webgpu" && s.texts === 0)).toBe(true);
   } finally {
     pool.dispose();

@@ -108,7 +108,7 @@ export const runEmbeddingTask = async (
 
     progress.running();
     const output = await extractor(task.input.texts, {
-      pooling: MODELS[task.input.model].pooling,
+      pooling: task.input.pooling ?? MODELS[task.input.model].pooling,
       normalize: true,
     });
     if (context.isCanceled()) return;

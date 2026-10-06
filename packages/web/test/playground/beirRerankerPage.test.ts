@@ -8,7 +8,7 @@ import { BEIR_RERANKER, getBeirRerankerProfile } from "@memora/local-model-runti
 import { rerankCandidateIds, scoreBeirRanking } from "../../src/lib/playground/beirRerankerMetrics";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-const model = { model: "Xenova/bge-small-en-v1.5", dtype: "q8", pooling: "mean", normalized: true };
+const model = { model: "Xenova/bge-small-en-v1.5", dtype: "q8", pooling: "cls", normalized: true };
 const names = ["scifact", "nfcorpus", "arguana"];
 const datasets = names.map((name) => ({
   name,

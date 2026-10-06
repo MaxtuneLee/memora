@@ -38,12 +38,16 @@ export class BgeEmbeddingClient {
     model: BgeEmbeddingModel,
     texts: string[],
     onUpdate?: (update: BgeWorkerUpdate) => void,
-    options: { priority?: LocalModelPriority; signal?: AbortSignal } = {},
+    options: {
+      priority?: LocalModelPriority;
+      signal?: AbortSignal;
+      pooling?: "mean" | "cls";
+    } = {},
   ): Promise<Float32Array[]> {
     let result: Extract<LocalEmbeddingEvent, { type: "embedding-complete" }> | null = null;
     for await (const event of this.workerFactory.run("embedding", {
       priority: options.priority ?? "interactive",
-      task: { kind: "embedding.generate", input: { model, texts } },
+      task: { kind: "embedding.generate", input: { model, texts, pooling: options.pooling } },
       signal: options.signal,
     }) as AsyncGenerator<LocalEmbeddingEvent>) {
       if (event.type === "backend") {
