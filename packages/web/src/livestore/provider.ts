@@ -2,7 +2,7 @@ import { Events, Schema, State } from "@livestore/livestore";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { redactProviderEndpoint } from "@/lib/settings/providerEndpoint";
 
-export type ProviderApiFormat = "chat-completions" | "responses";
+export type ProviderApiFormat = "chat-completions" | "responses" | "anthropic-messages" | "gemini";
 
 type ProviderCreatedEvent = {
   id: string;
@@ -27,7 +27,12 @@ type ProviderDeletedEvent = {
   deletedAt: Date;
 };
 
-const ApiFormatSchema = Schema.Literal("chat-completions", "responses");
+const ApiFormatSchema = Schema.Literal(
+  "chat-completions",
+  "responses",
+  "anthropic-messages",
+  "gemini",
+);
 
 export const providerTable = State.SQLite.table({
   name: "providers",

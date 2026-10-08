@@ -1,6 +1,6 @@
 import type { provider as ProviderRow } from "@/livestore/provider";
 
-export type ProviderApiFormat = "chat-completions" | "responses";
+export type ProviderApiFormat = "chat-completions" | "responses" | "anthropic-messages" | "gemini";
 
 export interface ProviderFormState {
   name: string;

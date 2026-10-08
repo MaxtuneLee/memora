@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-08
+
+- Providers can now use the Anthropic messages API or the Gemini API. Choose "Anthropic messages" or "Gemini" as the API format when adding a provider.
+
 ## 2026-09-29
 
 - The end of a note shows its word count (character count for Chinese, Japanese, or Korean text), when it was created, and when it was last edited.

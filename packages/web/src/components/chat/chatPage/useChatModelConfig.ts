@@ -51,9 +51,7 @@ export const useChatModelConfig = ({
           fallbackModelInfo(selectedModel))
       : null;
   }, [selectedModel, selectedProviderModels]);
-  const selectedApiFormat = (selectedProvider?.apiFormat ?? "chat-completions") as
-    | "chat-completions"
-    | "responses";
+  const selectedApiFormat = selectedProvider?.apiFormat ?? "chat-completions";
   const selectedApiKey = selectedProvider ? getProviderApiKey(selectedProvider).trim() : "";
   const selectedBaseUrl = selectedProvider ? normalizeBaseUrl(selectedProvider) : "";
   const agentConfig = useMemo((): Partial<AgentConfig> => {
@@ -110,7 +108,7 @@ export const useChatModelConfig = ({
       name: provider.name,
       baseUrl: normalizeBaseUrl(provider),
       apiKey: getProviderApiKey(provider).trim() || undefined,
-      apiFormat: (provider.apiFormat ?? "chat-completions") as "chat-completions" | "responses",
+      apiFormat: provider.apiFormat ?? "chat-completions",
       models: [
         parseProviderModels(provider).find((model) => model.id === modelId) ??
           fallbackModelInfo(modelId),
