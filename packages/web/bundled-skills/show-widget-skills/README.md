@@ -353,6 +353,7 @@ wrong makes saved data look lost. It also covers why browser storage cannot subs
 - The runtime executes scripts only after the full `<script>` block arrives.
 - If your script needs a listener that isn't scoped to an element inside `container` (window resize, keydown, visibilitychange, message, etc.), bind it on `window`, not `document`, and return a cleanup function from the script's top-level call that removes it. The script can re-execute in the same iframe without a page reload, and `window` is never reset between runs — an unremoved listener duplicates on every re-run.
 - In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`, `writeData`.
+- Chat widgets also get `lesson`, whose `lesson.quiz(...)` builds the questions and result of a lesson widget. See `guidelines/lesson.md`. It does not exist on the Home Grid.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
 - Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above and, before writing the `onData` handler, `sections/widget_data.md`.

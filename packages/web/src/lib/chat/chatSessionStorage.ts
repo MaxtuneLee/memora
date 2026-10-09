@@ -421,7 +421,12 @@ export const updateChatSession = async (
         typeof next.createdAt === "number" && Number.isFinite(next.createdAt)
           ? next.createdAt
           : base.createdAt,
-      updatedAt: Date.now(),
+      // The history list sorts by this, so only a change to the conversation moves a session.
+      // Titles, references, recaps and agent state saved later keep its place.
+      updatedAt:
+        existing && JSON.stringify(normalizedMessages) === JSON.stringify(base.messages)
+          ? base.updatedAt
+          : Date.now(),
       messages: normalizedMessages,
       references: normalizedReferences,
       agentStore: normalizeAgentStore(next.agentStore),

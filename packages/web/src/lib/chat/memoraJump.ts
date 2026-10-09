@@ -1,3 +1,5 @@
+import type { ChatWidget } from "@/lib/chat/showWidget";
+
 export interface MediaJumpCardData {
   fileId: string;
   fileName: string;
@@ -235,7 +237,8 @@ export interface CitedMarkdown {
 const BLOCK_LINE_PATTERN = /^(```|~~~|\||\$\$)/;
 
 /** Replaces each run of adjacent jump tags with one numbered citation marker after the text it follows. */
-export const buildCitedMarkdown = (content: string): CitedMarkdown => {
+// `firstIndex` numbers citations on from an earlier part of the same message.
+export const buildCitedMarkdown = (content: string, firstIndex = 1): CitedMarkdown => {
   const citations: MediaJumpCardData[][] = [];
   let markdown = "";
   let group: MediaJumpCardData[] = [];
@@ -244,7 +247,7 @@ export const buildCitedMarkdown = (content: string): CitedMarkdown => {
     if (group.length === 0) return;
     citations.push(group);
     group = [];
-    const marker = `<${MEMORA_CITE_TAG} index="${citations.length}"></${MEMORA_CITE_TAG}>`;
+    const marker = `<${MEMORA_CITE_TAG} index="${firstIndex - 1 + citations.length}"></${MEMORA_CITE_TAG}>`;
     const body = markdown.trimEnd();
     const trailing = markdown.slice(body.length);
     const lastLine = body.slice(body.lastIndexOf("\n") + 1).trimStart();
@@ -269,4 +272,36 @@ export const buildCitedMarkdown = (content: string): CitedMarkdown => {
 
 export const getMediaJumpHref = (jumpCard: MediaJumpCardData): string => {
   return `/transcript/file/${jumpCard.fileId}?seek=${encodeURIComponent(String(jumpCard.startSec))}`;
+};
+
+export type ContentBlock =
+  | { type: "text"; key: string; markdown: string }
+  | { type: "widget"; key: string; widget: ChatWidget };
+
+// Splits the message text at each widget's anchor, so a widget shows where it was called.
+// Widgets saved before anchors existed have none and stay at the top, as they used to.
+export const buildContentBlocks = (
+  content: string,
+  widgets: ChatWidget[] = [],
+): { blocks: ContentBlock[]; citations: CitedMarkdown["citations"] } => {
+  const blocks: ContentBlock[] = [];
+  const citations: CitedMarkdown["citations"] = [];
+  const pushText = (text: string, key: string): void => {
+    const cited = buildCitedMarkdown(text, citations.length + 1);
+    citations.push(...cited.citations);
+    const markdown = cited.markdown.replace(/^\n+/, "");
+    if (markdown.trim()) blocks.push({ type: "text", key, markdown });
+  };
+  const anchored = widgets
+    .map((widget) => ({ widget, offset: Math.min(widget.contentOffset ?? 0, content.length) }))
+    .sort((left, right) => left.offset - right.offset);
+
+  let cursor = 0;
+  for (const { widget, offset } of anchored) {
+    pushText(content.slice(cursor, offset), `text:${cursor}`);
+    blocks.push({ type: "widget", key: widget.toolCallId, widget });
+    cursor = Math.max(cursor, offset);
+  }
+  pushText(content.slice(cursor), `text:${cursor}`);
+  return { blocks, citations };
 };

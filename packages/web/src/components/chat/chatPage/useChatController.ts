@@ -10,6 +10,7 @@ import { useAgent } from "@/hooks/chat/useAgent";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
 import { createChatTools, SYSTEM_PROMPT } from "@/lib/chat/tools";
+import { LEARNING_MODE_PROMPT } from "@/lib/chat/learningMode";
 import { createShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import {
   chatActiveFilesQuery$,
@@ -149,14 +150,19 @@ export const useChatController = ({
     onCloseImagePicker: () => closeImagePickerRef.current(),
   });
 
+  // ponytail: not persisted, resets on reload; store it per session if people ask for that.
+  const [learningMode, setLearningMode] = useState(false);
+  const toggleLearningMode = useCallback(() => setLearningMode((value) => !value), []);
+
   const remotePromptSegments = useMemo(() => {
     return [
       SYSTEM_PROMPT,
       BUILT_IN_SKILLS_PROMPT,
       references.referencePromptSegment,
+      ...(learningMode ? [LEARNING_MODE_PROMPT] : []),
       ...(extraPromptSegments ?? []),
     ];
-  }, [extraPromptSegments, references.referencePromptSegment]);
+  }, [extraPromptSegments, learningMode, references.referencePromptSegment]);
 
   const persistence = useMemo(() => {
     return activeSessionId ? createOpfsSessionPersistenceAdapter(activeSessionId) : undefined;
@@ -598,6 +604,8 @@ export const useChatController = ({
         canSubmitMessage: turnActions.canSubmitMessage,
         messages,
         selectedModelInfo,
+        learningMode,
+        onToggleLearningMode: toggleLearningMode,
         onOpenSettings: openSettingsPanel,
         onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
         onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,

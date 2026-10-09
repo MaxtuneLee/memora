@@ -1,6 +1,10 @@
 import { expect, test } from "vite-plus/test";
 
-import { normalizeChatWidget, sanitizeShowWidgetArguments } from "@/lib/chat/showWidget";
+import {
+  normalizeChatWidget,
+  sanitizeShowWidgetArguments,
+  validateShowWidgetCall,
+} from "@/lib/chat/showWidget";
 
 test("sanitizeShowWidgetArguments keeps a catalog data_source and its params", () => {
   const result = sanitizeShowWidgetArguments({
@@ -98,4 +102,18 @@ test("normalizeChatWidget round-trips declared data_files", () => {
   });
 
   expect(widget?.dataFiles).toEqual(["state.json"]);
+});
+
+test("a lesson must use lesson.quiz and include a hands-on question", () => {
+  const call = (widget_code: string) =>
+    validateShowWidgetCall({
+      i_have_seen_read_me: true,
+      title: "Lesson",
+      loading_messages: [],
+      widget_code,
+    });
+
+  expect(call("<script>sendPrompt('Lesson result: X — 1/1')</script>")).toContain("lesson.quiz");
+  expect(call("<script>lesson.quiz(m, {}).choice({}).start()</script>")).toContain(".task(");
+  expect(call("<script>lesson.quiz(m, {}).task({}).choice({}).start()</script>")).toBeNull();
 });

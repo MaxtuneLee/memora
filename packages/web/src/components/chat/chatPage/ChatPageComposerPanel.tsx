@@ -3,6 +3,7 @@ import {
   ClockIcon,
   FileTextIcon,
   FolderSimpleIcon,
+  GraduationCapIcon,
   ImageIcon,
   PlusIcon,
   SlidersHorizontalIcon,
@@ -326,6 +327,8 @@ interface ChatPageComposerPanelProps {
   canSubmitMessage: boolean;
   messages: AgentChatMessage[];
   selectedModelInfo: Parameters<typeof ChatContextUsage>[0]["model"];
+  learningMode: boolean;
+  onToggleLearningMode: () => void;
   onOpenSettings: (section?: string) => void;
   onDismissMemoryNotice: () => void;
   onOpenLocalImagePicker: () => void;
@@ -388,6 +391,8 @@ export const ChatPageComposerPanel = ({
   canSubmitMessage,
   messages,
   selectedModelInfo,
+  learningMode,
+  onToggleLearningMode,
   onOpenSettings,
   onDismissMemoryNotice,
   onOpenLocalImagePicker,
@@ -661,6 +666,22 @@ export const ChatPageComposerPanel = ({
                     title="Reference files or folders"
                   >
                     <FileTextIcon className={stylex.props(styles.icon).className} weight="bold" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleLearningMode}
+                    aria-pressed={learningMode}
+                    {...stylex.props(styles.toolButton, learningMode && styles.toolButtonActive)}
+                    title={
+                      learningMode
+                        ? "Learning mode on: answers come with hands-on lessons and questions"
+                        : "Learning mode"
+                    }
+                  >
+                    <GraduationCapIcon
+                      className={stylex.props(styles.icon).className}
+                      weight="bold"
+                    />
                   </button>
                   <button
                     type="button"

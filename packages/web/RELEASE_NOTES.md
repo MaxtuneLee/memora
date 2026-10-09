@@ -6,6 +6,9 @@ the release id (use the release date, and add `.2` for a second release on the s
 
 ## 2026-10-08
 
+- Turn on learning mode with the graduation cap button under the chat box. Memora then explains a concept, builds a hands-on lesson you work through step by step, and ends it with questions you answer by using the lesson itself. Your result goes back to Memora, which goes over what you missed. A large topic is taught in parts and ends with a final review across all of them.
+- Charts, diagrams, and lessons in a chat reply now appear at the point in the answer where they belong, instead of above all the text.
+- Chat replies show inline formulas written as `$x$`.
 - Providers can now use the Anthropic messages API or the Gemini API. Choose "Anthropic messages" or "Gemini" as the API format when adding a provider.
 
 ## 2026-09-29

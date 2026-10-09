@@ -124,7 +124,12 @@ export const useShowWidgetBuffer = (
           return widget.toolCallId === toolCallId;
         });
         const currentWidget = widgetIndex >= 0 ? currentWidgets[widgetIndex] : undefined;
-        const nextWidget = updater(currentWidget);
+        const updatedWidget = updater(currentWidget);
+        // Anchor a new widget where the text stood when it was called; keep that anchor after.
+        const nextWidget = {
+          ...updatedWidget,
+          contentOffset: currentWidget?.contentOffset ?? message.content.length,
+        };
         if (currentWidget && areWidgetsEqual(currentWidget, nextWidget)) {
           return message;
         }

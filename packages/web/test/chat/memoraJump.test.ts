@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { buildCitedMarkdown } from "@/lib/chat/memoraJump";
+import { buildCitedMarkdown, buildContentBlocks } from "@/lib/chat/memoraJump";
 
 const jump = (startSec: number): string =>
   `<memora-jump fileId="f1" fileName="Lecture" mediaType="video" startSec="${startSec}" endSec="${startSec + 5}" context="" />`;
@@ -31,5 +31,35 @@ describe("buildCitedMarkdown", () => {
       markdown: "Plain answer.",
       citations: [],
     });
+  });
+});
+
+describe("buildContentBlocks", () => {
+  const widget = (toolCallId: string, contentOffset?: number) => ({
+    toolCallId,
+    title: toolCallId,
+    loadingMessages: [],
+    widgetCode: "<div></div>",
+    phase: "ready" as const,
+    ...(contentOffset !== undefined ? { contentOffset } : {}),
+  });
+
+  test("places each widget where it was called and numbers citations across the split", () => {
+    const content = `Intro. ${jump(10)}\n\nAfter widget. ${jump(20)}`;
+    const offset = content.indexOf("\n\nAfter");
+    const { blocks, citations } = buildContentBlocks(content, [widget("w1", offset)]);
+
+    expect(blocks.map((block) => (block.type === "text" ? block.markdown : block.key))).toEqual([
+      `Intro.${cite(1)}`,
+      "w1",
+      `After widget.${cite(2)}`,
+    ]);
+    expect(citations).toHaveLength(2);
+  });
+
+  test("keeps widgets without an anchor above the text", () => {
+    const { blocks } = buildContentBlocks("Answer.", [widget("old")]);
+
+    expect(blocks.map((block) => block.key)).toEqual(["old", "text:0"]);
   });
 });

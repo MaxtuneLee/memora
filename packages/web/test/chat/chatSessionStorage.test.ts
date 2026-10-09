@@ -48,3 +48,33 @@ test("an unknown session is still created on first write", async () => {
   const record = await updateChatSession("fresh", (base) => ({ ...base, title: "Fresh" }));
   expect(record.title).toBe("Fresh");
 });
+
+test("only a change to the messages moves a session in the history order", async () => {
+  vi.useFakeTimers({ now: 1_000 });
+  try {
+    const session = await createChatSession();
+    const message = { id: "m1", role: "user" as const, content: "Hi" };
+    const withMessage = await updateChatSession(session.id, (record) => ({
+      ...record,
+      messages: [message],
+    }));
+
+    vi.setSystemTime(5_000);
+    // A recap, title, or agent state written later while the session sits idle.
+    const idleWrite = await updateChatSession(session.id, (record) => ({
+      ...record,
+      title: "Later title",
+      agentStore: { runtime: { recap: "..." } },
+    }));
+    expect(idleWrite.updatedAt).toBe(withMessage.updatedAt);
+
+    const reply = { id: "m2", role: "assistant" as const, content: "Hello" };
+    const withReply = await updateChatSession(session.id, (record) => ({
+      ...record,
+      messages: [...record.messages, reply],
+    }));
+    expect(withReply.updatedAt).toBe(5_000);
+  } finally {
+    vi.useRealTimers();
+  }
+});

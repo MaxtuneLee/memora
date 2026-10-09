@@ -70,8 +70,9 @@ Active (non-deleted) rows have: deletedAt IS NULL AND purgedAt IS NULL.
 - If the widget should show the user's own data (recent files, to-do progress, storage, chat session count) rather than static content, set \`data_source\` (and \`data_source_params\` if it takes any) on \`show_widget\` — see README.md's "Data source catalog" for entry names, payload shapes, and the \`onData\`/\`getData\` bindings that deliver the result.
 
 ## Mathematical expressions
-- Wrap inline mathematical expressions with $$
+- Wrap inline mathematical expressions with single dollar signs, such as $x_w[n]$
 - For display-style equations, place $$ delimiters on separate lines
+- Write a literal dollar sign, such as a price, as \\$
 
 ## Workflow
 1. describe_table("files") to learn the schema

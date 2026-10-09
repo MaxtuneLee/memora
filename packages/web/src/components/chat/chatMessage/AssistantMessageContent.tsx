@@ -15,7 +15,7 @@ import {
   MEMORA_STREAMDOWN_PLUGINS,
   MEMORA_STREAMDOWN_THEME,
 } from "@/lib/streamdown";
-import { buildCitedMarkdown, MEMORA_CITE_TAG } from "@/lib/chat/memoraJump";
+import { buildContentBlocks, MEMORA_CITE_TAG } from "@/lib/chat/memoraJump";
 import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import { tokens } from "../../../styles/stylex.stylex";
 
@@ -23,9 +23,7 @@ import { CitationMarker } from "./CitationMarker";
 import type { ChatMessageData } from "./types";
 
 const styles = stylex.create({
-  widgetList: { display: "flex", flexDirection: "column", gap: 12 },
   content: { display: "flex", flexDirection: "column", gap: 12 },
-  contentWithWidgets: { marginTop: 12 },
   fileList: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 },
   fileCard: {
     alignItems: "center",
@@ -109,7 +107,8 @@ export function AssistantMessageContent({
   const visibleThinkingSteps = liveThinkingSteps ?? persistedThinkingSteps;
   const visibleStatus = liveThinkingSteps && status ? status : { type: "idle" as const };
   const canToggleThinking = Boolean(liveThinkingSteps && onToggleThinking);
-  const { markdown, citations } = buildCitedMarkdown(message.content);
+  const { blocks, citations } = buildContentBlocks(message.content, message.widgets);
+  const lastTextKey = blocks.findLast((block) => block.type === "text")?.key;
   const components: Components = {
     [MEMORA_CITE_TAG]: ({ index }) => {
       const number = Number(index);
@@ -118,11 +117,7 @@ export function AssistantMessageContent({
     },
   };
   const hasStreamingSpinner =
-    isStreaming &&
-    thinkingSteps &&
-    thinkingSteps.length === 0 &&
-    !markdown &&
-    (!message.widgets || message.widgets.length === 0);
+    isStreaming && thinkingSteps && thinkingSteps.length === 0 && blocks.length === 0;
   const tokenUsageText = formatTokenUsage(message.usage);
 
   return (
@@ -135,32 +130,27 @@ export function AssistantMessageContent({
           onToggle={canToggleThinking ? onToggleThinking : undefined}
         />
       )}
-      {message.widgets && message.widgets.length > 0 && (
-        <div {...stylex.props(styles.widgetList)}>
-          {message.widgets.map((widget) => (
-            <ChatWidget key={widget.toolCallId} widget={widget} onSendPrompt={onSendWidgetPrompt} />
-          ))}
-        </div>
-      )}
-      {markdown ? (
-        <div
-          {...stylex.props(
-            styles.content,
-            message.widgets && message.widgets.length > 0 && styles.contentWithWidgets,
+      {blocks.length > 0 ? (
+        <div {...stylex.props(styles.content)}>
+          {blocks.map((block) =>
+            block.type === "widget" ? (
+              <ChatWidget key={block.key} widget={block.widget} onSendPrompt={onSendWidgetPrompt} />
+            ) : (
+              <Streamdown
+                key={block.key}
+                className={MEMORA_STREAMDOWN_CLASS_NAME}
+                animated={STREAMDOWN_ANIMATION}
+                isAnimating={isStreaming && block.key === lastTextKey}
+                controls={MEMORA_STREAMDOWN_CONTROLS}
+                plugins={MEMORA_STREAMDOWN_PLUGINS}
+                shikiTheme={MEMORA_STREAMDOWN_THEME}
+                allowedTags={CITE_ALLOWED_TAGS}
+                components={components}
+              >
+                {block.markdown}
+              </Streamdown>
+            ),
           )}
-        >
-          <Streamdown
-            className={MEMORA_STREAMDOWN_CLASS_NAME}
-            animated={STREAMDOWN_ANIMATION}
-            isAnimating={isStreaming}
-            controls={MEMORA_STREAMDOWN_CONTROLS}
-            plugins={MEMORA_STREAMDOWN_PLUGINS}
-            shikiTheme={MEMORA_STREAMDOWN_THEME}
-            allowedTags={CITE_ALLOWED_TAGS}
-            components={components}
-          >
-            {markdown}
-          </Streamdown>
         </div>
       ) : hasStreamingSpinner ? (
         <div {...stylex.props(styles.loading)}>
