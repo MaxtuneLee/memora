@@ -32,3 +32,16 @@ A message submitted while a chat session is busy that waits until the current ta
 
 **Steer message**:
 A message submitted while a chat session is busy that joins the current task before its next model call. Multiple steer messages retain receipt order and can take effect before earlier pending messages; a message arriving after execution ends starts ordinary new work.
+
+**Submission**:
+A user message the chat session accepted, whether it runs as a Pending message or joins a task as a Steer message. Each accepted message is one Submission.
+
+**Run**:
+One execution of the agent loop from start to end. A Run starts from one Submission and can absorb later Steer messages, so it may cover several Submissions.
+
+**Attempt**:
+One execution of a Submission. Today every Submission has exactly one Attempt; a later recovery would add more without creating a new Submission.
+
+**Trace**:
+The ordered record of what happened in a Run: the effective model inputs, context compaction, tool calls and results, and the outcome. A developer-facing operational record, separate from the chat messages the user sees.
+_Avoid_: Log (app logs are unstructured and not per Run)

@@ -60,7 +60,14 @@ const toPiMessage = (message: AgentMessage): Message[] => {
       role: "toolResult" as const,
       toolCallId: result.id,
       toolName: result.name,
-      content: [{ type: "text" as const, text: stringifyResult(result.result) }],
+      content: [
+        { type: "text" as const, text: stringifyResult(result.result) },
+        ...(result.images ?? []).map((image) => ({
+          type: "image" as const,
+          mimeType: image.mimeType,
+          data: image.data,
+        })),
+      ],
       isError: result.isError ?? false,
       timestamp,
     }));

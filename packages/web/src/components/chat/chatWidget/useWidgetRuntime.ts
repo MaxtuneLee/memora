@@ -1,6 +1,7 @@
 import Chart from "chart.js/auto";
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 
+import { createLessonQuiz } from "@/lib/chat/lessonQuiz";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
@@ -235,6 +236,9 @@ export const useWidgetRuntime = ({
             callback(latestDataRef.current);
           }
         },
+        lesson: {
+          quiz: (mount, options) => createLessonQuiz(mount, options, sendPrompt),
+        },
         writeData: async (name, content) => {
           if (!onWriteData) {
             throw new Error("This widget cannot write data.");
@@ -295,6 +299,7 @@ export const useWidgetRuntime = ({
   const getData = bridge.getData;
   const onData = bridge.onData;
   const writeData = bridge.writeData;
+  const lesson = bridge.lesson;
 
   try {
     const cleanup = (() => {

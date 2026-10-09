@@ -45,6 +45,7 @@ export const ToolResultContentSchema = v.object({
   name: v.string(),
   result: v.unknown(),
   isError: v.optional(v.boolean()),
+  images: v.optional(v.array(ImageContentSchema)),
 });
 
 export const AgentMessageContentSchema = v.variant("type", [
@@ -97,6 +98,8 @@ export type AgentEvent =
   | { type: "reasoning-delta"; delta: string }
   | { type: "reasoning-done"; text: string }
   | { type: "usage"; usage: TokenUsage }
+  /** Steering messages entered the context; the reply after them is a new turn. */
+  | { type: "steer-consumed"; messageIds: string[] }
   | { type: "tool-call-start"; toolCall: { id: string; name: string } }
   | { type: "tool-call-args-delta"; toolCallId: string; delta: string }
   | {
@@ -187,5 +190,7 @@ export const AgentConfigSchema = v.object({
   temperature: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),
   maxTokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   maxIterations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 10),
+  /** Shorten older history instead of dropping it, and offer the recall tool. */
+  compaction: v.optional(v.boolean()),
 });
 export type AgentConfig = v.InferInput<typeof AgentConfigSchema>;

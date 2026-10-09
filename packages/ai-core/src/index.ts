@@ -2,7 +2,22 @@ export { Agent, createAgent } from "./loop";
 export type { AgentOptions } from "./loop";
 
 export { ToolRegistry, createToolRegistry } from "./tools";
-export { ContextManager, createContextManager } from "./context";
+export { COMPACTION_KEY, ContextManager, createContextManager } from "./context";
+export {
+  CACHE_TTL_MS,
+  COMPACTION_PARAMETERS,
+  projectHistory,
+  RECALL_TOOL_NAME,
+  rebaseCompaction,
+} from "./compaction";
+export type { CompactionParameters, CompactionState } from "./compaction";
+export type {
+  ModelPurpose,
+  TraceCallback,
+  TraceRecord,
+  TraceRecordBody,
+  TraceRecordType,
+} from "./trace";
 export { PromptComposer, createPromptComposer } from "./prompt";
 export { InMemoryAdapter, createInMemoryAdapter } from "./persistence";
 export { generateId, now } from "./utils";

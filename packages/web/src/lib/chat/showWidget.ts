@@ -29,7 +29,7 @@ export const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
 export const OPTIONAL_MODULE_SUPPLEMENTS: Record<ShowWidgetModule, string[]> = {
   art: ["guidelines/art_interactive.md"],
   mockup: [],
-  interactive: [],
+  interactive: ["guidelines/lesson.md"],
   chart: ["guidelines/chart_interactive.md"],
   diagram: [],
 };
@@ -59,6 +59,8 @@ export interface ChatWidget {
   dataSourceName?: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
   dataFiles?: string[];
+  // Length of the message text when the widget was called, so it renders at that point in the text.
+  contentOffset?: number;
 }
 
 export interface ShowWidgetSkillTurnState {
@@ -204,6 +206,12 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     : undefined;
   const dataSourceParams = toParamsRecord(candidate.dataSourceParams);
   const dataFiles = toStringArray(candidate.dataFiles);
+  const contentOffset =
+    typeof candidate.contentOffset === "number" &&
+    Number.isInteger(candidate.contentOffset) &&
+    candidate.contentOffset >= 0
+      ? candidate.contentOffset
+      : undefined;
 
   if (
     !toolCallId ||
@@ -222,6 +230,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     ...(dataSourceName ? { dataSourceName } : {}),
     ...(dataSourceParams ? { dataSourceParams } : {}),
     ...(dataFiles.length > 0 ? { dataFiles } : {}),
+    ...(contentOffset !== undefined ? { contentOffset } : {}),
   };
 };
 
@@ -258,6 +267,17 @@ export const validateShowWidgetCall = (params: ShowWidgetArguments): string | nu
 
   if (!params.widget_code.trim()) {
     return "widget_code must not be empty.";
+  }
+
+  // Lessons (guidelines/lesson.md): the host grades and reports, and every lesson has at least
+  // one question answered by acting on the model, not only choice questions.
+  const code = params.widget_code;
+  const usesQuiz = code.includes("lesson.quiz(");
+  if (!usesQuiz && code.includes("Lesson result:")) {
+    return "Build the Check and Result stages with lesson.quiz(...) as guidelines/lesson.md shows; do not write the grading or the result report yourself.";
+  }
+  if (usesQuiz && !/\.task\(/.test(code)) {
+    return "A lesson needs at least one hands-on question: add a .task({...}) the learner answers by changing the model, as guidelines/lesson.md shows.";
   }
 
   return null;

@@ -1,7 +1,9 @@
 import {
   ArrowUpIcon,
+  ClockIcon,
   FileTextIcon,
   FolderSimpleIcon,
+  GraduationCapIcon,
   ImageIcon,
   PlusIcon,
   SlidersHorizontalIcon,
@@ -138,6 +140,31 @@ const styles = stylex.create({
   },
   referenceIcon: { color: tokens.textMuted, flexShrink: 0, height: 14, width: 14 },
   truncate: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  // Queued messages sit above the composer, clear of the fade, like the references card.
+  pendingList: {
+    backgroundColor: `color-mix(in srgb, ${tokens.card} 80%, transparent)`,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    listStyle: "none",
+    marginBottom: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "relative",
+    zIndex: 10,
+  },
+  pendingItem: {
+    alignItems: "center",
+    color: tokens.textMuted,
+    display: "flex",
+    fontSize: 13,
+    gap: 8,
+    minWidth: 0,
+  },
+  pendingIcon: { color: tokens.textSoft, flexShrink: 0, height: 14, width: 14 },
+  pendingText: { flex: 1, minWidth: 0 },
   removeReference: {
     alignItems: "center",
     borderRadius: 9999,
@@ -150,6 +177,31 @@ const styles = stylex.create({
     ":hover": { backgroundColor: tokens.hover, color: tokens.textStrong },
   },
   hidden: { display: "none" },
+  contextChip: {
+    alignItems: "flex-start",
+    backgroundColor: tokens.surfaceMuted,
+    borderLeft: `3px solid ${tokens.olive}`,
+    borderRadius: 8,
+    display: "flex",
+    gap: 8,
+    marginInline: 12,
+    marginTop: 10,
+    paddingBlock: 6,
+    paddingInline: 10,
+  },
+  contextBody: { display: "flex", flex: 1, flexDirection: "column", gap: 2, minWidth: 0 },
+  contextLabel: { color: tokens.textMuted, fontSize: 11, fontWeight: 600 },
+  contextPreview: {
+    color: tokens.text,
+    display: "-webkit-box",
+    fontSize: 12,
+    lineHeight: "1rem",
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 3,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  },
   composer: {
     backdropFilter: "blur(24px)",
     backgroundColor: `color-mix(in srgb, ${tokens.card} 90%, transparent)`,
@@ -238,21 +290,12 @@ const styles = stylex.create({
     color: tokens.controlDisabledText,
   },
   disabled: { cursor: "not-allowed", opacity: 0.5 },
-  deliveryModeSelect: {
-    backgroundColor: tokens.controlBackground,
-    border: `1px solid ${tokens.controlBorder}`,
-    borderRadius: 8,
-    color: tokens.text,
-    fontSize: 13,
-    paddingBlock: 4,
-    paddingInline: 8,
-  },
 });
 
 interface ChatPageComposerPanelProps {
-  pendingCount: number;
+  pendingMessages: Array<{ id: string; text: string }>;
   deliveryMode: "pending" | "steer";
-  onDeliveryModeChange: (mode: "pending" | "steer") => void;
+  onSteerPending: (submissionId: string) => void;
   composerFadeHeight: number;
   centered: boolean;
   composerOverlayRef: React.RefObject<HTMLDivElement | null>;
@@ -284,6 +327,8 @@ interface ChatPageComposerPanelProps {
   canSubmitMessage: boolean;
   messages: AgentChatMessage[];
   selectedModelInfo: Parameters<typeof ChatContextUsage>[0]["model"];
+  learningMode: boolean;
+  onToggleLearningMode: () => void;
   onOpenSettings: (section?: string) => void;
   onDismissMemoryNotice: () => void;
   onOpenLocalImagePicker: () => void;
@@ -310,12 +355,15 @@ interface ChatPageComposerPanelProps {
   onReferenceButtonClick: () => void;
   onAbort: () => void;
   onRemoveComposerImage: (attachmentId: string) => void;
+  // Context attached to the next message, shown inside the input box (selected note text).
+  contextChip?: { label: string; preview: string; onRemove: () => void } | null;
+  placeholder?: string;
 }
 
 export const ChatPageComposerPanel = ({
-  pendingCount,
+  pendingMessages,
   deliveryMode,
-  onDeliveryModeChange,
+  onSteerPending,
   composerFadeHeight,
   centered,
   composerOverlayRef,
@@ -343,6 +391,8 @@ export const ChatPageComposerPanel = ({
   canSubmitMessage,
   messages,
   selectedModelInfo,
+  learningMode,
+  onToggleLearningMode,
   onOpenSettings,
   onDismissMemoryNotice,
   onOpenLocalImagePicker,
@@ -369,6 +419,8 @@ export const ChatPageComposerPanel = ({
   onReferenceButtonClick,
   onAbort,
   onRemoveComposerImage,
+  contextChip = null,
+  placeholder = "Message Memora...",
 }: ChatPageComposerPanelProps) => {
   return (
     <div {...stylex.props(styles.root, centered && styles.rootCentered)}>
@@ -505,7 +557,28 @@ export const ChatPageComposerPanel = ({
             {...stylex.props(styles.hidden)}
             onChange={onImageInputChange}
           />
-          {pendingCount > 0 && <p role="status">{pendingCount} pending</p>}
+          {pendingMessages.length > 0 && (
+            <ul aria-label="Queued messages" {...stylex.props(styles.pendingList)}>
+              {pendingMessages.map((pending) => (
+                <li key={pending.id} {...stylex.props(styles.pendingItem)}>
+                  <ClockIcon className={stylex.props(styles.pendingIcon).className} />
+                  <span {...stylex.props(styles.truncate, styles.pendingText)}>
+                    {pending.text || "Image"}
+                  </span>
+                  {isStreaming && (
+                    <button
+                      type="button"
+                      onClick={() => onSteerPending(pending.id)}
+                      aria-label={`Steer "${pending.text || "Image"}" into the current reply`}
+                      {...stylex.props(styles.clearButton)}
+                    >
+                      Steer
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
           <form onSubmit={onSubmit}>
             <div
               {...stylex.props(styles.composer, composerDragActive && styles.composerDragging)}
@@ -516,6 +589,22 @@ export const ChatPageComposerPanel = ({
             >
               {composerDragActive && (
                 <div {...stylex.props(styles.dragOverlay)}>Drop images here to attach them</div>
+              )}
+              {contextChip && (
+                <div {...stylex.props(styles.contextChip)} data-testid="chat-context-chip">
+                  <div {...stylex.props(styles.contextBody)}>
+                    <span {...stylex.props(styles.contextLabel)}>{contextChip.label}</span>
+                    <span {...stylex.props(styles.contextPreview)}>{contextChip.preview}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={contextChip.onRemove}
+                    {...stylex.props(styles.removeReference)}
+                    aria-label={`Remove ${contextChip.label.toLowerCase()}`}
+                  >
+                    <XIcon className={stylex.props(styles.iconSmall).className} />
+                  </button>
+                </div>
               )}
               {composerImages.length > 0 && (
                 <div {...stylex.props(styles.attachments)}>
@@ -533,7 +622,7 @@ export const ChatPageComposerPanel = ({
                 onPaste={onPaste}
                 onCompositionStart={onCompositionStart}
                 onCompositionEnd={onCompositionEnd}
-                placeholder="Message Memora..."
+                placeholder={placeholder}
                 disabled={isPreparingTurn}
                 rows={1}
                 {...stylex.props(
@@ -580,6 +669,22 @@ export const ChatPageComposerPanel = ({
                   </button>
                   <button
                     type="button"
+                    onClick={onToggleLearningMode}
+                    aria-pressed={learningMode}
+                    {...stylex.props(styles.toolButton, learningMode && styles.toolButtonActive)}
+                    title={
+                      learningMode
+                        ? "Learning mode on: answers come with hands-on lessons and questions"
+                        : "Learning mode"
+                    }
+                  >
+                    <GraduationCapIcon
+                      className={stylex.props(styles.icon).className}
+                      weight="bold"
+                    />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onOpenSettings("ai-provider")}
                     {...stylex.props(styles.toolButton)}
                   >
@@ -593,19 +698,6 @@ export const ChatPageComposerPanel = ({
                     messages={messages}
                     model={selectedModelInfo}
                   />
-                  {isStreaming && (
-                    <select
-                      aria-label="Message delivery"
-                      value={deliveryMode}
-                      onChange={(event) =>
-                        onDeliveryModeChange(event.target.value === "steer" ? "steer" : "pending")
-                      }
-                      {...stylex.props(styles.deliveryModeSelect)}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="steer">Steer</option>
-                    </select>
-                  )}
                   {isStreaming ? (
                     <button
                       type="button"

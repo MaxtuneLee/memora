@@ -10,3 +10,4 @@ export * from "./sharedWorker";
 export * from "./storage";
 export * from "./types";
 export * from "./validation";
+export * from "./rerankerConfig";

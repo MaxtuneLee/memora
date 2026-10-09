@@ -9,6 +9,7 @@ import { preloadGemma4Chat, runGemma4Chat } from "./chat/gemma4";
 import { preloadQwen35Chat, runQwen35Chat } from "./chat/qwen35";
 import { runEmbeddingTask } from "./embedding";
 import { runFormulaTask } from "./formula";
+import { runRerankerTask } from "./reranker";
 
 export const runLocalModelTask = async (
   task: LocalModelTask,
@@ -17,6 +18,9 @@ export const runLocalModelTask = async (
   stream?: { nextChunk: () => Promise<{ audio: Float32Array; acknowledge: () => void } | null> },
 ): Promise<void> => {
   switch (task.kind) {
+    case "reranker.score":
+      await runRerankerTask(task, emit, canceled);
+      return;
     case "embedding.generate":
       await runEmbeddingTask(task, { emit, isCanceled: canceled });
       return;

@@ -1,5 +1,7 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
 import type { Plugin } from "vite";
@@ -47,6 +49,56 @@ const nanoBeirProxy = {
   rewrite: (requestPath: string) => requestPath.replace(/^\/api\/playground\/nanobeir/u, "/rows"),
 };
 
+// TypeSafe AI rejects browser origins, so the playground's Jev judge goes through the dev server.
+const typeSafeProxy = {
+  target: "https://api.typesafe.ai",
+  changeOrigin: true,
+  rewrite: (requestPath: string) => requestPath.replace(/^\/api\/playground\/typesafe/u, ""),
+};
+
+// Development only: the playground's evaluation API reads questions and transcripts from a local
+// folder outside the repository (the corpus is CC BY-NC-SA) and writes results to its results/.
+const EVAL_DATA_DIR = path.resolve(
+  process.env.MEMORA_EVAL_DATA ?? path.join(homedir(), "memora-eval-data"),
+);
+const evaluationDataPlugin = (): Plugin => ({
+  name: "memora-evaluation-data",
+  apply: "serve",
+  configureServer(server) {
+    server.middlewares.use("/api/playground/eval-data", (request, response, next) => {
+      const relative = decodeURIComponent(request.url?.split("?")[0] ?? "").replace(/^\/+/u, "");
+      const target = path.resolve(EVAL_DATA_DIR, relative);
+      const writing = request.method === "PUT";
+      const allowed =
+        target.startsWith(`${EVAL_DATA_DIR}${path.sep}`) &&
+        target.endsWith(".json") &&
+        (!writing || target.startsWith(path.join(EVAL_DATA_DIR, "results") + path.sep));
+      if (!allowed) {
+        response.statusCode = 400;
+        response.end("Read JSON inside the evaluation data folder; write only to results/.");
+        return;
+      }
+      const handle = async () => {
+        if (request.method === "GET") {
+          response.setHeader("Content-Type", "application/json");
+          response.end(await readFile(target));
+        } else if (writing) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of request) chunks.push(chunk as Buffer);
+          await mkdir(path.dirname(target), { recursive: true });
+          await writeFile(target, Buffer.concat(chunks));
+          response.statusCode = 204;
+          response.end();
+        } else next();
+      };
+      handle().catch((error: NodeJS.ErrnoException) => {
+        response.statusCode = error.code === "ENOENT" ? 404 : 500;
+        response.end(error.message);
+      });
+    });
+  },
+});
+
 const config = {
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
@@ -56,6 +108,7 @@ const config = {
     ),
   },
   plugins: [
+    evaluationDataPlugin(),
     ...(isVitest
       ? []
       : [
@@ -223,6 +276,7 @@ const config = {
     port: 9003,
     proxy: {
       "/api/playground/nanobeir": nanoBeirProxy,
+      "/api/playground/typesafe": typeSafeProxy,
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
@@ -244,6 +298,7 @@ const config = {
   preview: {
     proxy: {
       "/api/playground/nanobeir": nanoBeirProxy,
+      "/api/playground/typesafe": typeSafeProxy,
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",

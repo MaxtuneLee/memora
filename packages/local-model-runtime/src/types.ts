@@ -136,6 +136,8 @@ export type LocalModelExecutionBackend = "webgpu" | "wasm";
 export interface LocalEmbeddingRequest {
   model: LocalEmbeddingModel;
   texts: string[];
+  // Overrides the model's default pooling; the BEIR evaluation uses the official CLS pooling.
+  pooling?: "mean" | "cls";
 }
 
 export interface LocalFormulaRequest {
@@ -148,6 +150,15 @@ export type LocalModelTask =
   | { kind: "chat.generate"; input: LocalChatRequest }
   | { kind: "model.preload"; input: { modelId: string } }
   | { kind: "embedding.generate"; input: LocalEmbeddingRequest }
+  | {
+      kind: "reranker.score";
+      input: {
+        query: string;
+        document: string;
+        device: LocalModelExecutionBackend;
+        profile?: "m3" | "base";
+      };
+    }
   | { kind: "formula.preload"; input: Record<string, never> }
   | { kind: "formula.recognize"; input: LocalFormulaRequest };
 
@@ -221,6 +232,12 @@ export type LocalChatEvent =
 export type LocalEmbeddingEvent =
   | LocalModelCommonEvent
   | { type: "backend"; backend: LocalModelExecutionBackend }
+  | {
+      type: "embedding-progress";
+      stage: "loading-model" | "running";
+      elapsedMs: number;
+      textCount: number;
+    }
   | { type: "embedding-complete"; dimension: number; values: number[] };
 
 export type LocalFormulaEvent =
@@ -232,7 +249,13 @@ export type LocalModelEvent =
   | LocalAsrEvent
   | LocalChatEvent
   | LocalEmbeddingEvent
-  | LocalFormulaEvent;
+  | LocalFormulaEvent
+  | {
+      type: "reranker-complete";
+      logit: number;
+      scoringMs: number;
+      backend: LocalModelExecutionBackend;
+    };
 
 export interface LocalModelEventEnvelope<TEvent extends LocalModelEvent = LocalModelEvent> {
   requestId: string;

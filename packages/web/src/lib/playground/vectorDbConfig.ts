@@ -38,7 +38,7 @@ export const buildBgeIndexConfig = (
     queryPrefix: model === "bge-small-en" ? BGE_SMALL_EN_QUERY_PREFIX : "",
     documentPrefix: "",
     chunkerName: "transcript-characters",
-    chunkerVersion: "1",
+    chunkerVersion: "2",
     chunkSize,
     chunkOverlap: 0,
     segmenterLocale: "und",

@@ -117,6 +117,21 @@ describe("model worker factory", () => {
     ).toBe(true);
   });
 
+  test("keeps scoped embedding factories on distinct workers without unrelated pools", async () => {
+    const cleanups = [0, 1].map((id) =>
+      createModelWorkerFactory({
+        pools: ["embedding"],
+        workerNamePrefix: `beir-test-${id}`,
+        debug: false,
+        mountVectorDb: false,
+      }).mount(),
+    );
+    expect(workerNames()).toEqual(["beir-test-0-embedding", "beir-test-1-embedding"]);
+    cleanups.forEach((cleanup) => cleanup());
+    await flushDeferredDisconnect();
+    expect(MockSharedWorker.instances.every((worker) => worker.port.closed)).toBe(true);
+  });
+
   test("keeps pool workers through an immediate unmount and remount", async () => {
     const factory = createModelWorkerFactory();
     const unmount = factory.mount();

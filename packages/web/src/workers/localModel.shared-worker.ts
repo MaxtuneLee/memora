@@ -1,22 +1,16 @@
 import { runLocalModelTask, setLocalModelAssetCache } from "@memora/local-model-runtime/worker";
-import type { LocalModelPoolKey, LocalModelTask } from "@memora/local-model-runtime";
+import type { LocalModelTask } from "@memora/local-model-runtime";
 
 import { opfsLocalModelAssetCache } from "./local-model/cache";
 import { startSharedModelWorkerRuntime } from "./model-worker/sharedRuntime";
-
-const WORKER_POOL_BY_NAME = {
-  "memora-model-asr": "asr",
-  "memora-model-chat": "chat",
-  "memora-model-embedding": "embedding",
-  "memora-model-formula": "formula",
-} as const satisfies Record<string, LocalModelPoolKey>;
+import { getModelWorkerPool } from "./model-worker/poolName";
 
 interface NamedSharedWorkerScope {
   name: string;
 }
 
 const workerName = (self as unknown as NamedSharedWorkerScope).name;
-const pool = WORKER_POOL_BY_NAME[workerName as keyof typeof WORKER_POOL_BY_NAME];
+const pool = getModelWorkerPool(workerName);
 if (!pool) throw new Error(`Unknown shared model worker name: ${workerName}`);
 
 setLocalModelAssetCache(opfsLocalModelAssetCache);

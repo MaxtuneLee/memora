@@ -1,5 +1,7 @@
+import { FileTextIcon } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { Streamdown } from "streamdown";
+import { Link } from "react-router";
+import { Streamdown, type Components } from "streamdown";
 import * as stylex from "@stylexjs/stylex";
 import "streamdown/styles.css";
 import "katex/dist/katex.min.css";
@@ -13,16 +15,40 @@ import {
   MEMORA_STREAMDOWN_PLUGINS,
   MEMORA_STREAMDOWN_THEME,
 } from "@/lib/streamdown";
-import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
+import { buildContentBlocks, MEMORA_CITE_TAG } from "@/lib/chat/memoraJump";
+import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import { tokens } from "../../../styles/stylex.stylex";
 
-import { MediaJumpCard } from "./MediaJumpCard";
+import { CitationMarker } from "./CitationMarker";
 import type { ChatMessageData } from "./types";
 
 const styles = stylex.create({
-  widgetList: { display: "flex", flexDirection: "column", gap: 12 },
   content: { display: "flex", flexDirection: "column", gap: 12 },
-  contentWithWidgets: { marginTop: 12 },
+  fileList: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  fileCard: {
+    alignItems: "center",
+    backgroundColor: { default: tokens.surfaceMuted, ":hover": tokens.card },
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 12,
+    display: "flex",
+    gap: 10,
+    maxWidth: "100%",
+    paddingBlock: 8,
+    paddingInline: 12,
+    textDecoration: "none",
+    transition: "background-color 150ms",
+  },
+  fileIcon: { color: tokens.textMuted, flexShrink: 0, height: 18, width: 18 },
+  fileText: { display: "flex", flexDirection: "column", minWidth: 0 },
+  fileName: {
+    color: tokens.textStrong,
+    fontSize: 13,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  fileAction: { color: tokens.textMuted, fontSize: 11 },
   loading: { alignItems: "center", display: "flex", gap: 4, paddingBlock: 2 },
   loadingDot: { backgroundColor: tokens.textSoft, borderRadius: 9999, height: 6, width: 6 },
   tokenUsage: {
@@ -41,6 +67,8 @@ const STREAMDOWN_ANIMATION = {
   duration: 0.5,
   easing: "ease-in-out",
 } as const;
+
+const CITE_ALLOWED_TAGS = { [MEMORA_CITE_TAG]: ["index"] };
 
 const formatTokenUsage = (usage: ChatMessageData["usage"]): string | null => {
   if (!usage) {
@@ -79,18 +107,17 @@ export function AssistantMessageContent({
   const visibleThinkingSteps = liveThinkingSteps ?? persistedThinkingSteps;
   const visibleStatus = liveThinkingSteps && status ? status : { type: "idle" as const };
   const canToggleThinking = Boolean(liveThinkingSteps && onToggleThinking);
-  const parsedContent = parseMemoraJumpContent(message.content);
-  const hasRenderableText = parsedContent.some(
-    (part) => part.type === "text" && part.content.trim().length > 0,
-  );
-  const hasJumpCards = parsedContent.some((part) => part.type === "jump");
+  const { blocks, citations } = buildContentBlocks(message.content, message.widgets);
+  const lastTextKey = blocks.findLast((block) => block.type === "text")?.key;
+  const components: Components = {
+    [MEMORA_CITE_TAG]: ({ index }) => {
+      const number = Number(index);
+      const moments = citations[number - 1];
+      return moments ? <CitationMarker index={number} moments={moments} /> : null;
+    },
+  };
   const hasStreamingSpinner =
-    isStreaming &&
-    thinkingSteps &&
-    thinkingSteps.length === 0 &&
-    !hasRenderableText &&
-    !hasJumpCards &&
-    (!message.widgets || message.widgets.length === 0);
+    isStreaming && thinkingSteps && thinkingSteps.length === 0 && blocks.length === 0;
   const tokenUsageText = formatTokenUsage(message.usage);
 
   return (
@@ -103,48 +130,27 @@ export function AssistantMessageContent({
           onToggle={canToggleThinking ? onToggleThinking : undefined}
         />
       )}
-      {message.widgets && message.widgets.length > 0 && (
-        <div {...stylex.props(styles.widgetList)}>
-          {message.widgets.map((widget) => (
-            <ChatWidget key={widget.toolCallId} widget={widget} onSendPrompt={onSendWidgetPrompt} />
-          ))}
-        </div>
-      )}
-      {parsedContent.length > 0 ? (
-        <div
-          {...stylex.props(
-            styles.content,
-            message.widgets && message.widgets.length > 0 && styles.contentWithWidgets,
+      {blocks.length > 0 ? (
+        <div {...stylex.props(styles.content)}>
+          {blocks.map((block) =>
+            block.type === "widget" ? (
+              <ChatWidget key={block.key} widget={block.widget} onSendPrompt={onSendWidgetPrompt} />
+            ) : (
+              <Streamdown
+                key={block.key}
+                className={MEMORA_STREAMDOWN_CLASS_NAME}
+                animated={STREAMDOWN_ANIMATION}
+                isAnimating={isStreaming && block.key === lastTextKey}
+                controls={MEMORA_STREAMDOWN_CONTROLS}
+                plugins={MEMORA_STREAMDOWN_PLUGINS}
+                shikiTheme={MEMORA_STREAMDOWN_THEME}
+                allowedTags={CITE_ALLOWED_TAGS}
+                components={components}
+              >
+                {block.markdown}
+              </Streamdown>
+            ),
           )}
-        >
-          {parsedContent.map((part, index) => {
-            if (part.type === "text") {
-              if (!part.content.trim()) {
-                return null;
-              }
-
-              return (
-                <Streamdown
-                  key={`text-${index}`}
-                  className={MEMORA_STREAMDOWN_CLASS_NAME}
-                  animated={STREAMDOWN_ANIMATION}
-                  isAnimating={isStreaming}
-                  controls={MEMORA_STREAMDOWN_CONTROLS}
-                  plugins={MEMORA_STREAMDOWN_PLUGINS}
-                  shikiTheme={MEMORA_STREAMDOWN_THEME}
-                >
-                  {part.content}
-                </Streamdown>
-              );
-            }
-
-            return (
-              <MediaJumpCard
-                key={`${part.jumpCard.fileId}-${part.jumpCard.startSec}-${index}`}
-                jumpCard={part.jumpCard}
-              />
-            );
-          })}
         </div>
       ) : hasStreamingSpinner ? (
         <div {...stylex.props(styles.loading)}>
@@ -162,6 +168,25 @@ export function AssistantMessageContent({
           ))}
         </div>
       ) : null}
+      {message.files && message.files.length > 0 && (
+        <div {...stylex.props(styles.fileList)}>
+          {message.files.map((file) => (
+            <Link
+              key={file.fileId}
+              to={getDocumentEditorHref(file.fileId)}
+              {...stylex.props(styles.fileCard)}
+            >
+              <FileTextIcon className={stylex.props(styles.fileIcon).className} />
+              <span {...stylex.props(styles.fileText)}>
+                <span {...stylex.props(styles.fileName)}>{file.name}</span>
+                <span {...stylex.props(styles.fileAction)}>
+                  {file.action === "created" ? "Created" : "Edited"}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
       {tokenUsageText && <div {...stylex.props(styles.tokenUsage)}>{tokenUsageText}</div>}
     </>
   );

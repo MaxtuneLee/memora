@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { useAppStore } from "@/livestore/store";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 import { createChatTools } from "@/lib/chat/tools";
+import { createDocumentTools, getDocumentToolTarget } from "@/lib/chat/tools/documentTools";
 import { createShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import { command, registerToolHost, requestToolApproval } from "@/lib/agent-runtime/client";
 
@@ -30,6 +31,10 @@ export function useAgentToolHost(): void {
           void command({ type: "memory-updated", sessionId: call.sessionId }).catch(console.error);
         },
       });
+      const documentTarget = getDocumentToolTarget(call.sessionId);
+      if (documentTarget) {
+        tools.push(...createDocumentTools(documentTarget));
+      }
       const tool = tools.find((item) => item.name === call.name);
       if (!tool) throw new Error(`Unknown tool: ${call.name}`);
       return tool.execute(v.parse(tool.parameters, call.args));

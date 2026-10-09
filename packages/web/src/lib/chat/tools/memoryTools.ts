@@ -47,14 +47,19 @@ export const createMemoryTools = (options: CreateChatToolsOptions): ToolDefiniti
             };
           }
 
-          const result = await upsertGlobalMemoryNotices(notices);
+          const result = options.saveMemoryNotices
+            ? await options.saveMemoryNotices(notices)
+            : await upsertGlobalMemoryNotices(notices).then(({ updated, memory }) => ({
+                updated,
+                noticeCount: memory.notices.length,
+              }));
           if (result.updated) {
             options.onMemoryUpdated?.();
           }
 
           return {
             updated: result.updated,
-            noticeCount: result.memory.notices.length,
+            noticeCount: result.noticeCount,
             message: payload.reason,
           };
         } catch {

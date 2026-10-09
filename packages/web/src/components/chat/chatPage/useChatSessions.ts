@@ -25,6 +25,11 @@ import { buildSessionSignature, toAgentMessages, toSessionSummary } from "./help
 interface UseChatSessionsParams {
   getIsPreparingTurn: () => boolean;
   inputRef: RefObject<HTMLTextAreaElement | null>;
+  // Off for chats outside the chat page (the editor side panel): the active session is not kept
+  // in the URL, and the chat opens `initialSessionId` or a new session instead of the latest one.
+  syncWithUrl?: boolean;
+  initialSessionId?: string | null;
+  onActiveSessionChange?: (sessionId: string) => void;
 }
 
 interface UseChatSessionsResult {
@@ -51,16 +56,25 @@ interface UseChatSessionsResult {
 export const useChatSessions = ({
   getIsPreparingTurn,
   inputRef,
+  syncWithUrl = true,
+  initialSessionId = null,
+  onActiveSessionChange,
 }: UseChatSessionsParams): UseChatSessionsResult => {
   const location = useLocation();
   const navigate = useNavigate();
   const requestedSessionId = useMemo(() => {
+    if (!syncWithUrl) {
+      return initialSessionId?.trim() ?? "";
+    }
     const value = new URLSearchParams(location.search).get("session");
     return value?.trim() ?? "";
-  }, [location.search]);
+  }, [initialSessionId, location.search, syncWithUrl]);
   const shouldCreateSessionFromUrl = useMemo(() => {
+    if (!syncWithUrl) {
+      return !initialSessionId;
+    }
     return new URLSearchParams(location.search).get("new") === "1";
-  }, [location.search]);
+  }, [initialSessionId, location.search, syncWithUrl]);
   const initialRequestedSessionIdRef = useRef(requestedSessionId);
   const initialCreateSessionRef = useRef(shouldCreateSessionFromUrl);
   const initialLocationKeyRef = useRef(location.key);
@@ -78,14 +92,23 @@ export const useChatSessions = ({
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
 
+  const onActiveSessionChangeRef = useRef(onActiveSessionChange);
+  useEffect(() => {
+    onActiveSessionChangeRef.current = onActiveSessionChange;
+  }, [onActiveSessionChange]);
+
   const replaceChatLocation = useCallback(
     (sessionId: string) => {
+      onActiveSessionChangeRef.current?.(sessionId);
+      if (!syncWithUrl) {
+        return;
+      }
       pendingLocationSessionIdRef.current = sessionId;
       void navigate(`/chat?session=${encodeURIComponent(sessionId)}`, {
         replace: true,
       });
     },
-    [navigate],
+    [navigate, syncWithUrl],
   );
 
   useEffect(() => {
@@ -129,7 +152,23 @@ export const useChatSessions = ({
         let summaries = await listChatSessions();
         let forcedSessionId: string | null = null;
 
-        if (summaries.length === 0 || initialCreateSessionRef.current) {
+        const requestedIsMissing =
+          !syncWithUrl &&
+          !summaries.some((summary) => summary.id === initialRequestedSessionIdRef.current);
+        // Outside the chat page, reuse an empty session rather than adding another blank one
+        // to the history each time a chat opens.
+        const reusableEmptySession = requestedIsMissing
+          ? summaries
+              .filter((summary) => summary.messageCount === 0)
+              .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+          : undefined;
+        if (reusableEmptySession) {
+          initialRequestedSessionIdRef.current = reusableEmptySession.id;
+        } else if (
+          summaries.length === 0 ||
+          initialCreateSessionRef.current ||
+          requestedIsMissing
+        ) {
           const created = await createChatSession();
           const createdSummary = toSessionSummary(created);
           summaries = [
@@ -160,6 +199,7 @@ export const useChatSessions = ({
 
         setSessions(sorted);
         applyLoadedSession(initialSessionId, initialMessages, initialReferences);
+        onActiveSessionChangeRef.current?.(initialSessionId);
         if (
           !requestedSummary ||
           initialCreateSessionRef.current ||
@@ -186,7 +226,7 @@ export const useChatSessions = ({
     return () => {
       cancelled = true;
     };
-  }, [applyLoadedSession, replaceChatLocation]);
+  }, [applyLoadedSession, replaceChatLocation, syncWithUrl]);
 
   const handleCreateSession = useCallback(async () => {
     const isPreparingTurn = getIsPreparingTurn();
@@ -312,7 +352,7 @@ export const useChatSessions = ({
   );
 
   useEffect(() => {
-    if (!sessionsReady || !shouldCreateSessionFromUrl) {
+    if (!syncWithUrl || !sessionsReady || !shouldCreateSessionFromUrl) {
       return;
     }
     if (handledNewLocationKeyRef.current === location.key) {
@@ -323,7 +363,7 @@ export const useChatSessions = ({
   }, [handleCreateSession, location.key, sessionsReady, shouldCreateSessionFromUrl]);
 
   useEffect(() => {
-    if (!sessionsReady || !activeSessionId) {
+    if (!syncWithUrl || !sessionsReady || !activeSessionId) {
       return;
     }
     if (shouldCreateSessionFromUrl) {
@@ -371,6 +411,7 @@ export const useChatSessions = ({
     sessions,
     sessionsReady,
     shouldCreateSessionFromUrl,
+    syncWithUrl,
   ]);
 
   const commitPersistedSession = useCallback(

@@ -1,0 +1,399 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Memora BEIR comparison</title>
+<style>body{font:17px system-ui;max-width:1100px;margin:40px auto;color:#172b3a}button{padding:12px 20px;font:inherit}pre{white-space:pre-wrap;background:#f2f4f5;padding:20px}table{border-collapse:collapse}td,th{border:1px solid #aab8c0;padding:10px}</style>
+<h1>Memora BEIR comparison</h1><p>Complete SciFact, NFCorpus and ArguAna test subsets. Uses Memora's SQLite, sqlite-vec and local BGE small English runtime. Graded qrels; same-ID exclusion; separate scope for each corpus. Each BEIR document is indexed as one passage containing title and text.</p>
+<p><label for="retrieval-k">Recall cutoff k</label> <input id="retrieval-k" type="number" min="1" max="1000" step="1" value="20" style="width:90px;padding:8px;font:inherit"> <button id="apply-k">Use k for query evaluation</button> <span id="k-status">Saved @10 results remain available. Only queries will be rerun.</span></p>
+<p><label>Embedding workers <select id="worker-count"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option></select></label> <label id="batch-label">Documents per batch <select id="batch-size"><option value="4" selected>4</option><option value="8">8</option><option value="16">16</option></select></label> <label id="rebuild-label"><input type="checkbox" id="rebuild-embeddings"> Rebuild semantic index for a speed comparison</label></p><p id="timing-description">Saved passages are reused. Processing speed counts newly embedded passages. Each worker loads its own model. Queries use the same worker count concurrently. Query latency includes waiting for the shared SQLite worker; choose 1 worker to measure serial latency.</p><p id="embedding-status">Embedding workers have not started.</p><p><label><input type="checkbox" id="resume-saved" checked disabled> Continue saved evaluation</label> <label><input type="checkbox" id="auto-retry" checked> Retry temporary download failures automatically</label> <span id="resume-status">Reading saved results…</span></p><button id="run" disabled>Run BEIR comparison</button><button id="stop" disabled>Stop</button><pre id="status">Ready</pre><pre id="worker-progress">No worker tasks yet.</pre><details open><summary>Recent progress logs</summary><pre id="progress-log" style="max-height:320px;overflow:auto">Ready</pre></details><table id="results"><tr><th>Dataset</th><th>Method</th><th>Queries</th><th>nDCG@10</th><th>Recall@10</th><th id="ndcg-k-header" hidden></th><th id="recall-k-header" hidden></th><th id="latency-header">Median latency</th></tr></table>
+<p><button id="open-reranker">Compare Hybrid with BGE reranker at selected k</button></p>
+<script type="module">
+import { createVectorDbClient, getVectorDbContentHash } from "/src/lib/vector-db/client.ts";
+import { loadBeirSourceBundle, validateBeirQrelReferences } from "/src/lib/playground/beirLocalDataset.ts";
+import { runResumableEvaluation } from "@memora/evaluation";
+import { BeirEmbeddingPool } from "/src/lib/playground/beirEmbeddingPool.ts";
+import { BGE_SMALL_EN_QUERY_PREFIX, buildBgeIndexConfig } from "/src/lib/playground/vectorDbConfig.ts";
+if(new URLSearchParams(location.search).get('reranker')==='1'){
+  await import('/src/lib/playground/beirRerankerEvaluation.js');
+}else{
+document.querySelector('#open-reranker').onclick=()=>{const value=Number(document.querySelector('#retrieval-k').value);location.href='/beir-dissertation.html?reranker=1&k='+value+'&candidates=100';};
+const params=new URLSearchParams(location.search);
+const QUERY_ONLY=params.get('queries')==='1';
+const K=QUERY_ONLY?Number(params.get('k')??20):10;
+if(!Number.isInteger(K)||K<1||K>1000)throw Error('k must be a whole number from 1 to 1000.');
+const MODEL_TAG='bge-small-en-cls';
+const BASELINE_FILE=`beir-dissertation-${MODEL_TAG}-v1.json`;
+const REPORT_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}.json`:BASELINE_FILE;
+const PROGRESS_FILE=QUERY_ONLY?`beir-dissertation-${MODEL_TAG}-k${K}-progress.json`:`beir-dissertation-${MODEL_TAG}-progress.json`;
+const RETRIEVAL_DEPTH=Math.max(10,K);
+const CANDIDATE_K=5*(RETRIEVAL_DEPTH+1);
+const kControl=document.querySelector('#retrieval-k'),applyK=document.querySelector('#apply-k'),kStatus=document.querySelector('#k-status');
+kControl.value=String(QUERY_ONLY?K:20);
+applyK.onclick=()=>{
+  const value=Number(kControl.value);
+  if(!Number.isInteger(value)||value<1||value>1000){kStatus.textContent='Enter a whole number from 1 to 1000.';return;}
+  location.search='?queries=1&k='+value;
+};
+if(QUERY_ONLY){
+  kStatus.textContent=`Query-only evaluation at k=${K}. Saved passage indexes are required. Search timing uses one query at a time and prepared query vectors.`;
+  for(const [id,label] of [['ndcg-k-header',`nDCG@${K}`],['recall-k-header',`Recall@${K}`]]){const node=document.querySelector('#'+id);node.hidden=K===10;node.textContent=label;}
+  document.querySelector('#latency-header').textContent='Median retrieval latency';
+  document.querySelector('#batch-label').hidden=true;document.querySelector('#rebuild-label').hidden=true;
+  document.querySelector('#timing-description').textContent='Only queries are evaluated. Existing passage indexes are checked and reused. Query vectors are prepared and saved separately; Dense and Hybrid both use prepared vectors. Retrieval runs one query at a time and excludes query encoding.';
+}
+const status=document.querySelector('#status'),button=document.querySelector('#run'),stop=document.querySelector('#stop');
+const progressLog=document.querySelector('#progress-log'),workerProgress=document.querySelector('#worker-progress');
+let logs=[],monitor=null,writeQueue=Promise.resolve(),progressSaving=false,lastProgressSaveAt=null;
+const eventLog=(event,detail={},level='info')=>{
+  const entry={at:new Date().toISOString(),event,...detail};logs.push(entry);if(logs.length>400)logs.shift();
+  console[level]('[BEIR]',entry);
+  progressLog.textContent=logs.map(e=>`${e.at} ${e.event} ${JSON.stringify(Object.fromEntries(Object.entries(e).filter(([key])=>key!=='at'&&key!=='event')))}`).join('\n');
+  progressLog.scrollTop=progressLog.scrollHeight;
+};
+const log=s=>{currentStage=s;status.textContent=s;eventLog('stage',{message:s});};
+let cancelled=false,autoRetryTimer=null;
+const autoRetryControl=document.querySelector("#auto-retry");
+let runController=null;
+let embeddingPool=null;
+const workerControl=document.querySelector("#worker-count"),batchControl=document.querySelector("#batch-size"),embeddingStatus=document.querySelector("#embedding-status"),rebuildControl=document.querySelector("#rebuild-embeddings");
+let currentStage="Ready";
+let databaseStage="Waiting for worker response";
+const report={kind:'full-beir-subsets',harnessVersion:'12',startedAt:new Date().toISOString(),config:{model:'Xenova/bge-small-en-v1.5',modelArtifactRevision:'not exposed by the production runtime',datasetRevisionStatus:'See dataset provenance: local pinned source files, or revisions observed around row-API download',dtype:'q8',pooling:'cls',queryPrefix:BGE_SMALL_EN_QUERY_PREFIX,normalized:true,document:'title + space + text; one chunk',metric:`graded ndcg_cut_${K} (linear gain)`,sameIdExcluded:true,scope:'separate index per dataset and mode',candidateK:CANDIDATE_K,rrfK:60,backend:null,userAgent:navigator.userAgent},datasets:[],results:[],errors:[]};
+if(QUERY_ONLY)Object.assign(report.config,{retrievalK:K,queryOnly:true,retrievalDepth:RETRIEVAL_DEPTH,queryConcurrency:1,queryVectorPolicy:'Prepared query vectors; encoding excluded from retrieval timing'});
+let queryBaseline=null;
+function writeReport(filename,value){
+  const body=JSON.stringify(value,null,2);
+  const pending=writeQueue.then(async()=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    try{const r=await fetch('/api/playground/eval-data/results/'+filename,{method:'PUT',headers:{'Content-Type':'application/json'},body,signal:controller.signal});if(!r.ok)throw Error(`Could not save ${filename}: HTTP ${r.status}`);}
+    finally{clearTimeout(timer);}
+  });
+  writeQueue=pending.catch(()=>{});return pending;
+}
+async function save(){report.recentLogs=logs.slice(-100);await writeReport(REPORT_FILE,report);}
+async function saveProgress(){
+  await writeReport(PROGRESS_FILE,{harnessVersion:report.harnessVersion,startedAt:report.startedAt,status:report.status,updatedAt:new Date().toISOString(),stage:currentStage,databaseStage,download:report.downloadProgress,index:report.indexProgress,query:report.queryProgress,queryVectors:report.queryVectorProgress,workers:embeddingPool?.progress()||[],completedResults:report.results.length,recentLogs:logs.slice(-100)});
+  lastProgressSaveAt=Date.now();
+}
+const resumeControl=document.querySelector('#resume-saved'),resumeStatus=document.querySelector('#resume-status');
+const DATASETS={scifact:[5183,300],nfcorpus:[3633,323],arguana:[8674,1406]},METHODS=['bm25','dense','hybrid'];
+let savedAvailable=false,restoreFailed=false;
+function appendResult(result){
+  const values=[result.dataset,result.method,result.queryCount,(result.ndcgAt10*100).toFixed(2),(result.recallAt10*100).toFixed(2)];if(K!==10)values.push((result[`ndcgAt${K}`]*100).toFixed(2),(result[`recallAt${K}`]*100).toFixed(2));values.push((QUERY_ONLY?result.medianSearchMs:result.medianTotalMs).toFixed(1)+' ms');
+  const tr=document.createElement('tr');for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}document.querySelector('#results').append(tr);
+}
+function completedMethods(name){return new Set(report.results.filter(r=>r.dataset==='full-beir-'+name).map(r=>r.method));}
+function validateSavedReport(saved,cutoff=K,expectedConfig=report.config){
+  if(saved.kind!==report.kind||!Array.isArray(saved.results)||!Array.isArray(saved.datasets)||!saved.config)throw Error('Unrecognized saved evaluation report.');
+  for(const key of ['model','dtype','pooling','normalized','document','metric','sameIdExcluded','scope','candidateK','rrfK'])if(saved.config[key]!==expectedConfig[key])throw Error(`Saved evaluation uses different ${key}; it cannot be resumed with this page.`);
+  if(cutoff!==10&&saved.config.retrievalK!==cutoff)throw Error('Saved result uses a different k.');
+  if(expectedConfig.queryOnly&&(!saved.config.queryOnly||saved.config.queryConcurrency!==1||saved.config.queryVectorPolicy!==expectedConfig.queryVectorPolicy))throw Error('Saved query timing protocol differs.');
+  const seen=new Set();
+  for(const result of saved.results){
+    const name=result.dataset?.replace('full-beir-',''),expected=DATASETS[name],key=result.dataset+'/'+result.method;
+    if(!expected||!METHODS.includes(result.method)||seen.has(key)||result.queryCount!==expected[1]||result.cases?.length!==expected[1])throw Error('Saved results are incomplete or duplicated.');seen.add(key);
+    const meta=saved.datasets.find(d=>d.name===name);
+    if(!meta||meta.corpusCount!==expected[0]||meta.queryCount!==expected[1]||!meta.rowTruncationChecked||!meta.uniqueIdsChecked||!meta.hubRevisionStableDuringDownload||!['corpusSha256','queriesSha256','qrelsSha256'].every(k=>/^[a-f0-9]{64}$/.test(meta[k])))throw Error(`Saved ${name} provenance is incomplete.`);
+    if(expectedConfig.queryOnly&&result.retrievalK!==cutoff)throw Error('Saved result cutoff differs.');
+    const queryIds=new Set();let ndcg=0,recall=0;
+    for(const c of result.cases){
+      if(queryIds.has(c.queryId)||!Array.isArray(c.ranked)||c.ranked.length>Math.max(10,cutoff)||c.ranked.includes(c.queryId)||new Set(c.ranked).size!==c.ranked.length)throw Error('Invalid saved query rankings.');queryIds.add(c.queryId);
+      if(expectedConfig.queryOnly&&(c.retrievalK!==cutoff||c.queryConcurrency!==1||c.queryEmbeddingCached!==(result.method!=='bm25')))throw Error('Saved case timing or cutoff differs.');
+      const grades=new Map(Object.entries(c.relevance));if(![...grades.values()].some(g=>g>0))throw Error('Saved query has no relevant documents.');
+      const measured=score(c.queryId,c.ranked.map(id=>({chunkId:'saved:'+id})),new Map([[c.queryId,grades]]),cutoff);
+      if(!Number.isFinite(c.ndcgAt10)||!Number.isFinite(c.recallAt10)||Math.abs(measured.ndcgAt10-c.ndcgAt10)>1e-9||Math.abs(measured.recallAt10-c.recallAt10)>1e-9)throw Error('Saved per-query metrics do not match rankings.');for(const n of new Set([10,cutoff]))if(Math.abs(measured[`ndcgAt${n}`]-c[`ndcgAt${n}`])>1e-9||Math.abs(measured[`recallAt${n}`]-c[`recallAt${n}`])>1e-9||!Number.isFinite(c[`ndcgAt${n}`])||!Number.isFinite(c[`recallAt${n}`]))throw Error('Saved per-query cutoff metrics differ.');ndcg+=c[`ndcgAt${cutoff}`];recall+=c[`recallAt${cutoff}`];
+    }
+    if(Math.abs(ndcg/result.queryCount-result[`ndcgAt${cutoff}`])>1e-9||Math.abs(recall/result.queryCount-result[`recallAt${cutoff}`])>1e-9||![result.medianTotalMs,result.medianSearchMs].every(v=>Number.isFinite(v)&&v>=0))throw Error('Saved aggregate metrics are invalid.');
+  }
+  if(saved.inProgressEvaluations!=null&&!Array.isArray(saved.inProgressEvaluations))throw Error('Invalid query checkpoint list.');
+}
+function updateRunButton(){
+  const complete=Object.keys(DATASETS).every(name=>completedMethods(name).size===3);
+  button.textContent=QUERY_ONLY?(savedAvailable&&resumeControl.checked?`Continue queries at k=${K}`:`Run queries at k=${K}`):(savedAvailable&&resumeControl.checked?'Continue BEIR comparison':'Run BEIR comparison');
+  button.disabled=restoreFailed||(savedAvailable&&resumeControl.checked&&complete);
+}
+async function restoreSaved(){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    if(QUERY_ONLY){
+      const baselineResponse=await fetch('/api/playground/eval-data/results/'+BASELINE_FILE,{cache:'no-store',signal:controller.signal});
+      if(!baselineResponse.ok)throw Error('The completed @10 report is required for query-only evaluation.');
+      queryBaseline=await baselineResponse.json();
+      validateSavedReport(queryBaseline,10,{...report.config,metric:'graded ndcg_cut_10 (linear gain)',candidateK:55,queryOnly:false});
+      if(queryBaseline.status!=='complete'||queryBaseline.results.length!==9||queryBaseline.errors.length)throw Error('The @10 baseline must contain nine complete results.');
+      report.config.sourceReportSha256=await getVectorDbContentHash(JSON.stringify(queryBaseline));
+      report.config.sourceReport=BASELINE_FILE;
+      report.datasets=structuredClone(queryBaseline.datasets);
+      workerControl.value=String([1,2,4].includes(queryBaseline.config.embeddingWorkers)?queryBaseline.config.embeddingWorkers:2);
+      rebuildControl.checked=false;rebuildControl.disabled=true;
+      resumeControl.checked=true;
+    }
+    const response=await fetch('/api/playground/eval-data/results/'+REPORT_FILE,{cache:'no-store',signal:controller.signal});
+    if(response.status===404){resumeStatus.textContent='No saved evaluation yet.';return;}
+    if(!response.ok)throw Error(`Could not read saved evaluation: HTTP ${response.status}`);
+    const saved=await response.json();validateSavedReport(saved);if(QUERY_ONLY){if(saved.config.sourceReportSha256!==report.config.sourceReportSha256)throw Error('The baseline report changed; saved query results cannot be mixed.');if(saved.datasets.length!==queryBaseline.datasets.length||saved.datasets.some(d=>{const base=queryBaseline.datasets.find(b=>b.name===d.name);return !base||['corpusCount','queryCount','corpusSha256','queriesSha256','qrelsSha256'].some(k=>d[k]!==base[k]);}))throw Error('Saved query dataset provenance differs from the baseline.');}Object.assign(report,saved);savedAvailable=true;
+    report.results.forEach(appendResult);logs=Array.isArray(report.recentLogs)?report.recentLogs:[];
+    if([1,2,4].includes(report.config.embeddingWorkers))workerControl.value=String(report.config.embeddingWorkers);
+    if([4,8,16].includes(report.config.embeddingBatchSize))batchControl.value=String(report.config.embeddingBatchSize);
+    resumeControl.disabled=false;
+    const complete=Object.keys(DATASETS).filter(name=>completedMethods(name).size===3);
+    const partial=(report.inProgressEvaluations||[]).reduce((n,e)=>n+e.cases.length,0);
+    resumeStatus.textContent=`Restored ${report.results.length}/9 results${partial?` and ${partial} saved query cases`:''}. Completed datasets: ${complete.join(', ')||'none'}.`;
+    log(complete.length===3?'Saved evaluation is complete. Choose a different k to run another query comparison.':`Saved results restored. Continue from ${Object.keys(DATASETS).find(name=>completedMethods(name).size<3)}.`);
+  }catch(e){restoreFailed=true;resumeStatus.textContent=String(e);log(`Saved report could not be restored: ${e}. No result file has been overwritten.`);}
+  finally{clearTimeout(timer);updateRunButton();}
+}
+resumeControl.onchange=updateRunButton;
+const warned=new Set(),downloadLogs=new Map();
+function onWorkerProgress(state,event){
+  report.workerProgress=embeddingPool?.progress()||[];
+  if(event==='progress'){
+    const last=downloadLogs.get(state.workerId)||0;if(Date.now()-last<1000)return;downloadLogs.set(state.workerId,Date.now());
+  }
+  warned.delete(state.workerId);
+  eventLog('worker '+event,{...state,source:['dispatched','completed','failed','canceled'].includes(event)?'main-thread':'worker'});
+}
+function renderWorkers(){
+  const now=Date.now(),states=embeddingPool?.progress()||[];
+  workerProgress.textContent=states.map(s=>{
+    const active=!['idle','completed','failed','canceled'].includes(s.phase);
+    const age=Math.floor((now-(s.lastWorkerEventAt||s.taskStartedAt||now))/1000);
+    if(active&&age>=30&&!warned.has(s.workerId)){warned.add(s.workerId);eventLog('worker silence',{workerId:s.workerId,phase:s.phase,secondsWithoutMessage:age},'warn');}
+    return `Worker ${s.workerId+1}: ${s.phase}; ${s.taskKind}${s.startIndex==null?'':` batch ${s.startIndex+1}-${s.startIndex+s.batchSize}`}; ${s.completedTexts} texts processed; ${s.backend||'backend pending'}; ${active?(s.lastWorkerEventAt?`last worker message ${age}s ago`:`waiting for first worker message (${age}s)`):'task ended'}`;
+  }).join('\n')||'No worker tasks yet.';
+}
+function startMonitor(){
+  let ticks=0;monitor=setInterval(()=>{
+    renderWorkers();ticks++;
+    if(ticks%5===0){
+      eventLog('main-thread heartbeat',{stage:currentStage,databaseStage,workers:embeddingPool?.progress()||[],lastProgressSaveAt:lastProgressSaveAt?new Date(lastProgressSaveAt).toISOString():null});
+      if(!progressSaving){progressSaving=true;saveProgress().catch(e=>eventLog('progress save failed',{error:String(e)},'error')).finally(()=>{progressSaving=false;});}
+    }
+  },1000);
+}
+function stopMonitor(){clearInterval(monitor);monitor=null;}
+async function operation(label, task, timeoutMs=120000,saveBefore=true){
+  if(cancelled)throw Error('Canceled');
+  currentStage=label;const started=performance.now();
+  report.progress={stage:label,startedAt:new Date().toISOString(),databaseStage};
+  log(`${label} — starting`);if(saveBefore)await save();if(cancelled)throw Error("Canceled");
+  let timer,heartbeat,abort;
+  try{
+    const waiting=new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(Error(`${label} timed out after ${Math.round(timeoutMs/1000)} seconds. Database stage: ${databaseStage}`)),timeoutMs);
+      abort=()=>reject(Error('Canceled'));runController.signal.addEventListener('abort',abort,{once:true});
+      heartbeat=setInterval(()=>status.textContent=(`${label} — ${Math.floor((performance.now()-started)/1000)} seconds elapsed\nDatabase: ${databaseStage}`),1000);
+    });
+    return await Promise.race([Promise.resolve().then(task),waiting]);
+  }finally{clearTimeout(timer);clearInterval(heartbeat);if(abort)runController.signal.removeEventListener('abort',abort);}
+}
+async function requestJson(url,label){
+  for(let attempt=0;attempt<5;attempt++){
+    if(cancelled)throw Error('Canceled');
+    const controller=new AbortController();const abort=()=>controller.abort();
+    runController.signal.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(()=>controller.abort(),45000);let failure,retryable=true,delayMs=1000*2**attempt;
+    try{
+      const r=await fetch(url,{cache:'no-store',signal:controller.signal});
+      if(r.ok)return await r.json();
+      retryable=[408,429,500,502,503,504].includes(r.status);
+      failure=Error(`${label}: HTTP ${r.status}`);
+      if(r.status===429){const after=r.headers?.get('Retry-After'),seconds=Number(after);delayMs=Math.max(delayMs,after&&Number.isFinite(seconds)?seconds*1000:30000*2**attempt);delayMs=Math.min(delayMs,300000);}
+    }catch(e){failure=e;}
+    finally{clearTimeout(timer);runController.signal.removeEventListener('abort',abort);}
+    if(cancelled)throw Error('Canceled');
+    if(!retryable||attempt===4)throw failure;
+    report.downloadRetries=(report.downloadRetries||0)+1;
+    log(`${label}: ${String(failure)}. Retrying ${attempt+1}/4 in ${Math.ceil(delayMs/1000)} seconds.`);
+    await new Promise((resolve,reject)=>{
+      const canceled=()=>{clearTimeout(wait);reject(Error('Canceled'));};
+      const wait=setTimeout(()=>{runController.signal.removeEventListener('abort',canceled);resolve();},delayMs);
+      runController.signal.addEventListener('abort',canceled,{once:true});
+    });
+  }
+}
+async function page(ds,config,split,offset,revision){
+  if(cancelled)throw Error('Canceled');
+  const params=new URLSearchParams({dataset:ds,config,split,offset:String(offset),length:'100'});
+  const label=`${ds} ${config}/${split}, rows ${offset}-${offset+99}`;
+  report.downloadProgress={dataset:ds,config,split,offset};
+  const url='/api/playground/nanobeir?'+params;
+  let cache=null,data,cached=false;const cacheKey=url+'&observedRevision='+encodeURIComponent(revision);
+  if(typeof caches!=='undefined'){try{cache=await caches.open('memora-full-beir-rows-v1');const response=await cache.match(cacheKey);if(response){data=await response.json();cached=true;}}catch(e){eventLog('dataset cache unavailable',{error:String(e)},'warn');}}
+  if(!cached)data=await requestJson(url,label);
+  if(!Array.isArray(data.rows)||!Number.isInteger(data.num_rows_total))throw Error('Invalid row response');
+  for(let i=0;i<data.rows.length;i++){const row=data.rows[i];if(row.row_idx!==offset+i)throw Error('Row sequence mismatch');if(!Array.isArray(row.truncated_cells)||row.truncated_cells.length)throw Error(`${ds}: truncated or unverifiable row ${row.row_idx}`);}
+  if(cache&&!cached){try{await cache.put(cacheKey,new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}}));}catch(e){eventLog('dataset cache save failed',{error:String(e)},'warn');}}
+  return data;
+}
+async function rows(ds,config,split,revision){const first=await page(ds,config,split,0,revision);const all=first.rows.map(x=>x.row);for(let off=100;off<first.num_rows_total;off+=200){if(cancelled)throw Error('Canceled');const pages=await Promise.all(Array.from({length:Math.min(2,Math.ceil((first.num_rows_total-off)/100))},(_,i)=>page(ds,config,split,off+i*100,revision)));all.push(...pages.flatMap(p=>p.rows.map(x=>x.row)));log(`Loading ${ds} ${config}/${split}: ${all.length}/${first.num_rows_total}`);}if(all.length!==first.num_rows_total)throw Error('Incomplete dataset');return all;}
+async function revision(ds){const data=await requestJson('https://huggingface.co/api/datasets/'+ds,`Reading ${ds} Hub revision`);if(!data.sha)throw Error('Missing dataset revision');return data.sha;}
+function score(qid,hits,qrels,cutoff=K){
+  const ranked=[...new Set(hits.map(h=>h.chunkId.slice(h.chunkId.indexOf(':')+1)))].filter(id=>id!==qid).slice(0,Math.max(10,cutoff));
+  const grades=qrels.get(qid),positives=[...grades.values()].filter(g=>g>0).sort((a,b)=>b-a),metrics={ranked};
+  for(const n of new Set([10,cutoff])){
+    const top=ranked.slice(0,n),dcg=top.reduce((s,id,i)=>s+(grades.get(id)||0)/Math.log2(i+2),0),idcg=positives.slice(0,n).reduce((s,g,i)=>s+g/Math.log2(i+2),0);
+    metrics[`ndcgAt${n}`]=idcg?dcg/idcg:0;metrics[`recallAt${n}`]=top.filter(id=>(grades.get(id)||0)>0).length/positives.length;
+  }
+  return metrics;
+}
+function median(xs){const ys=[...xs].sort((a,b)=>a-b);return ys.length%2?ys[(ys.length-1)/2]:(ys[ys.length/2-1]+ys[ys.length/2])/2;}
+function checkpointStorage(){
+  const readCache=new Map();
+  const read=async(path)=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    const signal=runController?AbortSignal.any([runController.signal,controller.signal]):controller.signal;
+    try{const response=await fetch('/api/playground/eval-data/results/'+path,{cache:'no-store',signal});if(response.status===404)return null;if(!response.ok)throw Error(`Checkpoint read failed: HTTP ${response.status}`);return await response.text();}finally{clearTimeout(timer);}
+  };
+  return {
+    exists:async(path)=>{const value=await read(path);if(value===null)return false;readCache.set(path,value);return true;},
+    readText:async(path)=>{if(readCache.has(path)){const value=readCache.get(path);readCache.delete(path);return value;}const value=await read(path);if(value===null)throw Error('Missing evaluation checkpoint');return value;},
+    write:async(path,body)=>writeReport(path,JSON.parse(body)),
+  };
+}
+async function evaluate(db,scope,queries,qrels,method,embeddings){
+  if(report.results.some(r=>r.dataset===scope&&r.method===method)){log(`${scope} ${method}: saved result retained; evaluation skipped`);return;}
+  report.inProgressEvaluations??=[];
+  let checkpoint=report.inProgressEvaluations.find(e=>e.dataset===scope&&e.method===method);
+  if(!checkpoint){checkpoint={dataset:scope,method,cases:[]};report.inProgressEvaluations.push(checkpoint);}
+  const validateCase=(c,q)=>{
+    const grades=qrels.get(q._id);
+    if(!c||c.queryId!==q._id||c.queryText!==q.text||JSON.stringify(c.relevance)!==JSON.stringify(Object.fromEntries(grades))||!Array.isArray(c.ranked)||c.ranked.length>RETRIEVAL_DEPTH||new Set(c.ranked).size!==c.ranked.length||c.ranked.includes(c.queryId))throw Error('Saved query checkpoint differs from downloaded data.');
+    const measured=score(c.queryId,c.ranked.map(id=>({chunkId:'saved:'+id})),qrels);
+    if(!Number.isFinite(c.ndcgAt10)||!Number.isFinite(c.recallAt10)||Math.abs(c.ndcgAt10-measured.ndcgAt10)>1e-9||Math.abs(c.recallAt10-measured.recallAt10)>1e-9||!['queryEmbeddingMs','searchMs','totalMs'].every(k=>Number.isFinite(c[k])&&c[k]>=0))throw Error('Invalid saved query checkpoint metrics.');
+    for(const n of new Set([10,K]))if(!Number.isFinite(c[`ndcgAt${n}`])||!Number.isFinite(c[`recallAt${n}`])||Math.abs(c[`ndcgAt${n}`]-measured[`ndcgAt${n}`])>1e-9||Math.abs(c[`recallAt${n}`]-measured[`recallAt${n}`])>1e-9)throw Error('Invalid saved cutoff metrics.');
+    if(QUERY_ONLY&&(c.retrievalK!==K||c.queryConcurrency!==1||c.queryEmbeddingCached!==(method!=='bm25')))throw Error('Saved query timing or cutoff differs.');return c;
+  };
+  const dataset=report.datasets.find(d=>scope==='full-beir-'+d.name);
+  const fingerprint=await getVectorDbContentHash(JSON.stringify({corpus:dataset.corpusSha256,queries:dataset.queriesSha256,qrels:dataset.qrelsSha256,model:report.config.model,dtype:report.config.dtype,pooling:report.config.pooling,method,metric:report.config.metric,lexicalTokenizer:'porter unicode61',candidateK:report.config.candidateK,rrfK:report.config.rrfK,protocol:QUERY_ONLY?'beir-query-retrieval-v2':'beir-retrieval-v1',...(QUERY_ONLY?{retrievalK:K,retrievalDepth:RETRIEVAL_DEPTH,queryConcurrency:1,queryVectorPolicy:report.config.queryVectorPolicy}:{})}));
+  const path=(QUERY_ONLY?'beir-checkpoints-k'+K+'/':'beir-checkpoints/')+report.startedAt.replace(/[:.]/g,'-')+'/'+scope+'-'+method;
+  const queryConcurrency=QUERY_ONLY?1:Number(workerControl.value),queryStarted=performance.now();let resumedQueries=0;
+  const cases=await runResumableEvaluation({
+    checkpointPath:path,fingerprint,items:queries,itemId:q=>q._id,storage:checkpointStorage(),signal:runController.signal,concurrency:queryConcurrency,initialResults:checkpoint.cases,validateResult:validateCase,
+    onProgress:async(progress)=>{
+      resumedQueries=progress.resumed;checkpoint.cases=[...progress.results];report.queryProgress={dataset:scope,method,concurrency:queryConcurrency,completed:progress.completed,total:queries.length,lastSavedQueryId:queries[progress.completed-1]?._id};
+      if(progress.completed===progress.resumed){log(`${scope} ${method}: resumed ${progress.completed}/${queries.length} saved query items`);await save();}
+      else if(progress.completed%10===0){log(`${scope} ${method}: ${progress.completed}/${queries.length} queries; every item saved by evaluation framework`);await save();}
+    },
+    evaluate:async(q,i,signal)=>{
+      signal.throwIfAborted();currentStage=`${scope} ${method}: query ${i+1}/${queries.length}; ${queryConcurrency} concurrent queries`;
+      // Hybrid uses query vectors prepared outside its search timing, including
+      // vectors reconstructed after resuming a finished dense pass.
+      let preparationMs=0;if(QUERY_ONLY&&method!=='bm25'&&!embeddings.has(q._id))throw Error('Prepared query vector is missing.');
+      if(!QUERY_ONLY&&method==='hybrid'&&!embeddings.has(q._id)){const started=performance.now();const [vector]=await embeddingPool.embed([BGE_SMALL_EN_QUERY_PREFIX+q.text],signal,i);embeddings.set(q._id,vector);preparationMs=performance.now()-started;}
+      const cached=method!=='bm25'&&embeddings.has(q._id),t=performance.now();let vector;
+      if(method!=='bm25'){vector=embeddings.get(q._id);if(!vector){[vector]=await embeddingPool.embed([BGE_SMALL_EN_QUERY_PREFIX+q.text],signal,i);embeddings.set(q._id,vector);}}
+      signal.throwIfAborted();const et=performance.now();const hits=await db.search({query:method==='dense'?'':q.text,queryEmbedding:vector,scope:{kind:'documents',documentIds:[scope]},topK:RETRIEVAL_DEPTH+1,lexicalCandidateK:CANDIDATE_K,semanticCandidateK:CANDIDATE_K,lexicalWeight:method==='dense'?0:1,semanticWeight:method==='bm25'?0:1,rrfK:60});
+      signal.throwIfAborted();const scored=score(q._id,hits,qrels);if(!Number.isFinite(scored[`ndcgAt${K}`])||!Number.isFinite(scored[`recallAt${K}`]))throw Error('Invalid metric');return {queryId:q._id,queryText:q.text,queryConcurrency,retrievalK:K,relevance:Object.fromEntries(qrels.get(q._id)),...scored,queryEmbeddingMs:et-t,queryEmbeddingPreparationMs:preparationMs,searchMs:performance.now()-et,totalMs:performance.now()-t,queryEmbeddingCached:cached};
+    },
+  });
+  const cutoffMetrics={};for(const n of new Set([10,K])){cutoffMetrics[`ndcgAt${n}`]=cases.reduce((s,c)=>s+c[`ndcgAt${n}`],0)/cases.length;cutoffMetrics[`recallAt${n}`]=cases.reduce((s,c)=>s+c[`recallAt${n}`],0)/cases.length;}
+  const result={dataset:scope,method,queryCount:cases.length,retrievalK:K,...cutoffMetrics,medianTotalMs:median(cases.map(c=>c.totalMs)),medianSearchMs:median(cases.map(c=>c.searchMs)),queryRun:{concurrency:queryConcurrency,resumed:resumedQueries,newlyEvaluated:cases.length-resumedQueries,wallMs:performance.now()-queryStarted},executionConfig:{queryConcurrency,queryLatency:QUERY_ONLY?'Serial retrieval wall time; query encoding excluded':'Wall time under query concurrency, including shared SQLite queue wait',queryVectorPolicy:report.config.queryVectorPolicy,embeddingWorkers:report.config.embeddingWorkers,embeddingBatchSize:report.config.embeddingBatchSize,backend:report.config.backend,userAgent:report.config.userAgent},cases};
+  report.results.push(result);report.inProgressEvaluations=report.inProgressEvaluations.filter(e=>e!==checkpoint);await save();appendResult(result);
+}
+async function index(db,scope,corpus,semantic){
+  const hash=await getVectorDbContentHash(JSON.stringify(corpus));
+  const chunks=await Promise.all(corpus.map(async(c,i)=>({chunkId:scope+':'+c._id,chunkIndex:i,content:((c.title||'')+' '+c.text).trim(),contentHash:await getVectorDbContentHash(((c.title||'')+' '+c.text).trim()),headingPath:['BEIR',scope]})));
+  const plan={documentId:scope,contentHash:hash,indexedAt:Date.now(),chunks:chunks.map(c=>({chunkId:c.chunkId,chunkIndex:c.chunkIndex,contentHash:c.contentHash}))};
+  if(semantic&&report.config.rebuildSemanticIndex)await operation(`${scope}: rebuilding semantic index`,()=>db.deleteDocument(scope));
+  const checkpoint=await operation(`${scope}: preparing index`,()=>db.prepareDocument(plan));
+  if(checkpoint.complete){if(semantic){report.datasets.find(d=>scope==='full-beir-'+d.name).embeddingRun={workers:report.config.embeddingWorkers,batchSize:report.config.embeddingBatchSize,reused:chunks.length,newlyEmbedded:0,wallMs:0,documentsPerSecond:null};embeddingStatus.textContent=`${scope}: all ${chunks.length} saved passages reused; no new embedding throughput measurement.`;}return;}
+  const done=new Set(checkpoint.persistedChunkIds),pending=chunks.filter(c=>!done.has(c.chunkId));
+  if(semantic){const warmStart=performance.now();await operation(`Loading ${report.config.embeddingWorkers} embedding workers`,()=>embeddingPool.warmup(runController.signal),1200000);report.datasets.find(d=>scope==='full-beir-'+d.name).embeddingWarmupMs=performance.now()-warmStart;}
+  const batchSize=semantic?report.config.embeddingBatchSize:100,start=performance.now();
+  const before=embeddingPool.stats();let buffer=[],embedded=0,persisted=done.size,lastSavedProgress=done.size;
+  async function* batches(){
+    if(semantic){yield* embeddingPool.embedBatches(pending.map(c=>c.content),batchSize,runController.signal);}
+    else{for(let startIndex=0;startIndex<pending.length;startIndex+=batchSize)yield {startIndex,vectors:null};}
+  }
+  const update=()=>{
+    if(!semantic)return;
+    const wallMs=performance.now()-start,rate=wallMs>0?embedded/(wallMs/1000):0;
+    const workers=embeddingPool.stats().map((s,i)=>({...s,texts:s.texts-before[i].texts,inferenceMs:s.inferenceMs-before[i].inferenceMs}));
+    report.datasets.find(d=>scope==='full-beir-'+d.name).embeddingRun={workers:report.config.embeddingWorkers,batchSize,reused:done.size,newlyEmbedded:embedded,persisted,wallMs,documentsPerSecond:rate,workerStats:workers};
+    embeddingStatus.textContent=`${report.config.embeddingWorkers} workers; ${embedded}/${pending.length} new passages embedded; ${persisted}/${chunks.length} saved; ${rate.toFixed(2)} documents/s. Backends: ${workers.map(s=>`worker ${s.workerId+1}: ${s.backend||'loading'}`).join(', ')}.`;
+  };
+  currentStage=`${scope}: embedding/indexing passages`;
+  for await(const {startIndex,vectors} of batches()){
+    if(cancelled)throw Error('Canceled');
+    const batch=pending.slice(startIndex,startIndex+batchSize);
+    buffer.push(...batch.map((c,j)=>({...c,documentId:scope,...(vectors?{embedding:vectors[j]}:{})})));embedded+=batch.length;update();
+    if(buffer.length>=(semantic?batchSize:64)){await operation(`${scope}: saving ${semantic?'semantic':'lexical'} batch`,()=>db.upsertChunkBatch({documentId:scope,contentHash:hash,chunks:buffer}),120000,false);persisted+=buffer.length;buffer=[];report.indexProgress={dataset:scope,semantic,completed:persisted,total:chunks.length};update();if(persisted-lastSavedProgress>=64){await save();lastSavedProgress=persisted;}}
+    log(`${scope}: ${semantic?'embedded':'indexed lexical'} ${embedded+done.size}/${chunks.length} passages`);
+  }
+  if(buffer.length){await operation(`${scope}: saving final batch`,()=>db.upsertChunkBatch({documentId:scope,contentHash:hash,chunks:buffer}),120000,false);persisted+=buffer.length;}
+  report.indexProgress={dataset:scope,semantic,completed:persisted,total:chunks.length};update();await save();
+  await operation(`${scope}: finalizing index`,()=>db.finalizeDocument(plan));update();
+}
+
+async function requireSavedIndex(db,conf,meta,semantic){
+  const scope='full-beir-'+meta.name;
+  await operation(`${scope}: opening saved ${semantic?'semantic':'lexical'} index`,()=>db.initialize({...conf,chunkerVersion:'full-subsets-v3-'+meta.name+(semantic?'-semantic':'-lexical')}));
+  const [state]=await operation(`${scope}: checking saved passages`,()=>db.checkDocuments([{documentId:scope,contentHash:meta.corpusSha256}]));
+  if(!state?.exists||!state.matches||state.indexedChunkCount!==meta.corpusCount)throw Error(`${scope}: saved ${semantic?'semantic':'lexical'} index is missing or differs. Query-only evaluation will not rebuild passages.`);
+  report.indexProgress={dataset:scope,semantic,reused:state.indexedChunkCount,newlyEmbedded:0};
+  eventLog('saved index verified',report.indexProgress);await save();
+}
+async function prepareQueryVectors(meta,queries){
+  const vectorSettings={queries:meta.queriesSha256,model:report.config.model,dtype:report.config.dtype,pooling:report.config.pooling,normalized:report.config.normalized,dimensions:384,protocol:'beir-query-vectors-v1'};
+  const fingerprint=await getVectorDbContentHash(JSON.stringify(vectorSettings));
+  let warmup=null;
+  const entries=await runResumableEvaluation({
+    checkpointPath:'beir-query-vectors/'+meta.name+'/'+fingerprint,fingerprint,items:queries,itemId:q=>q._id,
+    storage:checkpointStorage(),signal:runController.signal,concurrency:report.config.embeddingWorkers,
+    validateResult:(value,q)=>{
+      if(value?.queryId!==q._id||value.queryText!==q.text||!Array.isArray(value.vector)||value.vector.length!==384||!value.vector.every(Number.isFinite)||!Number.isFinite(value.encodingMs)||value.encodingMs<0)throw Error('Saved query vector differs from the query or model.');
+      const norm=Math.sqrt(value.vector.reduce((sum,v)=>sum+v*v,0));if(Math.abs(norm-1)>0.02)throw Error('Saved query vector is not normalized.');return value;
+    },
+    evaluate:async(q,i,signal)=>{
+      warmup??=operation('Loading query embedding workers',()=>embeddingPool.warmup(runController.signal),1200000);await warmup;
+      const started=performance.now(),[vector]=await embeddingPool.embed([BGE_SMALL_EN_QUERY_PREFIX+q.text],signal,i);
+      return {queryId:q._id,queryText:q.text,vector:Array.from(vector),encodingMs:performance.now()-started,embeddingWorkers:report.config.embeddingWorkers};
+    },
+    onProgress:async(progress)=>{
+      report.queryVectorProgress={dataset:meta.name,completed:progress.completed,total:progress.total,resumed:progress.resumed};
+      if(progress.completed===progress.resumed||progress.completed%10===0||progress.completed===progress.total){log(`${meta.name}: prepared query vectors ${progress.completed}/${progress.total}; ${progress.resumed} restored`);await save();}
+    },
+  });
+  report.datasets.find(d=>d.name===meta.name).queryVectors={fingerprint,count:entries.length,encodingExcludedFromRetrievalTiming:true};await save();
+  return new Map(entries.map(e=>[e.queryId,new Float32Array(e.vector)]));
+}
+async function runQueryOnly(db,conf){
+  for(const name of Object.keys(DATASETS)){
+    if(completedMethods(name).size===3){log(`${name}: all three query results retained`);continue;}
+    const meta=queryBaseline.datasets.find(d=>d.name===name),base=queryBaseline.results.find(r=>r.dataset==='full-beir-'+name&&r.method==='bm25');
+    const queries=base.cases.map(c=>({_id:c.queryId,text:c.queryText})),qrels=new Map(base.cases.map(c=>[c.queryId,new Map(Object.entries(c.relevance))])),scope='full-beir-'+name;
+    if(!completedMethods(name).has('bm25')){await requireSavedIndex(db,conf,meta,false);await evaluate(db,scope,queries,qrels,'bm25',new Map());}
+    if(!completedMethods(name).has('dense')||!completedMethods(name).has('hybrid')){
+      await requireSavedIndex(db,conf,meta,true);
+      const vectors=await prepareQueryVectors(meta,queries);
+      await evaluate(db,scope,queries,qrels,'dense',vectors);await evaluate(db,scope,queries,qrels,'hybrid',vectors);
+    }
+  }
+}
+
+button.onclick=async()=>{
+  await pageReady;if(restoreFailed||button.disabled)return;clearTimeout(autoRetryTimer);autoRetryTimer=null;
+  button.disabled=true;
+  const resuming=savedAvailable&&resumeControl.checked;
+  const prior=savedAvailable?JSON.parse(JSON.stringify(report)):null;
+  if(prior){try{await writeReport('beir-dissertation-backup-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json',prior);}catch(e){log(`Could not back up saved results: ${e}`);updateRunButton();return;}}
+  logs=[];warned.clear();downloadLogs.clear();lastProgressSaveAt=null;databaseStage='Waiting for worker response';delete report.workerProgress;delete report.queryProgress;
+  button.disabled=true;stop.disabled=false;resumeControl.disabled=true;workerControl.disabled=true;batchControl.disabled=true;rebuildControl.disabled=true;kControl.disabled=true;applyK.disabled=true;cancelled=false;runController=new AbortController();
+  if(!resuming){report.startedAt=new Date().toISOString();report.datasets=QUERY_ONLY?structuredClone(queryBaseline.datasets):[];report.results=[];report.inProgressEvaluations=[];report.resumes=[];document.querySelector('#results').querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());}
+  else{report.resumes??=[];report.resumes.push({at:new Date().toISOString(),previousStatus:report.status,previousErrors:[...report.errors],previousConfig:prior.config,retainedResultKeys:report.results.map(r=>r.dataset+'/'+r.method),embeddingWorkers:Number(workerControl.value),embeddingBatchSize:Number(batchControl.value)});}
+  report.harnessVersion='12';report.config.embeddingWorkers=Number(workerControl.value);report.config.queryConcurrency=QUERY_ONLY?1:report.config.embeddingWorkers;report.config.embeddingBatchSize=Number(batchControl.value);report.config.rebuildSemanticIndex=QUERY_ONLY?false:rebuildControl.checked;report.config.backend=null;report.config.embeddingWorkerBackends=[];report.errors=[];report.downloadRetries=0;delete report.progress;delete report.downloadProgress;delete report.finishedAt;delete report.indexProgress;
+let unmountDb=()=>{},retryTemporaryFailure=false;const db=createVectorDbClient({workerName:'memora-beir-'+crypto.randomUUID(),onProgress:stage=>{databaseStage=stage;if(report.progress)report.progress.databaseStage=stage;status.textContent=`${currentStage}\nDatabase: ${stage}`;eventLog("database",{stage});}});try{unmountDb=db.mount();embeddingPool=new BeirEmbeddingPool({workerCount:report.config.embeddingWorkers,onProgress:onWorkerProgress,onUpdate:(workerId,u)=>{if(u.type==='backend'){report.config.embeddingWorkerBackends=embeddingPool.stats().map(s=>({workerId:s.workerId,backend:s.backend}));const backends=[...new Set(report.config.embeddingWorkerBackends.map(s=>s.backend).filter(Boolean))];report.config.backend=backends.length===1?backends[0]:'mixed';}else if(u.type==='progress'){embeddingStatus.textContent=`Worker ${workerId+1}: ${u.label}${u.progress!=null?' '+Math.round(u.progress*100)+'%':''}`;}}});report.status='running';startMonitor();eventLog('run started',{workers:report.config.embeddingWorkers,batchSize:report.config.embeddingBatchSize});await save();const conf={...{...buildBgeIndexConfig('bge-small-en',0),pooling:'cls'},chunkerName:'beir-document',chunkerVersion:'full-subsets-v3',modelRevision:'Xenova/bge-small-en-v1.5:q8',segmenterPipelineVersion:'full-beir-v3'};
+if(QUERY_ONLY){await runQueryOnly(db,conf);}else for(const name of ['scifact','nfcorpus','arguana']){if(completedMethods(name).size===3){log(`${name}: all three saved results retained; dataset skipped`);continue;}log(`Loading complete BEIR ${name}`);const ds='BeIR/'+name,qrds=ds+'-qrels';const local=await loadBeirSourceBundle(name,{hash:getVectorDbContentHash,signal:runController.signal});if(local)log(`${name}: verified local source, ${local.counts.corpus} documents / ${local.counts.testQueries} test queries`);const rev=local?.hubRevision??await revision(ds),qrev=local?.qrelsHubRevision??await revision(qrds);const corpus=local?.corpus??await rows(ds,'corpus','corpus',rev);const allqueries=local?.queries??await rows(ds,'queries','queries',rev);const rawqrels=local?.qrels??await rows(qrds,'default','test',qrev);const qrels=new Map();for(const r of rawqrels){const q=String(r['query-id']),c=String(r['corpus-id']),g=Number(r.score);if(!qrels.has(q))qrels.set(q,new Map());qrels.get(q).set(c,g);}
+const queries=allqueries.filter(q=>qrels.has(String(q._id))).map(q=>({...q,_id:String(q._id)}));if(queries.length!==qrels.size)throw Error('Missing test queries');const scope='full-beir-'+name;const corpusIds=new Set(corpus.map(c=>String(c._id)));if(corpusIds.size!==corpus.length||new Set(queries.map(q=>q._id)).size!==queries.length)throw Error('Duplicate corpus or test query IDs');for(const c of corpus)if(typeof c.text!=='string'||c._id==null)throw Error('Invalid corpus document');for(const q of queries)if(typeof q.text!=='string')throw Error('Invalid query text');const missingQrelDocuments=validateBeirQrelReferences(name,corpus,rawqrels);if(missingQrelDocuments.length)eventLog('official missing positive documents',{dataset:name,count:missingQrelDocuments.length,policy:'Retain all test queries and official qrels in metric denominators'},'warn');if(rawqrels.length!==[...qrels.values()].reduce((n,gs)=>n+gs.size,0))throw Error('Duplicate qrel pairs');const expected={scifact:[5183,300],nfcorpus:[3633,323],arguana:[8674,1406]}[name];if(corpus.length!==expected[0]||queries.length!==expected[1])throw Error(`Unexpected complete BEIR counts for ${name}: ${corpus.length}/${queries.length}`);if(!local&&(await revision(ds)!==rev||await revision(qrds)!==qrev))throw Error('Hub revision changed during download');const dataset={name,source:local?.source??'Hugging Face rows API',revisionPinned:!!local,sourceFiles:local?.sourceFiles??[],originalReleaseVerification:local?.originalReleaseVerification??null,missingQrelDocuments,missingQrelPolicy:'Retain all official test queries and qrels; unavailable positives remain in metric denominators',corpusCount:corpus.length,queryCount:queries.length,qrelCount:rawqrels.length,observedHubRevision:rev,observedQrelsHubRevision:qrev,corpusSha256:await getVectorDbContentHash(JSON.stringify(corpus)),queriesSha256:await getVectorDbContentHash(JSON.stringify(queries)),qrelsSha256:await getVectorDbContentHash(JSON.stringify(rawqrels)),rowTruncationChecked:true,uniqueIdsChecked:true,hubRevisionStableDuringDownload:true};const previous=report.datasets.find(d=>d.name===name);
+if(previous&&['corpusSha256','queriesSha256','qrelsSha256'].some(key=>previous[key]!==dataset[key]))throw Error(`${name}: downloaded data differs from the saved evaluation. Start a new comparison to use changed data.`);
+if(previous)Object.assign(previous,dataset);else report.datasets.push(dataset);
+await save();const vectors=new Map();
+if(!completedMethods(name).has('bm25')){await operation(`${scope}: initializing lexical database`,()=>db.initialize({...conf,chunkerVersion:'full-subsets-v3-'+name+'-lexical'}));const lt=performance.now();await index(db,scope,corpus,false);report.datasets.find(d=>d.name===name).lexicalIndexMs=performance.now()-lt;await evaluate(db,scope,queries,qrels,'bm25',vectors);}
+if(!completedMethods(name).has('dense')||!completedMethods(name).has('hybrid')){await operation(`${scope}: initializing semantic database`,()=>db.initialize({...conf,chunkerVersion:'full-subsets-v3-'+name+'-semantic'}));const start=performance.now();await index(db,scope,corpus,true);report.datasets.find(d=>d.name===name).embeddingIndexMs=performance.now()-start;await evaluate(db,scope,queries,qrels,'dense',vectors);await evaluate(db,scope,queries,qrels,'hybrid',vectors);}}
+
+stopMonitor();report.finishedAt=new Date().toISOString();report.status='complete';await save();const archive=(QUERY_ONLY?'beir-dissertation-'+MODEL_TAG+'-k'+K+'-':'beir-dissertation-'+MODEL_TAG+'-')+'w'+report.config.embeddingWorkers+'-'+report.startedAt.replace(/[:.]/g,'-')+'.json';await writeReport(archive,report);log('Complete. Full report saved to memora-eval-data/results/'+REPORT_FILE);}catch(e){stopMonitor();report.status=cancelled?'canceled':'failed';report.errors.push(String(e));retryTemporaryFailure=!cancelled&&/HTTP (408|429|500|502|503|504)|timed out|AbortError|Failed to fetch/i.test(String(e));await save().catch(()=>{});log(String(e));}finally{stopMonitor();renderWorkers();await saveProgress().catch(e=>eventLog('final progress save failed',{error:String(e)},'error'));stop.disabled=true;savedAvailable=true;resumeControl.disabled=false;resumeControl.checked=true;updateRunButton();workerControl.disabled=false;batchControl.disabled=false;rebuildControl.disabled=QUERY_ONLY;kControl.disabled=false;applyK.disabled=false;unmountDb();embeddingPool?.dispose();embeddingPool=null;runController=null;
+if(retryTemporaryFailure&&autoRetryControl.checked){stop.disabled=false;log('Temporary failure. Saved items retained; continuing automatically in 60 seconds.');autoRetryTimer=setTimeout(()=>{autoRetryTimer=null;if(autoRetryControl.checked&&!cancelled)void button.onclick();},60000);}
+}};
+stop.onclick=()=>{cancelled=true;runController?.abort();if(autoRetryTimer){clearTimeout(autoRetryTimer);autoRetryTimer=null;stop.disabled=true;report.status='canceled';log('Automatic continuation stopped. Saved results retained.');void save().catch(e=>eventLog('save failed',{error:String(e)},'error'));}else log('Stopping the test.');};
+autoRetryControl.onchange=()=>{if(!autoRetryControl.checked&&autoRetryTimer){clearTimeout(autoRetryTimer);autoRetryTimer=null;stop.disabled=true;log('Automatic retry disabled. Saved results retained.');}};
+const pageReady=restoreSaved();
+}
+</script></html>

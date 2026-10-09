@@ -1,16 +1,16 @@
 import * as stylex from "@stylexjs/stylex";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-
 import {
-  ArrowLeftIcon,
-  CaretDownIcon,
-  CodeIcon,
-  DotsThreeVerticalIcon,
-  FloppyDiskIcon,
-  ImageIcon,
-  PenIcon,
-  TableIcon,
-} from "@phosphor-icons/react";
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from "react";
+
+import { ArrowLeftIcon, ChatCircleIcon, CodeIcon, PenIcon } from "@phosphor-icons/react";
 
 import { SourceDocumentEditor } from "@/components/editor/SourceDocumentEditor";
 import {
@@ -22,9 +22,10 @@ import { TxtToMarkdownConfirmDialog } from "@/components/editor/TxtToMarkdownCon
 import {
   WysiwygDocumentEditor,
   type WysiwygDocumentEditorHandle,
+  type WysiwygDocumentReview,
 } from "@/components/editor/WysiwygDocumentEditor";
-import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
+import { measureTextLength } from "@/lib/editor/wordCount";
 import { getFileExtension } from "@/lib/editor/editableTextDocument";
 import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 import { tokens } from "../../styles/stylex.stylex";
@@ -94,6 +95,7 @@ const styles = stylex.create({
   headerEnd: {
     alignItems: "center",
     display: "flex",
+    gap: "0.5rem",
     justifyContent: "flex-end",
     justifySelf: { default: "auto", "@media (min-width: 768px)": "end" },
   },
@@ -116,6 +118,10 @@ const styles = stylex.create({
       borderColor: tokens.borderStrong,
     },
   },
+  chatToggleActive: {
+    backgroundColor: tokens.hover,
+    borderColor: tokens.borderStrong,
+  },
   menuTriggerIconFrame: {
     alignItems: "center",
     backgroundColor: tokens.surfaceMuted,
@@ -134,55 +140,6 @@ const styles = stylex.create({
     fontSize: "0.875rem",
     fontWeight: 600,
     lineHeight: "1.25rem",
-  },
-  caret: {
-    color: tokens.textSoft,
-    flexShrink: 0,
-    height: "0.875rem",
-    width: "0.875rem",
-  },
-  menuContent: { width: "248px" },
-  menuItem: {
-    alignItems: "center",
-    borderRadius: "1rem",
-    color: tokens.text,
-    display: "flex",
-    fontSize: "0.875rem",
-    gap: "0.75rem",
-    padding: "0.75rem",
-    textAlign: "left",
-    transition: "background-color 300ms",
-    width: "100%",
-    ":hover": { backgroundColor: tokens.hover },
-    ":disabled": { cursor: "not-allowed", opacity: 0.4 },
-  },
-  menuItemIcon: {
-    alignItems: "center",
-    backgroundColor: tokens.surfaceMuted,
-    borderRadius: "9999px",
-    color: tokens.textMuted,
-    display: "flex",
-    flexShrink: 0,
-    height: "2.25rem",
-    justifyContent: "center",
-    width: "2.25rem",
-  },
-  menuItemCopy: { minWidth: 0 },
-  menuItemTitle: {
-    color: tokens.textStrong,
-    display: "block",
-    fontSize: "14px",
-    fontWeight: 600,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  menuItemDescription: {
-    color: tokens.textMuted,
-    display: "block",
-    fontSize: "13px",
-    lineHeight: "1.25rem",
-    marginTop: "0.25rem",
   },
   saveStatus: {
     alignItems: "center",
@@ -225,15 +182,37 @@ const styles = stylex.create({
     paddingBlock: "0.75rem",
     paddingInline: "1rem",
   },
-  hidden: { display: "none" },
   editorLayout: {
     display: "grid",
-    gap: { default: "0.75rem", "@media (min-width: 1024px)": "1.25rem" },
+    gap: "0.75rem",
     gridTemplateColumns: "minmax(0, 1fr) auto",
     minWidth: 0,
   },
   editor: { minWidth: 0 },
+  footer: {
+    borderTopColor: tokens.borderSoft,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    color: tokens.textSoft,
+    columnGap: "1rem",
+    display: "flex",
+    flexWrap: "wrap",
+    fontSize: "0.8125rem",
+    lineHeight: "1.25rem",
+    marginBottom: "3rem",
+    marginTop: "2rem",
+    paddingTop: "1rem",
+    rowGap: "0.25rem",
+  },
 });
+
+const findScrollParent = (element: HTMLElement | null): HTMLElement | null => {
+  let parent = element?.parentElement ?? null;
+  while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) {
+    parent = parent.parentElement;
+  }
+  return parent;
+};
 
 interface MarkdownDocumentEditorProps {
   file: TextDocumentFileLike;
@@ -241,23 +220,39 @@ interface MarkdownDocumentEditorProps {
   editorMode: EditorMode;
   onTextChange: (text: string) => void;
   onTitleChange: (name: string) => Promise<void>;
-  onSave: () => void;
   onRequestSource: () => void;
   onRequestWysiwyg: () => void;
-  onAttachImage: (file: File) => Promise<void>;
   onGoBack: () => void;
   saveState: "idle" | "dirty" | "saving" | "error";
   saveError?: string | null;
   referenceNotice?: string | null;
   wysiwygSafetyNotice?: string | null;
   wysiwygSafetyDiagnostics?: readonly MarkdownSafetyDiagnostic[];
-  isAttachingImage?: boolean;
   focusedLineStart?: number | null;
   focusedLineEnd?: number | null;
   txtUpgradeDialogOpen: boolean;
   onConfirmTxtUpgrade: () => void;
   onCancelTxtUpgrade: () => void;
+  isChatOpen?: boolean;
+  onToggleChat?: () => void;
+  // Shown in place of the source editor while chat suggestions wait for review.
+  changeReview?: ReactNode;
+  // The same suggestions in Preview, which marks them in the note instead of replacing the editor.
+  wysiwygReview?: WysiwygDocumentReview | null;
+  onSelectionTextChange?: (text: string | null) => void;
 }
+
+const DOCUMENT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const formatDocumentDate = (timestamp: number): string => {
+  return Number.isFinite(timestamp) ? DOCUMENT_DATE_FORMAT.format(timestamp) : "Unknown";
+};
 
 const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"]): string => {
   switch (saveState) {
@@ -286,27 +281,32 @@ export function MarkdownDocumentEditor({
   editorMode,
   onTextChange,
   onTitleChange,
-  onSave,
   onRequestSource,
   onRequestWysiwyg,
-  onAttachImage,
   onGoBack,
   saveState,
   saveError,
   referenceNotice,
   wysiwygSafetyNotice,
   wysiwygSafetyDiagnostics = [],
-  isAttachingImage = false,
   focusedLineStart = null,
   focusedLineEnd = null,
   txtUpgradeDialogOpen,
   onConfirmTxtUpgrade,
   onCancelTxtUpgrade,
+  isChatOpen = false,
+  onToggleChat,
+  changeReview = null,
+  wysiwygReview = null,
+  onSelectionTextChange,
 }: MarkdownDocumentEditorProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
   const wysiwygRef = useRef<WysiwygDocumentEditorHandle | null>(null);
+  const editorBoxRef = useRef<HTMLDivElement | null>(null);
+  const scrollTopRef = useRef(0);
+  const textLength = measureTextLength(text);
   const isSourceMode = editorMode === "source";
+  const isReviewing = isSourceMode && changeReview !== null && changeReview !== undefined;
   const titleParts = getDocumentTitleParts(file.name);
   const [titleValue, setTitleValue] = useState(titleParts.title);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -314,6 +314,29 @@ export function MarkdownDocumentEditor({
   const headings = useMemo(() => parseMarkdownHeadings(text), [text]);
   const activeHeadingId =
     activeHeadingIndex === null ? null : (headings[activeHeadingIndex]?.id ?? null);
+
+  // Swapping the editor for the change review (and back) rebuilds the page content, which would
+  // otherwise leave the note scrolled to the top. The last scroll position is kept in a ref because
+  // the browser clamps the real one before the layout effect runs.
+  useEffect(() => {
+    const scroller = findScrollParent(editorBoxRef.current);
+    if (!scroller) {
+      return;
+    }
+    const target = scroller;
+    const remember = (): void => {
+      scrollTopRef.current = target.scrollTop;
+    };
+    target.addEventListener("scroll", remember, { passive: true });
+    return () => target.removeEventListener("scroll", remember);
+  }, []);
+
+  useLayoutEffect(() => {
+    const scroller = findScrollParent(editorBoxRef.current);
+    if (scroller) {
+      scroller.scrollTop = scrollTopRef.current;
+    }
+  }, [isReviewing]);
 
   useEffect(() => {
     setTitleValue(titleParts.title);
@@ -431,74 +454,25 @@ export function MarkdownDocumentEditor({
         </div>
 
         <div {...stylex.props(styles.headerEnd)}>
-          <AppMenu>
-            <AppMenuTrigger
-              className={`memora-interactive ${stylex.props(styles.menuTrigger).className}`}
+          {onToggleChat ? (
+            <button
+              type="button"
+              aria-pressed={isChatOpen}
+              title={isChatOpen ? "Close chat" : "Chat about this note"}
+              className={`memora-interactive ${
+                stylex.props(styles.menuTrigger, isChatOpen && styles.chatToggleActive).className
+              }`}
+              onClick={onToggleChat}
             >
               <span {...stylex.props(styles.menuTriggerIconFrame)}>
-                <DotsThreeVerticalIcon
+                <ChatCircleIcon
                   className={stylex.props(styles.menuLargeIcon).className}
                   weight="bold"
                 />
               </span>
-              <span {...stylex.props(styles.menuTriggerLabel)}>Actions</span>
-              <CaretDownIcon
-                data-dashboard-menu-caret=""
-                className={stylex.props(styles.caret).className}
-                weight="bold"
-              />
-            </AppMenuTrigger>
-            <AppMenuContent className={stylex.props(styles.menuContent).className}>
-              <AppMenuItem
-                disabled={saveState === "saving" || isAttachingImage}
-                className={stylex.props(styles.menuItem).className}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={onSave}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <FloppyDiskIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>Save</span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    {getSaveStatusLabel(saveState)}
-                  </span>
-                </span>
-              </AppMenuItem>
-              <AppMenuItem
-                disabled={isAttachingImage}
-                className={stylex.props(styles.menuItem).className}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <ImageIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>
-                    {isAttachingImage ? "Attaching image..." : "Attach image"}
-                  </span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    Store images beside the current note
-                  </span>
-                </span>
-              </AppMenuItem>
-              <AppMenuItem
-                disabled={isSourceMode}
-                className={stylex.props(styles.menuItem).className}
-                onClick={() => wysiwygRef.current?.insertTable()}
-              >
-                <span {...stylex.props(styles.menuItemIcon)}>
-                  <TableIcon className={stylex.props(styles.menuLargeIcon).className} />
-                </span>
-                <span {...stylex.props(styles.menuItemCopy)}>
-                  <span {...stylex.props(styles.menuItemTitle)}>Insert table</span>
-                  <span {...stylex.props(styles.menuItemDescription)}>
-                    Available in preview mode only
-                  </span>
-                </span>
-              </AppMenuItem>
-            </AppMenuContent>
-          </AppMenu>
+              <span {...stylex.props(styles.menuTriggerLabel)}>Chat</span>
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -550,30 +524,17 @@ export function MarkdownDocumentEditor({
         </div>
       ) : null}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className={stylex.props(styles.hidden).className}
-        onChange={(event) => {
-          const image = event.currentTarget.files?.[0];
-          event.currentTarget.value = "";
-          if (!image) {
-            return;
-          }
-
-          void onAttachImage(image);
-        }}
-      />
-
       <div {...stylex.props(styles.editorLayout)}>
-        <div {...stylex.props(styles.editor)}>
-          {isSourceMode ? (
+        <div ref={editorBoxRef} {...stylex.props(styles.editor)}>
+          {isSourceMode && changeReview ? (
+            changeReview
+          ) : isSourceMode ? (
             <SourceDocumentEditor
               ref={sourceRef}
               text={text}
               onTextChange={onTextChange}
               onVisibleLineChange={setActiveHeadingFromLine}
+              onSelectionTextChange={onSelectionTextChange}
               focusedLineStart={focusedLineStart}
               focusedLineEnd={focusedLineEnd}
               diagnostics={wysiwygSafetyDiagnostics}
@@ -582,7 +543,9 @@ export function MarkdownDocumentEditor({
             <WysiwygDocumentEditor
               ref={wysiwygRef}
               text={text}
+              review={wysiwygReview}
               onActiveHeadingChange={handleActiveHeadingChange}
+              onSelectionTextChange={onSelectionTextChange}
               onTextChange={onTextChange}
             />
           )}
@@ -593,6 +556,14 @@ export function MarkdownDocumentEditor({
           onNavigate={handleOutlineNavigate}
         />
       </div>
+
+      <footer {...stylex.props(styles.footer)}>
+        <span>
+          {textLength.count.toLocaleString()} {textLength.unit}
+        </span>
+        <span>Created {formatDocumentDate(file.createdAt)}</span>
+        <span>Edited {formatDocumentDate(file.updatedAt)}</span>
+      </footer>
 
       <TxtToMarkdownConfirmDialog
         fileName={file.name}

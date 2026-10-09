@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import * as stylex from "@stylexjs/stylex";
+import { AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
 
+import { DocumentChangeReview } from "@/components/editor/DocumentChangeReview";
+import { DocumentChatSidebar } from "@/components/editor/DocumentChatSidebar";
 import { MarkdownDocumentEditor } from "@/components/editor/MarkdownDocumentEditor";
 import { useDocumentEditorFile } from "@/hooks/editor/useDocumentEditorFile";
 import {
@@ -10,6 +21,7 @@ import {
   type TextDocumentFileLike,
 } from "@/lib/editor/documentPersistence";
 import {
+  normalizeMarkdownRoundTripText,
   preflightMarkdownForWysiwyg,
   type MarkdownPreflightResult,
   type MarkdownSafetyDiagnostic,
@@ -23,6 +35,13 @@ import { resolveRelativeWorkspacePath, type WorkspaceFolderLike } from "@/lib/ed
 import { parseLineAnchor, parseReferenceLink } from "@/lib/editor/referenceLinks";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
+import { registerDocumentToolTarget } from "@/lib/chat/tools/documentTools";
+import {
+  acceptDiffHunk,
+  computeDiffHunks,
+  rejectDiffHunk,
+  type DiffHunk,
+} from "@/lib/editor/textDiff";
 import { folderEvents } from "@/livestore/folder";
 import { fileEvents, type file as LiveStoreFile } from "@/livestore/file";
 import { tokens } from "../../styles/stylex.stylex";
@@ -80,9 +99,15 @@ const styles = stylex.create({
     transitionProperty: "background-color",
   },
   page: {
+    alignItems: "flex-start",
     backgroundColor: tokens.canvas,
     color: tokens.text,
+    display: "flex",
     minHeight: "100vh",
+  },
+  pageBody: {
+    flex: 1,
+    minWidth: 0,
     paddingBlock: "1rem",
     paddingInline: "1.25rem",
     "@media (min-width: 640px)": {
@@ -208,6 +233,25 @@ interface DocumentEditorPageProps {
   onAttachmentFileCreated?: (createdEvent: AttachmentFileCreatedEventInput) => void;
   onAttachmentFolderCreated?: (createdEvent: FolderCreatedEventInput) => void;
 }
+
+// The chat a note's side panel last showed, so reopening the panel continues it.
+const DOCUMENT_CHAT_SESSION_KEY_PREFIX = "memora.documentChatSession.";
+
+const readDocumentChatSessionId = (fileId: string): string | null => {
+  try {
+    return window.localStorage.getItem(`${DOCUMENT_CHAT_SESSION_KEY_PREFIX}${fileId}`);
+  } catch {
+    return null;
+  }
+};
+
+const writeDocumentChatSessionId = (fileId: string, sessionId: string): void => {
+  try {
+    window.localStorage.setItem(`${DOCUMENT_CHAT_SESSION_KEY_PREFIX}${fileId}`, sessionId);
+  } catch {
+    // Without storage the panel starts a new chat next time.
+  }
+};
 
 const parseSearchLineNumber = (value: string | null): number | null => {
   if (!value) {
@@ -478,7 +522,17 @@ function DocumentEditorSession({
       return false;
     }
 
-    setWysiwygSafetyDiagnostics([]);
+    // Safe differences are only blank lines, so save the note in the editor's layout right away.
+    if (
+      normalizeMarkdownRoundTripText(result.roundTrippedText) !==
+      normalizeMarkdownRoundTripText(before.text)
+    ) {
+      editorFile.updateText(
+        before.text.endsWith("\n") ? `${result.roundTrippedText}\n` : result.roundTrippedText,
+      );
+    }
+    // Blocks Preview keeps as source still have diagnostics, for Code mode and the chat.
+    setWysiwygSafetyDiagnostics(result.diagnostics ?? []);
     setWysiwygSafetyNotice(null);
     setEditorMode("wysiwyg");
     return true;
@@ -493,14 +547,108 @@ function DocumentEditorSession({
     [editorFile],
   );
 
-  const handleAttachImage = useCallback(
-    async (image: File): Promise<void> => {
-      setWysiwygSafetyDiagnostics([]);
-      setWysiwygSafetyNotice(null);
-      await editorFile.attachImage(image);
-    },
-    [editorFile],
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(() =>
+    readDocumentChatSessionId(file.id),
   );
+  const [selectionText, setSelectionText] = useState<string | null>(null);
+  // Chat edits wait here, as the whole proposed note, until each change is accepted or rejected.
+  // The ref gives the chat tools the latest proposal before React re-renders.
+  const [chatProposal, setChatProposalState] = useState<string | null>(null);
+  const chatProposalRef = useRef<string | null>(null);
+  const chatTargetRef = useRef({
+    editorFile,
+    editorMode,
+    guardWysiwygEntry,
+    handleTextChange,
+    wysiwygSafetyDiagnostics,
+  });
+  useLayoutEffect(() => {
+    chatTargetRef.current = {
+      editorFile,
+      editorMode,
+      guardWysiwygEntry,
+      handleTextChange,
+      wysiwygSafetyDiagnostics,
+    };
+  });
+
+  const handleChatSessionChange = useCallback(
+    (sessionId: string): void => {
+      setChatSessionId(sessionId);
+      writeDocumentChatSessionId(file.id, sessionId);
+    },
+    [file.id],
+  );
+
+  const setChatProposal = useCallback((proposal: string | null): void => {
+    const currentText = chatTargetRef.current.editorFile.getCanonicalSnapshot().text;
+    const nextProposal = proposal === currentText ? null : proposal;
+    chatProposalRef.current = nextProposal;
+    setChatProposalState(nextProposal);
+  }, []);
+
+  const writeAcceptedText = useCallback((nextText: string): void => {
+    const latest = chatTargetRef.current;
+    latest.handleTextChange(nextText);
+    // Leave Preview when the new Markdown would not convert cleanly, as when opening the note.
+    if (latest.editorMode === "wysiwyg") {
+      latest.guardWysiwygEntry();
+    }
+  }, []);
+
+  const chatFileName = activeFile?.name ?? file.name;
+  useEffect(() => {
+    if (!chatSessionId) {
+      return;
+    }
+    return registerDocumentToolTarget(chatSessionId, {
+      fileName: chatFileName,
+      getText: () =>
+        chatProposalRef.current ?? chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
+      applyText: setChatProposal,
+      getPreviewIssues: () =>
+        chatTargetRef.current.wysiwygSafetyDiagnostics.map((diagnostic) => diagnostic.message),
+    });
+  }, [chatFileName, chatSessionId, setChatProposal]);
+
+  const handleAcceptChange = useCallback(
+    (hunk: DiffHunk): void => {
+      const proposal = chatProposalRef.current;
+      if (proposal === null) {
+        return;
+      }
+      writeAcceptedText(acceptDiffHunk(text, proposal, hunk));
+      setChatProposal(proposal);
+    },
+    [setChatProposal, text, writeAcceptedText],
+  );
+
+  const handleRejectChange = useCallback(
+    (hunk: DiffHunk): void => {
+      const proposal = chatProposalRef.current;
+      if (proposal !== null) {
+        setChatProposal(rejectDiffHunk(text, proposal, hunk));
+      }
+    },
+    [setChatProposal, text],
+  );
+
+  const handleAcceptAllChanges = useCallback((): void => {
+    const proposal = chatProposalRef.current;
+    if (proposal !== null) {
+      writeAcceptedText(proposal);
+    }
+    setChatProposal(null);
+  }, [setChatProposal, writeAcceptedText]);
+
+  const handleRejectAllChanges = useCallback((): void => {
+    setChatProposal(null);
+  }, [setChatProposal]);
+
+  const pendingChangeCount = useMemo(() => {
+    return chatProposal === null ? 0 : computeDiffHunks(text, chatProposal).length;
+  }, [chatProposal, text]);
 
   useEffect(() => {
     handledInitialReference.current = false;
@@ -668,68 +816,107 @@ function DocumentEditorSession({
   }, [editorFile, guardWysiwygEntry]);
 
   return (
-    <div {...stylex.props(styles.session)}>
-      {editorFile.isLoading ? (
-        <div {...stylex.props(styles.loading)}>Loading document...</div>
-      ) : editorFile.loadError ? (
-        <div {...stylex.props(styles.loadError)}>
-          <h1 {...stylex.props(styles.loadErrorTitle)}>Unable to load document</h1>
-          <p {...stylex.props(styles.loadErrorDescription)}>{editorFile.loadError}</p>
-          <div {...stylex.props(styles.errorActions)}>
-            <button
-              type="button"
-              {...stylex.props(styles.errorButton, styles.retryButton)}
-              onClick={() => editorFile.reload()}
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              {...stylex.props(styles.errorButton, styles.errorBackButton)}
-              onClick={() => {
+    <>
+      <div {...stylex.props(styles.pageBody)}>
+        <div {...stylex.props(styles.session)}>
+          {editorFile.isLoading ? (
+            <div {...stylex.props(styles.loading)}>Loading document...</div>
+          ) : editorFile.loadError ? (
+            <div {...stylex.props(styles.loadError)}>
+              <h1 {...stylex.props(styles.loadErrorTitle)}>Unable to load document</h1>
+              <p {...stylex.props(styles.loadErrorDescription)}>{editorFile.loadError}</p>
+              <div {...stylex.props(styles.errorActions)}>
+                <button
+                  type="button"
+                  {...stylex.props(styles.errorButton, styles.retryButton)}
+                  onClick={() => editorFile.reload()}
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  {...stylex.props(styles.errorButton, styles.errorBackButton)}
+                  onClick={() => {
+                    void handleGoBack();
+                  }}
+                >
+                  Go back
+                </button>
+              </div>
+            </div>
+          ) : activeFile ? (
+            <MarkdownDocumentEditor
+              file={activeFile}
+              text={text}
+              editorMode={editorMode}
+              onTextChange={handleTextChange}
+              onTitleChange={editorFile.renameTitle}
+              onRequestSource={() => {
+                void handleRequestSource();
+              }}
+              onRequestWysiwyg={() => {
+                void handleRequestWysiwyg();
+              }}
+              onGoBack={() => {
                 void handleGoBack();
               }}
-            >
-              Go back
-            </button>
-          </div>
+              saveState={editorFile.saveState}
+              saveError={editorFile.saveError}
+              referenceNotice={referenceNotice}
+              wysiwygSafetyNotice={wysiwygSafetyNotice}
+              wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
+              focusedLineStart={focusedLineRange?.startLine ?? null}
+              focusedLineEnd={focusedLineRange?.endLine ?? null}
+              txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
+              onConfirmTxtUpgrade={() => {
+                void handleConfirmTxtUpgrade();
+              }}
+              onCancelTxtUpgrade={() => editorFile.cancelTxtUpgrade()}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen((open) => !open)}
+              onSelectionTextChange={setSelectionText}
+              wysiwygReview={
+                chatProposal !== null
+                  ? {
+                      proposedText: chatProposal,
+                      onAcceptHunk: handleAcceptChange,
+                      onRejectHunk: handleRejectChange,
+                    }
+                  : null
+              }
+              changeReview={
+                chatProposal !== null ? (
+                  <DocumentChangeReview
+                    baseText={text}
+                    proposedText={chatProposal}
+                    onAcceptHunk={handleAcceptChange}
+                    onRejectHunk={handleRejectChange}
+                    onAcceptAll={handleAcceptAllChanges}
+                    onRejectAll={handleRejectAllChanges}
+                  />
+                ) : null
+              }
+            />
+          ) : null}
         </div>
-      ) : activeFile ? (
-        <MarkdownDocumentEditor
-          file={activeFile}
-          text={text}
-          editorMode={editorMode}
-          onTextChange={handleTextChange}
-          onTitleChange={editorFile.renameTitle}
-          onSave={() => {
-            void editorFile.saveNow();
-          }}
-          onRequestSource={() => {
-            void handleRequestSource();
-          }}
-          onRequestWysiwyg={() => {
-            void handleRequestWysiwyg();
-          }}
-          onAttachImage={handleAttachImage}
-          onGoBack={() => {
-            void handleGoBack();
-          }}
-          saveState={editorFile.saveState}
-          saveError={editorFile.saveError}
-          referenceNotice={referenceNotice}
-          wysiwygSafetyNotice={wysiwygSafetyNotice}
-          wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
-          isAttachingImage={editorFile.isAttachingImage}
-          focusedLineStart={focusedLineRange?.startLine ?? null}
-          focusedLineEnd={focusedLineRange?.endLine ?? null}
-          txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
-          onConfirmTxtUpgrade={() => {
-            void handleConfirmTxtUpgrade();
-          }}
-          onCancelTxtUpgrade={() => editorFile.cancelTxtUpgrade()}
-        />
-      ) : null}
-    </div>
+      </div>
+      <AnimatePresence initial={false}>
+        {isChatOpen && activeFile ? (
+          <DocumentChatSidebar
+            key="document-chat"
+            fileName={chatFileName}
+            initialSessionId={chatSessionId}
+            onActiveSessionChange={handleChatSessionChange}
+            selectionText={selectionText}
+            onClearSelection={() => setSelectionText(null)}
+            pendingChangeCount={pendingChangeCount}
+            onAcceptAllChanges={handleAcceptAllChanges}
+            onRejectAllChanges={handleRejectAllChanges}
+            onClose={() => setIsChatOpen(false)}
+          />
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 }
 

@@ -9,7 +9,9 @@ const styles = stylex.create({
     flexShrink: 0,
     position: "sticky",
     top: 24,
-    width: 176,
+    // Only the widest marker takes layout space; titles open over the note on hover.
+    width: 24,
+    zIndex: 2,
     "@media (min-width: 1024px)": { display: "block" },
   },
   list: {
@@ -19,6 +21,19 @@ const styles = stylex.create({
     position: "relative",
     width: "100%",
   },
+  // Fades the note out behind the open outline so the titles stay readable.
+  scrim: {
+    backgroundImage: `linear-gradient(to left, ${tokens.canvas} 55%, transparent)`,
+    bottom: -24,
+    opacity: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    right: -16,
+    top: -24,
+    transition: "opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)",
+    width: 240,
+  },
+  scrimVisible: { opacity: 1 },
   item: { pointerEvents: "none", position: "relative", width: "100%" },
   marker: {
     height: 2,
@@ -60,6 +75,8 @@ const styles = stylex.create({
     position: "absolute",
     ":focus-visible": { boxShadow: `0 0 0 2px ${tokens.oliveSoft}` },
   },
+  // Once open, the hit area covers the titles too, so moving onto them keeps the outline open.
+  interactionOpen: { left: -128 },
   srOnly: {
     borderWidth: 0,
     clip: "rect(0, 0, 0, 0)",
@@ -226,6 +243,7 @@ export function DocumentOutlineIndicator({
   return (
     <aside {...stylex.props(styles.aside)} aria-label="Document outline">
       <div {...stylex.props(styles.list)} data-surface="document-outline-indicator">
+        <span {...stylex.props(styles.scrim, hoveredHeading !== null && styles.scrimVisible)} />
         {headings.map((heading, index) => {
           const isActive = heading.id === activeHeadingId;
           const isHovered = heading.id === hoveredHeadingId;
@@ -257,7 +275,7 @@ export function DocumentOutlineIndicator({
         <button
           type="button"
           aria-label={hoveredHeading ? `Go to ${hoveredHeading.title}` : "Browse document outline"}
-          {...stylex.props(styles.interaction)}
+          {...stylex.props(styles.interaction, hoveredHeading !== null && styles.interactionOpen)}
           onPointerMove={handlePointerMove}
           onPointerLeave={() => setHoveredHeadingId(null)}
           onClick={handleClick}

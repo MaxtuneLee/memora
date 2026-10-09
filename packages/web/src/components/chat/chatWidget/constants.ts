@@ -1,5 +1,6 @@
 import widgetBaseCss from "@/styles/widgetBase.css?raw";
 import svgCss from "@/styles/svg.css?raw";
+import type { LessonQuiz, LessonQuizOptions } from "@/lib/chat/lessonQuiz";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import type { ResolvedTheme } from "@/lib/theme/documentTheme";
 
@@ -24,6 +25,7 @@ export interface WidgetIframeWindow extends Window {
     getData: () => unknown;
     onData: (callback: (data: unknown) => void) => void;
     writeData: (name: string, content: string) => Promise<void>;
+    lesson: { quiz: (mount: HTMLElement, options: LessonQuizOptions) => LessonQuiz };
   };
   [WIDGET_CLEANUP_KEY]?: (() => void) | null;
   [WIDGET_ERROR_KEY]?: string | null;
