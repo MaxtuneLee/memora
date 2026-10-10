@@ -7,6 +7,7 @@ import { requestTabAccess, useTabAccessRequest } from "@/lib/chat/tabAccessReque
 
 const read = (tool: string): AccessRequest => ({
   tool,
+  summary: "search your files",
   access: "read",
   search: true,
   target: { kind: "library" },

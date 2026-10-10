@@ -185,6 +185,7 @@ const submission = (text: string): AgentSubmission => ({
 });
 const writeRequest = (tool: string): AccessRequest => ({
   tool,
+  summary: "write a file",
   access: "write",
   target: { kind: "path", path: "/chat/a.md" },
   write: { operation: "write", contentLength: 1, overwrite: false },

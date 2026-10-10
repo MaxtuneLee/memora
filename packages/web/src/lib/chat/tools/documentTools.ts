@@ -96,8 +96,9 @@ export const createDocumentTools = (
       type: "document",
       folderId: null,
     };
-  const request = (tool: string, write?: AccessWrite): AccessRequest => ({
+  const request = (tool: string, summary: string, write?: AccessWrite): AccessRequest => ({
     tool,
+    summary,
     access: write ? "write" : "read",
     target: { kind: "files", files: [file()] },
     ...(write && { write }),
@@ -112,7 +113,7 @@ export const createDocumentTools = (
         start_line: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
         end_line: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
       }),
-      access: () => request("read_document"),
+      access: () => request("read_document", "read the open note"),
       execute: async (params: unknown) => {
         const payload = params as { start_line?: number; end_line?: number };
         const text = target.getText();
@@ -151,7 +152,7 @@ export const createDocumentTools = (
           oldText: edit.old_text,
           newText: edit.new_text,
         }));
-        return request("edit_document", {
+        return request("edit_document", "edit the open note", {
           operation: "replace",
           contentLength: edits.reduce((total, edit) => total + edit.newText.length, 0),
           overwrite: true,
@@ -178,7 +179,7 @@ export const createDocumentTools = (
         content: v.string(),
       }),
       access: (params) =>
-        request("write_document", {
+        request("write_document", "rewrite the open note", {
           operation: "write",
           contentLength: (params as { content: string }).content.length,
           overwrite: true,

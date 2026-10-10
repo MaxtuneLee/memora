@@ -38,6 +38,7 @@ export const createSessionTools = (
       // Chats are chat working files, read without asking.
       access: (params) => ({
         tool: "read_chat_session",
+        summary: "read an earlier chat",
         access: "read",
         target: {
           kind: "path",

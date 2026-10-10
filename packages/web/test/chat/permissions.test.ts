@@ -244,6 +244,30 @@ describe("Access requests", () => {
     },
   );
 
+  test.each([
+    ["/files", { kind: "library" }],
+    ["/files/", { kind: "library" }],
+    ["/", { kind: "library" }],
+    ["/files/a", { kind: "files", files: [A] }],
+    ["/files/a/", { kind: "files", files: [A] }],
+  ])("grep_files in %s reads %o and shows what it searches for", async (cwd, target) => {
+    const { run, asked } = setup({ answer: { decision: "deny", source: "user" } });
+    await run("grep_files", { pattern: "needle", cwd });
+    expect(asked).toEqual([
+      expect.objectContaining({ tool: "grep_files", search: true, query: "needle", target }),
+    ]);
+  });
+
+  test("every request says what it does in words for the user", async () => {
+    const { run, asked } = setup({ answer: { decision: "deny", source: "user" } });
+    await run("search_files", { query: "x" });
+    await run("modify_text_file", { path: "/chat/notes/n.md", operation: "append", content: "!" });
+    expect(asked.map((request) => request.summary)).toEqual([
+      "search your documents, images, and transcripts",
+      "add text to the end of a file",
+    ]);
+  });
+
   test("chat working files and chat sessions are read without asking", async () => {
     const { run, asked } = setup();
     expect(await run("read_file", { path: "/chat/notes/n.md" })).toBe("note");

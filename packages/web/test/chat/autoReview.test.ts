@@ -9,6 +9,7 @@ import {
 const input: AutoReviewInput = {
   request: {
     tool: "modify_text_file",
+    summary: "edit part of a file",
     access: "write",
     target: { kind: "path", path: "/chat/notes/plan.md" },
     write: {

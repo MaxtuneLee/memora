@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import {
+  chatPathLabel,
   DEFAULT_PERMISSION_MODE,
   type PermissionGrant,
   type PermissionGrantTarget,
@@ -78,7 +79,12 @@ export default function SettingsPermissionsSection() {
   const describe = (target: PermissionGrantTarget): { label: string; missing: boolean } => {
     if (target.kind === "library") return { label: "Whole library", missing: false };
     if (target.kind === "path-prefix")
-      return { label: `Chat working files in ${target.prefix}`, missing: false };
+      return {
+        label: chatPathLabel(target.prefix)
+          ? `Chat working files in "${chatPathLabel(target.prefix)}"`
+          : "All chat working files",
+        missing: false,
+      };
     if (target.kind === "file") {
       const name = files.find((file) => file.id === target.fileId)?.name;
       return { label: name ? `File: ${name}` : "File", missing: !name };

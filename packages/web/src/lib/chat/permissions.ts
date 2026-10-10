@@ -51,10 +51,15 @@ export interface AccessWrite {
 
 /** What a tool call is about to read or write, declared before it runs. */
 export interface AccessRequest {
+  /** The tool's name, for the Trace; never shown to the user. */
   tool: string;
+  /** What the call does, in words for the user, such as "search your documents". */
+  summary: string;
   access: "read" | "write";
   /** Reads through a search, whose snippets count as reads of the whole target. */
   search?: boolean;
+  /** What a search looks for, shown to the user. */
+  query?: string;
   target: AccessTarget;
   write?: AccessWrite;
 }
@@ -88,6 +93,23 @@ export interface AccessResult {
 }
 
 const CHAT_FILES_PREFIX = "/chat/";
+
+/** A chat working file or folder as the user knows it, without the storage prefix. */
+export const chatPathLabel = (path: string): string =>
+  path.startsWith(CHAT_FILES_PREFIX)
+    ? path.slice(CHAT_FILES_PREFIX.length).replace(/\/$/, "")
+    : path;
+
+/** One line per file, folder, or scope a request reaches, in words for the user. */
+export const describeAccessTarget = (target: AccessTarget): string[] => {
+  if (target.kind === "library") return ["Your whole library"];
+  if (target.kind === "path") return [`Chat working file "${chatPathLabel(target.path)}"`];
+  if (target.kind === "new-file")
+    return [`"${target.name}" in ${target.folder ? `"${target.folder.name}"` : "your library"}`];
+  return target.files.map((file) =>
+    file.folderName ? `"${file.name}" in "${file.folderName}"` : `"${file.name}"`,
+  );
+};
 
 const folderChain = (
   folderId: string | null,

@@ -1,6 +1,10 @@
 import type { PiModelRuntime } from "@memora/ai-provider-pi";
 
-import type { AccessAnswer, AccessRequest } from "@/lib/chat/permissions";
+import {
+  describeAccessTarget,
+  type AccessAnswer,
+  type AccessRequest,
+} from "@/lib/chat/permissions";
 
 export const AUTO_REVIEW_TIMEOUT_MS = 15_000;
 
@@ -28,20 +32,6 @@ Return JSON only, with no code fences: {"decision":"allow"|"deny"|"unsure","reas
 // Parameters that carry text the agent wrote; Auto review never sees it.
 const CONTENT_PARAMETERS = new Set(["content", "edits"]);
 
-const describeTarget = (request: AccessRequest): string => {
-  const { target } = request;
-  if (target.kind === "library") return "the whole library";
-  if (target.kind === "path") return `the working file ${target.path}`;
-  if (target.kind === "new-file")
-    return `a new document "${target.name}" in ${target.folder ? `the folder "${target.folder.name}"` : "the library root"}`;
-  return target.files
-    .map(
-      (file) =>
-        `"${file.name}" (${file.type}${file.folderName ? `, in folder "${file.folderName}"` : ""})`,
-    )
-    .join(", ");
-};
-
 export const buildAutoReviewPrompt = ({ request, args, userMessages }: AutoReviewInput): string => {
   const parameters = Object.fromEntries(
     Object.entries(args).filter(([key]) => !CONTENT_PARAMETERS.has(key)),
@@ -58,9 +48,9 @@ export const buildAutoReviewPrompt = ({ request, args, userMessages }: AutoRevie
     "The user's messages in this task:",
     ...userMessages.map((message, index) => `${index + 1}. ${message}`),
     "",
-    `Tool: ${request.tool}`,
+    `Tool: ${request.tool} (${request.summary})`,
     `Access: ${access}`,
-    `Target: ${describeTarget(request)}`,
+    `Target: ${describeAccessTarget(request.target).join(", ")}`,
     ...write,
     `Parameters: ${JSON.stringify(parameters)}`,
   ].join("\n");

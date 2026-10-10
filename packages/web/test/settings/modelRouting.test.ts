@@ -26,6 +26,26 @@ describe("feature model routing", () => {
       expect(explicit[feature]).toEqual({ source: "local", modelId: "qwen3.5-0.8b-onnx-opt" });
     },
   );
+  test("permission review parses chat-capable local models and stored routes", () => {
+    for (const modelId of ["qwen3.5-0.8b-onnx-opt", "gemma-4-e2b-it-onnx"])
+      expect(parseFeatureModelRoute("permissionReview", { source: "local", modelId })).toEqual({
+        source: "local",
+        modelId,
+      });
+    expect(
+      parseFeatureModelRoute("permissionReview", { source: "local", modelId: "bge-m3" }),
+    ).toBeNull();
+    expect(
+      parseFeatureModelRoute("permissionReview", {
+        source: "cloud",
+        providerId: "p",
+        modelId: "m",
+      }),
+    ).toEqual({ source: "cloud", providerId: "p", modelId: "m" });
+    const stored = { permissionReview: { source: "local", modelId: "qwen3.5-0.8b-onnx-opt" } };
+    expect(Schema.decodeUnknownSync(modelRoutingSchema)(stored)).toEqual(stored);
+    expect(normalizeAiModelRouting(stored).permissionReview).toEqual(stored.permissionReview);
+  });
   test("long conversations follow chat or use a cloud model, never a local one", () => {
     const routing = normalizeAiModelRouting({}, { selectedProviderId: "p", selectedModel: "chat" });
     expect(routing.contextCompaction).toEqual({ source: "inherit", featureId: "assistant" });

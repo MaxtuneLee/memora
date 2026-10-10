@@ -147,7 +147,7 @@ export const accessFile = (library: LibraryIndex, fileId: string): AccessFile | 
 
 /** The library file an OPFS path belongs to: its own file or one derived from it. */
 export const accessFileForPath = (library: LibraryIndex, path: string): AccessFile | null => {
-  const id = /^\/files\/([^/]+)\//.exec(path)?.[1];
+  const id = /^\/files\/([^/]+)(?:\/|$)/.exec(path)?.[1];
   if (id && library.files.has(id)) return accessFile(library, id);
   for (const file of library.files.values())
     if (file.storagePath === path || file.transcriptPath === path)
@@ -162,18 +162,23 @@ export const accessFileForPath = (library: LibraryIndex, path: string): AccessFi
 export const libraryReadRequest = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
-  tool: string,
+  base: Pick<AccessRequest, "tool" | "summary" | "query">,
   fileIds: readonly string[] | undefined,
   search = true,
 ): AccessRequest | null => {
   const scope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
   const ids = fileIds ?? (scope.isActive ? scope.fileIds : undefined);
-  if (!ids) return { tool, access: "read", search, target: { kind: "library" } };
+  if (!ids) return { ...base, access: "read", search, target: { kind: "library" } };
   const library = readLibrary(store);
   const files = ids
     .map((id) => accessFile(library, id))
     .filter((file): file is AccessFile => file !== null);
   // Files that do not exist hold nothing to read; the tool reports them.
   if (files.length === 0) return null;
-  return { tool, access: "read", ...(search && { search }), target: { kind: "files", files } };
+  return {
+    ...base,
+    access: "read",
+    ...(search && { search }),
+    target: { kind: "files", files },
+  };
 };

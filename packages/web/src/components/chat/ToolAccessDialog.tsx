@@ -5,9 +5,9 @@ import { NativeDialog } from "@/components/ui/NativeDialog";
 import { useTabAccessRequest } from "@/lib/chat/tabAccessRequests";
 import {
   availableDecisions,
+  describeAccessTarget,
   type AccessDecision,
   type AccessRequest,
-  type AccessWrite,
 } from "@/lib/chat/permissions";
 import { tokens } from "../../styles/stylex.stylex";
 
@@ -89,22 +89,10 @@ const prefixLines = (text: string, prefix: string): string =>
     .map((line) => `${prefix} ${line}`)
     .join("\n");
 
-const describeWrite = (write: AccessWrite): string => {
-  if (write.operation === "create") return "Create a document";
-  if (write.operation === "append") return "Append text";
-  if (write.operation === "replace") return "Replace text";
-  return write.overwrite ? "Write text (overwrite allowed)" : "Write text (create only)";
-};
-
-const describeTarget = (request: AccessRequest): string[] => {
-  const { target } = request;
-  if (target.kind === "library") return ["Your whole library"];
-  if (target.kind === "path") return [target.path];
-  if (target.kind === "new-file")
-    return [`${target.name} in ${target.folder ? target.folder.name : "your library"}`];
-  return target.files.map((file) =>
-    file.folderName ? `${file.name} in ${file.folderName}` : file.name,
-  );
+const targetLabel = (request: AccessRequest): string => {
+  if (request.search) return "Search in";
+  if (request.access === "write") return request.target.kind === "new-file" ? "New" : "Change";
+  return request.target.kind === "files" && request.target.files.length > 1 ? "Files" : "File";
 };
 
 const decisionLabel = (request: AccessRequest, decision: AccessDecision): string => {
@@ -125,7 +113,6 @@ export function ToolAccessDialog({
   const titleId = useId();
   const descriptionId = useId();
   const isRead = request?.access === "read";
-  const action = request?.search ? "search" : isRead ? "read" : "change";
 
   return (
     <NativeDialog
@@ -141,35 +128,31 @@ export function ToolAccessDialog({
             {isRead ? "Allow reading your files?" : "Allow this change?"}
           </h2>
           <p id={descriptionId} {...stylex.props(styles.description)}>
-            {`${requester} wants to ${action} ${isRead ? "these files" : "a file"} with ${request?.tool ?? "a tool"}.`}
+            {request ? `${requester} wants to ${request.summary}.` : ""}
           </p>
         </div>
 
         {request && (
           <div {...stylex.props(styles.details)}>
-            <p>
-              <span {...stylex.props(styles.detailLabel)}>Access:</span>{" "}
-              {request.search ? "Search (read)" : isRead ? "Read" : "Write"}
-            </p>
-            {describeTarget(request).map((line) => (
+            {request.query !== undefined && (
+              <p>
+                <span {...stylex.props(styles.detailLabel)}>Search for:</span> "{request.query}"
+              </p>
+            )}
+            {describeAccessTarget(request.target).map((line) => (
               <p key={line} {...stylex.props(styles.detailLine)}>
-                <span {...stylex.props(styles.detailLabel)}>
-                  {request.target.kind === "path" ? "Path:" : "Target:"}
-                </span>{" "}
-                {line}
+                <span {...stylex.props(styles.detailLabel)}>{targetLabel(request)}:</span> {line}
               </p>
             ))}
             {request.write && (
-              <>
-                <p {...stylex.props(styles.detailLine)}>
-                  <span {...stylex.props(styles.detailLabel)}>Operation:</span>{" "}
-                  {describeWrite(request.write)}
-                </p>
-                <p {...stylex.props(styles.detailLine)}>
-                  <span {...stylex.props(styles.detailLabel)}>Content length:</span>{" "}
-                  {request.write.contentLength.toLocaleString()} chars
-                </p>
-              </>
+              <p {...stylex.props(styles.detailLine)}>
+                <span {...stylex.props(styles.detailLabel)}>Size:</span>{" "}
+                {`${request.write.contentLength.toLocaleString()} characters${
+                  request.write.operation === "write" && request.write.overwrite
+                    ? ", replacing what is there"
+                    : ""
+                }`}
+              </p>
             )}
           </div>
         )}

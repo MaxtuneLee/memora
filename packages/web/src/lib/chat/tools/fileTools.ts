@@ -99,26 +99,23 @@ export const applyTextEdits = (
 /** A read by OPFS path, or null when nothing is there. */
 const pathReadRequest = async (
   store: StoreQueryable,
-  tool: string,
   path: string,
-  search = false,
 ): Promise<AccessRequest | null> => {
+  const request = { tool: "read_file", summary: "read a file", access: "read" } as const;
   const file = accessFileForPath(readLibrary(store), path);
-  if (file)
-    return {
-      tool,
-      access: "read",
-      ...(search && { search }),
-      target: { kind: "files", files: [file] },
-    };
+  if (file) return { ...request, target: { kind: "files", files: [file] } };
   if (
     !(await opfsFile(path)
       .exists()
       .catch(() => false))
   )
     return null;
-  return { tool, access: "read", ...(search && { search }), target: { kind: "path", path } };
+  return { ...request, target: { kind: "path", path } };
 };
+
+/** The library file whose folder grep searches, or null for /files and above. */
+const grepFileId = (cwd: string): string | null =>
+  /^\/files\/([^/]+)/.exec(cwd.replace(/\/+$/, ""))?.[1] ?? null;
 
 export const createFileTools = (
   store: StoreQueryable,
@@ -135,7 +132,7 @@ export const createFileTools = (
         offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
         limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
       }),
-      access: (params) => pathReadRequest(store, "read_file", (params as { path: string }).path),
+      access: (params) => pathReadRequest(store, (params as { path: string }).path),
       execute: async (params: unknown) => {
         const payload = params as {
           path: string;
@@ -179,17 +176,18 @@ export const createFileTools = (
         max_matches: v.optional(v.number(), 20),
       }),
       access: (params) => {
-        const cwd = (params as { cwd?: string }).cwd ?? "/files";
+        const { cwd = "/files", pattern } = params as { cwd?: string; pattern: string };
+        const base = {
+          tool: "grep_files",
+          summary: "search the text of your files",
+          query: pattern,
+        };
         // A folder of one library file reads that file; /files or above reads the library.
-        if (cwd.startsWith("/files/")) return pathReadRequest(store, "grep_files", cwd, true);
+        const fileId = grepFileId(cwd);
+        if (fileId) return libraryReadRequest(store, options, base, [fileId]);
         if (cwd.startsWith("/chat/"))
-          return {
-            tool: "grep_files",
-            access: "read",
-            search: true,
-            target: { kind: "path", path: cwd },
-          };
-        return libraryReadRequest(store, options, "grep_files", undefined);
+          return { ...base, access: "read", search: true, target: { kind: "path", path: cwd } };
+        return libraryReadRequest(store, options, base, undefined);
       },
       execute: async (params: unknown) => {
         const payload = params as {
@@ -201,7 +199,7 @@ export const createFileTools = (
         const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         const scopedIds = new Set(referenceScope.fileIds);
         // A search of one file's folder was approved for that file, inside the scope or not.
-        const narrowed = (payload.cwd ?? "/files").startsWith("/files/");
+        const narrowed = grepFileId(payload.cwd ?? "/files") !== null;
         const activeRows = store.query(
           fileTable.where({ deletedAt: null, purgedAt: null }),
         ) as ReadonlyArray<{ id: string }>;
@@ -271,6 +269,11 @@ export const createFileTools = (
         }));
         return {
           tool: "modify_text_file",
+          summary: {
+            write: "write a file",
+            append: "add text to the end of a file",
+            replace: "edit part of a file",
+          }[payload.operation],
           access: "write",
           target: file ? { kind: "files", files: [file] } : { kind: "path", path },
           write: {
@@ -374,6 +377,7 @@ export const createFileTools = (
         const folder = folderId ? library.folders.get(folderId) : undefined;
         return {
           tool: "create_document",
+          summary: "create a document in your library",
           access: "write",
           target: {
             kind: "new-file",
@@ -426,13 +430,19 @@ export const createFileTools = (
         top_k: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 8),
         file_ids: v.optional(v.array(v.string())),
       }),
-      access: (params) =>
-        libraryReadRequest(
+      access: (params) => {
+        const { query, file_ids } = params as { query: string; file_ids?: string[] };
+        return libraryReadRequest(
           store,
           options,
-          "search_files",
-          (params as { file_ids?: string[] }).file_ids,
-        ),
+          {
+            tool: "search_files",
+            summary: "search your documents, images, and transcripts",
+            query,
+          },
+          file_ids,
+        );
+      },
       execute: async (params: unknown) => {
         const payload = params as { query: string; top_k?: number; file_ids?: string[] };
         const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
@@ -470,7 +480,7 @@ export const createFileTools = (
         libraryReadRequest(
           store,
           options,
-          "read_extracted_content",
+          { tool: "read_extracted_content", summary: "read the text of a file" },
           [(params as { file_id: string }).file_id],
           false,
         ),

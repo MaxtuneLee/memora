@@ -180,7 +180,7 @@ export const createTranscriptTools = (
         context_chars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 48),
       }),
       access: (params) => {
-        const payload = params as { file_id?: string; transcript_path?: string };
+        const payload = params as { keyword: string; file_id?: string; transcript_path?: string };
         const pathFile = payload.transcript_path
           ? accessFileForPath(readLibrary(store), payload.transcript_path)
           : null;
@@ -189,7 +189,11 @@ export const createTranscriptTools = (
         return libraryReadRequest(
           store,
           options,
-          "search_transcript",
+          {
+            tool: "search_transcript",
+            summary: "search the transcripts of your recordings",
+            query: payload.keyword,
+          },
           fileId ? [fileId] : undefined,
         );
       },
@@ -293,7 +297,7 @@ export const createTranscriptTools = (
         libraryReadRequest(
           store,
           options,
-          "read_transcript",
+          { tool: "read_transcript", summary: "read part of a recording's transcript" },
           [(params as { file_id: string }).file_id],
           false,
         ),
