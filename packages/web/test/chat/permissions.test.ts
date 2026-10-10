@@ -14,9 +14,12 @@ import {
   type ResolvedReferenceScope,
 } from "@/lib/chat/tools/shared";
 import { desktopFoldersQuery$ } from "@/lib/desktop/queries";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 
 const fsFiles = new Map<string, string>();
 const search = vi.hoisted(() => vi.fn(async () => []));
+const tabAsk = vi.hoisted(() => vi.fn(async () => "allow_library"));
+vi.mock("@/lib/chat/tabAccessRequests", () => ({ requestTabAccess: tabAsk }));
 
 vi.mock("@memora/fs", () => ({
   cat: async (path: string) => {
@@ -45,11 +48,13 @@ vi.mock("@/lib/editor/noteCreation", () => ({
 }));
 
 let files: Array<Record<string, unknown>> = [];
+let settings: Record<string, unknown> = {};
 let folders: Array<{ id: string; name: string; parentId: string | null }> = [];
 // Table queries keep the rows holding every bound value, enough for lookups by id or path.
 const store = {
   query: (query: unknown) => {
     if (query === desktopFoldersQuery$) return folders;
+    if (query === settingsDocumentQuery$) return settings;
     const binds = (query as { asSql?: () => { bindValues: unknown[] } }).asSql?.().bindValues;
     if (!binds) return files;
     return files.filter((row) => binds.every((value) => Object.values(row).includes(value)));
@@ -59,6 +64,9 @@ const store = {
 
 beforeEach(() => {
   search.mockClear();
+  tabAsk.mockClear();
+  store.commit.mockClear();
+  settings = {};
   fsFiles.clear();
   fsFiles.set("/files/a/a.md", "alpha");
   fsFiles.set("/chat/notes/n.md", "note");
@@ -123,12 +131,12 @@ const setup = ({
       getText: () => "alpha",
       applyText: (text) => applied.push(text),
     },
-    ...(handler && {
-      requestAccess: async (request: AccessRequest) => {
-        asked.push(request);
-        return answer;
-      },
-    }),
+    requestAccess: handler
+      ? async (request: AccessRequest) => {
+          asked.push(request);
+          return answer;
+        }
+      : null,
   };
   const tools = createChatTools(store, options);
   const run = (name: string, args: Record<string, unknown>) => {
@@ -423,5 +431,41 @@ describe("without an approval handler", () => {
       grants: [grant("read", { kind: "file", fileId: "a" })],
     });
     expect(await granted.run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
+  });
+});
+
+describe("callers that pass no permission options", () => {
+  test("follow Settings, ask in this tab, and save always choices to Settings", async () => {
+    settings = {
+      permissionMode: { guard: "reads-and-writes", approver: "user" },
+      permissionGrants: [grant("read", { kind: "file", fileId: "b" })],
+    };
+    const tools = createChatTools(store);
+    const run = (name: string, args: Record<string, unknown>) => {
+      const tool = tools.find((item) => item.name === name);
+      if (!tool) throw new Error(`${name} is missing.`);
+      return tool.execute(v.parse(tool.parameters, args));
+    };
+
+    await run("read_transcript", { file_id: "b" });
+    expect(tabAsk).not.toHaveBeenCalled();
+
+    await run("search_files", { query: "x" });
+    expect(tabAsk).toHaveBeenCalledWith(
+      expect.objectContaining({ tool: "search_files", target: { kind: "library" } }),
+    );
+    expect(search).toHaveBeenCalled();
+    expect(store.commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.objectContaining({
+          value: expect.objectContaining({
+            permissionGrants: [
+              expect.objectContaining({ target: { kind: "file", fileId: "b" } }),
+              expect.objectContaining({ access: "read", target: { kind: "library" } }),
+            ],
+          }),
+        }),
+      }),
+    );
   });
 });

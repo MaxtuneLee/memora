@@ -4,13 +4,14 @@ import type { PiModelRuntime } from "@memora/ai-provider-pi";
 import type { ToolDefinition } from "@memora/ai-core";
 
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
-import type {
-  AccessAnswer,
-  AccessFile,
-  AccessRequest,
-  AccessResult,
-  PermissionGrant,
-  PermissionMode,
+import {
+  DEFAULT_PERMISSION_MODE,
+  type AccessAnswer,
+  type AccessFile,
+  type AccessRequest,
+  type AccessResult,
+  type PermissionGrant,
+  type PermissionMode,
 } from "@/lib/chat/permissions";
 import type { DocumentToolTarget } from "./documentTools";
 
@@ -46,15 +47,26 @@ export interface CreateChatToolsOptions {
   };
   /** Adds read_document, edit_document, and write_document for the note open next to the chat. */
   documentTarget?: DocumentToolTarget;
-  /** The Permission mode in effect; guards writes only, approved by the user, when absent. */
+  /** The Permission mode in effect; the default from Settings when absent. */
   getPermissionMode?: () => PermissionMode;
+  /** Saved Permission grants; the ones in Settings when absent. */
   getPermissionGrants?: () => readonly PermissionGrant[];
+  /** Saves "always" choices; into Settings when absent. */
   addPermissionGrants?: (grants: PermissionGrant[]) => void;
-  /** The approver. Without one, reads pass and writes are refused. */
-  requestAccess?: (request: AccessRequest) => Promise<AccessAnswer>;
+  /**
+   * The approver; a dialog in this tab when absent. Null means no approver: guarded reads and
+   * all writes are refused.
+   */
+  requestAccess?: ((request: AccessRequest) => Promise<AccessAnswer>) | null;
   /** Called with every checked Access request, for the Trace. */
   onAccessDecided?: (request: AccessRequest, result: AccessResult) => void;
 }
+
+/** The evaluation playground: only writes guarded, and nobody to approve them. */
+export const EVALUATION_PERMISSIONS = {
+  getPermissionMode: () => DEFAULT_PERMISSION_MODE,
+  requestAccess: null,
+} satisfies CreateChatToolsOptions;
 
 /** A chat tool that touches library content declares its Access request here. */
 export interface ChatToolDefinition extends ToolDefinition {

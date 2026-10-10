@@ -20,6 +20,7 @@ import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfi
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 import { chatProvidersQuery$ } from "@/lib/chat/queries";
 import { createChatTools } from "@/lib/chat/tools";
+import { EVALUATION_PERMISSIONS } from "@/lib/chat/tools/shared";
 import {
   createWebAgentAdapter,
   createWebMemoryAdapter,
@@ -284,7 +285,7 @@ export default function AgentEvaluation() {
         provider: providerConfig,
         compactionProvider: compactionProviderConfig,
         config: agentConfig,
-        tools: createChatTools(store),
+        tools: createChatTools(store, EVALUATION_PERMISSIONS),
         ...(memory ? { memoryProfileId: memory.profileId } : {}),
       });
       const result = await evaluationClient.runAgent(
@@ -348,6 +349,7 @@ export default function AgentEvaluation() {
       sessions: file.sessions,
       createTools: (standIns) =>
         createChatTools(store, {
+          ...EVALUATION_PERMISSIONS,
           ...standIns,
           getMemoryExtractionRuntime: () => createRuntime("memoryExtraction", "background"),
         }),

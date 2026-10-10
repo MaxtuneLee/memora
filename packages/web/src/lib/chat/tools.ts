@@ -1,6 +1,9 @@
 import type { PromptSegment, ToolDefinition } from "@memora/ai-core";
 
-import { checkAccess, DEFAULT_PERMISSION_MODE } from "@/lib/chat/permissions";
+import { checkAccess, DEFAULT_PERMISSION_MODE, type AccessRequest } from "@/lib/chat/permissions";
+import { requestTabAccess } from "@/lib/chat/tabAccessRequests";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { normalizeSettingsValue, settingEvents } from "@/livestore/setting";
 import { createDatabaseTools } from "@/lib/chat/tools/dbTools";
 import { createDocumentTools } from "@/lib/chat/tools/documentTools";
 import { createFileTools } from "@/lib/chat/tools/fileTools";
@@ -11,6 +14,7 @@ import { createWidgetTools } from "@/lib/chat/tools/widgetTools";
 
 export {
   EMPTY_REFERENCE_SCOPE,
+  EVALUATION_PERMISSIONS,
   type CreateChatToolsOptions,
   type ResolvedReferenceScope,
   type StoreQueryable,
@@ -23,7 +27,16 @@ import {
   type StoreQueryable,
 } from "@/lib/chat/tools/shared";
 
-/** Runs a tool's body only after its Access request passes the permission check (ADR 0010). */
+const askInTab = async (request: AccessRequest) => ({
+  decision: await requestTabAccess(request),
+  source: "user" as const,
+});
+
+/**
+ * Runs a tool's body only after its Access request passes the permission check (ADR 0010).
+ * Every caller gets the mode and grants from Settings and a dialog in this tab unless it says
+ * otherwise.
+ */
 const guardTool = (
   tool: ChatToolDefinition,
   store: StoreQueryable,
@@ -36,15 +49,25 @@ const guardTool = (
     execute: async (params: unknown) => {
       const request = await access(params);
       if (request) {
+        const settings = () => normalizeSettingsValue(store.query(settingsDocumentQuery$));
         const { result } = await checkAccess(request, {
-          mode: options.getPermissionMode?.() ?? DEFAULT_PERMISSION_MODE,
-          grants: options.getPermissionGrants?.() ?? [],
+          mode:
+            options.getPermissionMode?.() ?? settings().permissionMode ?? DEFAULT_PERMISSION_MODE,
+          grants: options.getPermissionGrants?.() ?? settings().permissionGrants ?? [],
           scope: options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE,
           folders: new Map(
             [...readLibrary(store).folders].map(([id, folder]) => [id, folder.parentId]),
           ),
-          requestAccess: options.requestAccess,
-          addGrants: options.addPermissionGrants,
+          requestAccess:
+            options.requestAccess === undefined ? askInTab : (options.requestAccess ?? undefined),
+          addGrants:
+            options.addPermissionGrants ??
+            ((grants) =>
+              store.commit?.(
+                settingEvents.settingsSet({
+                  permissionGrants: [...(settings().permissionGrants ?? []), ...grants],
+                }),
+              )),
         });
         options.onAccessDecided?.(request, result);
         if (!result.allowed) return { error: result.reason };

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import * as v from "valibot";
 import { useAppStore } from "@/livestore/store";
-import { normalizeSettingsValue, settingEvents } from "@/livestore/setting";
+import { normalizeSettingsValue } from "@/livestore/setting";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
 import { autoReviewThenAsk } from "@/lib/chat/autoReview";
 import { DEFAULT_PERMISSION_MODE, type AccessRequest } from "@/lib/chat/permissions";
@@ -22,7 +22,7 @@ export function useAgentToolHost(): void {
   const { createRuntime } = useFeatureModels();
   useEffect(() => {
     const trackers = new Map<string, ReturnType<typeof createShowWidgetSkillTracker>>();
-    const settings = () => normalizeSettingsValue(store.query(settingsDocumentQuery$));
+    const readSettings = () => normalizeSettingsValue(store.query(settingsDocumentQuery$));
     return registerToolHost(async (call, signal) => {
       if (signal.aborted) throw new Error("Tool was cancelled.");
       let tracker = trackers.get(call.runId);
@@ -32,7 +32,7 @@ export function useAgentToolHost(): void {
         const oldest = trackers.keys().next().value;
         if (trackers.size > 64 && oldest) trackers.delete(oldest);
       }
-      const mode = call.permissionMode ?? settings().permissionMode ?? DEFAULT_PERMISSION_MODE;
+      const mode = call.permissionMode ?? readSettings().permissionMode ?? DEFAULT_PERMISSION_MODE;
       const askUser = async (request: AccessRequest) => ({
         decision: await requestToolApproval(call.callId, request, signal),
         source: "user" as const,
@@ -41,14 +41,6 @@ export function useAgentToolHost(): void {
         getReferenceScope: () => call.scope,
         getMemoryExtractionRuntime: () => createRuntime("memoryExtraction", "background"),
         getPermissionMode: () => mode,
-        getPermissionGrants: () => settings().permissionGrants ?? [],
-        addPermissionGrants: (grants) => {
-          store.commit(
-            settingEvents.settingsSet({
-              permissionGrants: [...(settings().permissionGrants ?? []), ...grants],
-            }),
-          );
-        },
         requestAccess: (request) =>
           mode.approver === "auto"
             ? autoReviewThenAsk(
