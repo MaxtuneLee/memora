@@ -397,8 +397,8 @@ describe("query_db", () => {
 });
 
 describe("without an approval handler", () => {
-  test("reads pass and writes are refused", async () => {
-    const { run } = setup({ handler: false });
+  test("with only writes guarded, as in the evaluation playground, reads pass and writes are refused", async () => {
+    const { run } = setup({ handler: false, mode: { guard: "writes", approver: "user" } });
     expect(await run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
     expect(
       await run("modify_text_file", {
@@ -410,5 +410,18 @@ describe("without an approval handler", () => {
       error: expect.stringContaining("requires user approval"),
     });
     expect(fsFiles.get("/chat/notes/n.md")).toBe("note");
+  });
+
+  test("guarded reads need a grant, so callers such as WebMCP cannot skip the guard", async () => {
+    const { run } = setup({ handler: false });
+    expect(await run("search_files", { query: "x" })).toEqual({
+      error: expect.stringContaining("approval"),
+    });
+    expect(search).not.toHaveBeenCalled();
+    const granted = setup({
+      handler: false,
+      grants: [grant("read", { kind: "file", fileId: "a" })],
+    });
+    expect(await granted.run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
   });
 });

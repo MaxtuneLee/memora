@@ -223,16 +223,17 @@ export const checkAccess = async (
   const uncovered = uncoveredTarget(target, request.access, context.grants, context.folders);
   if (!uncovered) return { result: { allowed: true, source: "grant" } };
 
+  // Reads that need no approval passed above; without an approver, anything left is refused.
   if (!context.requestAccess) {
     return {
-      result:
-        request.access === "read"
-          ? { allowed: true, source: "no-handler" }
-          : {
-              allowed: false,
-              source: "no-handler",
-              reason: "This change requires user approval, but no approval handler is configured.",
-            },
+      result: {
+        allowed: false,
+        source: "no-handler",
+        reason:
+          request.access === "read"
+            ? "Reading these files requires approval. Allow them in Settings > Permissions, or ask in Memora chat."
+            : "This change requires user approval, but no approval handler is configured.",
+      },
     };
   }
 

@@ -2,6 +2,7 @@ import { useId } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import { useTabAccessRequest } from "@/lib/chat/tabAccessRequests";
 import {
   availableDecisions,
   type AccessDecision,
@@ -78,6 +79,8 @@ const styles = stylex.create({
 interface ToolAccessDialogProps {
   request: AccessRequest | null;
   onDecide: (decision: AccessDecision) => void;
+  /** Who is asking, when it is not Memora's own chat. */
+  requester?: string;
 }
 
 const prefixLines = (text: string, prefix: string): string =>
@@ -114,7 +117,11 @@ const decisionLabel = (request: AccessRequest, decision: AccessDecision): string
     : "Always allow this file";
 };
 
-export function ToolAccessDialog({ request, onDecide }: ToolAccessDialogProps) {
+export function ToolAccessDialog({
+  request,
+  onDecide,
+  requester = "Memora",
+}: ToolAccessDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
   const isRead = request?.access === "read";
@@ -134,7 +141,7 @@ export function ToolAccessDialog({ request, onDecide }: ToolAccessDialogProps) {
             {isRead ? "Allow reading your files?" : "Allow this change?"}
           </h2>
           <p id={descriptionId} {...stylex.props(styles.description)}>
-            {`Memora wants to ${action} ${isRead ? "these files" : "a file"} with ${request?.tool ?? "a tool"}.`}
+            {`${requester} wants to ${action} ${isRead ? "these files" : "a file"} with ${request?.tool ?? "a tool"}.`}
           </p>
         </div>
 
@@ -205,5 +212,13 @@ export function ToolAccessDialog({ request, onDecide }: ToolAccessDialogProps) {
         </div>
       </div>
     </NativeDialog>
+  );
+}
+
+/** Asks about requests from the browser's agent through WebMCP. */
+export function TabAccessDialog() {
+  const { request, decide } = useTabAccessRequest();
+  return (
+    <ToolAccessDialog request={request} onDecide={decide} requester="Your browser's assistant" />
   );
 }
