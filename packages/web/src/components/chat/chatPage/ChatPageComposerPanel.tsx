@@ -1,30 +1,50 @@
 import {
   ArrowUpIcon,
   ClockIcon,
+  FastForwardIcon,
   FileTextIcon,
   FolderSimpleIcon,
   GraduationCapIcon,
+  HandIcon,
   ImageIcon,
+  LockSimpleIcon,
   PlusIcon,
+  ShieldCheckIcon,
   SlidersHorizontalIcon,
   StopIcon,
   XIcon,
+  type Icon,
 } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 import { ChatContextUsage } from "@/components/chat/ChatContextUsage";
 import { ChatImageAttachmentGallery } from "@/components/chat/ChatImageAttachmentGallery";
 import { ReferencePicker, type ReferencePickerOption } from "@/components/chat/ReferencePicker";
 import { StatusBar } from "@/components/chat/StatusBar";
+import { Select } from "@/components/ui/Select";
 import type { ChatMessage as AgentChatMessage, AgentStatus } from "@/hooks/chat/useAgent";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { ChatImageAttachment } from "@/lib/chat/chatImageAttachments";
 import type { ResolvedReferenceScope } from "@/lib/chat/tools";
+import type { PermissionMode } from "@/lib/chat/permissions";
 import type { ChatSessionReference } from "@/lib/chat/chatSessionStorage";
 import { tokens } from "../../../styles/stylex.stylex";
 import { ChatPageComposerAttachments } from "./ChatPageComposerAttachments";
 import { CHAT_LAYOUT_TRANSITION } from "./layout";
 import type { ComposerNotice, ReferencePickerSource } from "./types";
+
+const permissionModeKey = (mode: PermissionMode): string => `${mode.guard}:${mode.approver}`;
+
+const parsePermissionModeKey = (key: string): PermissionMode | null => {
+  const [guard, approver] = key.split(":");
+  if (
+    (guard !== "writes" && guard !== "reads-and-writes") ||
+    (approver !== "user" && approver !== "auto")
+  )
+    return null;
+  return { guard, approver };
+};
 
 const styles = stylex.create({
   root: { bottom: 0, insetInline: 0, pointerEvents: "none", position: "absolute", zIndex: 10 },
@@ -292,6 +312,23 @@ const styles = stylex.create({
   disabled: { cursor: "not-allowed", opacity: 0.5 },
 });
 
+const permissionIcon = (Icon: Icon) => (
+  <Icon className={stylex.props(styles.icon).className} weight="bold" />
+);
+
+const PERMISSION_MODES: Record<string, { label: string; icon: ReactNode }> = {
+  "writes:user": { label: "Ask me before changes", icon: permissionIcon(HandIcon) },
+  "reads-and-writes:user": {
+    label: "Ask me before reads and changes",
+    icon: permissionIcon(LockSimpleIcon),
+  },
+  "writes:auto": { label: "Auto review changes", icon: permissionIcon(FastForwardIcon) },
+  "reads-and-writes:auto": {
+    label: "Auto review reads and changes",
+    icon: permissionIcon(ShieldCheckIcon),
+  },
+};
+
 interface ChatPageComposerPanelProps {
   pendingMessages: Array<{ id: string; text: string }>;
   deliveryMode: "pending" | "steer";
@@ -329,6 +366,10 @@ interface ChatPageComposerPanelProps {
   selectedModelInfo: Parameters<typeof ChatContextUsage>[0]["model"];
   learningMode: boolean;
   onToggleLearningMode: () => void;
+  /** This chat's override; null follows the default from Settings. */
+  permissionMode: PermissionMode | null;
+  defaultPermissionMode: PermissionMode;
+  onPermissionModeChange: (mode: PermissionMode | null) => void;
   onOpenSettings: (section?: string) => void;
   onDismissMemoryNotice: () => void;
   onOpenLocalImagePicker: () => void;
@@ -393,6 +434,9 @@ export const ChatPageComposerPanel = ({
   selectedModelInfo,
   learningMode,
   onToggleLearningMode,
+  permissionMode,
+  defaultPermissionMode,
+  onPermissionModeChange,
   onOpenSettings,
   onDismissMemoryNotice,
   onOpenLocalImagePicker,
@@ -683,6 +727,25 @@ export const ChatPageComposerPanel = ({
                       weight="bold"
                     />
                   </button>
+                  <Select
+                    aria-label="File access for this chat"
+                    iconOnly
+                    value={permissionMode ? permissionModeKey(permissionMode) : "default"}
+                    onValueChange={(value) =>
+                      onPermissionModeChange(parsePermissionModeKey(value ?? "default"))
+                    }
+                    options={[
+                      {
+                        value: "default",
+                        label: `Default: ${PERMISSION_MODES[permissionModeKey(defaultPermissionMode)].label}`,
+                        icon: PERMISSION_MODES[permissionModeKey(defaultPermissionMode)].icon,
+                      },
+                      ...Object.entries(PERMISSION_MODES).map(([value, mode]) => ({
+                        value,
+                        ...mode,
+                      })),
+                    ]}
+                  />
                   <button
                     type="button"
                     onClick={() => onOpenSettings("ai-provider")}

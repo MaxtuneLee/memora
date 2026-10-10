@@ -25,6 +25,11 @@ export const SETTINGS_SECTIONS = [
     description: "Set how Memora addresses and responds to you, and manage its saved memory.",
   },
   {
+    id: "permissions",
+    label: "Permissions",
+    description: "Choose which file access chat asks about, and who approves it.",
+  },
+  {
     id: "indexing",
     label: "Indexing",
     description: "Background extraction, OCR, and local search behavior.",

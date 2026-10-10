@@ -4,6 +4,13 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-10
+
+- You can now choose whether chat asks before reading your files, not just before changing them, in Settings > Permissions. Each chat can change this from the menu under the chat box.
+- When chat asks, you can allow once, or always allow that file, its folder, or your whole library. Saved permissions are listed in Settings > Permissions, where you can also add or remove them.
+- Turn on Auto review to let a model approve routine requests for you. It asks you when it is unsure, and you can pick its model under Models by feature > Permission review.
+- Referencing files no longer blocks chat from everything else: reading other files asks you instead.
+
 ## 2026-10-08
 
 - Turn on learning mode with the graduation cap button under the chat box. Memora then explains a concept, builds a hands-on lesson you work through step by step, and ends it with questions you answer by using the lesson itself. Your result goes back to Memora, which goes over what you missed. A large topic is taught in parts and ends with a final review across all of them.

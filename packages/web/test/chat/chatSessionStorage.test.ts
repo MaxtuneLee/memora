@@ -29,6 +29,7 @@ import {
   deleteChatSession,
   ensureChatSession,
   listChatSessions,
+  loadChatSession,
   updateChatSession,
 } from "@/lib/chat/chatSessionStorage";
 
@@ -77,4 +78,18 @@ test("only a change to the messages moves a session in the history order", async
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("a chat keeps its own Permission mode across later writes", async () => {
+  const chat = await createChatSession();
+  const other = await createChatSession();
+  const mode = { guard: "reads-and-writes", approver: "auto" } as const;
+  await updateChatSession(chat.id, (record) => ({ ...record, permissionMode: mode }));
+  // A later save from the worker keeps the override.
+  await updateChatSession(chat.id, (record) => ({ ...record, title: "Renamed" }));
+  expect((await loadChatSession(chat.id))?.permissionMode).toEqual(mode);
+  expect((await loadChatSession(other.id))?.permissionMode).toBeUndefined();
+
+  await updateChatSession(chat.id, (record) => ({ ...record, permissionMode: undefined }));
+  expect((await loadChatSession(chat.id))?.permissionMode).toBeUndefined();
 });

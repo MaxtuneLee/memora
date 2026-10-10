@@ -10,7 +10,9 @@ import { useAgent } from "@/hooks/chat/useAgent";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
 import { createChatTools, SYSTEM_PROMPT } from "@/lib/chat/tools";
+import { DEFAULT_PERMISSION_MODE } from "@/lib/chat/permissions";
 import { LEARNING_MODE_PROMPT } from "@/lib/chat/learningMode";
+import { useChatPermissionMode } from "./useChatPermissionMode";
 import { createShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import {
   chatActiveFilesQuery$,
@@ -153,6 +155,7 @@ export const useChatController = ({
   // ponytail: not persisted, resets on reload; store it per session if people ask for that.
   const [learningMode, setLearningMode] = useState(false);
   const toggleLearningMode = useCallback(() => setLearningMode((value) => !value), []);
+  const permission = useChatPermissionMode(activeSessionId);
 
   const remotePromptSegments = useMemo(() => {
     return [
@@ -219,6 +222,8 @@ export const useChatController = ({
     providerConfig,
     compactionProviderConfig,
     getReferenceScope: references.getReferenceScope,
+    // useAgent reads its options when a message is sent, so this sees the latest choice.
+    getPermissionMode: () => permission.mode ?? undefined,
     deliveryMode: settings.agentDeliveryMode ?? "pending",
     promptSegments: activePromptSegments,
     tools: activeTools,
@@ -606,6 +611,9 @@ export const useChatController = ({
         selectedModelInfo,
         learningMode,
         onToggleLearningMode: toggleLearningMode,
+        permissionMode: permission.mode,
+        defaultPermissionMode: settings.permissionMode ?? DEFAULT_PERMISSION_MODE,
+        onPermissionModeChange: permission.setMode,
         onOpenSettings: openSettingsPanel,
         onDismissMemoryNotice: () => setMemoryUpdatedNotice(false),
         onOpenLocalImagePicker: composerImages.handleOpenLocalImagePicker,

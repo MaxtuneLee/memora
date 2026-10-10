@@ -175,12 +175,12 @@ export const buildReferenceScopePrompt = (scope: ResolvedReferenceScope): string
     scope.fileIds.length === 0 ? "No active files were resolved from the current references." : "";
 
   return `## Active Reference Scope
-The user has selected session-level file or folder references. Treat this scope as a hard constraint when using file-related tools.
+The user has selected session-level file or folder references. Work from these files first.
 - References: ${previewLabels.join(", ")}${hasMoreLabels ? ", ..." : ""}
 - Scoped file count: ${resolvedCountText}
 ${truncationNote}
 ${emptyScopeNote}
-When the scope is active, do not search or read files outside this reference scope.`;
+Searches without file ids stay inside this scope. Reading or searching other files asks the user first, so only do it when the request needs files outside the references.`;
 };
 
 export const createReferenceScopePromptSegment = (

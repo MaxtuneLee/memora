@@ -2,6 +2,7 @@ import { dir as opfsDir, file as opfsFile, glob, write as opfsWrite } from "@mem
 import type { TokenUsage } from "@memora/ai-core";
 import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import { normalizeChatWidgets, type ChatWidget } from "@/lib/chat/showWidget";
+import type { PermissionMode } from "@/lib/chat/permissions";
 
 import {
   deleteChatSessionAssets,
@@ -87,6 +88,8 @@ export interface ChatSessionRecord {
   messages: ChatSessionMessage[];
   references: ChatSessionReference[];
   agentStore: Record<string, Record<string, unknown>>;
+  /** This chat's Permission mode; the global default when absent. */
+  permissionMode?: PermissionMode;
 }
 
 export interface ChatSessionSummary {
@@ -279,6 +282,21 @@ const normalizeAgentStore = (store: unknown): Record<string, Record<string, unkn
   return result;
 };
 
+const normalizePermissionMode = (value: unknown): PermissionMode | undefined => {
+  const mode = value as Partial<PermissionMode> | undefined;
+  if (
+    (mode?.guard === "writes" || mode?.guard === "reads-and-writes") &&
+    (mode.approver === "user" || mode.approver === "auto")
+  )
+    return { guard: mode.guard, approver: mode.approver };
+  return undefined;
+};
+
+const withPermissionMode = (value: unknown): { permissionMode?: PermissionMode } => {
+  const permissionMode = normalizePermissionMode(value);
+  return permissionMode ? { permissionMode } : {};
+};
+
 const parseRecord = (raw: string): ChatSessionRecord | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<ChatSessionRecord>;
@@ -304,6 +322,7 @@ const parseRecord = (raw: string): ChatSessionRecord | null => {
       messages,
       references: normalizeReferences(parsed.references),
       agentStore: normalizeAgentStore(parsed.agentStore),
+      ...withPermissionMode(parsed.permissionMode),
     };
   } catch {
     return null;
@@ -430,6 +449,7 @@ export const updateChatSession = async (
       messages: normalizedMessages,
       references: normalizedReferences,
       agentStore: normalizeAgentStore(next.agentStore),
+      ...withPermissionMode(next.permissionMode),
     };
     await writeRecord(record);
     return record;
