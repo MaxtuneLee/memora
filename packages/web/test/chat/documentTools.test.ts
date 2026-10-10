@@ -10,6 +10,7 @@ import {
 
 const createTarget = (initialText: string): DocumentToolTarget & { text: string } => {
   const target = {
+    fileId: "notes",
     fileName: "Notes.md",
     text: initialText,
     getText: () => target.text,

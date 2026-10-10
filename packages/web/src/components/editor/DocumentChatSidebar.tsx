@@ -161,6 +161,7 @@ const styles = stylex.create({
 // Schemas only: the app-wide tool host runs the document tools against the open note.
 const DOCUMENT_TOOL_SCHEMAS = createDocumentTools({
   applyText: () => undefined,
+  fileId: "",
   fileName: "",
   getText: () => "",
 });

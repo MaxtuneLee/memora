@@ -3,9 +3,34 @@ import { Schema, State } from "@livestore/livestore";
 export type SemanticSearchMode = "hybrid" | "bm25" | "bge";
 import { modelRoutingSchema, type StoredModelRouting } from "@/lib/models/modelRoutingSchema";
 import type { LocalModelUsageTotals } from "@/lib/models/localTokenUsage";
+import {
+  DEFAULT_PERMISSION_MODE,
+  type PermissionGrant,
+  type PermissionMode,
+} from "@/lib/chat/permissions";
+
+const permissionModeSchema = Schema.Struct({
+  guard: Schema.Literal("writes", "reads-and-writes"),
+  approver: Schema.Literal("user", "auto"),
+});
+
+const permissionGrantSchema = Schema.Struct({
+  id: Schema.String,
+  access: Schema.Literal("read", "write"),
+  target: Schema.Union(
+    Schema.Struct({ kind: Schema.Literal("file"), fileId: Schema.String }),
+    Schema.Struct({ kind: Schema.Literal("folder"), folderId: Schema.String }),
+    Schema.Struct({ kind: Schema.Literal("library") }),
+    Schema.Struct({ kind: Schema.Literal("path-prefix"), prefix: Schema.String }),
+  ),
+  createdAt: Schema.Number,
+});
 
 export interface setting {
   agentDeliveryMode?: "pending" | "steer";
+  /** The default for new chats; a chat can override it. */
+  permissionMode?: PermissionMode;
+  permissionGrants?: readonly PermissionGrant[];
   modelRouting?: StoredModelRouting;
   localModelTokenUsage?: LocalModelUsageTotals;
   theme: "light" | "dark" | "system";
@@ -38,6 +63,8 @@ export interface setting {
 
 export const defaultSettings: setting = {
   agentDeliveryMode: "pending",
+  permissionMode: DEFAULT_PERMISSION_MODE,
+  permissionGrants: [],
   modelRouting: {},
   localModelTokenUsage: {
     inputTokens: 0,
@@ -76,6 +103,8 @@ export const defaultSettings: setting = {
 
 export const settingsStoredValueSchema = Schema.Struct({
   agentDeliveryMode: Schema.optional(Schema.Literal("pending", "steer")),
+  permissionMode: Schema.optional(permissionModeSchema),
+  permissionGrants: Schema.optional(Schema.Array(permissionGrantSchema)),
   modelRouting: Schema.optional(modelRoutingSchema),
   localModelTokenUsage: Schema.optional(
     Schema.Struct({

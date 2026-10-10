@@ -9,7 +9,7 @@ import {
 import { modelRoutingSchema } from "@/lib/models/modelRoutingSchema";
 
 describe("feature model routing", () => {
-  test.each(["sessionTitle", "memoryExtraction"] as const)(
+  test.each(["sessionTitle", "memoryExtraction", "permissionReview"] as const)(
     "%s follows chat by default without replacing explicit local choices",
     (feature) => {
       const routing = normalizeAiModelRouting(

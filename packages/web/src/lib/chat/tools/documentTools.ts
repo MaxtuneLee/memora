@@ -1,9 +1,13 @@
-import type { PromptSegment, ToolDefinition } from "@memora/ai-core";
+import type { PromptSegment } from "@memora/ai-core";
 import * as v from "valibot";
+
+import type { AccessFile, AccessRequest, AccessWrite } from "@/lib/chat/permissions";
+import { accessFile, readLibrary, type ChatToolDefinition, type StoreQueryable } from "./shared";
 
 // The document open next to an editor chat. Tools reach it through the chat session id because
 // tool calls run in the app-wide tool host, not in the editor page.
 export interface DocumentToolTarget {
+  fileId: string;
   fileName: string;
   getText: () => string;
   applyText: (nextText: string) => void;
@@ -81,7 +85,23 @@ export const applyDocumentEdits = (
 
 export const DOCUMENT_TOOL_NAMES = ["read_document", "edit_document", "write_document"] as const;
 
-export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[] => {
+export const createDocumentTools = (
+  target: DocumentToolTarget,
+  store?: StoreQueryable,
+): ChatToolDefinition[] => {
+  const file = (): AccessFile =>
+    (store && accessFile(readLibrary(store), target.fileId)) || {
+      id: target.fileId,
+      name: target.fileName,
+      type: "document",
+      folderId: null,
+    };
+  const request = (tool: string, write?: AccessWrite): AccessRequest => ({
+    tool,
+    access: write ? "write" : "read",
+    target: { kind: "files", files: [file()] },
+    ...(write && { write }),
+  });
   return [
     {
       type: "function",
@@ -92,6 +112,7 @@ export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[
         start_line: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
         end_line: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
       }),
+      access: () => request("read_document"),
       execute: async (params: unknown) => {
         const payload = params as { start_line?: number; end_line?: number };
         const text = target.getText();
@@ -125,6 +146,18 @@ export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[
           v.minLength(1),
         ),
       }),
+      access: (params) => {
+        const edits = (params as { edits: DocumentEdit[] }).edits.map((edit) => ({
+          oldText: edit.old_text,
+          newText: edit.new_text,
+        }));
+        return request("edit_document", {
+          operation: "replace",
+          contentLength: edits.reduce((total, edit) => total + edit.newText.length, 0),
+          overwrite: true,
+          edits,
+        });
+      },
       execute: async (params: unknown) => {
         const payload = params as { edits: DocumentEdit[] };
         const result = applyDocumentEdits(target.getText(), payload.edits);
@@ -144,6 +177,12 @@ export const createDocumentTools = (target: DocumentToolTarget): ToolDefinition[
       parameters: v.object({
         content: v.string(),
       }),
+      access: (params) =>
+        request("write_document", {
+          operation: "write",
+          contentLength: (params as { content: string }).content.length,
+          overwrite: true,
+        }),
       execute: async (params: unknown) => {
         const payload = params as { content: string };
         target.applyText(payload.content);

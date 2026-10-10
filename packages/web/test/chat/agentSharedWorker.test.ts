@@ -6,6 +6,7 @@ import type {
   AgentSubmission,
 } from "@/lib/agent-runtime/protocol";
 import type { ChatSessionRecord } from "@/lib/chat/chatSessionStorage";
+import type { AccessRequest } from "@/lib/chat/permissions";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 
 const state = vi.hoisted(() => ({
@@ -104,6 +105,11 @@ vi.mock("@memora/ai-provider-pi", () => ({
         state.calls.push(input);
         if (input === "tool" && context.messages.at(-1)?.role !== "toolResult") {
           yield {
+            type: "toolcall_start",
+            contentIndex: 0,
+            partial: { content: [{ type: "toolCall", id: "tool-1", name: "read_file" }] },
+          };
+          yield {
             type: "toolcall_end",
             toolCall: { id: "tool-1", name: "read_file", arguments: { path: "/files/test" } },
           };
@@ -176,6 +182,12 @@ const submission = (text: string): AgentSubmission => ({
     totalResolvedFiles: 0,
     truncated: false,
   },
+});
+const writeRequest = (tool: string): AccessRequest => ({
+  tool,
+  access: "write",
+  target: { kind: "path", path: "/chat/a.md" },
+  write: { operation: "write", contentLength: 1, overwrite: false },
 });
 let connect: () => Port;
 // The first import transforms a large module graph; keep that cost out of each test's budget.
@@ -341,15 +353,9 @@ describe("agent SharedWorker protocol", () => {
     await second.request({
       type: "request-approval",
       callId: call.callId,
-      request: {
-        path: "/files/test",
-        operation: "write",
-        content: "x",
-        contentLength: 1,
-        overwrite: false,
-      },
+      request: writeRequest("modify_text_file"),
     });
-    const approval = second.snapshot()?.approval;
+    const approval = second.snapshot()?.approvals?.[0];
     expect(approval).toBeDefined();
     await second.request({
       type: "approval",
@@ -467,6 +473,119 @@ describe("agent SharedWorker protocol", () => {
     ]);
     expect(port.snapshot()?.activeRunId).toBeUndefined();
     expect(state.calls).toEqual([]);
+  });
+});
+
+describe("agent SharedWorker Access requests", () => {
+  const startToolCall = async (item = submission("tool")) => {
+    const port = connect();
+    await port.request({ type: "host-ready" });
+    await port.request({ type: "subscribe", sessionId: "s" });
+    await port.request({ type: "submit", sessionId: "s", submission: item });
+    await vi.waitFor(() =>
+      expect(port.messages.some((message) => message.type === "tool")).toBe(true),
+    );
+    const call = port.messages.find((message) => message.type === "tool");
+    if (call?.type !== "tool") throw new Error("missing tool call");
+    return { port, call, item };
+  };
+  const results = (port: Port) =>
+    port.messages.flatMap((message) =>
+      message.type === "approval-result" ? [message.decision] : [],
+    );
+
+  it("sends the Run's user messages and the chat's Permission mode with each tool call", async () => {
+    const { call } = await startToolCall({
+      ...submission("tool"),
+      permissionMode: { guard: "reads-and-writes", approver: "auto" },
+    });
+    expect(call.userMessages).toEqual(["tool"]);
+    expect(call.permissionMode).toEqual({ guard: "reads-and-writes", approver: "auto" });
+  });
+
+  it("queues requests oldest first and never allows a later one by itself", async () => {
+    const { port, call } = await startToolCall();
+    await port.request({
+      type: "request-approval",
+      callId: call.callId,
+      request: writeRequest("first"),
+    });
+    await port.request({
+      type: "request-approval",
+      callId: call.callId,
+      request: writeRequest("second"),
+    });
+    expect(port.snapshot()?.approvals?.map((approval) => approval.request.tool)).toEqual([
+      "first",
+      "second",
+    ]);
+    const [first, second] = port.snapshot()?.approvals ?? [];
+    await port.request({
+      type: "approval",
+      sessionId: "s",
+      approvalId: first.id,
+      decision: "allow_library",
+    });
+    expect(port.snapshot()?.approvals?.map((approval) => approval.id)).toEqual([second.id]);
+    await port.request({
+      type: "approval",
+      sessionId: "s",
+      approvalId: second.id,
+      decision: "deny",
+    });
+    expect(results(port)).toEqual(["allow_library", "deny"]);
+    expect(port.snapshot()?.approvals).toBeUndefined();
+
+    await port.request({
+      type: "request-approval",
+      callId: call.callId,
+      request: writeRequest("third"),
+    });
+    expect(results(port)).toHaveLength(2);
+    expect(port.snapshot()?.approvals).toHaveLength(1);
+  });
+
+  it("drops pending requests when the task stops", async () => {
+    const { port, call, item } = await startToolCall();
+    await port.request({
+      type: "request-approval",
+      callId: call.callId,
+      request: writeRequest("w"),
+    });
+    expect(port.snapshot()?.approvals).toHaveLength(1);
+    await port.request({ type: "abort", sessionId: "s", runId: item.id });
+    await vi.waitFor(() => expect(port.snapshot()?.approvals).toBeUndefined());
+    expect(port.messages).toContainEqual({ type: "cancel-tool", callId: call.callId });
+  });
+
+  it("shows Auto review decisions on the tool call and records every decision in the Trace", async () => {
+    const { port, call, item } = await startToolCall();
+    await port.request({
+      type: "access-decided",
+      callId: call.callId,
+      request: writeRequest("modify_text_file"),
+      result: { allowed: false, source: "auto", reason: "Not requested." },
+    });
+    const step = port.snapshot()?.thinkingSteps.find((entry) => entry.type === "tool-call");
+    expect(step?.children?.map((child) => child.text)).toEqual([
+      "Denied by Auto review: Not requested.",
+    ]);
+    await port.request({ type: "tool-result", callId: call.callId, error: "Not requested." });
+    await vi.waitFor(() => expect(state.traces.get(`s/${item.id}`)).toContain('"run.settled"'));
+    const events = (await port.request({
+      type: "read-trace",
+      sessionId: "s",
+      runId: item.id,
+    })) as TraceEvent[];
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "permission.decided",
+        tool: "modify_text_file",
+        allowed: false,
+        source: "auto",
+        reason: "Not requested.",
+      }),
+    );
   });
 });
 

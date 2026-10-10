@@ -70,6 +70,8 @@ export interface UseAgentOptions {
     "onUsage"
   >;
   getReferenceScope?: () => import("@/lib/chat/tools/shared").ResolvedReferenceScope;
+  /** This chat's Permission mode override, read when a message is sent. */
+  getPermissionMode?: () => import("@/lib/chat/permissions").PermissionMode | undefined;
   deliveryMode?: "pending" | "steer";
   sessionId: string;
   initialMessages?: ChatMessage[];
@@ -85,8 +87,9 @@ export interface UseAgentReturn {
   pendingMessages: Array<{ id: string; text: string }>;
   /** A recap written while the session sat idle, until the next message. */
   recap: string | null;
-  pendingWriteApproval: import("@/lib/chat/tools/shared").WriteApprovalRequest | null;
-  resolveWriteApproval: (decision: import("@/lib/chat/tools/shared").WriteApprovalDecision) => void;
+  /** The oldest Access request waiting for the user. */
+  pendingAccessRequest: import("@/lib/chat/permissions").AccessRequest | null;
+  resolveAccessRequest: (decision: import("@/lib/chat/permissions").AccessDecision) => void;
   isStreaming: boolean;
   status: AgentStatus;
   thinkingSteps: ThinkingStep[];

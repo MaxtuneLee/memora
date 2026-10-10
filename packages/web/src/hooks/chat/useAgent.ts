@@ -79,6 +79,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
         };
         // Capture page-derived scope and configuration before the first asynchronous boundary.
         const scope = structuredClone(options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE);
+        const permissionMode = options.getPermissionMode?.();
         const provider = structuredClone(options.providerConfig);
         const compactionProvider = structuredClone(options.compactionProviderConfig);
         const prompts = await Promise.all(
@@ -102,6 +103,7 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
             config: { ...options.config, id: `memora-chat:${sessionId}` } as AgentConfig,
             prompts,
             scope,
+            ...(permissionMode ? { permissionMode: { ...permissionMode } } : {}),
             tools: (options.tools ?? []).map((tool) => {
               const value = toPiTool(tool as ToolDefinition);
               return {
@@ -152,9 +154,9 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     },
     [sessionId, reportError],
   );
-  const resolveWriteApproval = useCallback<UseAgentReturn["resolveWriteApproval"]>(
+  const resolveAccessRequest = useCallback<UseAgentReturn["resolveAccessRequest"]>(
     (decision) => {
-      const approval = getSnapshot(sessionId).approval;
+      const approval = getSnapshot(sessionId).approvals?.[0];
       if (approval)
         void command({ type: "approval", sessionId, approvalId: approval.id, decision }).catch(
           reportError,
@@ -166,8 +168,8 @@ export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
     messages: snapshot.messages,
     pendingMessages: snapshot.pending.map(({ id, text }) => ({ id, text })),
     recap: snapshot.recap ?? null,
-    pendingWriteApproval: snapshot.approval?.request ?? null,
-    resolveWriteApproval,
+    pendingAccessRequest: snapshot.approvals?.[0]?.request ?? null,
+    resolveAccessRequest,
     isStreaming: Boolean(snapshot.activeRunId),
     status: snapshot.status,
     thinkingSteps: snapshot.thinkingSteps,

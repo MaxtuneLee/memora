@@ -1,4 +1,5 @@
 import type { AgentCommand, AgentResponse, SessionSnapshot } from "./protocol";
+import type { AccessDecision, AccessRequest, AccessResult } from "@/lib/chat/permissions";
 import { emptySessionSnapshot } from "./sessionRuntime";
 import type { TraceEvent } from "./traceRecorder";
 
@@ -22,7 +23,7 @@ const requests = new Map<
   }
 >();
 const calls = new Map<string, AbortController>();
-const approvals = new Map<string, (decision: "allow_once" | "allow_session" | "deny") => void>();
+const approvals = new Map<string, (decision: AccessDecision) => void>();
 let runningSessionIds: ReadonlySet<string> = new Set();
 // ponytail: per-tab and in-memory; unread markers reset on reload.
 let unreadSessionIds: ReadonlySet<string> = new Set();
@@ -266,9 +267,9 @@ export function registerSessionToolHost(sessionId: string, host: ToolHost): () =
 
 export function requestToolApproval(
   callId: string,
-  request: import("@/lib/chat/tools/shared").WriteApprovalRequest,
+  request: AccessRequest,
   signal: AbortSignal,
-): Promise<"allow_once" | "allow_session" | "deny"> {
+): Promise<AccessDecision> {
   if (signal.aborted) return Promise.resolve("deny");
   return new Promise((resolve, reject) => {
     const abort = () => {
@@ -287,6 +288,14 @@ export function requestToolApproval(
     });
   });
 }
+
+export const reportAccessDecision = (
+  callId: string,
+  request: AccessRequest,
+  result: AccessResult,
+): void => {
+  void command({ type: "access-decided", callId, request, result }).catch(console.error);
+};
 
 // Development Traces, read through the worker that writes them.
 export const listTraceRuns = (sessionId: string): Promise<string[]> =>

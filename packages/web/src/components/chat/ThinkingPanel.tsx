@@ -82,6 +82,7 @@ const styles = stylex.create({
     paddingInline: 10,
   },
   children: { display: "flex", flexDirection: "column", gap: 4, marginLeft: 18 },
+  toolNote: { color: tokens.textSoft, fontSize: 12, marginLeft: 18, marginTop: 2 },
   childText: {
     color: tokens.textSoft,
     fontSize: 12,
@@ -221,13 +222,20 @@ function StepItem({ step }: { step: ThinkingStep }) {
 
   if (step.type === "tool-call") {
     return (
-      <div {...stylex.props(styles.row)}>
-        {step.status === "in_progress" ? (
-          <CircleNotchIcon className={stylex.props(styles.activeIcon).className} weight="bold" />
-        ) : (
-          <CheckCircleIcon className={stylex.props(styles.mutedIcon).className} weight="fill" />
-        )}
-        <span {...stylex.props(styles.text)}>{step.text}</span>
+      <div>
+        <div {...stylex.props(styles.row)}>
+          {step.status === "in_progress" ? (
+            <CircleNotchIcon className={stylex.props(styles.activeIcon).className} weight="bold" />
+          ) : (
+            <CheckCircleIcon className={stylex.props(styles.mutedIcon).className} weight="fill" />
+          )}
+          <span {...stylex.props(styles.text)}>{step.text}</span>
+        </div>
+        {step.children?.map((child) => (
+          <div key={child.id} {...stylex.props(styles.toolNote)}>
+            {child.text}
+          </div>
+        ))}
       </div>
     );
   }

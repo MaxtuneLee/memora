@@ -25,6 +25,7 @@ const IMPLEMENTED_FEATURES: readonly AiFeatureId[] = [
   "transcription",
   "sessionTitle",
   "memoryExtraction",
+  "permissionReview",
   "contextCompaction",
 ];
 

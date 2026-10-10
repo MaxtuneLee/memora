@@ -1,12 +1,15 @@
 import { cat } from "@memora/fs";
-import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { fileTable } from "@/livestore/file";
 
 import {
   EMPTY_REFERENCE_SCOPE,
+  accessFileForPath,
+  libraryReadRequest,
+  readLibrary,
   type ActiveFileRow,
+  type ChatToolDefinition,
   type CreateChatToolsOptions,
   type StoreQueryable,
   type TranscriptWord,
@@ -114,7 +117,9 @@ const findTranscriptFiles = (
     if (row.type !== "audio" && row.type !== "video") return false;
     if (filter.file_id && row.id !== filter.file_id) return false;
     if (filter.transcript_path && row.transcriptPath !== filter.transcript_path) return false;
-    if (referenceScope.isActive && !scopedIds.has(row.id)) return false;
+    // A search without filters stays in the scope; a named file was approved on its own.
+    const named = Boolean(filter.file_id || filter.transcript_path);
+    if (!named && referenceScope.isActive && !scopedIds.has(row.id)) return false;
     return true;
   });
 };
@@ -155,7 +160,7 @@ const buildContextSnippet = (
 export const createTranscriptTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
-): ToolDefinition[] => {
+): ChatToolDefinition[] => {
   return [
     {
       type: "function",
@@ -174,6 +179,20 @@ export const createTranscriptTools = (
         // Capped in execute rather than rejected: models often ask for a little more.
         context_chars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 48),
       }),
+      access: (params) => {
+        const payload = params as { file_id?: string; transcript_path?: string };
+        const pathFile = payload.transcript_path
+          ? accessFileForPath(readLibrary(store), payload.transcript_path)
+          : null;
+        const fileId = payload.file_id ?? pathFile?.id;
+        if (payload.transcript_path && !fileId) return null;
+        return libraryReadRequest(
+          store,
+          options,
+          "search_transcript",
+          fileId ? [fileId] : undefined,
+        );
+      },
       execute: async (params: unknown) => {
         const payload = params as {
           keyword: string;
@@ -270,6 +289,14 @@ export const createTranscriptTools = (
         start_sec: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
         end_sec: v.optional(v.pipe(v.number(), v.minValue(0))),
       }),
+      access: (params) =>
+        libraryReadRequest(
+          store,
+          options,
+          "read_transcript",
+          [(params as { file_id: string }).file_id],
+          false,
+        ),
       execute: async (params: unknown) => {
         const payload = params as { file_id: string; start_sec?: number; end_sec?: number };
         const file = findTranscriptFiles(store, options, { file_id: payload.file_id })[0];

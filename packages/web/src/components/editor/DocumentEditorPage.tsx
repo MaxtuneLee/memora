@@ -603,6 +603,7 @@ function DocumentEditorSession({
       return;
     }
     return registerDocumentToolTarget(chatSessionId, {
+      fileId: file.id,
       fileName: chatFileName,
       getText: () =>
         chatProposalRef.current ?? chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
@@ -610,7 +611,7 @@ function DocumentEditorSession({
       getPreviewIssues: () =>
         chatTargetRef.current.wysiwygSafetyDiagnostics.map((diagnostic) => diagnostic.message),
     });
-  }, [chatFileName, chatSessionId, setChatProposal]);
+  }, [chatFileName, chatSessionId, file.id, setChatProposal]);
 
   const handleAcceptChange = useCallback(
     (hunk: DiffHunk): void => {

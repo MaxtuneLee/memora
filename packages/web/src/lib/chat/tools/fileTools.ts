@@ -1,5 +1,4 @@
 import { cat, file as opfsFile, grep, ls, write as opfsWrite } from "@memora/fs";
-import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { fileEvents, fileTable } from "@/livestore/file";
@@ -14,7 +13,17 @@ import { saveTextDocument, type TextDocumentFileLike } from "@/lib/editor/docume
 import { normalizeLogicalName, type WorkspaceFolderLike } from "@/lib/editor/logicalPaths";
 import { createNewMarkdownNote } from "@/lib/editor/noteCreation";
 
-import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
+import type { AccessRequest } from "@/lib/chat/permissions";
+
+import {
+  accessFileForPath,
+  EMPTY_REFERENCE_SCOPE,
+  libraryReadRequest,
+  readLibrary,
+  type ChatToolDefinition,
+  type CreateChatToolsOptions,
+  type StoreQueryable,
+} from "./shared";
 
 const WRITABLE_PATH_PREFIXES = ["/chat/", "/files/"] as const;
 
@@ -87,10 +96,34 @@ export const applyTextEdits = (
   return { content: next };
 };
 
+/** A read by OPFS path, or null when nothing is there. */
+const pathReadRequest = async (
+  store: StoreQueryable,
+  tool: string,
+  path: string,
+  search = false,
+): Promise<AccessRequest | null> => {
+  const file = accessFileForPath(readLibrary(store), path);
+  if (file)
+    return {
+      tool,
+      access: "read",
+      ...(search && { search }),
+      target: { kind: "files", files: [file] },
+    };
+  if (
+    !(await opfsFile(path)
+      .exists()
+      .catch(() => false))
+  )
+    return null;
+  return { tool, access: "read", ...(search && { search }), target: { kind: "path", path } };
+};
+
 export const createFileTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
-): ToolDefinition[] => {
+): ChatToolDefinition[] => {
   return [
     {
       type: "function",
@@ -102,23 +135,13 @@ export const createFileTools = (
         offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
         limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
       }),
+      access: (params) => pathReadRequest(store, "read_file", (params as { path: string }).path),
       execute: async (params: unknown) => {
         const payload = params as {
           path: string;
           offset?: number;
           limit?: number;
         };
-        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
-        if (referenceScope.isActive) {
-          const allowedPaths = new Set(referenceScope.allowedPaths);
-          if (!allowedPaths.has(payload.path)) {
-            return {
-              error:
-                "Path is outside the currently referenced files. Add the target file to references first.",
-            };
-          }
-        }
-
         let content: string;
         try {
           content = await cat(payload.path);
@@ -155,6 +178,19 @@ export const createFileTools = (
         ignore_case: v.optional(v.boolean(), true),
         max_matches: v.optional(v.number(), 20),
       }),
+      access: (params) => {
+        const cwd = (params as { cwd?: string }).cwd ?? "/files";
+        // A folder of one library file reads that file; /files or above reads the library.
+        if (cwd.startsWith("/files/")) return pathReadRequest(store, "grep_files", cwd, true);
+        if (cwd.startsWith("/chat/"))
+          return {
+            tool: "grep_files",
+            access: "read",
+            search: true,
+            target: { kind: "path", path: cwd },
+          };
+        return libraryReadRequest(store, options, "grep_files", undefined);
+      },
       execute: async (params: unknown) => {
         const payload = params as {
           pattern: string;
@@ -164,13 +200,15 @@ export const createFileTools = (
         };
         const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         const scopedIds = new Set(referenceScope.fileIds);
+        // A search of one file's folder was approved for that file, inside the scope or not.
+        const narrowed = (payload.cwd ?? "/files").startsWith("/files/");
         const activeRows = store.query(
           fileTable.where({ deletedAt: null, purgedAt: null }),
         ) as ReadonlyArray<{ id: string }>;
         const activeIds = new Set(
           activeRows
             .map((row) => row.id)
-            .filter((id) => !referenceScope.isActive || scopedIds.has(id)),
+            .filter((id) => narrowed || !referenceScope.isActive || scopedIds.has(id)),
         );
         const matches = await grep(payload.pattern, {
           cwd: payload.cwd ?? "/files",
@@ -205,6 +243,47 @@ export const createFileTools = (
         edits: v.optional(v.array(v.object({ old_text: v.string(), new_text: v.string() }))),
         overwrite: v.optional(v.boolean(), true),
       }),
+      access: async (params) => {
+        const payload = params as {
+          path: string;
+          operation: "write" | "append" | "replace";
+          content?: string;
+          edits?: TextEdit[];
+          overwrite?: boolean;
+        };
+        const path = normalizeWritablePath(payload.path);
+        if (!isWritablePath(path)) return null;
+        const target = opfsFile(path);
+        const exists = await target.exists();
+        // Requests the body refuses anyway are not put to the user.
+        if (!exists && (path.startsWith("/files/") || payload.operation === "replace")) return null;
+        if (payload.operation !== "replace" && payload.content == null) return null;
+        if (payload.operation === "write" && exists && payload.overwrite === false) return null;
+        if (
+          payload.operation === "replace" &&
+          "error" in applyTextEdits(await target.text(), payload.edits ?? [])
+        )
+          return null;
+        const file = accessFileForPath(readLibrary(store), path);
+        const edits = (payload.edits ?? []).map((edit) => ({
+          oldText: edit.old_text,
+          newText: edit.new_text,
+        }));
+        return {
+          tool: "modify_text_file",
+          access: "write",
+          target: file ? { kind: "files", files: [file] } : { kind: "path", path },
+          write: {
+            operation: payload.operation,
+            contentLength:
+              payload.operation === "replace"
+                ? edits.reduce((total, edit) => total + edit.newText.length, 0)
+                : (payload.content ?? "").length,
+            overwrite: payload.overwrite ?? true,
+            ...(payload.operation === "replace" && { edits }),
+          },
+        };
+      },
       execute: async (params: unknown) => {
         const payload = params as {
           path: string;
@@ -217,13 +296,6 @@ export const createFileTools = (
         if (!isWritablePath(path)) {
           return {
             error: "Writes are only allowed for paths under /chat/ or /files/.",
-          };
-        }
-
-        if (!options.requestWriteApproval) {
-          return {
-            error:
-              "File modification requires user approval, but no approval handler is configured.",
           };
         }
 
@@ -244,7 +316,6 @@ export const createFileTools = (
           return { error: "Library files cannot be changed here." };
         }
 
-        // Work out the new content before asking the user to approve it.
         const overwrite = payload.overwrite ?? true;
         let nextContent: string;
         if (payload.operation === "replace") {
@@ -266,27 +337,6 @@ export const createFileTools = (
         } else {
           nextContent = (exists ? await targetFile.text() : "") + payload.content;
         }
-        const content = payload.content ?? "";
-        const edits = (payload.edits ?? []).map((edit) => ({
-          oldText: edit.old_text,
-          newText: edit.new_text,
-        }));
-
-        const approval = await options.requestWriteApproval({
-          path,
-          operation: payload.operation,
-          content,
-          contentLength:
-            payload.operation === "replace"
-              ? edits.reduce((total, edit) => total + edit.newText.length, 0)
-              : content.length,
-          overwrite,
-          ...(payload.operation === "replace" && { edits }),
-        });
-        if (approval === "deny") {
-          return { error: "User denied file modification request." };
-        }
-
         if (libraryFile) {
           const saved = await saveTextDocument({ file: libraryFile, text: nextContent });
           store.commit?.(fileEvents.fileUpdated(saved.updatedEvent));
@@ -299,7 +349,7 @@ export const createFileTools = (
           ...(libraryFile && { fileId: libraryFile.id, name: libraryFile.name }),
           operation: payload.operation,
           totalBytes: nextContent.length,
-          ...(payload.operation === "replace" && { editsApplied: edits.length }),
+          ...(payload.operation === "replace" && { editsApplied: payload.edits?.length ?? 0 }),
         };
       },
     },
@@ -313,14 +363,28 @@ export const createFileTools = (
         content: v.string(),
         folder_id: v.optional(v.string()),
       }),
+      access: (params) => {
+        const payload = params as { name: string; content: string; folder_id?: string };
+        const library = readLibrary(store);
+        if (payload.folder_id && !library.folders.has(payload.folder_id)) return null;
+        const settings = normalizeSettingsValue(store.query(settingsDocumentQuery$));
+        const folderId =
+          payload.folder_id ??
+          (settings.defaultNoteLocationMode === "folder" ? settings.defaultNoteFolderId : "");
+        const folder = folderId ? library.folders.get(folderId) : undefined;
+        return {
+          tool: "create_document",
+          access: "write",
+          target: {
+            kind: "new-file",
+            name: normalizeLogicalName(payload.name, "Untitled note"),
+            folder: folder ? { id: folderId, name: folder.name } : null,
+          },
+          write: { operation: "create", contentLength: payload.content.length, overwrite: false },
+        };
+      },
       execute: async (params: unknown) => {
         const payload = params as { name: string; content: string; folder_id?: string };
-        if (!options.requestWriteApproval) {
-          return {
-            error:
-              "Creating a document requires user approval, but no approval handler is configured.",
-          };
-        }
         if (!store.commit) {
           return { error: "Documents cannot be created here." };
         }
@@ -331,17 +395,6 @@ export const createFileTools = (
           return { error: `No folder with id ${payload.folder_id}.` };
         }
         const name = normalizeLogicalName(payload.name, "Untitled note");
-
-        const approval = await options.requestWriteApproval({
-          path: name,
-          operation: "create",
-          content: payload.content,
-          contentLength: payload.content.length,
-          overwrite: false,
-        });
-        if (approval === "deny") {
-          return { error: "User denied creating the document." };
-        }
 
         const settings = normalizeSettingsValue(store.query(settingsDocumentQuery$));
         const result = await createNewMarkdownNote({
@@ -373,16 +426,17 @@ export const createFileTools = (
         top_k: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 8),
         file_ids: v.optional(v.array(v.string())),
       }),
+      access: (params) =>
+        libraryReadRequest(
+          store,
+          options,
+          "search_files",
+          (params as { file_ids?: string[] }).file_ids,
+        ),
       execute: async (params: unknown) => {
         const payload = params as { query: string; top_k?: number; file_ids?: string[] };
         const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
         const requestedIds = payload.file_ids ?? referenceScope.fileIds;
-        if (
-          referenceScope.isActive &&
-          requestedIds.some((id) => !referenceScope.fileIds.includes(id))
-        ) {
-          return { error: "Search is limited to the currently referenced files." };
-        }
         const files = store.query(fileTable.where({ deletedAt: null, purgedAt: null }));
         const results = await searchContent({
           query: payload.query,
@@ -412,12 +466,16 @@ export const createFileTools = (
         offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
         limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 12000),
       }),
+      access: (params) =>
+        libraryReadRequest(
+          store,
+          options,
+          "read_extracted_content",
+          [(params as { file_id: string }).file_id],
+          false,
+        ),
       execute: async (params: unknown) => {
         const payload = params as { file_id: string; offset?: number; limit?: number };
-        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
-        if (referenceScope.isActive && !referenceScope.fileIds.includes(payload.file_id)) {
-          return { error: "This file is outside the currently referenced files." };
-        }
         const rows = store.query(
           fileTable.where({ id: payload.file_id, deletedAt: null, purgedAt: null }),
         );

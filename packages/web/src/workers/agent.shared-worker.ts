@@ -33,7 +33,7 @@ import type {
   AgentSubmission,
   SessionSnapshot,
 } from "@/lib/agent-runtime/protocol";
-import type { WriteApprovalDecision } from "@/lib/chat/tools/shared";
+import type { AccessRequest, AccessResult } from "@/lib/chat/permissions";
 
 const ports = new Map<MessagePort, Set<string>>();
 const hosts = new Set<MessagePort>();
@@ -57,8 +57,8 @@ const toolCalls = new Map<
 >();
 const deletedSessions = new Set<string>();
 const commands = new Map<string, Promise<unknown>>();
-const approvals = new Map<string, { callId: string; sessionId: string }>();
-const allowedSessions = new Set<string>();
+/** Pending Access requests in arrival order; each session shows its oldest first. */
+const approvals = new Map<string, { callId: string; sessionId: string; request: AccessRequest }>();
 /** The Trace of each session's active Run; development builds only. */
 const traces = new Map<string, TraceRecorder>();
 /** Keyed by input message ID until a Trace records the input. */
@@ -102,14 +102,64 @@ const checkpointSessions = async (): Promise<void> => {
   ]);
 };
 
+const publishApprovals = async (sessionId: string): Promise<void> => {
+  const runtime = await sessions.get(sessionId);
+  if (!runtime) return;
+  const queue = [...approvals]
+    .filter(([, approval]) => approval.sessionId === sessionId)
+    .map(([id, approval]) => ({ id, request: approval.request }));
+  runtime.snapshot = {
+    ...runtime.snapshot,
+    approvals: queue.length ? queue : undefined,
+    revision: runtime.snapshot.revision + 1,
+  };
+  publish(runtime.snapshot);
+};
+
 const finishTool = (callId: string, result?: unknown, error?: string): void => {
   const call = toolCalls.get(callId);
   if (!call) return;
   clearTimeout(call.timer);
   toolCalls.delete(callId);
-  for (const [id, approval] of approvals) if (approval.callId === callId) approvals.delete(id);
+  let dropped = false;
+  for (const [id, approval] of approvals)
+    if (approval.callId === callId) dropped = approvals.delete(id);
+  if (dropped) void publishApprovals(call.sessionId).catch(console.error);
   if (error) call.reject(new Error(error));
   else call.resolve(result);
+};
+
+/** The text of the user's Submissions in the Run, from its first through any steered later. */
+const runUserMessages = (snapshot: SessionSnapshot, submission: AgentSubmission): string[] => {
+  const start = snapshot.messages.findIndex((message) => message.id === submission.message.id);
+  if (start === -1) return [submission.message.content];
+  return snapshot.messages
+    .slice(start)
+    .filter((message) => message.role === "user")
+    .map((message) => message.content);
+};
+
+const recordAccessDecision = async (
+  callId: string,
+  request: AccessRequest,
+  result: AccessResult,
+): Promise<void> => {
+  const call = toolCalls.get(callId);
+  if (!call) return;
+  traces.get(call.sessionId)?.add({
+    type: "permission.decided",
+    tool: request.tool,
+    access: request.access,
+    target: request.target.kind,
+    allowed: result.allowed,
+    source: result.source,
+    ...(result.reason ? { reason: result.reason } : {}),
+  });
+  if (result.source !== "auto") return;
+  const runtime = await sessions.get(call.sessionId);
+  runtime?.noteRunningTool(
+    `${result.allowed ? "Allowed" : "Denied"} by Auto review${result.reason ? `: ${result.reason}` : ""}`,
+  );
 };
 
 const invokeTool = (
@@ -117,6 +167,7 @@ const invokeTool = (
   submission: AgentSubmission,
   name: string,
   args: unknown,
+  userMessages: string[],
 ): Promise<unknown> => {
   const submitter = submitters.get(sessionId);
   const port =
@@ -142,6 +193,8 @@ const invokeTool = (
       name,
       args: args as Record<string, unknown>,
       scope: submission.scope,
+      ...(submission.permissionMode ? { permissionMode: submission.permissionMode } : {}),
+      userMessages,
     });
   });
 };
@@ -188,7 +241,7 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
         "Execution was interrupted. Retry the message to continue. Queued messages were not executed.";
       snapshot.activeRunId = undefined;
       snapshot.activeMessageId = undefined;
-      snapshot.approval = undefined;
+      snapshot.approvals = undefined;
       snapshot.status = { type: "idle" };
     }
     // A Run's agent is traced in development; the idle recap's agent never is.
@@ -228,7 +281,14 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
           description: tool.description,
           parameters: v.unknown(),
           jsonSchema: tool.parameters,
-          execute: (args) => invokeTool(sessionId, submission, tool.name, args),
+          execute: (args) =>
+            invokeTool(
+              sessionId,
+              submission,
+              tool.name,
+              args,
+              runUserMessages(runtime.snapshot, submission),
+            ),
         });
       await agent.init();
       if (trace) {
@@ -338,20 +398,19 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
   if (request.type === "request-approval") {
     const call = toolCalls.get(request.callId);
     if (!call || call.port !== port) return;
-    if (allowedSessions.has(call.sessionId)) {
-      post(port, { type: "approval-result", callId: request.callId, decision: "allow_session" });
-      return;
-    }
-    const runtime = await getSession(call.sessionId);
+    await getSession(call.sessionId);
     if (!toolCalls.has(request.callId)) return;
-    const id = crypto.randomUUID();
-    approvals.set(id, { callId: request.callId, sessionId: call.sessionId });
-    runtime.snapshot = {
-      ...runtime.snapshot,
-      approval: { id, request: request.request },
-      revision: runtime.snapshot.revision + 1,
-    };
-    publish(runtime.snapshot);
+    approvals.set(crypto.randomUUID(), {
+      callId: request.callId,
+      sessionId: call.sessionId,
+      request: request.request,
+    });
+    await publishApprovals(call.sessionId);
+    return;
+  }
+  if (request.type === "access-decided") {
+    if (toolCalls.get(request.callId)?.port === port)
+      await recordAccessDecision(request.callId, request.request, request.result);
     return;
   }
   // Traces outlive in-memory sessions, so these never load or create a session.
@@ -390,19 +449,13 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
       if (!approval || approval.sessionId !== request.sessionId) break;
       approvals.delete(request.approvalId);
       const call = toolCalls.get(approval.callId);
-      if (request.decision === "allow_session") allowedSessions.add(request.sessionId);
       if (call)
         post(call.port, {
           type: "approval-result",
           callId: approval.callId,
-          decision: request.decision as WriteApprovalDecision,
+          decision: request.decision,
         });
-      runtime.snapshot = {
-        ...runtime.snapshot,
-        approval: undefined,
-        revision: runtime.snapshot.revision + 1,
-      };
-      publish(runtime.snapshot);
+      await publishApprovals(request.sessionId);
       break;
     }
     case "steer-pending":
@@ -466,7 +519,6 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<unknow
         await deleteChatSession(request.sessionId);
         await deleteSessionTraces(request.sessionId);
       }
-      allowedSessions.delete(request.sessionId);
       sessions.delete(request.sessionId);
       if (running.delete(request.sessionId)) for (const port of ports.keys()) postRunning(port);
       break;

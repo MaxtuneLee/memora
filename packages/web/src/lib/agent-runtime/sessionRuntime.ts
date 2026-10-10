@@ -168,6 +168,25 @@ export class SessionRuntime {
     this.changed();
   }
 
+  /** Adds a line under the tool call that is running, such as an Auto review decision. */
+  noteRunningTool(text: string): void {
+    const step = this.snapshot.thinkingSteps.findLast(
+      (item) => item.type === "tool-call" && item.status === "in_progress",
+    );
+    if (!step) return;
+    const note = {
+      id: crypto.randomUUID(),
+      type: "output-item" as const,
+      text,
+      status: "done" as const,
+    };
+    this.snapshot.thinkingSteps = this.snapshot.thinkingSteps.map((item) =>
+      item === step ? { ...item, children: [...(item.children ?? []), note] } : item,
+    );
+    this.updateAssistant((message) => ({ ...message, thinkingSteps: this.snapshot.thinkingSteps }));
+    this.changed();
+  }
+
   private updateAssistant(update: (message: ChatMessage) => ChatMessage): void {
     this.snapshot.messages = this.snapshot.messages.map((message) =>
       message.id === this.snapshot.activeMessageId ? update(message) : message,
@@ -422,7 +441,7 @@ export class SessionRuntime {
           }));
           this.snapshot.activeRunId = undefined;
           this.snapshot.activeMessageId = undefined;
-          this.snapshot.approval = undefined;
+          this.snapshot.approvals = undefined;
           this.snapshot.status = { type: "idle" };
           this.syncPending();
           this.publish();

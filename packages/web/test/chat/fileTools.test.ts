@@ -70,10 +70,9 @@ describe("read_file", () => {
 
 describe("modify_text_file replace", () => {
   const replace = (edits: { old_text: string; new_text: string }[]) => {
-    const tool = createFileTools(
-      { query: () => [] },
-      { requestWriteApproval: async () => "allow_once" as const },
-    ).find(({ name }) => name === "modify_text_file");
+    const tool = createFileTools({ query: () => [] }, {}).find(
+      ({ name }) => name === "modify_text_file",
+    );
     if (!tool) throw new Error("modify_text_file is missing.");
     return tool.execute(
       v.parse(tool.parameters, { path: "/chat/a.md", operation: "replace", edits }),
@@ -118,10 +117,7 @@ describe("library documents", () => {
   };
   const setup = (rows: unknown[]) => {
     const commit = vi.fn();
-    const tools = createFileTools(
-      { query: () => rows, commit },
-      { requestWriteApproval: async () => "allow_once" as const },
-    );
+    const tools = createFileTools({ query: () => rows, commit }, {});
     const run = (name: string, args: unknown) => {
       const tool = tools.find((item) => item.name === name);
       if (!tool) throw new Error(`${name} is missing.`);

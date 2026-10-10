@@ -1,6 +1,8 @@
 import type { PromptSegment, ToolDefinition } from "@memora/ai-core";
 
+import { checkAccess, DEFAULT_PERMISSION_MODE } from "@/lib/chat/permissions";
 import { createDatabaseTools } from "@/lib/chat/tools/dbTools";
+import { createDocumentTools } from "@/lib/chat/tools/documentTools";
 import { createFileTools } from "@/lib/chat/tools/fileTools";
 import { createMemoryTools } from "@/lib/chat/tools/memoryTools";
 import { createSessionTools } from "@/lib/chat/tools/sessionTools";
@@ -12,23 +14,60 @@ export {
   type CreateChatToolsOptions,
   type ResolvedReferenceScope,
   type StoreQueryable,
-  type WriteApprovalDecision,
-  type WriteApprovalRequest,
 } from "@/lib/chat/tools/shared";
-import { type CreateChatToolsOptions, type StoreQueryable } from "@/lib/chat/tools/shared";
+import {
+  EMPTY_REFERENCE_SCOPE,
+  readLibrary,
+  type ChatToolDefinition,
+  type CreateChatToolsOptions,
+  type StoreQueryable,
+} from "@/lib/chat/tools/shared";
+
+/** Runs a tool's body only after its Access request passes the permission check (ADR 0010). */
+const guardTool = (
+  tool: ChatToolDefinition,
+  store: StoreQueryable,
+  options: CreateChatToolsOptions,
+): ToolDefinition => {
+  const { access, ...definition } = tool;
+  if (!access) return definition;
+  return {
+    ...definition,
+    execute: async (params: unknown) => {
+      const request = await access(params);
+      if (request) {
+        const { result } = await checkAccess(request, {
+          mode: options.getPermissionMode?.() ?? DEFAULT_PERMISSION_MODE,
+          grants: options.getPermissionGrants?.() ?? [],
+          scope: options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE,
+          folders: new Map(
+            [...readLibrary(store).folders].map(([id, folder]) => [id, folder.parentId]),
+          ),
+          requestAccess: options.requestAccess,
+          addGrants: options.addPermissionGrants,
+        });
+        options.onAccessDecided?.(request, result);
+        if (!result.allowed) return { error: result.reason };
+      }
+      return definition.execute(params);
+    },
+  };
+};
 
 export const createChatTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions = {},
 ): ToolDefinition[] => {
-  return [
+  const tools: ChatToolDefinition[] = [
     ...createWidgetTools(options),
     ...createSessionTools(options.chatSessions),
     ...createDatabaseTools(store, options),
     ...createFileTools(store, options),
     ...createTranscriptTools(store, options),
     ...createMemoryTools(options),
+    ...(options.documentTarget ? createDocumentTools(options.documentTarget, store) : []),
   ];
+  return tools.map((tool) => guardTool(tool, store, options));
 };
 
 export const SYSTEM_PROMPT: PromptSegment = {

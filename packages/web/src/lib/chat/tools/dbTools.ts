@@ -1,6 +1,8 @@
 import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
+import { DEFAULT_PERMISSION_MODE } from "@/lib/chat/permissions";
+
 import { EMPTY_REFERENCE_SCOPE, type CreateChatToolsOptions, type StoreQueryable } from "./shared";
 
 const ALLOWED_TABLES = new Set(["files", "folders", "collections"]);
@@ -144,7 +146,17 @@ export const createDatabaseTools = (
             sql += ` LIMIT ${MAX_QUERY_ROWS}`;
           }
 
-          const rows = store.query({ query: sql, bindValues: {} });
+          const queried = store.query({ query: sql, bindValues: {} }) as unknown[];
+          // AI-written summaries carry file content, so they stay out while reads are guarded.
+          const guarded =
+            (options.getPermissionMode?.() ?? DEFAULT_PERMISSION_MODE).guard === "reads-and-writes";
+          const rows = guarded
+            ? queried.map((row) => {
+                if (typeof row !== "object" || row === null || !("indexSummary" in row)) return row;
+                const { indexSummary: _omitted, ...rest } = row;
+                return rest;
+              })
+            : queried;
           const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
           if (!referenceScope.isActive || !FILES_TABLE_USAGE_PATTERN.test(sql)) {
             return { rows, count: (rows as unknown[]).length };

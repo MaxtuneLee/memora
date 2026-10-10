@@ -1,16 +1,15 @@
-import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 
-import type { CreateChatToolsOptions } from "./shared";
+import type { ChatToolDefinition, CreateChatToolsOptions } from "./shared";
 
 export const createSessionTools = (
   source: NonNullable<CreateChatToolsOptions["chatSessions"]> = {
     list: listChatSessions,
     load: loadChatSession,
   },
-): ToolDefinition[] => {
+): ChatToolDefinition[] => {
   return [
     {
       type: "function",
@@ -35,6 +34,15 @@ export const createSessionTools = (
       parameters: v.object({
         session_id: v.string(),
         max_messages: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 50),
+      }),
+      // Chats are chat working files, read without asking.
+      access: (params) => ({
+        tool: "read_chat_session",
+        access: "read",
+        target: {
+          kind: "path",
+          path: `/chat/sessions/${(params as { session_id: string }).session_id}.json`,
+        },
       }),
       execute: async (params: unknown) => {
         const payload = params as { session_id: string; max_messages?: number };

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import { ConfirmDialog } from "@/components/desktop";
 import { MotionConfig, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
-import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
+import { ToolAccessDialog } from "@/components/chat/ToolAccessDialog";
 import { TabSelect } from "@/components/ui/TabSelect";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
@@ -77,10 +77,8 @@ export const ChatPageView = (props: {
   onOpenSettings: (section?: string) => void;
   composerPanelProps: Omit<Parameters<typeof ChatPageComposerPanel>[0], "centered">;
   isHistoryDrawerOpen: boolean;
-  pendingWriteApproval: Parameters<typeof ToolWriteApprovalDialog>[0]["request"];
-  onAllowWriteOnce: () => void;
-  onAllowWriteForSession: () => void;
-  onDenyWrite: () => void;
+  pendingAccessRequest: Parameters<typeof ToolAccessDialog>[0]["request"];
+  onDecideAccess: Parameters<typeof ToolAccessDialog>[0]["onDecide"];
   pendingDeleteSessionId: string | null;
   onCreateSession: () => void;
   onSelectSession: (sessionId: string) => void;
@@ -127,10 +125,8 @@ export const ChatPageView = (props: {
     onOpenSettings,
     composerPanelProps,
     isHistoryDrawerOpen,
-    pendingWriteApproval,
-    onAllowWriteOnce,
-    onAllowWriteForSession,
-    onDenyWrite,
+    pendingAccessRequest,
+    onDecideAccess,
     pendingDeleteSessionId,
     onCreateSession,
     onSelectSession,
@@ -257,12 +253,7 @@ export const ChatPageView = (props: {
         onClose={onCloseHistoryDrawer}
       />
 
-      <ToolWriteApprovalDialog
-        request={pendingWriteApproval}
-        onAllowOnce={onAllowWriteOnce}
-        onAllowSession={onAllowWriteForSession}
-        onDeny={onDenyWrite}
-      />
+      <ToolAccessDialog request={pendingAccessRequest} onDecide={onDecideAccess} />
 
       <ConfirmDialog
         isOpen={pendingDeleteSessionId !== null}

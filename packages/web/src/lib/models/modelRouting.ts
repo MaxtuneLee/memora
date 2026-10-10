@@ -26,6 +26,12 @@ export const AI_FEATURES = [
     description: "Extract lasting communication preferences.",
   },
   {
+    id: "permissionReview",
+    label: "Permission review",
+    task: "chat",
+    description: "Approve or deny file access for chat when Auto review is on.",
+  },
+  {
     id: "contextCompaction",
     label: "Long conversations",
     task: "chat",
@@ -53,7 +59,7 @@ export const AI_FEATURES = [
 ] as const;
 
 export type AiFeatureId = (typeof AI_FEATURES)[number]["id"];
-export type ChatFeatureId = "assistant" | "sessionTitle" | "memoryExtraction";
+export type ChatFeatureId = "assistant" | "sessionTitle" | "memoryExtraction" | "permissionReview";
 export type TextGenerationFeatureId = ChatFeatureId | "imageExtraction" | "formulaRecognition";
 
 export interface CloudModelTarget {
@@ -81,6 +87,7 @@ export interface AiModelRouting {
   transcription: ModelTarget;
   sessionTitle: FeatureModelRoute;
   memoryExtraction: FeatureModelRoute;
+  permissionReview: FeatureModelRoute;
   contextCompaction: FeatureModelRoute;
   imageExtraction: ModelTarget;
   formulaRecognition: ModelTarget;
@@ -92,6 +99,7 @@ export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   transcription: { source: "local", modelId: nemotron35AsrStreamingManifest.id },
   sessionTitle: { source: "inherit", featureId: "assistant" },
   memoryExtraction: { source: "inherit", featureId: "assistant" },
+  permissionReview: { source: "inherit", featureId: "assistant" },
   contextCompaction: { source: "inherit", featureId: "assistant" },
   imageExtraction: { source: "local", modelId: "paddle-document-pipeline" },
   formulaRecognition: { source: "local", modelId: "texo" },
@@ -105,6 +113,7 @@ export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   transcription: ["whisper-base-timestamped", nemotron35AsrStreamingManifest.id],
   sessionTitle: LOCAL_CHAT_MODELS,
   memoryExtraction: LOCAL_CHAT_MODELS,
+  permissionReview: LOCAL_CHAT_MODELS,
   // Runs inside the agent worker, which only reaches cloud models.
   contextCompaction: [],
   imageExtraction: ["paddle-document-pipeline"],
@@ -113,7 +122,10 @@ export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
 };
 
 export const canInheritChatModel = (feature: AiFeatureId): boolean =>
-  feature === "sessionTitle" || feature === "memoryExtraction" || feature === "contextCompaction";
+  feature === "sessionTitle" ||
+  feature === "memoryExtraction" ||
+  feature === "permissionReview" ||
+  feature === "contextCompaction";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
