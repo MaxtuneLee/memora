@@ -6,10 +6,12 @@ import { hasWebAssembly } from "./lib/device/browserSupport";
 import { isMobileDevice } from "./lib/device/isMobileDevice";
 import { applyDocumentTheme } from "./lib/theme/documentTheme";
 import { startAutoHideScrollbars } from "./lib/ui/autoHideScrollbars";
+import { startStreamdownTableTransitions } from "./lib/ui/streamdownTableTransition";
 
 // index.html resolved the first-frame theme; add the matching StyleX theme before React renders.
 applyDocumentTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 startAutoHideScrollbars();
+startStreamdownTableTransitions();
 
 if (import.meta.env.DEV) {
   const diagnostics = new BroadcastChannel("memora-livestore-worker-diagnostics");

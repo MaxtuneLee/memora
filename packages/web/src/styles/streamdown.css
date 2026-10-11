@@ -1,4 +1,5 @@
-.streamdown-rich {
+.streamdown-rich,
+[data-streamdown="table-fullscreen"] {
   --color-background: color-mix(
     in srgb,
     var(--color-background-primary) 96%,
@@ -25,9 +26,13 @@
   border-radius: 0.45rem;
 }
 
+/* Streamdown's own layout here is Tailwind classes, which this project doesn't build. */
 .streamdown-rich [data-streamdown="code-block"] {
   position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 0.35rem;
+  border: 1px solid;
   margin-block: 1rem;
   border-color: color-mix(in srgb, var(--color-memora-olive) 8%, var(--color-border));
   border-radius: 0.95rem;
@@ -64,14 +69,17 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-header"] + div {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 1;
   margin-top: 0;
   height: 0;
 }
 
 .streamdown-rich [data-streamdown="code-block-actions"] {
   position: absolute;
-  right: 0.6rem;
-  bottom: -0.25rem;
+  right: 0;
+  bottom: 0.2rem;
   z-index: 1;
   height: auto;
   display: flex;
@@ -85,6 +93,9 @@
 }
 
 .streamdown-rich [data-streamdown="code-block-copy-button"] {
+  display: inline-flex;
+  padding: 0.25rem;
+  cursor: pointer;
   border: none;
   border-radius: 0.45rem;
   background: transparent;
@@ -129,6 +140,11 @@
 .streamdown-rich [data-streamdown="code-block-body"] code {
   font-size: 0.84rem;
   line-height: 1.6;
+}
+
+/* One span per source line, with no newline text between them. */
+.streamdown-rich [data-streamdown="code-block-body"] code > span {
+  display: block;
 }
 
 .streamdown-rich [data-streamdown="code-block-body"] code span[style*="--sdm-c"] {
@@ -306,28 +322,148 @@
   padding-inline-start: 0.875rem;
 }
 
-.streamdown-rich :where([data-streamdown="table-wrapper"], table) {
+/* Table wrapper: [actions row] + scroll box > table. The actions row and the fullscreen
+   dialog (portaled to <body>, outside .streamdown-rich) only carry Tailwind classes. */
+.streamdown-rich [data-streamdown="table-wrapper"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block: 0.75rem;
+}
+.streamdown-rich [data-streamdown="table-wrapper"] > div:last-child {
   border: 1px solid var(--color-border);
   border-radius: 0.6rem;
   overflow: auto;
 }
-.streamdown-rich table {
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  > div:first-child:not(:last-child),
+[data-streamdown="table-fullscreen"] > div > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  button {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-memora-olive) 7%, var(--color-background-primary));
+  color: var(--color-text-primary);
+}
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* Download format menu: the text-only div after the download button. */
+.streamdown-rich [data-streamdown="table-wrapper"] > div:first-child:not(:last-child) > div,
+[data-streamdown="table-fullscreen"] > div > div:first-child > div {
+  position: relative;
+}
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  button
+  + div:not(:has(svg)) {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 7.5rem;
+  margin-top: 0.25rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-background-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+:where(.streamdown-rich [data-streamdown="table-wrapper"], [data-streamdown="table-fullscreen"])
+  button
+  + div:not(:has(svg))
+  button {
+  border-radius: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+[data-streamdown="table-fullscreen"] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+}
+[data-streamdown="table-fullscreen"] > div {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+[data-streamdown="table-fullscreen"] > div > div:first-child {
+  padding: 1rem;
+}
+[data-streamdown="table-fullscreen"] > div > div:last-child {
+  flex: 1;
+  overflow: auto;
+  padding: 0 1rem 1rem;
+}
+/* Separate borders so the radius shows; no overflow: hidden, it would break the sticky header. */
+[data-streamdown="table-fullscreen"] [data-streamdown="table"] {
+  border: 1px solid var(--color-border);
+  border-collapse: separate;
+  border-radius: 0.6rem;
+  border-spacing: 0;
+}
+[data-streamdown="table-fullscreen"] th:first-child {
+  border-top-left-radius: calc(0.6rem - 1px);
+}
+[data-streamdown="table-fullscreen"] th:last-child {
+  border-top-right-radius: calc(0.6rem - 1px);
+}
+[data-streamdown="table-fullscreen"] thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+:is(.streamdown-rich, [data-streamdown="table-fullscreen"]) table {
   border: none;
   border-collapse: collapse;
   font-size: 0.875rem;
   width: 100%;
 }
-.streamdown-rich :where(th, td) {
+:is(.streamdown-rich, [data-streamdown="table-fullscreen"]) :where(th, td) {
   border-bottom: 1px solid var(--color-border);
   padding: 0.5rem 0.75rem;
   text-align: left;
 }
-.streamdown-rich th {
+:is(.streamdown-rich, [data-streamdown="table-fullscreen"]) th {
   background: var(--color-sidebar);
   color: var(--color-foreground);
   font-weight: 600;
   white-space: nowrap;
 }
-.streamdown-rich tr:last-child td {
+:is(.streamdown-rich, [data-streamdown="table-fullscreen"]) tr:last-child td {
   border-bottom: none;
+}
+
+/* Table fullscreen morph, started from lib/ui/streamdownTableTransition.ts. */
+::view-transition-group(streamdown-table) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+::view-transition-old(streamdown-table),
+::view-transition-new(streamdown-table) {
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
 }

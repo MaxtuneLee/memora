@@ -4,6 +4,11 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-11
+
+- Tables in chat look tidier: copy, download, and full screen sit in one row above the table, and opening or closing full screen now animates smoothly.
+- Code blocks in chat show one line per row again, with the copy button back in the top right corner.
+
 ## 2026-10-10
 
 - You can now choose whether chat asks before reading your files, not just before changing them, in Settings > Permissions. Each chat can change this from the menu under the chat box.
