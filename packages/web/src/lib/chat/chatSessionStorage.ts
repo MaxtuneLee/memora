@@ -1,6 +1,8 @@
 import { dir as opfsDir, file as opfsFile, glob, write as opfsWrite } from "@memora/fs";
 import type { TokenUsage } from "@memora/ai-core";
+import type { ChatFileCard } from "@/lib/chat/chatFileCards";
 import { normalizeChatWidgets, type ChatWidget } from "@/lib/chat/showWidget";
+import type { PermissionMode } from "@/lib/chat/permissions";
 
 import {
   deleteChatSessionAssets,
@@ -11,7 +13,7 @@ import {
 } from "@/lib/chat/chatImageAttachments";
 
 const CHAT_SESSIONS_DIR = "/chat/sessions";
-const SESSION_SCHEMA_VERSION = 2 as const;
+export const SESSION_SCHEMA_VERSION = 2 as const;
 export const DEFAULT_CHAT_SESSION_TITLE = "New session";
 
 interface ChatSessionThinkingStep {
@@ -28,12 +30,25 @@ export interface ChatSessionReference {
   name: string;
 }
 
+const normalizeFileCards = (value: unknown): ChatFileCard[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter(
+    (item): item is ChatFileCard =>
+      Boolean(item) &&
+      typeof item.fileId === "string" &&
+      typeof item.name === "string" &&
+      (item.action === "created" || item.action === "modified"),
+  );
+};
+
 export interface ChatSessionMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  quote?: { label: string; text: string };
   attachments?: ChatImageAttachment[];
   widgets?: ChatWidget[];
+  files?: ChatFileCard[];
   thinkingSteps?: ChatSessionThinkingStep[];
   usage?: TokenUsage;
 }
@@ -73,6 +88,8 @@ export interface ChatSessionRecord {
   messages: ChatSessionMessage[];
   references: ChatSessionReference[];
   agentStore: Record<string, Record<string, unknown>>;
+  /** This chat's Permission mode; the global default when absent. */
+  permissionMode?: PermissionMode;
 }
 
 export interface ChatSessionSummary {
@@ -92,6 +109,18 @@ const normalizeSessionPath = (sessionId: string): string => {
     throw new Error("Session id is required");
   }
   return `${CHAT_SESSIONS_DIR}/${safeId}.json`;
+};
+
+/**
+ * A deleted session leaves this marker so a late write (a title that finishes generating, a
+ * worker checkpoint) cannot recreate it. Session IDs are never reused.
+ */
+const tombstonePath = (sessionId: string): string =>
+  normalizeSessionPath(sessionId).replace(/\.json$/, ".deleted");
+
+const assertNotDeleted = async (sessionId: string): Promise<void> => {
+  if (await opfsFile(tombstonePath(sessionId)).exists())
+    throw new Error("This session has been deleted.");
 };
 
 const ensureSessionsDir = async (): Promise<void> => {
@@ -172,6 +201,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
       content: value.content,
     };
 
+    const quote = value.quote as { label?: unknown; text?: unknown } | undefined;
+    if (quote && typeof quote.label === "string" && typeof quote.text === "string") {
+      normalizedMessage.quote = { label: quote.label, text: quote.text };
+    }
+
     const attachments = normalizeChatImageAttachments(value.attachments);
     if (attachments && attachments.length > 0) {
       normalizedMessage.attachments = attachments;
@@ -180,6 +214,11 @@ const normalizeMessages = (messages: unknown): ChatSessionMessage[] => {
     const widgets = normalizeChatWidgets(value.widgets);
     if (widgets && widgets.length > 0) {
       normalizedMessage.widgets = widgets;
+    }
+
+    const files = normalizeFileCards(value.files);
+    if (files && files.length > 0) {
+      normalizedMessage.files = files;
     }
 
     const thinkingSteps = normalizeThinkingSteps(value.thinkingSteps);
@@ -243,6 +282,21 @@ const normalizeAgentStore = (store: unknown): Record<string, Record<string, unkn
   return result;
 };
 
+const normalizePermissionMode = (value: unknown): PermissionMode | undefined => {
+  const mode = value as Partial<PermissionMode> | undefined;
+  if (
+    (mode?.guard === "writes" || mode?.guard === "reads-and-writes") &&
+    (mode.approver === "user" || mode.approver === "auto")
+  )
+    return { guard: mode.guard, approver: mode.approver };
+  return undefined;
+};
+
+const withPermissionMode = (value: unknown): { permissionMode?: PermissionMode } => {
+  const permissionMode = normalizePermissionMode(value);
+  return permissionMode ? { permissionMode } : {};
+};
+
 const parseRecord = (raw: string): ChatSessionRecord | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<ChatSessionRecord>;
@@ -268,13 +322,14 @@ const parseRecord = (raw: string): ChatSessionRecord | null => {
       messages,
       references: normalizeReferences(parsed.references),
       agentStore: normalizeAgentStore(parsed.agentStore),
+      ...withPermissionMode(parsed.permissionMode),
     };
   } catch {
     return null;
   }
 };
 
-const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
+export const buildSummary = (record: ChatSessionRecord): ChatSessionSummary => {
   return {
     id: record.id,
     title: record.title,
@@ -367,6 +422,7 @@ export const updateChatSession = async (
 ): Promise<ChatSessionRecord> => {
   return runSessionMutation(sessionId, async () => {
     const existing = await loadChatSession(sessionId);
+    if (!existing) await assertNotDeleted(sessionId);
     const base = existing ?? createEmptyRecord(sessionId);
     const next = await updater(base);
     const normalizedMessages = normalizeMessages(next.messages);
@@ -384,10 +440,16 @@ export const updateChatSession = async (
         typeof next.createdAt === "number" && Number.isFinite(next.createdAt)
           ? next.createdAt
           : base.createdAt,
-      updatedAt: Date.now(),
+      // The history list sorts by this, so only a change to the conversation moves a session.
+      // Titles, references, recaps and agent state saved later keep its place.
+      updatedAt:
+        existing && JSON.stringify(normalizedMessages) === JSON.stringify(base.messages)
+          ? base.updatedAt
+          : Date.now(),
       messages: normalizedMessages,
       references: normalizedReferences,
       agentStore: normalizeAgentStore(next.agentStore),
+      ...withPermissionMode(next.permissionMode),
     };
     await writeRecord(record);
     return record;
@@ -418,14 +480,19 @@ export const updateChatSessionMessages = async (
 export const ensureChatSession = async (sessionId: string): Promise<ChatSessionRecord> => {
   const existing = await loadChatSession(sessionId);
   if (existing) return existing;
+  await assertNotDeleted(sessionId);
   const record = createEmptyRecord(sessionId);
   await writeRecord(record);
   return record;
 };
 
 export const deleteChatSession = async (sessionId: string): Promise<void> => {
-  const path = normalizeSessionPath(sessionId);
-  await opfsFile(path).remove({ force: true });
+  // Inside the session lock, so a write already queued lands before the marker, not after.
+  await runSessionMutation(sessionId, async () => {
+    await ensureSessionsDir();
+    await opfsWrite(tombstonePath(sessionId), "", { overwrite: true });
+    await opfsFile(normalizeSessionPath(sessionId)).remove({ force: true });
+  });
   await deleteChatSessionAssets(sessionId);
   sessionQueue.delete(sessionId);
 };

@@ -523,7 +523,11 @@ const normalizeImportedProviders = (value: unknown): ImportedProvider[] => {
       const record = item as Record<string, unknown>;
       const createdAt = normalizeImportedDate(record.createdAt, new Date());
       const apiFormat: ImportedProvider["apiFormat"] =
-        record.apiFormat === "responses" ? "responses" : "chat-completions";
+        record.apiFormat === "responses" ||
+        record.apiFormat === "anthropic-messages" ||
+        record.apiFormat === "gemini"
+          ? record.apiFormat
+          : "chat-completions";
       return {
         id: normalizeImportedString(record.id),
         name: normalizeImportedString(record.name),

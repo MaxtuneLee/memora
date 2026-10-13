@@ -32,6 +32,8 @@ const styles = stylex.create({
 const API_FORMAT_OPTIONS: readonly TabSelectOption<ProviderApiFormat>[] = [
   { value: "chat-completions", label: "Chat completions" },
   { value: "responses", label: "Responses" },
+  { value: "anthropic-messages", label: "Anthropic messages" },
+  { value: "gemini", label: "Gemini" },
 ];
 
 interface SettingsProviderFormProps {

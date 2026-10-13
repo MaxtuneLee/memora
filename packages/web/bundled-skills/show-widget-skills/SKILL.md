@@ -28,6 +28,7 @@ Use this skill before calling `show_widget`.
 
 - If the request is art with clear interactivity, also read `guidelines/art_interactive.md`.
 - If the request is a chart with clear interactivity, also read `guidelines/chart_interactive.md`.
+- If learning mode is on, or the widget teaches a concept, use the `interactive` module and also read `guidelines/lesson.md`.
 - If the widget declares `data_files`/calls `writeData`, or binds `data_source: "widgetData"`, also read `sections/widget_data.md`.
 
 ## Tool contract

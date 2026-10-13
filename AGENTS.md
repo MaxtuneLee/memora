@@ -51,7 +51,8 @@
 
 - Web app tests live under `packages/web/test/<module>/...`.
 - Run all web tests: `pnpm --filter @memora/web test`
-- Run a single web test file: `pnpm --filter @memora/web test -- test/<module>/<file>.test.ts`
+- Run a single web test file (from `packages/web`): `vp test run test/<module>/<file>.test.ts`
+  - Build workspace dependencies first (`vp run -t @memora/web#build`), or imports of `@memora/*` packages fail.
 
 ## Code style and conventions
 

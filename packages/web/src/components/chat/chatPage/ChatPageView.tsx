@@ -1,18 +1,36 @@
+import { lazy, Suspense, useCallback, useState } from "react";
 import { ConfirmDialog } from "@/components/desktop";
 import { MotionConfig, motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
-import { ToolWriteApprovalDialog } from "@/components/chat/ToolWriteApprovalDialog";
+import { ToolAccessDialog } from "@/components/chat/ToolAccessDialog";
+import { TabSelect } from "@/components/ui/TabSelect";
 import { ChatPageComposerPanel } from "./ChatPageComposerPanel";
 import { ChatPageHistoryDrawer } from "./ChatPageHistoryDrawer";
 import { ChatPageHistoryShell } from "./ChatPageHistoryShell";
 import { ChatPageMessagesPanel } from "./ChatPageMessagesPanel";
 import { CHAT_MASCOT_LAYOUT_ID } from "./layout";
 
+// Development builds only: production never loads the Trace tab.
+const ChatPageTracePanel = import.meta.env.DEV
+  ? lazy(() =>
+      import("./ChatPageTracePanel").then((module) => ({ default: module.ChatPageTracePanel })),
+    )
+  : null;
+
+const VIEW_OPTIONS = [
+  { value: "chat", label: "Chat" },
+  { value: "trace", label: "Trace" },
+] as const;
+
 const styles = stylex.create({
-  root: { display: "flex", height: "100%", minHeight: 0 },
+  // clip, not hidden: overflow must not let focus/scrollIntoView scroll the app shell's scrollArea.
+  root: { display: "flex", height: "100%", minHeight: 0, overflow: "clip" },
   main: { display: "flex", flex: 1, flexDirection: "column", minHeight: 0, minWidth: 0 },
+  views: { paddingInline: 16, paddingTop: 12 },
+  hidden: { display: "none" },
   content: { display: "flex", flex: 1, minHeight: 0, position: "relative" },
   scrollArea: { flex: 1, minHeight: 0, overflowY: "auto" },
+  messagesCompact: { paddingInline: 12, paddingTop: 16 },
   messages: {
     display: "flex",
     flexDirection: "column",
@@ -44,6 +62,7 @@ export const ChatPageView = (props: {
   isPreparingTurn: boolean;
   savingAttachmentIds: Set<string>;
   iterationLimitPrompt: Parameters<typeof ChatPageMessagesPanel>[0]["iterationLimitPrompt"];
+  recap: string | null;
   error: Error | null;
   messagesContentRef: React.RefObject<HTMLDivElement | null>;
   messagesScrollAreaRef: React.RefObject<HTMLDivElement | null>;
@@ -59,10 +78,8 @@ export const ChatPageView = (props: {
   onOpenSettings: (section?: string) => void;
   composerPanelProps: Omit<Parameters<typeof ChatPageComposerPanel>[0], "centered">;
   isHistoryDrawerOpen: boolean;
-  pendingWriteApproval: Parameters<typeof ToolWriteApprovalDialog>[0]["request"];
-  onAllowWriteOnce: () => void;
-  onAllowWriteForSession: () => void;
-  onDenyWrite: () => void;
+  pendingAccessRequest: Parameters<typeof ToolAccessDialog>[0]["request"];
+  onDecideAccess: Parameters<typeof ToolAccessDialog>[0]["onDecide"];
   pendingDeleteSessionId: string | null;
   onCreateSession: () => void;
   onSelectSession: (sessionId: string) => void;
@@ -71,6 +88,8 @@ export const ChatPageView = (props: {
   onConfirmDeleteSession: (sessionId: string) => void;
   onOpenHistoryDrawer: () => void;
   onCloseHistoryDrawer: () => void;
+  // "sidebar": a narrow chat without the history column, for the editor side panel.
+  variant?: "page" | "sidebar";
 }) => {
   const {
     sessions,
@@ -91,6 +110,7 @@ export const ChatPageView = (props: {
     isPreparingTurn,
     savingAttachmentIds,
     iterationLimitPrompt,
+    recap,
     error,
     messagesContentRef,
     messagesScrollAreaRef,
@@ -106,10 +126,8 @@ export const ChatPageView = (props: {
     onOpenSettings,
     composerPanelProps,
     isHistoryDrawerOpen,
-    pendingWriteApproval,
-    onAllowWriteOnce,
-    onAllowWriteForSession,
-    onDenyWrite,
+    pendingAccessRequest,
+    onDecideAccess,
     pendingDeleteSessionId,
     onCreateSession,
     onSelectSession,
@@ -118,27 +136,62 @@ export const ChatPageView = (props: {
     onConfirmDeleteSession,
     onOpenHistoryDrawer,
     onCloseHistoryDrawer,
+    variant = "page",
   } = props;
+  const isSidebar = variant === "sidebar";
+  const [view, setView] = useState<"chat" | "trace">("chat");
+  // The user message that started (or steered) the Run to open in the Trace tab.
+  const [traceInputId, setTraceInputId] = useState<string>();
+  const { messages } = composerPanelProps;
+  const handleViewChange = useCallback((next: "chat" | "trace") => {
+    setView(next);
+    setTraceInputId(undefined);
+  }, []);
+  const handleViewTrace = useCallback(
+    (assistantMessageId: string) => {
+      const index = messages.findIndex((message) => message.id === assistantMessageId);
+      setTraceInputId(messages.slice(0, index).findLast((message) => message.role === "user")?.id);
+      setView("trace");
+    },
+    [messages],
+  );
 
   return (
     <MotionConfig reducedMotion="user">
       <div {...stylex.props(styles.root)}>
-        <ChatPageHistoryShell
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          activeSessionTitle={activeSessionTitle}
-          isHistoryPanelBusy={isHistoryPanelBusy}
-          deletingSessionId={deletingSessionId}
-          sessionsReady={sessionsReady}
-          sessionsError={sessionsError}
-          onCreateSession={onCreateSession}
-          onSelectSession={onSelectSession}
-          onDeleteSession={onDeleteSession}
-          onOpenHistoryDrawer={onOpenHistoryDrawer}
-        />
+        {isSidebar ? null : (
+          <ChatPageHistoryShell
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            activeSessionTitle={activeSessionTitle}
+            isHistoryPanelBusy={isHistoryPanelBusy}
+            deletingSessionId={deletingSessionId}
+            sessionsReady={sessionsReady}
+            sessionsError={sessionsError}
+            onCreateSession={onCreateSession}
+            onSelectSession={onSelectSession}
+            onDeleteSession={onDeleteSession}
+            onOpenHistoryDrawer={onOpenHistoryDrawer}
+          />
+        )}
 
         <div {...stylex.props(styles.main)}>
-          <div {...stylex.props(styles.content)}>
+          {ChatPageTracePanel && !isSidebar ? (
+            <div {...stylex.props(styles.views)}>
+              <TabSelect
+                aria-label="Chat view"
+                value={view}
+                onValueChange={handleViewChange}
+                options={VIEW_OPTIONS}
+              />
+            </div>
+          ) : null}
+          {ChatPageTracePanel && view === "trace" && activeSessionId ? (
+            <Suspense fallback={null}>
+              <ChatPageTracePanel sessionId={activeSessionId} inputMessageId={traceInputId} />
+            </Suspense>
+          ) : null}
+          <div {...stylex.props(styles.content, view === "trace" && styles.hidden)}>
             {/* layoutScroll lets the mascot flight measure through the auto-scroll to the bottom. */}
             <motion.div
               layoutScroll
@@ -147,7 +200,7 @@ export const ChatPageView = (props: {
             >
               <div
                 ref={messagesContentRef}
-                {...stylex.props(styles.messages)}
+                {...stylex.props(styles.messages, isSidebar && styles.messagesCompact)}
                 style={{ paddingBottom: hasMessages ? composerScrollInset : 0 }}
               >
                 <ChatPageMessagesPanel
@@ -166,6 +219,7 @@ export const ChatPageView = (props: {
                   isPreparingTurn={isPreparingTurn}
                   savingAttachmentIds={savingAttachmentIds}
                   iterationLimitPrompt={iterationLimitPrompt}
+                  recap={recap}
                   error={error}
                   greetingTitle={greetingTitle}
                   isConfigured={isConfigured}
@@ -173,6 +227,7 @@ export const ChatPageView = (props: {
                   onSendWidgetPrompt={onSendWidgetPrompt}
                   onEditMessage={onEditMessage}
                   onRetryMessage={onRetryMessage}
+                  onViewTrace={ChatPageTracePanel ? handleViewTrace : undefined}
                   onToggleThinking={onToggleThinking}
                   onContinueAfterIterationLimit={onContinueAfterIterationLimit}
                   onDismissIterationLimitPrompt={onDismissIterationLimitPrompt}
@@ -187,7 +242,7 @@ export const ChatPageView = (props: {
       </div>
 
       <ChatPageHistoryDrawer
-        isOpen={isHistoryDrawerOpen}
+        isOpen={!isSidebar && isHistoryDrawerOpen}
         sessions={sessions}
         activeSessionId={activeSessionId}
         isHistoryPanelBusy={isHistoryPanelBusy}
@@ -199,12 +254,7 @@ export const ChatPageView = (props: {
         onClose={onCloseHistoryDrawer}
       />
 
-      <ToolWriteApprovalDialog
-        request={pendingWriteApproval}
-        onAllowOnce={onAllowWriteOnce}
-        onAllowSession={onAllowWriteForSession}
-        onDeny={onDenyWrite}
-      />
+      <ToolAccessDialog request={pendingAccessRequest} onDecide={onDecideAccess} />
 
       <ConfirmDialog
         isOpen={pendingDeleteSessionId !== null}

@@ -1,4 +1,15 @@
-import { createAgent, createInMemoryAdapter, type PersistenceAdapter } from "@memora/ai-core";
+import {
+  CACHE_TTL_MS,
+  COMPACTION_KEY,
+  COMPACTION_PARAMETERS,
+  type Agent,
+  type AgentMessage,
+  createAgent,
+  createInMemoryAdapter,
+  rebaseCompaction,
+  type CompactionState,
+  type PersistenceAdapter,
+} from "@memora/ai-core";
 import { createRemotePiRuntime } from "@memora/ai-provider-pi";
 import * as v from "valibot";
 import { createOpfsSessionPersistenceAdapter } from "@/lib/chat/opfsSessionPersistenceAdapter";
@@ -7,17 +18,30 @@ import {
   updateChatSession,
   deleteChatSession,
 } from "@/lib/chat/chatSessionStorage";
+import {
+  clearTraces,
+  deleteSessionTraces,
+  listTraceRuns,
+  readTraceText,
+} from "@/lib/chat/traceStorage";
+import { historyBeforeReplay } from "@/lib/agent-runtime/replayHistory";
 import { SessionRuntime, emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
+import { TraceRecorder, parseTrace, type AcceptedInput } from "@/lib/agent-runtime/traceRecorder";
 import type {
   AgentRequest,
   AgentResponse,
   AgentSubmission,
   SessionSnapshot,
 } from "@/lib/agent-runtime/protocol";
-import type { WriteApprovalDecision } from "@/lib/chat/tools/shared";
+import type { AccessRequest, AccessResult } from "@/lib/chat/permissions";
 
 const ports = new Map<MessagePort, Set<string>>();
 const hosts = new Set<MessagePort>();
+/**
+ * The tab that last submitted to each session. Its tools run there, so a background tab that the
+ * browser froze does not stall another tab's Run.
+ */
+const submitters = new Map<string, MessagePort>();
 const transientAdapters = new Map<string, PersistenceAdapter>();
 const sessions = new Map<string, Promise<SessionRuntime>>();
 const toolCalls = new Map<
@@ -32,9 +56,18 @@ const toolCalls = new Map<
   }
 >();
 const deletedSessions = new Set<string>();
-const commands = new Map<string, Promise<void>>();
-const approvals = new Map<string, { callId: string; sessionId: string }>();
-const allowedSessions = new Set<string>();
+const commands = new Map<string, Promise<unknown>>();
+/** Pending Access requests in arrival order; each session shows its oldest first. */
+const approvals = new Map<string, { callId: string; sessionId: string; request: AccessRequest }>();
+/** The Trace of each session's active Run; development builds only. */
+const traces = new Map<string, TraceRecorder>();
+/** Keyed by input message ID until a Trace records the input. */
+const acceptedInputs = new Map<string, AcceptedInput>();
+const takeAcceptedInput = (messageId: string): AcceptedInput | undefined => {
+  const input = acceptedInputs.get(messageId);
+  acceptedInputs.delete(messageId);
+  return input;
+};
 const post = (port: MessagePort, message: AgentResponse): void => port.postMessage(message);
 const running = new Set<string>();
 const postRunning = (port: MessagePort): void =>
@@ -63,7 +96,24 @@ const publish = (snapshot: SessionSnapshot): void => {
   }
 };
 const checkpointSessions = async (): Promise<void> => {
-  await Promise.all([...sessions.values()].map(async (session) => (await session).checkpoint()));
+  await Promise.all([
+    ...[...sessions.values()].map(async (session) => (await session).checkpoint()),
+    ...[...traces.values()].map((trace) => trace.flush()),
+  ]);
+};
+
+const publishApprovals = async (sessionId: string): Promise<void> => {
+  const runtime = await sessions.get(sessionId);
+  if (!runtime) return;
+  const queue = [...approvals]
+    .filter(([, approval]) => approval.sessionId === sessionId)
+    .map(([id, approval]) => ({ id, request: approval.request }));
+  runtime.snapshot = {
+    ...runtime.snapshot,
+    approvals: queue.length ? queue : undefined,
+    revision: runtime.snapshot.revision + 1,
+  };
+  publish(runtime.snapshot);
 };
 
 const finishTool = (callId: string, result?: unknown, error?: string): void => {
@@ -71,9 +121,45 @@ const finishTool = (callId: string, result?: unknown, error?: string): void => {
   if (!call) return;
   clearTimeout(call.timer);
   toolCalls.delete(callId);
-  for (const [id, approval] of approvals) if (approval.callId === callId) approvals.delete(id);
+  let dropped = false;
+  for (const [id, approval] of approvals)
+    if (approval.callId === callId) dropped = approvals.delete(id);
+  if (dropped) void publishApprovals(call.sessionId).catch(console.error);
   if (error) call.reject(new Error(error));
   else call.resolve(result);
+};
+
+/** The text of the user's Submissions in the Run, from its first through any steered later. */
+const runUserMessages = (snapshot: SessionSnapshot, submission: AgentSubmission): string[] => {
+  const start = snapshot.messages.findIndex((message) => message.id === submission.message.id);
+  if (start === -1) return [submission.message.content];
+  return snapshot.messages
+    .slice(start)
+    .filter((message) => message.role === "user")
+    .map((message) => message.content);
+};
+
+const recordAccessDecision = async (
+  callId: string,
+  request: AccessRequest,
+  result: AccessResult,
+): Promise<void> => {
+  const call = toolCalls.get(callId);
+  if (!call) return;
+  traces.get(call.sessionId)?.add({
+    type: "permission.decided",
+    tool: request.tool,
+    access: request.access,
+    target: request.target.kind,
+    allowed: result.allowed,
+    source: result.source,
+    ...(result.reason ? { reason: result.reason } : {}),
+  });
+  if (result.source !== "auto") return;
+  const runtime = await sessions.get(call.sessionId);
+  runtime?.noteRunningTool(
+    `${result.allowed ? "Allowed" : "Denied"} by Auto review${result.reason ? `: ${result.reason}` : ""}`,
+  );
 };
 
 const invokeTool = (
@@ -81,8 +167,13 @@ const invokeTool = (
   submission: AgentSubmission,
   name: string,
   args: unknown,
+  userMessages: string[],
 ): Promise<unknown> => {
-  const port = hosts.values().next().value as MessagePort | undefined;
+  const submitter = submitters.get(sessionId);
+  const port =
+    submitter && hosts.has(submitter)
+      ? submitter
+      : (hosts.values().next().value as MessagePort | undefined);
   if (!port)
     return Promise.reject(
       new Error("No connected workspace can execute tools. Reopen Memora and retry."),
@@ -102,8 +193,30 @@ const invokeTool = (
       name,
       args: args as Record<string, unknown>,
       scope: submission.scope,
+      ...(submission.permissionMode ? { permissionMode: submission.permissionMode } : {}),
+      userMessages,
     });
   });
+};
+
+/** Written before the provider cache expires, so the recap request is served mostly from cache. */
+const RECAP_DELAY_MS = CACHE_TTL_MS - 60_000;
+const recapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+const writeRecap = async (
+  runtime: SessionRuntime,
+  last: AgentSubmission,
+  createRunner: (submission: AgentSubmission) => Promise<Agent>,
+): Promise<void> => {
+  recapTimers.delete(runtime.snapshot.sessionId);
+  if (deletedSessions.has(runtime.snapshot.sessionId)) return;
+  if (runtime.snapshot.activeRunId || runtime.snapshot.pending.length) return;
+  try {
+    const text = await (await createRunner(last)).generateRecap();
+    if (text) await runtime.setRecap(text);
+  } catch (error) {
+    console.warn("Could not write a recap:", error);
+  }
 };
 
 const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRuntime> => {
@@ -128,9 +241,75 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
         "Execution was interrupted. Retry the message to continue. Queued messages were not executed.";
       snapshot.activeRunId = undefined;
       snapshot.activeMessageId = undefined;
-      snapshot.approval = undefined;
+      snapshot.approvals = undefined;
       snapshot.status = { type: "idle" };
     }
+    // A Run's agent is traced in development; the idle recap's agent never is.
+    const createRunner = async (submission: AgentSubmission, traced = false) => {
+      const adapter = memoryAdapter ?? createOpfsSessionPersistenceAdapter(sessionId);
+      const trace =
+        traced && import.meta.env.DEV
+          ? new TraceRecorder(sessionId, submission.id, takeAcceptedInput)
+          : undefined;
+      const memory =
+        memoryAdapter && submission.memory
+          ? { notices: submission.memory.notices.map((text) => ({ text })) }
+          : await adapter.load(`memora-chat:${sessionId}`, "memory");
+      const persistence: PersistenceAdapter = {
+        save: (agentId, key, value) => adapter.save(agentId, key, value),
+        remove: (agentId, key) => adapter.remove(agentId, key),
+        list: (agentId) => adapter.list(agentId),
+        grep: (agentId, pattern) => adapter.grep(agentId, pattern),
+        load: async <T>(agentId: string, key: string): Promise<T | null> =>
+          key === "memory" ? (structuredClone(memory) as T | null) : adapter.load<T>(agentId, key),
+      };
+      const model = createRemotePiRuntime(submission.provider);
+      const agent = createAgent({
+        config: submission.config,
+        ...model,
+        persistence,
+        ...(trace ? { trace: trace.trace } : {}),
+        ...(submission.compactionProvider
+          ? { compactionModel: createRemotePiRuntime(submission.compactionProvider) }
+          : {}),
+      });
+      for (const prompt of submission.prompts) agent.addPromptSegment(prompt);
+      for (const tool of submission.tools)
+        agent.registerTool({
+          type: "function",
+          name: tool.name,
+          description: tool.description,
+          parameters: v.unknown(),
+          jsonSchema: tool.parameters,
+          execute: (args) =>
+            invokeTool(
+              sessionId,
+              submission,
+              tool.name,
+              args,
+              runUserMessages(runtime.snapshot, submission),
+            ),
+        });
+      await agent.init();
+      if (trace) {
+        // Self-contained: the history as the Run starts resolves every message ID it references.
+        trace.add({
+          type: "run.started",
+          submissionId: submission.id,
+          submission: { ...takeAcceptedInput(submission.input.id), input: submission.input },
+          appVersion: __APP_VERSION__,
+          compactionParameters: COMPACTION_PARAMETERS,
+          // Left out when it cannot be read; tracing never fails the Run.
+          history: await Promise.resolve(
+            adapter.load<AgentMessage[]>(submission.config.id, "history"),
+          )
+            .then((history) => history ?? [])
+            .catch(() => undefined),
+        });
+        traces.set(sessionId, trace);
+      }
+      return agent;
+    };
     const runtime = new SessionRuntime({
       snapshot,
       publish,
@@ -147,33 +326,20 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
           agentStore: { ...session.agentStore, runtime: { snapshot: next } },
         }));
       },
-      createRunner: async (submission) => {
-        const adapter = memoryAdapter ?? createOpfsSessionPersistenceAdapter(sessionId);
-        const memory = await adapter.load(`memora-chat:${sessionId}`, "memory");
-        const persistence: PersistenceAdapter = {
-          save: (agentId, key, value) => adapter.save(agentId, key, value),
-          remove: (agentId, key) => adapter.remove(agentId, key),
-          list: (agentId) => adapter.list(agentId),
-          grep: (agentId, pattern) => adapter.grep(agentId, pattern),
-          load: async <T>(agentId: string, key: string): Promise<T | null> =>
-            key === "memory"
-              ? (structuredClone(memory) as T | null)
-              : adapter.load<T>(agentId, key),
-        };
-        const model = createRemotePiRuntime(submission.provider);
-        const agent = createAgent({ config: submission.config, ...model, persistence });
-        for (const prompt of submission.prompts) agent.addPromptSegment(prompt);
-        for (const tool of submission.tools)
-          agent.registerTool({
-            type: "function",
-            name: tool.name,
-            description: tool.description,
-            parameters: v.unknown(),
-            jsonSchema: tool.parameters,
-            execute: (args) => invokeTool(sessionId, submission, tool.name, args),
-          });
-        await agent.init();
-        return agent;
+      createRunner: (submission) => createRunner(submission, true),
+      onRunSettled: async (runId, settled) => {
+        const trace = traces.get(sessionId);
+        if (trace?.runId !== runId) return;
+        traces.delete(sessionId);
+        await trace.settle(settled.outcome ?? "failed", settled.error);
+      },
+      onIdle: (last) => {
+        if (memoryAdapter) return;
+        clearTimeout(recapTimers.get(sessionId));
+        recapTimers.set(
+          sessionId,
+          setTimeout(() => void writeRecap(runtime, last, createRunner), RECAP_DELAY_MS),
+        );
       },
     });
     if (snapshot.outcome === "interrupted") await runtime.checkpoint();
@@ -197,13 +363,15 @@ const cancelTools = (sessionId: string, runId?: string): void => {
   }
 };
 
-async function execute(port: MessagePort, request: AgentRequest): Promise<void> {
+async function execute(port: MessagePort, request: AgentRequest): Promise<unknown> {
   if (request.type === "host-ready") {
     hosts.add(port);
     return;
   }
   if (request.type === "disconnect") {
     hosts.delete(port);
+    for (const [sessionId, submitter] of submitters)
+      if (submitter === port) submitters.delete(sessionId);
     ports.get(port)?.clear();
     for (const [id, call] of toolCalls)
       if (call.port === port)
@@ -230,37 +398,46 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
   if (request.type === "request-approval") {
     const call = toolCalls.get(request.callId);
     if (!call || call.port !== port) return;
-    if (allowedSessions.has(call.sessionId)) {
-      post(port, { type: "approval-result", callId: request.callId, decision: "allow_session" });
-      return;
-    }
-    const runtime = await getSession(call.sessionId);
+    await getSession(call.sessionId);
     if (!toolCalls.has(request.callId)) return;
-    const id = crypto.randomUUID();
-    approvals.set(id, { callId: request.callId, sessionId: call.sessionId });
-    runtime.snapshot = {
-      ...runtime.snapshot,
-      approval: { id, request: request.request },
-      revision: runtime.snapshot.revision + 1,
-    };
-    publish(runtime.snapshot);
+    approvals.set(crypto.randomUUID(), {
+      callId: request.callId,
+      sessionId: call.sessionId,
+      request: request.request,
+    });
+    await publishApprovals(call.sessionId);
     return;
   }
+  if (request.type === "access-decided") {
+    if (toolCalls.get(request.callId)?.port === port)
+      await recordAccessDecision(request.callId, request.request, request.result);
+    return;
+  }
+  // Traces outlive in-memory sessions, so these never load or create a session.
+  if (request.type === "list-runs") return listTraceRuns(request.sessionId);
+  if (request.type === "read-trace")
+    return parseTrace(await readTraceText(request.sessionId, request.runId));
+  if (request.type === "export-trace") return readTraceText(request.sessionId, request.runId);
+  if (request.type === "clear-traces") return clearTraces();
   if (request.type === "unsubscribe") {
     ports.get(port)?.delete(request.sessionId);
     return;
   }
   if (deletedSessions.has(request.sessionId)) throw new Error("This session has been deleted.");
-  const runtime = await getSession(
-    request.sessionId,
-    "storage" in request ? request.storage : undefined,
-  );
+  const runtime = await getSession(request.sessionId, request.storage);
   switch (request.type) {
     case "subscribe":
       ports.get(port)?.add(request.sessionId);
       post(port, { type: "snapshot", snapshot: runtime.snapshot });
       break;
     case "submit":
+      submitters.set(request.sessionId, port);
+      if (import.meta.env.DEV)
+        acceptedInputs.set(request.submission.input.id, {
+          submissionId: request.submission.id,
+          mode: request.submission.mode,
+          acceptedAt: Date.now(),
+        });
       await runtime.submit(request.submission);
       break;
     case "abort":
@@ -272,56 +449,76 @@ async function execute(port: MessagePort, request: AgentRequest): Promise<void> 
       if (!approval || approval.sessionId !== request.sessionId) break;
       approvals.delete(request.approvalId);
       const call = toolCalls.get(approval.callId);
-      if (request.decision === "allow_session") allowedSessions.add(request.sessionId);
       if (call)
         post(call.port, {
           type: "approval-result",
           callId: approval.callId,
-          decision: request.decision as WriteApprovalDecision,
+          decision: request.decision,
         });
-      runtime.snapshot = {
-        ...runtime.snapshot,
-        approval: undefined,
-        revision: runtime.snapshot.revision + 1,
-      };
-      publish(runtime.snapshot);
+      await publishApprovals(request.sessionId);
       break;
     }
+    case "steer-pending":
+      await runtime.steerPending(request.submissionId);
+      break;
     case "patch-message":
       runtime.patchMessage(request.message);
       break;
-    case "reset":
+    case "reset": {
       if (runtime.snapshot.activeRunId || runtime.snapshot.pending.length)
         throw new Error("Stop the session and let queued messages finish before editing history.");
-      if (transientAdapters.has(request.sessionId)) {
-        await transientAdapters
-          .get(request.sessionId)
-          ?.save(`memora-chat:${request.sessionId}`, "history", request.history);
+      const agentKey = `memora-chat:${request.sessionId}`;
+      const transient = transientAdapters.get(request.sessionId);
+      if (transient) {
+        const history = historyBeforeReplay(await transient.load(agentKey, "history"), request);
+        await transient.save(agentKey, "history", history);
+        await transient.save(
+          agentKey,
+          COMPACTION_KEY,
+          rebaseCompaction(
+            await transient.load<CompactionState>(agentKey, COMPACTION_KEY),
+            history,
+          ),
+        );
       } else
-        await updateChatSession(request.sessionId, (session) => ({
-          ...session,
-          messages: request.messages,
-          agentStore: {
-            ...session.agentStore,
-            [`memora-chat:${request.sessionId}`]: {
-              ...session.agentStore[`memora-chat:${request.sessionId}`],
-              history: request.history,
+        await updateChatSession(request.sessionId, (session) => {
+          const store = session.agentStore[agentKey];
+          const history = historyBeforeReplay(store?.history, request);
+          return {
+            ...session,
+            messages: request.messages,
+            agentStore: {
+              ...session.agentStore,
+              [agentKey]: {
+                ...store,
+                history,
+                [COMPACTION_KEY]: rebaseCompaction(
+                  store?.[COMPACTION_KEY] as CompactionState | undefined,
+                  history,
+                ),
+              },
             },
-          },
-        }));
+          };
+        });
       runtime.replaceSnapshot({
         ...emptySessionSnapshot(request.sessionId, request.messages),
         revision: runtime.snapshot.revision + 1,
       });
       await runtime.checkpoint();
       break;
+    }
     case "delete":
       deletedSessions.add(request.sessionId);
+      submitters.delete(request.sessionId);
+      clearTimeout(recapTimers.get(request.sessionId));
+      recapTimers.delete(request.sessionId);
       cancelTools(request.sessionId);
       await runtime.stopAll();
       if (transientAdapters.has(request.sessionId)) transientAdapters.delete(request.sessionId);
-      else await deleteChatSession(request.sessionId);
-      allowedSessions.delete(request.sessionId);
+      else {
+        await deleteChatSession(request.sessionId);
+        await deleteSessionTraces(request.sessionId);
+      }
       sessions.delete(request.sessionId);
       if (running.delete(request.sessionId)) for (const port of ports.keys()) postRunning(port);
       break;
@@ -341,7 +538,12 @@ scope.onconnect = (event) => {
     const operation = previous.catch(() => {}).then(() => execute(port, request));
     if (sessionId) commands.set(sessionId, operation);
     void operation.then(
-      () => post(port, { type: "reply", requestId: request.requestId }),
+      (result) =>
+        post(port, {
+          type: "reply",
+          requestId: request.requestId,
+          ...(result === undefined ? {} : { result }),
+        }),
       (error: unknown) =>
         post(port, {
           type: "reply",

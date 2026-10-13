@@ -1,5 +1,6 @@
 import {
   BrainIcon,
+  ShieldCheckIcon,
   CaretDownIcon,
   CpuIcon,
   DatabaseIcon,
@@ -21,6 +22,7 @@ import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceS
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
 import { Button } from "@/components/ui/Button";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
+import SettingsPermissionsSection from "@/components/settings/SettingsPermissionsSection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
@@ -205,6 +207,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "model-routing": CpuIcon,
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
+  permissions: ShieldCheckIcon,
   indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
@@ -332,6 +335,10 @@ export default function SettingsDialog({
 
     if (activeSection === "memory") {
       return <SettingsMemorySection open={open} />;
+    }
+
+    if (activeSection === "permissions") {
+      return <SettingsPermissionsSection />;
     }
 
     if (activeSection === "indexing") {

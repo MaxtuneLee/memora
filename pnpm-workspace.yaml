@@ -20,6 +20,9 @@ catalog:
 overrides:
   vite: "catalog:"
 
+patchedDependencies:
+  "@lexical/markdown@0.44.0": patches/@lexical__markdown@0.44.0.patch
+
 peerDependencyRules:
   allowAny:
     - vite

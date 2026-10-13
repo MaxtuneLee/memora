@@ -187,7 +187,7 @@ export const buildGeneratedWidgetSrcDoc = (
   const writeData = window.MEMORA_HOME_WIDGET.writeData;
 
   const notifyResize = () => {
-    const height = Math.max(1, document.documentElement.scrollHeight, document.body.scrollHeight);
+    const height = Math.max(1, document.body.scrollHeight);
     window.parent.postMessage({ type: "${GENERATED_WIDGET_RESIZE_MESSAGE}", height }, "*");
   };
 

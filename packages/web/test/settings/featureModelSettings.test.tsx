@@ -101,6 +101,21 @@ test("session title defaults to following chat and can independently select clou
   });
 });
 
+test("permission review follows chat by default and can run on this device", async () => {
+  const user = userEvent.setup();
+  render(<FeatureModelSettings />);
+  const review = within(screen.getByRole("group", { name: "Permission review" }));
+  expect(review.getByRole("combobox", { name: "Execution" })).toHaveTextContent(
+    "Follow chat model",
+  );
+  await user.click(review.getByLabelText("Execution"));
+  await user.click(await screen.findByRole("option", { name: "On this device" }));
+  expect(state.setFeatureModel).toHaveBeenCalledWith("permissionReview", {
+    source: "local",
+    modelId: "qwen3.5-0.8b-onnx-opt",
+  });
+});
+
 test("failed model loading keeps the saved selection and offers retry", async () => {
   state.catalog.mockReturnValue({
     models: [],

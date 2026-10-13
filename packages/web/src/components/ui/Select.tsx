@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import * as stylex from "@stylexjs/stylex";
@@ -49,6 +49,21 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   icon: { color: tokens.textSoft, flexShrink: 0 },
+  iconTrigger: {
+    alignItems: "center",
+    borderRadius: 8,
+    color: tokens.textSoft,
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    outline: "none",
+    transition: "color 150ms, background-color 150ms",
+    width: 28,
+    ":hover": { backgroundColor: tokens.hover, color: tokens.textMuted },
+    ":focus-visible": { boxShadow: `0 0 0 1px ${tokens.focusRing}` },
+    "[data-popup-open]": { backgroundColor: tokens.hover, color: tokens.textMuted },
+  },
+  itemLabel: { alignItems: "center", display: "flex", gap: 8 },
   iconGlyph: { height: 16, width: 16 },
   positioner: { outline: "none", zIndex: 70 },
   itemDisabled: { cursor: "not-allowed", opacity: 0.5 },
@@ -66,6 +81,8 @@ export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  /** Shown before the label, and alone on an icon-only trigger. */
+  icon?: ReactNode;
 }
 
 export interface SelectProps {
@@ -78,7 +95,20 @@ export interface SelectProps {
   options: readonly SelectOption[];
   placeholder?: string;
   triggerClassName?: string;
+  "aria-label"?: string;
+  /** A small trigger that shows only the selected option's icon, for toolbars. */
+  iconOnly?: boolean;
 }
+
+const optionLabel = (option: SelectOption): ReactNode =>
+  option.icon ? (
+    <span {...stylex.props(styles.itemLabel)}>
+      {option.icon}
+      {option.label}
+    </span>
+  ) : (
+    option.label
+  );
 
 interface SelectLayout {
   openHeight: number;
@@ -108,6 +138,8 @@ export function Select({
   options,
   placeholder,
   triggerClassName,
+  "aria-label": ariaLabel,
+  iconOnly = false,
   ...props
 }: SelectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -216,7 +248,7 @@ export function Select({
                   data-selected={option.value === value ? "" : undefined}
                   className="select-item"
                 >
-                  <span>{option.label}</span>
+                  <span>{optionLabel(option)}</span>
                   <span className="select-item-indicator" aria-hidden="true">
                     <CheckIcon {...stylex.props(styles.iconGlyph)} weight="bold" />
                   </span>
@@ -237,18 +269,29 @@ export function Select({
         <BaseSelect.Trigger
           ref={setTriggerRef}
           id={id}
-          className={cn(stylex.props(styles.trigger).className, triggerClassName)}
+          aria-label={ariaLabel}
+          title={iconOnly ? options.find((option) => option.value === value)?.label : undefined}
+          className={cn(
+            stylex.props(iconOnly ? styles.iconTrigger : styles.trigger).className,
+            triggerClassName,
+          )}
         >
-          <BaseSelect.Value {...stylex.props(styles.value)}>
-            {(selectedValue) =>
-              options.find((option) => option.value === selectedValue)?.label ??
-              selectedValue ??
-              placeholder
-            }
-          </BaseSelect.Value>
-          <BaseSelect.Icon {...stylex.props(styles.icon)}>
-            <CaretDownIcon {...stylex.props(styles.iconGlyph)} />
-          </BaseSelect.Icon>
+          {iconOnly ? (
+            options.find((option) => option.value === value)?.icon
+          ) : (
+            <>
+              <BaseSelect.Value {...stylex.props(styles.value)}>
+                {(selectedValue) =>
+                  options.find((option) => option.value === selectedValue)?.label ??
+                  selectedValue ??
+                  placeholder
+                }
+              </BaseSelect.Value>
+              <BaseSelect.Icon {...stylex.props(styles.icon)}>
+                <CaretDownIcon {...stylex.props(styles.iconGlyph)} />
+              </BaseSelect.Icon>
+            </>
+          )}
         </BaseSelect.Trigger>
         <BaseSelect.Portal container={portalContainer ?? undefined}>
           <BaseSelect.Positioner
@@ -276,7 +319,7 @@ export function Select({
                         )}
                       >
                         <BaseSelect.ItemText className={stylex.props(styles.itemText).className}>
-                          {option.label}
+                          {optionLabel(option)}
                         </BaseSelect.ItemText>
                         <BaseSelect.ItemIndicator className="select-item-indicator">
                           <CheckIcon {...stylex.props(styles.iconGlyph)} weight="bold" />

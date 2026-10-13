@@ -57,6 +57,28 @@ const styles = stylex.create({
     paddingInline: 16,
   },
   attachments: { marginTop: 8 },
+  quote: {
+    borderLeft: `3px solid ${tokens.olive}`,
+    borderRadius: 8,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    marginBottom: 6,
+    paddingBlock: 4,
+    paddingInline: 10,
+  },
+  quoteLabel: { color: tokens.textMuted, fontSize: 11, fontWeight: 600 },
+  quoteText: {
+    color: tokens.textMuted,
+    display: "-webkit-box",
+    fontSize: 12,
+    lineHeight: "1.125rem",
+    overflow: "hidden",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 4,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  },
 });
 
 export function UserMessageContent({
@@ -113,6 +135,12 @@ export function UserMessageContent({
         </div>
       ) : (
         <>
+          {message.quote && (
+            <div {...stylex.props(styles.quote)} data-testid="chat-message-quote">
+              <span {...stylex.props(styles.quoteLabel)}>{message.quote.label}</span>
+              <span {...stylex.props(styles.quoteText)}>{message.quote.text}</span>
+            </div>
+          )}
           {message.content && <div {...stylex.props(styles.message)}>{message.content}</div>}
           {message.attachments && message.attachments.length > 0 && (
             <div {...stylex.props(message.content ? styles.attachments : null)}>

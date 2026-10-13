@@ -1,6 +1,7 @@
 import Chart from "chart.js/auto";
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 
+import { createLessonQuiz } from "@/lib/chat/lessonQuiz";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
@@ -48,6 +49,9 @@ export const useWidgetRuntime = ({
   const scriptElementsRef = useRef<HTMLScriptElement[]>([]);
   const cleanupRef = useRef<(() => void) | null>(null);
   const executedSignatureRef = useRef("");
+  // Read through refs so a new callback identity from the parent never re-runs the script.
+  const onSendPromptRef = useRef(onSendPrompt);
+  const onWriteDataRef = useRef(onWriteData);
   const latestDataRef = useRef<unknown>(undefined);
   const hasDataRef = useRef(false);
   const dataListenersRef = useRef<Array<(data: unknown) => void>>([]);
@@ -84,6 +88,11 @@ export const useWidgetRuntime = ({
     // the Home Grid shim's onData semantics).
     dataListenersRef.current = [];
   }, [iframeDocumentRef]);
+
+  useEffect(() => {
+    onSendPromptRef.current = onSendPrompt;
+    onWriteDataRef.current = onWriteData;
+  }, [onSendPrompt, onWriteData]);
 
   useEffect(() => {
     if (dataState?.status !== "ready") {
@@ -183,10 +192,11 @@ export const useWidgetRuntime = ({
     });
 
     const sendPrompt = (text: string) => {
-      if (!onSendPrompt) {
+      const send = onSendPromptRef.current;
+      if (!send) {
         return Promise.resolve();
       }
-      return Promise.resolve(onSendPrompt(text));
+      return Promise.resolve(send(text));
     };
 
     const openLink = (url: string) => {
@@ -222,6 +232,9 @@ export const useWidgetRuntime = ({
       if (!iframeWindow || !contentRef.current) {
         throw new Error("Widget iframe window is unavailable.");
       }
+      // Every run starts from the widget's own HTML, so a script that appends (a grid of
+      // cells, an event listener on an element) builds once instead of stacking on the last run.
+      contentRef.current.innerHTML = parsedCode.htmlRenderable;
 
       iframeWindow[WIDGET_BRIDGE_KEY] = {
         Chart,
@@ -235,11 +248,15 @@ export const useWidgetRuntime = ({
             callback(latestDataRef.current);
           }
         },
+        lesson: {
+          quiz: (mount, options) => createLessonQuiz(mount, options, sendPrompt),
+        },
         writeData: async (name, content) => {
-          if (!onWriteData) {
+          const write = onWriteDataRef.current;
+          if (!write) {
             throw new Error("This widget cannot write data.");
           }
-          const result = await onWriteData(String(name ?? ""), String(content ?? ""));
+          const result = await write(String(name ?? ""), String(content ?? ""));
           if (!result.ok) {
             throw new Error(result.error);
           }
@@ -295,6 +312,7 @@ export const useWidgetRuntime = ({
   const getData = bridge.getData;
   const onData = bridge.onData;
   const writeData = bridge.writeData;
+  const lesson = bridge.lesson;
 
   try {
     const cleanup = (() => {
@@ -355,18 +373,13 @@ ${script.content}
       handleRuntimeError(error);
     }
 
-    return () => {
-      if (executedSignatureRef.current === signature) {
-        teardownWidgetScript();
-      }
-    };
+    // No teardown here: a phase or prop change must not re-run the script. A code change
+    // tears down above before running the new code, and unmount tears down below.
   }, [
     contentRef,
     executionSignature,
     iframeDocumentRef,
     iframeReady,
-    onSendPrompt,
-    onWriteData,
     parsedCode,
     syncIframeHeight,
     teardownWidgetScript,

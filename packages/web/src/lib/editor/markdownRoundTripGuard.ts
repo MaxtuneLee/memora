@@ -1,6 +1,8 @@
 import { createEditor } from "lexical";
 
 import {
+  RAW_MARKDOWN_END,
+  RAW_MARKDOWN_START,
   WYSIWYG_NODES,
   exportWysiwygMarkdown,
   importWysiwygMarkdown,
@@ -30,8 +32,65 @@ export const normalizeMarkdownRoundTripText = (text: string): string => {
   return stripSingleTrailingNewline(text.replace(LINE_ENDING_PATTERN, "\n"));
 };
 
+interface ContentLine {
+  /** Whether a blank line separates this line from the previous non-blank line. */
+  blankBefore: boolean;
+  /** 1-based line number in the text. */
+  line: number;
+  text: string;
+}
+
+const toContentLines = (text: string): ContentLine[] => {
+  const lines: ContentLine[] = [];
+  let blank = false;
+  for (const [index, line] of normalizeMarkdownRoundTripText(text).split("\n").entries()) {
+    if (line.trim() === "") {
+      blank = true;
+      continue;
+    }
+    lines.push({ blankBefore: blank && lines.length > 0, line: index + 1, text: line });
+    blank = false;
+  }
+  return lines;
+};
+
+// Lines that start a block even right after a paragraph line, and lines that end their block.
+const BLOCK_START_REGEXP = /^(\s*(#{1,6}(\s|$)|[-*+]\s|\d+[.)]\s|>|`{3,}|~{3,}|\|)|\$\$)/;
+const BLOCK_END_REGEXP =
+  /^\s*(#{1,6}(\s|$)|`{3,}\s*$|~{3,}\s*$|([-*_])(\s*\3){2,}\s*$|\$\$\s*$)|^\$\$.*\$\$\s*$/;
+
+const isBlockBoundary = (previous: string, next: string): boolean => {
+  return BLOCK_END_REGEXP.test(previous) || BLOCK_START_REGEXP.test(next);
+};
+
+/**
+ * Lines of `before` where `after` adds or removes the blank line in front of them inside a
+ * block, splitting a paragraph or joining two. Blank lines at block boundaries, such as after a
+ * heading or before a list, do not change the rendered note. Returns null when the non-blank
+ * lines themselves differ.
+ */
+export const findParagraphBreakChanges = (before: string, after: string): ContentLine[] | null => {
+  const beforeLines = toContentLines(before);
+  const afterLines = toContentLines(after);
+  if (
+    beforeLines.length !== afterLines.length ||
+    beforeLines.some((line, index) => line.text !== afterLines[index]?.text)
+  ) {
+    return null;
+  }
+  return beforeLines.filter((line, index) => {
+    const previous = beforeLines[index - 1];
+    return (
+      previous !== undefined &&
+      line.blankBefore !== afterLines[index]?.blankBefore &&
+      !isBlockBoundary(previous.text, line.text)
+    );
+  });
+};
+
+/** Whether converting `before` to `after` keeps every line and paragraph of the note. */
 export const isMarkdownRoundTripSafe = (before: string, after: string): boolean => {
-  return normalizeMarkdownRoundTripText(before) === normalizeMarkdownRoundTripText(after);
+  return findParagraphBreakChanges(before, after)?.length === 0;
 };
 
 export interface MarkdownSafetyDiagnostic {
@@ -346,7 +405,16 @@ export const createMarkdownSafetyDiagnostics = (
 };
 
 export type MarkdownPreflightResult =
-  | { safe: true; roundTrippedText: string }
+  | {
+      safe: true;
+      roundTrippedText: string;
+      /**
+       * The Markdown to load into Preview when some blocks are kept as editable source, with
+       * those blocks marked. The diagnostics say why each one could not be converted.
+       */
+      importMarkdown?: string;
+      diagnostics?: readonly MarkdownSafetyDiagnostic[];
+    }
   | {
       safe: false;
       reason: "content-changed" | "conversion-error";
@@ -374,32 +442,199 @@ const convertMarkdownWithProductionRegistry: MarkdownWysiwygConverter = (markdow
   return exportWysiwygMarkdown(editor.getEditorState());
 };
 
+interface LineRange {
+  end: number;
+  start: number;
+}
+
+const CODE_FENCE_OPEN_REGEXP = /^(`{3,}|~{3,})/;
+
+/**
+ * Splits Markdown into blocks separated by blank lines, 0-based [start, end) line ranges. Fenced
+ * code and $$ math stay in one block even when they contain blank lines.
+ */
+export const splitMarkdownBlocks = (lines: readonly string[]): LineRange[] => {
+  const blocks: LineRange[] = [];
+  let start = -1;
+  let fenceClose: RegExp | null = null;
+
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (fenceClose) {
+      if (fenceClose.test(trimmed)) {
+        fenceClose = null;
+      }
+      continue;
+    }
+    if (trimmed === "") {
+      if (start !== -1) {
+        blocks.push({ end: index, start });
+        start = -1;
+      }
+      continue;
+    }
+    if (start === -1) {
+      start = index;
+    }
+
+    const codeFence = trimmed.match(CODE_FENCE_OPEN_REGEXP)?.[1];
+    if (codeFence) {
+      fenceClose = new RegExp(`^${codeFence[0] === "`" ? "`" : "~"}{${codeFence.length},}\\s*$`);
+    } else if (trimmed.startsWith("$$") && !trimmed.slice(2).includes("$$")) {
+      fenceClose = /\$\$\s*$/;
+    }
+  }
+
+  if (start !== -1) {
+    blocks.push({ end: lines.length, start });
+  }
+  return blocks;
+};
+
+const LINE_BREAKS_ONLY_REGEXP = /^[\r\n]*$/;
+
+/**
+ * Lays the converted lines out on the original's blank lines, so a blank line the converter added
+ * or dropped does not shift every later line in the line diff.
+ */
+const alignToOriginalBlankLines = (original: string, converted: string): string => {
+  const convertedLines = converted.split("\n").filter((line) => line.trim() !== "");
+  let next = 0;
+  const aligned = original
+    .split("\n")
+    .map((line) => (line.trim() === "" ? "" : (convertedLines[next++] ?? "")));
+  return [...aligned, ...convertedLines.slice(next)].join("\n");
+};
+
+// Blank lines count only where they split or join a paragraph; other changes count as found.
+const createContentDiagnostics = (
+  original: string,
+  roundTrippedText: string,
+): MarkdownSafetyDiagnostic[] => {
+  const converted = stripSingleTrailingLineEnding(roundTrippedText);
+  const paragraphBreaks = findParagraphBreakChanges(original, converted);
+  if (paragraphBreaks) {
+    const lines = splitMarkdownLines(original);
+    return paragraphBreaks.map(({ blankBefore, line, text }) => {
+      const from = lines[line - 1]?.start ?? 0;
+      return {
+        column: 1,
+        from,
+        line,
+        message: blankBefore
+          ? `Line ${line}: the blank line before it would be removed, joining it to the paragraph above.`
+          : `Line ${line}: a blank line would be added before it, splitting the paragraph.`,
+        replacementText: blankBefore ? text : `\n${text}`,
+        sourceText: text,
+        to: from + text.length,
+      };
+    });
+  }
+  return createMarkdownSafetyDiagnostics(
+    original,
+    alignToOriginalBlankLines(original, converted),
+  ).filter(
+    (diagnostic) =>
+      !LINE_BREAKS_ONLY_REGEXP.test(diagnostic.sourceText) ||
+      !LINE_BREAKS_ONLY_REGEXP.test(diagnostic.replacementText),
+  );
+};
+
+// Each pass keeps more blocks as source; a few passes cover notes where one fix exposes another.
+const MAX_RAW_BLOCK_PASSES = 6;
+
+const markRawBlocks = (
+  lines: readonly string[],
+  blocks: readonly LineRange[],
+  rawBlocks: ReadonlySet<LineRange>,
+): string => {
+  const output: string[] = [];
+  let lineIndex = 0;
+  for (const block of blocks) {
+    output.push(...lines.slice(lineIndex, block.start));
+    const blockLines = lines.slice(block.start, block.end);
+    output.push(
+      ...(rawBlocks.has(block)
+        ? [RAW_MARKDOWN_START, ...blockLines, RAW_MARKDOWN_END]
+        : blockLines),
+    );
+    lineIndex = block.end;
+  }
+  output.push(...lines.slice(lineIndex));
+  return output.join("\n");
+};
+
+// The blocks a diagnostic touches; one on a blank line touches the blocks on either side.
+const findDiagnosticBlocks = (
+  blocks: readonly LineRange[],
+  diagnostic: MarkdownSafetyDiagnostic,
+): LineRange[] => {
+  const lineIndex = diagnostic.line - 1;
+  const containing = blocks.find((block) => block.start <= lineIndex && lineIndex < block.end);
+  if (containing) {
+    return [containing];
+  }
+  const before = blocks.findLast((block) => block.end <= lineIndex);
+  const after = blocks.find((block) => block.start > lineIndex);
+  return [before, after].filter((block): block is LineRange => block !== undefined);
+};
+
 export const preflightMarkdownForWysiwyg = (
   markdown: string,
   convertMarkdown: MarkdownWysiwygConverter = convertMarkdownWithProductionRegistry,
 ): MarkdownPreflightResult => {
+  let roundTrippedText: string;
   try {
-    const roundTrippedText = convertMarkdown(markdown);
-    if (isMarkdownRoundTripSafe(markdown, roundTrippedText)) {
-      return {
-        roundTrippedText,
-        safe: true,
-      };
+    roundTrippedText = convertMarkdown(markdown);
+  } catch {
+    return { reason: "conversion-error", safe: false };
+  }
+  if (isMarkdownRoundTripSafe(markdown, roundTrippedText)) {
+    return { roundTrippedText, safe: true };
+  }
+
+  const original = stripSingleTrailingLineEnding(markdown);
+  const diagnostics = createContentDiagnostics(original, roundTrippedText);
+  const unsafe: MarkdownPreflightResult = {
+    diagnostics,
+    reason: "content-changed",
+    roundTrippedText,
+    safe: false,
+  };
+
+  // Keep the blocks that change as editable source and convert the rest.
+  const lines = markdown.split("\n");
+  const blocks = splitMarkdownBlocks(lines);
+  const rawBlocks = new Set<LineRange>();
+  let passDiagnostics = diagnostics;
+  for (let pass = 0; pass < MAX_RAW_BLOCK_PASSES; pass += 1) {
+    const sizeBefore = rawBlocks.size;
+    for (const diagnostic of passDiagnostics) {
+      for (const block of findDiagnosticBlocks(blocks, diagnostic)) {
+        rawBlocks.add(block);
+      }
+    }
+    if (rawBlocks.size === sizeBefore) {
+      return unsafe;
     }
 
-    return {
-      diagnostics: createMarkdownSafetyDiagnostics(
-        stripSingleTrailingLineEnding(markdown),
-        stripSingleTrailingLineEnding(roundTrippedText),
-      ),
-      reason: "content-changed",
-      roundTrippedText,
-      safe: false,
-    };
-  } catch {
-    return {
-      reason: "conversion-error",
-      safe: false,
-    };
+    const importMarkdown = markRawBlocks(lines, blocks, rawBlocks);
+    let markedRoundTrip: string;
+    try {
+      markedRoundTrip = convertMarkdown(importMarkdown);
+    } catch {
+      return unsafe;
+    }
+    if (isMarkdownRoundTripSafe(markdown, markedRoundTrip)) {
+      return { diagnostics, importMarkdown, roundTrippedText: markedRoundTrip, safe: true };
+    }
+    passDiagnostics = createContentDiagnostics(original, markedRoundTrip);
   }
+  return unsafe;
+};
+
+/** The Markdown to load into Preview: the note itself, or with unconvertible blocks marked. */
+export const prepareMarkdownForWysiwyg = (markdown: string): string => {
+  const result = preflightMarkdownForWysiwyg(markdown);
+  return result.safe ? (result.importMarkdown ?? markdown) : markdown;
 };

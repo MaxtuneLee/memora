@@ -1,5 +1,6 @@
 import type { Agent, AgentEvent, AgentMessage } from "@memora/ai-core";
 import type { ChatMessage } from "@/hooks/chat/useAgent/types";
+import { fileCardFromToolResult } from "@/lib/chat/chatFileCards";
 import {
   parsePartialShowWidgetArguments,
   sanitizeShowWidgetArguments,
@@ -17,6 +18,10 @@ export interface SessionRuntimeOptions {
   createRunner: (submission: AgentSubmission) => Promise<SessionRunner>;
   save: (snapshot: SessionSnapshot) => Promise<void>;
   publish: (snapshot: SessionSnapshot) => void;
+  /** Called when the queue has drained, with the submission that ran last. */
+  onIdle?: (lastSubmission: AgentSubmission) => void;
+  /** Called once per Run with its terminal outcome, before the session goes idle. */
+  onRunSettled?: (runId: string, snapshot: SessionSnapshot) => Promise<void>;
 }
 
 /** One owner serializes each session; different instances run independently. */
@@ -31,6 +36,8 @@ export class SessionRuntime {
   private stopped = false;
   private writes: Promise<void> = Promise.resolve();
   private rawWidgetArgs = new Map<string, string>();
+  /** A tool call ended the model turn; the next turn's text starts a new paragraph. */
+  private turnEnded = false;
   private saveTimer?: ReturnType<typeof setTimeout>;
   private publishTimer?: ReturnType<typeof setTimeout>;
   private idleWaiters: Array<() => void> = [];
@@ -85,26 +92,10 @@ export class SessionRuntime {
     if (this.accepted.has(submission.id)) return;
     this.accepted.add(submission.id);
     this.snapshot.acceptedSubmissionIds = [...this.accepted];
-    const steerWhileStarting =
-      submission.mode === "steer" &&
-      this.draining &&
-      Boolean(this.snapshot.activeRunId) &&
-      !this.runner &&
-      !this.stopped;
-    if (
-      submission.mode === "steer" &&
-      (steerWhileStarting || this.runner?.steer(submission.input))
-    ) {
-      if (steerWhileStarting) this.startingSteering.push(submission.input);
-      this.steering.set(submission.input.id, submission);
-      this.snapshot.messages = [...this.snapshot.messages, submission.message];
-    } else {
+    this.snapshot.recap = undefined;
+    if (submission.mode !== "steer" || !this.trySteer(submission)) {
       this.queue.push(submission);
-      this.snapshot.pending = this.queue.map((item) => ({
-        id: item.id,
-        text: item.message.content,
-        message: item.message,
-      }));
+      this.syncPending();
     }
     this.publish();
     // Save receipt before execution. Credentials and runtime configuration are never saved.
@@ -115,6 +106,44 @@ export class SessionRuntime {
       throw error;
     }
     void this.drain();
+  }
+
+  /** Show a recap written while idle, unless work started in the meantime. */
+  async setRecap(text: string): Promise<void> {
+    if (this.snapshot.activeRunId || this.queue.length) return;
+    this.snapshot.recap = text;
+    this.publish();
+    await this.checkpoint();
+  }
+
+  /** Move a queued message into the running task as a steer. Returns false when none runs. */
+  async steerPending(submissionId: string): Promise<boolean> {
+    const index = this.queue.findIndex((item) => item.id === submissionId);
+    const item = this.queue[index];
+    if (!item || !this.trySteer({ ...item, mode: "steer" })) return false;
+    this.queue.splice(index, 1);
+    this.syncPending();
+    this.publish();
+    await this.checkpoint();
+    return true;
+  }
+
+  private trySteer(submission: AgentSubmission): boolean {
+    const whileStarting =
+      this.draining && Boolean(this.snapshot.activeRunId) && !this.runner && !this.stopped;
+    if (!whileStarting && !this.runner?.steer(submission.input)) return false;
+    if (whileStarting) this.startingSteering.push(submission.input);
+    this.steering.set(submission.input.id, submission);
+    this.snapshot.messages = [...this.snapshot.messages, submission.message];
+    return true;
+  }
+
+  private syncPending(): void {
+    this.snapshot.pending = this.queue.map((item) => ({
+      id: item.id,
+      text: item.message.content,
+      message: item.message,
+    }));
   }
 
   abort(runId: string): void {
@@ -141,6 +170,34 @@ export class SessionRuntime {
     this.changed();
   }
 
+  /** Adds a line under the tool call that is running, such as an Auto review decision. */
+  noteRunningTool(text: string): void {
+    const step = this.snapshot.thinkingSteps.findLast(
+      (item) => item.type === "tool-call" && item.status === "in_progress",
+    );
+    if (!step) return;
+    const note = {
+      id: crypto.randomUUID(),
+      type: "output-item" as const,
+      text,
+      status: "done" as const,
+    };
+    this.snapshot.thinkingSteps = this.snapshot.thinkingSteps.map((item) =>
+      item === step ? { ...item, children: [...(item.children ?? []), note] } : item,
+    );
+    this.updateAssistant((message) => ({ ...message, thinkingSteps: this.snapshot.thinkingSteps }));
+    this.changed();
+  }
+
+  /**
+   * Each model turn's text is appended to one reply. Without a break, a sentence written before a
+   * tool call runs into the next turn's first line ("Let me read it.## Your notes").
+   */
+  private turnBreak(content: string): string {
+    if (!this.turnEnded || !content || content.endsWith("\n\n")) return "";
+    return content.endsWith("\n") ? "\n" : "\n\n";
+  }
+
   private updateAssistant(update: (message: ChatMessage) => ChatMessage): void {
     this.snapshot.messages = this.snapshot.messages.map((message) =>
       message.id === this.snapshot.activeMessageId ? update(message) : message,
@@ -152,7 +209,11 @@ export class SessionRuntime {
       case "text-delta":
         this.snapshot.status = { type: "generating" };
         this.snapshot.thinkingCollapsed = true;
-        this.updateAssistant((message) => ({ ...message, content: message.content + event.delta }));
+        this.updateAssistant((message) => ({
+          ...message,
+          content: message.content + this.turnBreak(message.content) + event.delta,
+        }));
+        this.turnEnded = false;
         break;
       case "reasoning-delta": {
         const steps = this.snapshot.thinkingSteps;
@@ -179,6 +240,7 @@ export class SessionRuntime {
         );
         break;
       case "tool-call-start":
+        this.turnEnded = true;
         this.snapshot.status = { type: "tool-calling", toolName: event.toolCall.name };
         this.snapshot.thinkingSteps = [
           ...this.snapshot.thinkingSteps,
@@ -210,6 +272,16 @@ export class SessionRuntime {
         this.snapshot.thinkingSteps = this.snapshot.thinkingSteps.map((step) =>
           step.id === event.toolCall.id ? { ...step, status: "done" } : step,
         );
+        const fileCard = fileCardFromToolResult(event.toolCall.name, event.result);
+        if (fileCard) {
+          // One card per file; a later edit of a file this reply created keeps "created".
+          this.updateAssistant((message) => ({
+            ...message,
+            files: message.files?.some((item) => item.fileId === fileCard.fileId)
+              ? message.files
+              : [...(message.files ?? []), fileCard],
+          }));
+        }
         if (event.toolCall.name === "show_widget") {
           this.updateAssistant((message) => ({
             ...message,
@@ -225,14 +297,43 @@ export class SessionRuntime {
           }));
         }
         break;
+      case "steer-consumed": {
+        // The reply so far ends at the steer; what the model writes next is a new reply below
+        // it. A reply with nothing in it yet moves below the steer instead of staying empty.
+        const current = this.snapshot.messages.find(
+          (message) => message.id === this.snapshot.activeMessageId,
+        );
+        const empty =
+          current && !current.content && !current.thinkingSteps?.length && !current.widgets?.length;
+        if (!empty)
+          this.updateAssistant((message) => ({
+            ...message,
+            thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),
+          }));
+        const next: ChatMessage = empty
+          ? current
+          : { id: crypto.randomUUID(), role: "assistant", content: "" };
+        this.snapshot.messages = [
+          ...this.snapshot.messages.filter((message) => message.id !== next.id),
+          next,
+        ];
+        this.snapshot.activeMessageId = next.id;
+        this.snapshot.thinkingSteps = [];
+        this.snapshot.thinkingCollapsed = false;
+        this.snapshot.status = { type: "thinking" };
+        break;
+      }
       case "done":
+        // The done message holds only the last model turn; text streamed before earlier tool
+        // calls is already in the reply, so the done text only fills a reply that never streamed.
         this.updateAssistant((message) => ({
           ...message,
           content:
+            message.content ||
             event.message.content
               .filter((item) => item.type === "text")
               .map((item) => item.text)
-              .join("") || message.content,
+              .join(""),
         }));
         break;
       case "usage":
@@ -266,6 +367,8 @@ export class SessionRuntime {
   ): void {
     if (!args) return;
     this.updateAssistant((message) => {
+      const widgets = message.widgets ?? [];
+      const existing = widgets.find((item) => item.toolCallId === id);
       const widget = {
         toolCallId: id,
         title: args.title ?? "",
@@ -275,11 +378,13 @@ export class SessionRuntime {
         ...(args.data_source ? { dataSourceName: args.data_source } : {}),
         ...(args.data_source_params ? { dataSourceParams: args.data_source_params } : {}),
         ...(args.data_files ? { dataFiles: args.data_files } : {}),
+        // Anchor a new widget where the reply text stood when it was called, so it renders at
+        // that point in the text; streamed updates keep the first anchor.
+        contentOffset: existing?.contentOffset ?? message.content.length,
       };
-      const widgets = message.widgets ?? [];
       return {
         ...message,
-        widgets: widgets.some((item) => item.toolCallId === id)
+        widgets: existing
           ? widgets.map((item) => (item.toolCallId === id ? widget : item))
           : [...widgets, widget],
       };
@@ -289,10 +394,12 @@ export class SessionRuntime {
   private async drain(): Promise<void> {
     if (this.draining) return;
     this.draining = true;
+    let last: AgentSubmission | undefined;
     try {
       while (this.queue.length) {
         const submission = this.queue.shift();
         if (!submission) break;
+        last = submission;
         this.stopped = false;
         this.snapshot = {
           ...this.snapshot,
@@ -317,6 +424,7 @@ export class SessionRuntime {
           { id: this.snapshot.activeMessageId!, role: "assistant", content: "" },
         ];
         this.rawWidgetArgs.clear();
+        this.turnEnded = false;
         this.publish();
         try {
           await this.checkpoint();
@@ -350,19 +458,16 @@ export class SessionRuntime {
           );
           this.steering.clear();
           this.runner = undefined;
+          await this.options.onRunSettled?.(submission.id, this.snapshot);
           this.updateAssistant((message) => ({
             ...message,
             thinkingSteps: this.snapshot.thinkingSteps.map((step) => ({ ...step, status: "done" })),
           }));
           this.snapshot.activeRunId = undefined;
           this.snapshot.activeMessageId = undefined;
-          this.snapshot.approval = undefined;
+          this.snapshot.approvals = undefined;
           this.snapshot.status = { type: "idle" };
-          this.snapshot.pending = this.queue.map((item) => ({
-            id: item.id,
-            text: item.message.content,
-            message: item.message,
-          }));
+          this.syncPending();
           this.publish();
           await this.checkpoint();
         }
@@ -372,6 +477,7 @@ export class SessionRuntime {
     } finally {
       this.draining = false;
       for (const resolve of this.idleWaiters.splice(0)) resolve();
+      if (last) this.options.onIdle?.(last);
     }
   }
 }

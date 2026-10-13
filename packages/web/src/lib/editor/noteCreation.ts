@@ -36,6 +36,8 @@ export interface CreateNewMarkdownNoteInput {
   files: readonly Pick<FileMeta, "id" | "name" | "parentId">[];
   folders: readonly WorkspaceFolderLike[];
   initialContent?: string;
+  /** Preferred file name; ".md" is added and a number appended if the name is taken. */
+  name?: string;
 }
 
 export interface CreateNewMarkdownNoteResult {
@@ -136,12 +138,13 @@ export const createNewMarkdownNote = async ({
   files,
   folders,
   initialContent = "",
+  name: preferredName = DEFAULT_NOTE_NAME,
 }: CreateNewMarkdownNoteInput): Promise<CreateNewMarkdownNoteResult> => {
   const destination = resolveDestination({ settings, folders });
   const name = buildUniqueName({
     files,
     parentId: destination.parentId,
-    preferredName: DEFAULT_NOTE_NAME,
+    preferredName,
   });
   const result = await saveFileToOpfs({
     blob: new Blob([initialContent], { type: MARKDOWN_MIME_TYPE }),

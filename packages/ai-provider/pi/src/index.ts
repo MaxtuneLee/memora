@@ -16,6 +16,8 @@ import {
   type StreamOptions,
   type TranscriptContext,
 } from "@earendil-works/pi-ai";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
+import { googleGenerativeAIApi } from "@earendil-works/pi-ai/api/google-generative-ai.lazy";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
 import type { ModelStream as MemoraModelStream } from "@memora/ai-core";
@@ -49,12 +51,30 @@ export interface PiModelRuntime {
   stream: MemoraModelStream;
 }
 
+export type RemoteApiFormat = "chat-completions" | "responses" | "anthropic-messages" | "gemini";
+
+const REMOTE_APIS: Record<RemoteApiFormat, { api: Api; streams: () => ProviderStreams }> = {
+  "chat-completions": { api: "openai-completions", streams: openAICompletionsApi },
+  responses: { api: "openai-responses", streams: openAIResponsesApi },
+  "anthropic-messages": { api: "anthropic-messages", streams: anthropicMessagesApi },
+  gemini: { api: "google-generative-ai", streams: googleGenerativeAIApi },
+};
+
+// Anthropic's SDK adds /v1 itself; the OpenAI and Gemini clients expect the version in the base URL.
+// ponytail: only a bare origin gets a version, any other path is kept as the provider documents it.
+const normalizeRemoteBaseUrl = (value: string, apiFormat: RemoteApiFormat): string => {
+  const baseUrl = value.trim().replace(/\/+$/, "");
+  if (apiFormat === "anthropic-messages") return baseUrl.replace(/\/v1$/, "");
+  if (!URL.canParse(baseUrl) || new URL(baseUrl).pathname !== "/") return baseUrl;
+  return `${baseUrl}${apiFormat === "gemini" ? "/v1beta" : "/v1"}`;
+};
+
 export interface RemotePiProviderConfig {
   id: string;
   name: string;
   baseUrl: string;
   apiKey?: string;
-  apiFormat: "chat-completions" | "responses";
+  apiFormat: RemoteApiFormat;
   models: ModelCatalogEntry[];
   selectedModelId: string;
   onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void;
@@ -75,10 +95,9 @@ const toRemoteModel = (
   model: ModelCatalogEntry,
   provider: Pick<RemotePiProviderConfig, "id" | "baseUrl" | "apiFormat">,
 ): Model<Api> => {
-  const api = provider.apiFormat === "responses" ? "openai-responses" : "openai-completions";
   return {
     ...model,
-    api,
+    api: REMOTE_APIS[provider.apiFormat].api,
     provider: provider.id,
     baseUrl: provider.baseUrl,
   } as Model<Api>;
@@ -92,7 +111,7 @@ const createKeylessAuth = (name: string) => ({
 });
 
 export const createRemotePiRuntime = (config: RemotePiProviderConfig): PiModelRuntime => {
-  const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
+  const baseUrl = normalizeRemoteBaseUrl(config.baseUrl, config.apiFormat);
   if (!baseUrl) {
     throw new Error("Missing provider base URL.");
   }
@@ -103,8 +122,7 @@ export const createRemotePiRuntime = (config: RemotePiProviderConfig): PiModelRu
     throw new Error(`Model "${config.selectedModelId}" is not registered for ${config.name}.`);
   }
 
-  const api: ProviderStreams =
-    config.apiFormat === "responses" ? openAIResponsesApi() : openAICompletionsApi();
+  const api = REMOTE_APIS[config.apiFormat].streams();
   const collection = createModels();
   collection.setProvider(
     createProvider({

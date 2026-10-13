@@ -29,7 +29,7 @@ export const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
 export const OPTIONAL_MODULE_SUPPLEMENTS: Record<ShowWidgetModule, string[]> = {
   art: ["guidelines/art_interactive.md"],
   mockup: [],
-  interactive: [],
+  interactive: ["guidelines/lesson.md"],
   chart: ["guidelines/chart_interactive.md"],
   diagram: [],
 };
@@ -59,6 +59,8 @@ export interface ChatWidget {
   dataSourceName?: DataSourceName;
   dataSourceParams?: Record<string, unknown>;
   dataFiles?: string[];
+  // Length of the message text when the widget was called, so it renders at that point in the text.
+  contentOffset?: number;
 }
 
 export interface ShowWidgetSkillTurnState {
@@ -204,6 +206,12 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     : undefined;
   const dataSourceParams = toParamsRecord(candidate.dataSourceParams);
   const dataFiles = toStringArray(candidate.dataFiles);
+  const contentOffset =
+    typeof candidate.contentOffset === "number" &&
+    Number.isInteger(candidate.contentOffset) &&
+    candidate.contentOffset >= 0
+      ? candidate.contentOffset
+      : undefined;
 
   if (
     !toolCallId ||
@@ -222,6 +230,7 @@ export const normalizeChatWidget = (value: unknown): ChatWidget | null => {
     ...(dataSourceName ? { dataSourceName } : {}),
     ...(dataSourceParams ? { dataSourceParams } : {}),
     ...(dataFiles.length > 0 ? { dataFiles } : {}),
+    ...(contentOffset !== undefined ? { contentOffset } : {}),
   };
 };
 
@@ -246,6 +255,35 @@ export const normalizeChatWidgets = (value: unknown): ChatWidget[] | undefined =
   return normalized.length > 0 ? normalized : undefined;
 };
 
+const GIVEAWAY_RATIO = 1.2;
+const QUOTED = String.raw`(["'\x60])((?:\\.|(?!\1)[^\\])*)\1`;
+
+/**
+ * The first `.choice({...})` whose `answer` is more than a fifth longer than its longest `wrong`
+ * option, which a learner can pick by length alone. The evaluation's report uses the same rule.
+ * ponytail: reads string literals by pattern; options built from variables are not checked.
+ */
+const longestAnswerChoice = (
+  code: string,
+): { prompt: string; answer: number; longestWrong: number } | undefined => {
+  const starts = [...code.matchAll(/\.(?:task|choice)\(\s*\{/g)];
+  for (const [index, start] of starts.entries()) {
+    if (!start[0].startsWith(".choice")) continue;
+    const body = code.slice(start.index, starts[index + 1]?.index ?? code.length);
+    const answer = new RegExp(String.raw`\banswer\s*:\s*${QUOTED}`).exec(body)?.[2];
+    const wrong = [...body.matchAll(new RegExp(String.raw`\btext\s*:\s*${QUOTED}`, "g"))].map(
+      (match) => match[2].length,
+    );
+    if (answer === undefined || wrong.length === 0) continue;
+    const longestWrong = Math.max(...wrong);
+    if (answer.length > longestWrong * GIVEAWAY_RATIO) {
+      const prompt = new RegExp(String.raw`\bprompt\s*:\s*${QUOTED}`).exec(body)?.[2] ?? "";
+      return { prompt: prompt.slice(0, 80), answer: answer.length, longestWrong };
+    }
+  }
+  return undefined;
+};
+
 export const validateShowWidgetCall = (params: ShowWidgetArguments): string | null => {
   const normalizedTitle = params.title.trim();
   if (!normalizedTitle) {
@@ -258,6 +296,21 @@ export const validateShowWidgetCall = (params: ShowWidgetArguments): string | nu
 
   if (!params.widget_code.trim()) {
     return "widget_code must not be empty.";
+  }
+
+  // Lessons (guidelines/lesson.md): the host grades and reports, and every lesson has at least
+  // one question answered by acting on the model, not only choice questions.
+  const code = params.widget_code;
+  const usesQuiz = code.includes("lesson.quiz(");
+  if (!usesQuiz && code.includes("Lesson result:")) {
+    return "Build the Check and Result stages with lesson.quiz(...) as guidelines/lesson.md shows; do not write the grading or the result report yourself.";
+  }
+  if (usesQuiz && !/\.task\(/.test(code)) {
+    return "A lesson needs at least one hands-on question: add a .task({...}) the learner answers by changing the model, as guidelines/lesson.md shows.";
+  }
+  const giveaway = usesQuiz ? longestAnswerChoice(code) : undefined;
+  if (giveaway) {
+    return `In the choice question "${giveaway.prompt}", the correct answer (${giveaway.answer} characters) is much longer than every wrong option (at most ${giveaway.longestWrong}), so it can be guessed by length. Rewrite the wrong options to the same length and detail as the answer, as "Writing choices" in guidelines/lesson.md says.`;
   }
 
   return null;

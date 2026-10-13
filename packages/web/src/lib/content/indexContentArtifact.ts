@@ -1,4 +1,5 @@
 import type { VectorDbIndexClient, VectorDbIndexedChunk } from "@/lib/vector-db";
+import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import { validateEmbeddings, type EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 
 import { chunkContentArtifact } from "./chunkDocument";
@@ -8,7 +9,11 @@ export const indexContentArtifactLexically = async (
   vectorDb: VectorDbIndexClient,
   artifact: ContentArtifact,
 ): Promise<{ chunkCount: number }> => {
-  const chunks = await chunkContentArtifact(artifact);
+  const chunks = await chunkContentArtifact(artifact, {
+    size: LEXICAL_INDEX_CONFIG.chunkSize,
+    overlap: LEXICAL_INDEX_CONFIG.chunkOverlap,
+    locale: LEXICAL_INDEX_CONFIG.segmenterLocale,
+  });
   const plan = {
     documentId: artifact.fileId,
     contentHash: artifact.sourceRevision,
@@ -52,6 +57,7 @@ export const indexContentArtifactSemantically = async (
   const chunks = await chunkContentArtifact(artifact, {
     size: runtime.indexConfig.chunkSize,
     overlap: runtime.indexConfig.chunkOverlap,
+    locale: runtime.indexConfig.segmenterLocale,
   });
   const plan = {
     documentId: artifact.fileId,

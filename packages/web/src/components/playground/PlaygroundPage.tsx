@@ -1,6 +1,7 @@
 import { Tabs } from "@base-ui/react/tabs";
 import {
   BrainIcon,
+  ChatCircleTextIcon,
   DatabaseIcon,
   FileSearchIcon,
   FlaskIcon,
@@ -18,6 +19,7 @@ import GroundedRetrieval from "./GroundedRetrieval";
 import VectorDbInspector from "./VectorDbInspector";
 import DatasetInstaller from "./DatasetInstaller";
 import AsrEvaluation from "./AsrEvaluation";
+import AgentEvaluation from "./AgentEvaluation";
 import MascotShowcase from "./MascotShowcase";
 import { tokens } from "../../styles/stylex.stylex";
 
@@ -136,6 +138,10 @@ export default function PlaygroundPage() {
               <HardDrivesIcon className={stylex.props(styles.tabIcon).className} />
               Datasets
             </Tabs.Tab>
+            <Tabs.Tab value="agent-evaluation" className={stylex.props(styles.tab).className}>
+              <ChatCircleTextIcon className={stylex.props(styles.tabIcon).className} />
+              Agent evaluation
+            </Tabs.Tab>
             <Tabs.Tab value="mascot" className={stylex.props(styles.tab).className}>
               <SmileyIcon className={stylex.props(styles.tabIcon).className} />
               Mascot
@@ -167,6 +173,13 @@ export default function PlaygroundPage() {
             className={stylex.props(styles.panel).className}
           >
             <AsrEvaluation />
+          </Tabs.Panel>
+          <Tabs.Panel
+            value="agent-evaluation"
+            keepMounted
+            className={stylex.props(styles.panel).className}
+          >
+            <AgentEvaluation />
           </Tabs.Panel>
           <Tabs.Panel value="mascot" className={stylex.props(styles.panel).className}>
             <MascotShowcase />

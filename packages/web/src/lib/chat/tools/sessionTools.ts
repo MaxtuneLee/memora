@@ -1,9 +1,15 @@
-import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { listChatSessions, loadChatSession } from "@/lib/chat/chatSessionStorage";
 
-export const createSessionTools = (): ToolDefinition[] => {
+import type { ChatToolDefinition, CreateChatToolsOptions } from "./shared";
+
+export const createSessionTools = (
+  source: NonNullable<CreateChatToolsOptions["chatSessions"]> = {
+    list: listChatSessions,
+    load: loadChatSession,
+  },
+): ChatToolDefinition[] => {
   return [
     {
       type: "function",
@@ -15,7 +21,7 @@ export const createSessionTools = (): ToolDefinition[] => {
       }),
       execute: async (params: unknown) => {
         const payload = params as { limit?: number };
-        const sessions = await listChatSessions();
+        const sessions = await source.list();
         const limit = Math.min(payload.limit ?? 10, 50);
         return sessions.slice(0, limit);
       },
@@ -29,9 +35,19 @@ export const createSessionTools = (): ToolDefinition[] => {
         session_id: v.string(),
         max_messages: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 50),
       }),
+      // Chats are chat working files, read without asking.
+      access: (params) => ({
+        tool: "read_chat_session",
+        summary: "read an earlier chat",
+        access: "read",
+        target: {
+          kind: "path",
+          path: `/chat/sessions/${(params as { session_id: string }).session_id}.json`,
+        },
+      }),
       execute: async (params: unknown) => {
         const payload = params as { session_id: string; max_messages?: number };
-        const session = await loadChatSession(payload.session_id);
+        const session = await source.load(payload.session_id);
         if (!session) {
           return { error: `Session '${payload.session_id}' was not found` };
         }

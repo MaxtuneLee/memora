@@ -387,9 +387,25 @@ export function WysiwygFormattingToolbar() {
         return;
       }
 
+      // Only mirror range selections, and never while an IME is composing. Replacing a collapsed
+      // selection on every keystroke drops its text format (typing inside bold came out plain)
+      // and interrupts composition.
+      if (domSelection.isCollapsed || editor.isComposing()) {
+        return;
+      }
+
       editor.update(
         () => {
-          $setSelection($createRangeSelectionFromDom(domSelection, editor));
+          const nextSelection = $createRangeSelectionFromDom(domSelection, editor);
+          const currentSelection = $getSelection();
+          if (nextSelection && !(currentSelection && nextSelection.is(currentSelection))) {
+            const anchorNode = nextSelection.anchor.getNode();
+            if ($isTextNode(anchorNode)) {
+              nextSelection.format = anchorNode.getFormat();
+              nextSelection.style = anchorNode.getStyle();
+            }
+            $setSelection(nextSelection);
+          }
           readSelection();
         },
         { discrete: true },

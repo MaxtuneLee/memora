@@ -32,6 +32,8 @@ export const useWidgetIframe = () => {
       return;
     }
 
+    // Not documentElement.scrollHeight: it never drops below the frame's own viewport, so the
+    // frame could grow with its content but never shrink back.
     const body = iframeDocument.body;
     const documentElement = iframeDocument.documentElement;
     const nextHeight = Math.max(
@@ -40,7 +42,6 @@ export const useWidgetIframe = () => {
       content.offsetHeight,
       body?.scrollHeight ?? 0,
       body?.offsetHeight ?? 0,
-      documentElement?.scrollHeight ?? 0,
       documentElement?.offsetHeight ?? 0,
     );
 

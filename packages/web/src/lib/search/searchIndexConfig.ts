@@ -10,9 +10,9 @@ export const LEXICAL_INDEX_CONFIG: VectorDbIndexConfig = {
   queryPrefix: "",
   documentPrefix: "",
   chunkerName: "segment-window",
-  chunkerVersion: "segment-window-v1",
-  chunkSize: 420,
-  chunkOverlap: 60,
+  chunkerVersion: "segment-window-v2",
+  chunkSize: 256,
+  chunkOverlap: 40,
   segmenterLocale: "zh",
-  segmenterPipelineVersion: "fts-v1",
+  segmenterPipelineVersion: "fts-v2",
 };

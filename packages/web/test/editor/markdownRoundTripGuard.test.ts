@@ -5,6 +5,7 @@ import {
   isMarkdownRoundTripSafe,
   normalizeMarkdownRoundTripText,
   preflightMarkdownForWysiwyg,
+  splitMarkdownBlocks,
 } from "@/lib/editor/markdownRoundTripGuard";
 
 test("normalizes crlf and bare cr input, then strips one trailing newline", () => {
@@ -14,12 +15,23 @@ test("normalizes crlf and bare cr input, then strips one trailing newline", () =
   expect(normalizeMarkdownRoundTripText("line 1\nline 2\n\n")).toBe("line 1\nline 2\n");
 });
 
-test("accepts identical trailing newlines but not adding or removing multiple newlines", () => {
+test("ignores line endings and blank lines at the end of the note", () => {
   expect(isMarkdownRoundTripSafe("line 1\r\nline 2\r\n", "line 1\nline 2\n")).toBe(true);
   expect(isMarkdownRoundTripSafe("a\n\n", "a\n\n")).toBe(true);
-  expect(isMarkdownRoundTripSafe("line 1\nline 2\n\n", "line 1\nline 2\n")).toBe(false);
-  expect(isMarkdownRoundTripSafe("a", "a\n\n")).toBe(false);
-  expect(isMarkdownRoundTripSafe("a\n\n", "a")).toBe(false);
+  expect(isMarkdownRoundTripSafe("a", "a\n\n")).toBe(true);
+  expect(isMarkdownRoundTripSafe("line 1\nline 2\n\n", "line 1\nline 2\n")).toBe(true);
+  expect(isMarkdownRoundTripSafe("a\n\n", "a")).toBe(true);
+});
+
+test("accepts blank lines the editor adds between blocks and shortened blank-line runs", () => {
+  expect(isMarkdownRoundTripSafe("## Plan\n1. One\n2. Two", "## Plan\n\n1. One\n2. Two")).toBe(
+    true,
+  );
+  expect(isMarkdownRoundTripSafe("Intro:\n- item", "Intro:\n\n- item")).toBe(true);
+  expect(isMarkdownRoundTripSafe("a\n\n\n\nb", "a\n\nb")).toBe(true);
+  expect(isMarkdownRoundTripSafe("a\n  \nb", "a\n\nb")).toBe(true);
+  // Dropping the only blank line would merge two paragraphs.
+  expect(isMarkdownRoundTripSafe("a\n\nb", "a\nb")).toBe(false);
 });
 
 test("rejects whitespace, marker, and content changes", () => {
@@ -47,7 +59,7 @@ test("preflights scientific Markdown with single-dollar TeX formulas", () => {
   });
 });
 
-test("rejects markdown changed by the production import and export", () => {
+test("keeps markdown the production converter would change as editable source", () => {
   const markdown = '<a href="https://example.com">link</a>';
   expect(preflightMarkdownForWysiwyg(markdown)).toEqual({
     diagnostics: [
@@ -62,9 +74,9 @@ test("rejects markdown changed by the production import and export", () => {
         to: markdown.length,
       },
     ],
-    reason: "content-changed",
-    roundTrippedText: "[link](https://example.com)",
-    safe: false,
+    importMarkdown: `\uE010\n${markdown}\n\uE011`,
+    roundTrippedText: markdown,
+    safe: true,
   });
 });
 
@@ -81,9 +93,9 @@ test("returns a conversion error when preflight conversion throws", () => {
 
 test("locates a checklist marker normalized by the production converter", () => {
   expect(preflightMarkdownForWysiwyg("- [] item")).toEqual({
-    reason: "content-changed",
-    roundTrippedText: "- [ ] item",
-    safe: false,
+    importMarkdown: "\uE010\n- [] item\n\uE011",
+    roundTrippedText: "- [] item",
+    safe: true,
     diagnostics: [
       {
         column: 3,
@@ -160,10 +172,6 @@ test("does not include an allowed terminal newline in a content-change diagnosti
   const markdown = '<a href="https://example.com">link</a>\n';
   const result = preflightMarkdownForWysiwyg(markdown);
 
-  expect(result.safe).toBe(false);
-  if (result.safe || result.reason !== "content-changed") {
-    throw new Error("Expected a content-change diagnostic.");
-  }
   expect(result.diagnostics).toHaveLength(1);
   expect(result.diagnostics?.[0]?.sourceText).toBe('<a href="https://example.com">link</a>');
 });
@@ -202,4 +210,35 @@ test("keeps distant changes separate in a large document", () => {
 
   expect(diagnostics.map(({ line }) => line)).toEqual([20, 580]);
   expect(diagnostics.every(({ message }) => message.length < 180)).toBe(true);
+});
+
+test("keeps only the blocks Preview would change as editable source", () => {
+  const markdown = "# Title\n\nSome _italic_ text\n\nOther **bold**\n";
+  const result = preflightMarkdownForWysiwyg(markdown);
+  if (!result.safe) {
+    throw new Error("expected Preview to open");
+  }
+  expect(result.importMarkdown).toBe("# Title\n\n\nSome _italic_ text\n\n\nOther **bold**\n");
+  expect(result.diagnostics?.map((diagnostic) => diagnostic.line)).toEqual([3]);
+  expect(isMarkdownRoundTripSafe(markdown, result.roundTrippedText)).toBe(true);
+});
+
+test("keeps fenced code with blank lines in one block", () => {
+  expect(splitMarkdownBlocks(["```", "a", "", "b", "```", "", "c"])).toEqual([
+    { end: 5, start: 0 },
+    { end: 7, start: 6 },
+  ]);
+  expect(splitMarkdownBlocks(["$$", "x", "", "y", "$$"])).toEqual([{ end: 5, start: 0 }]);
+});
+
+test("rejects blank lines that split or join a paragraph", () => {
+  const listItem = "- 线性情形：$z = Wx$，则\n  $x$\n  记 $A$";
+  expect(isMarkdownRoundTripSafe(listItem, "- 线性情形：$z = Wx$，则\n\n  $x$\n\n  记 $A$")).toBe(
+    false,
+  );
+  expect(isMarkdownRoundTripSafe("one\ntwo", "one\n\ntwo")).toBe(false);
+  expect(isMarkdownRoundTripSafe("# Title\ntext", "# Title\n\ntext")).toBe(true);
+  expect(isMarkdownRoundTripSafe("text\n> quote", "text\n\n> quote")).toBe(true);
+  expect(isMarkdownRoundTripSafe("---\ntext", "---\n\ntext")).toBe(true);
+  expect(isMarkdownRoundTripSafe("Title\n---", "Title\n\n---")).toBe(false);
 });

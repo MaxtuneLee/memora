@@ -21,12 +21,18 @@ import { startSharedModelWorkerRuntime } from "../../src/workers/model-worker/sh
 class MockPort {
   readonly posted: Array<Record<string, unknown>> = [];
   private listener: ((event: MessageEvent<LocalModelSharedWorkerMessage>) => void) | null = null;
+  private closeListener: (() => void) | null = null;
 
   addEventListener(
     type: string,
     listener: (event: MessageEvent<LocalModelSharedWorkerMessage>) => void,
   ): void {
     if (type === "message") this.listener = listener;
+    if (type === "close") this.closeListener = listener as () => void;
+  }
+
+  close(): void {
+    this.closeListener?.();
   }
 
   postMessage(message: Record<string, unknown>): void {
@@ -210,6 +216,47 @@ describe("shared model worker runtime", () => {
       requestId: "nemotron-live",
       event: { type: "status", status: "completed" },
     });
+    vi.unstubAllGlobals();
+  });
+
+  test("releases the ASR pool when the tab that opened a stream closes", async () => {
+    const scope = new MockSharedWorkerScope();
+    vi.stubGlobal("self", scope);
+    const starts: string[] = [];
+    startSharedModelWorkerRuntime("asr", async (task, context) => {
+      starts.push(task.kind);
+      if (task.kind !== "asr.stream-open" || !context.stream) return;
+      while (await context.stream.nextChunk());
+    });
+
+    const recordingTab = new MockPort();
+    const otherTab = new MockPort();
+    scope.connect(recordingTab);
+    scope.connect(otherTab);
+    recordingTab.deliver({
+      type: "run",
+      requestId: "orphaned-stream",
+      priority: "interactive",
+      task: nemotronStreamTask,
+    });
+    await flushPromises();
+    otherTab.deliver({
+      type: "run",
+      requestId: "whisper",
+      priority: "interactive",
+      task: {
+        kind: "asr.transcribe",
+        input: { modelId: "whisper-base", audio: new Float32Array(1), language: "en" },
+      },
+    });
+    await flushPromises();
+    expect(starts).toEqual(["asr.stream-open"]);
+
+    recordingTab.close();
+    await flushPromises();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
+    expect(starts).toEqual(["asr.stream-open", "asr.transcribe"]);
     vi.unstubAllGlobals();
   });
 

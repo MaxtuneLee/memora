@@ -1,5 +1,7 @@
 import type { AgentCommand, AgentResponse, SessionSnapshot } from "./protocol";
+import type { AccessDecision, AccessRequest, AccessResult } from "@/lib/chat/permissions";
 import { emptySessionSnapshot } from "./sessionRuntime";
+import type { TraceEvent } from "./traceRecorder";
 
 export type ToolHost = (
   request: Extract<AgentResponse, { type: "tool" }>,
@@ -7,14 +9,21 @@ export type ToolHost = (
 ) => Promise<unknown>;
 let worker: SharedWorker | undefined;
 let toolHost: ToolHost | undefined;
+const sessionToolHosts = new Map<string, ToolHost>();
 const snapshots = new Map<string, SessionSnapshot>();
+// ponytail: a session's storage kind never changes, so entries live for the page.
+const memorySessions = new Set<string>();
 const listeners = new Map<string, Set<() => void>>();
 const requests = new Map<
   string,
-  { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
+  {
+    resolve: (result: unknown) => void;
+    reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }
 >();
 const calls = new Map<string, AbortController>();
-const approvals = new Map<string, (decision: "allow_once" | "allow_session" | "deny") => void>();
+const approvals = new Map<string, (decision: AccessDecision) => void>();
 let runningSessionIds: ReadonlySet<string> = new Set();
 // ponytail: per-tab and in-memory; unread markers reset on reload.
 let unreadSessionIds: ReadonlySet<string> = new Set();
@@ -67,7 +76,7 @@ function connection(): MessagePort {
       requests.delete(message.requestId);
       clearTimeout(request.timer);
       if (message.error) request.reject(new Error(message.error));
-      else request.resolve();
+      else request.resolve(message.result);
     } else if (message.type === "snapshot") {
       const current = snapshots.get(message.snapshot.sessionId);
       if (current && current.revision > message.snapshot.revision) return;
@@ -81,8 +90,9 @@ function connection(): MessagePort {
       calls.set(message.callId, controller);
       void Promise.resolve()
         .then(() => {
-          if (!toolHost) throw new Error("Workspace tool service is unavailable.");
-          return toolHost(message, controller.signal);
+          const host = sessionToolHosts.get(message.sessionId) ?? toolHost;
+          if (!host) throw new Error("Workspace tool service is unavailable.");
+          return host(message, controller.signal);
         })
         .then(
           (result) => command({ type: "tool-result", callId: message.callId, result }),
@@ -150,7 +160,8 @@ function connection(): MessagePort {
   return worker.port;
 }
 
-export function command(command: AgentCommand): Promise<void> {
+/** Sends a command; resolves with the worker's reply result (trace commands return data). */
+export function command(command: AgentCommand): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const port = connection();
     const requestId = crypto.randomUUID();
@@ -160,7 +171,13 @@ export function command(command: AgentCommand): Promise<void> {
     }, 30_000);
     requests.set(requestId, { resolve, reject, timer });
     try {
-      port.postMessage({ ...command, requestId });
+      // Every command for an in-memory session carries its storage kind, so a restarted worker
+      // never falls back to chat-session storage.
+      const storage =
+        "sessionId" in command && memorySessions.has(command.sessionId)
+          ? { storage: "memory" }
+          : {};
+      port.postMessage({ ...command, ...storage, requestId });
     } catch (error) {
       clearTimeout(timer);
       requests.delete(requestId);
@@ -185,6 +202,7 @@ export function subscribe(sessionId: string, listener: () => void, storage?: "me
     listeners.set(sessionId, set);
   }
   set.add(listener);
+  if (storage === "memory") memorySessions.add(sessionId);
   if (unreadSessionIds.has(sessionId)) {
     const unread = new Set(unreadSessionIds);
     unread.delete(sessionId);
@@ -239,11 +257,19 @@ export function registerToolHost(host: ToolHost): () => void {
   };
 }
 
+/** Runs one session's tool calls in place of the workspace host, as evaluations need. */
+export function registerSessionToolHost(sessionId: string, host: ToolHost): () => void {
+  sessionToolHosts.set(sessionId, host);
+  return () => {
+    if (sessionToolHosts.get(sessionId) === host) sessionToolHosts.delete(sessionId);
+  };
+}
+
 export function requestToolApproval(
   callId: string,
-  request: import("@/lib/chat/tools/shared").WriteApprovalRequest,
+  request: AccessRequest,
   signal: AbortSignal,
-): Promise<"allow_once" | "allow_session" | "deny"> {
+): Promise<AccessDecision> {
   if (signal.aborted) return Promise.resolve("deny");
   return new Promise((resolve, reject) => {
     const abort = () => {
@@ -262,3 +288,24 @@ export function requestToolApproval(
     });
   });
 }
+
+export const reportAccessDecision = (
+  callId: string,
+  request: AccessRequest,
+  result: AccessResult,
+): void => {
+  void command({ type: "access-decided", callId, request, result }).catch(console.error);
+};
+
+// Development Traces, read through the worker that writes them.
+export const listTraceRuns = (sessionId: string): Promise<string[]> =>
+  command({ type: "list-runs", sessionId }) as Promise<string[]>;
+
+export const readTrace = (sessionId: string, runId: string): Promise<TraceEvent[]> =>
+  command({ type: "read-trace", sessionId, runId }) as Promise<TraceEvent[]>;
+
+/** The Run's Trace as stored, one JSON event per line. */
+export const exportTrace = (sessionId: string, runId: string): Promise<string> =>
+  command({ type: "export-trace", sessionId, runId }) as Promise<string>;
+
+export const clearTraces = (): Promise<void> => command({ type: "clear-traces" }) as Promise<void>;

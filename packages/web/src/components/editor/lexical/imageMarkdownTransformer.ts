@@ -1,11 +1,15 @@
 import {
   $createParagraphNode,
   $createTextNode,
+  $getState,
+  $isElementNode,
+  $setState,
+  createState,
   type ElementNode,
   type LexicalNode,
   type TextNode,
 } from "lexical";
-import { $createHeadingNode, type HeadingTagType } from "@lexical/rich-text";
+import { $createHeadingNode, $isHeadingNode, type HeadingTagType } from "@lexical/rich-text";
 import {
   $createTableNodeWithDimensions,
   $isTableCellNode,
@@ -15,9 +19,12 @@ import {
   type TableNode,
 } from "@lexical/table";
 import {
+  $convertFromMarkdownString,
+  $convertToMarkdownString,
   type ElementTransformer,
   type MultilineElementTransformer,
   type TextMatchTransformer,
+  type Transformer,
 } from "@lexical/markdown";
 import {
   $createHorizontalRuleNode,
@@ -36,6 +43,7 @@ import {
   $isMathNode,
   MathNode,
   getMathNodeSourceText,
+  mathTextFormatState,
   type InlineMathDelimiter,
 } from "@/components/editor/lexical/MathNode";
 
@@ -110,8 +118,23 @@ const escapeMarkdownTitle = (text: string): string => {
   return text.replace(/([\\"])/g, "\\$1");
 };
 
+const TABLE_CELL_LINE_BREAK = "<br>";
+const TABLE_CELL_LINE_BREAK_REGEXP = /<br\s*\/?>/gi;
+
+let tableCellTransformers: readonly Transformer[] = [];
+
+// Table cells hold inline markdown only, so block syntax such as "- " or "# " stays literal text.
+export const setTableCellTransformers = (transformers: readonly Transformer[]): void => {
+  tableCellTransformers = transformers.filter((transformer) => {
+    return transformer.type === "text-format" || transformer.type === "text-match";
+  });
+};
+
 const escapeTableCell = (text: string): string => {
-  return text.replace(/\|/g, "\\|").replace(/\n+/g, " ").trim();
+  return text
+    .replace(/\|/g, "\\|")
+    .trim()
+    .replace(/\s*\n+\s*/g, TABLE_CELL_LINE_BREAK);
 };
 
 const unescapeMarkdownText = (text: string): string => {
@@ -285,7 +308,7 @@ const splitTableCells = (line: string): string[] => {
 
   for (const character of content) {
     if (escaped) {
-      currentCell += character;
+      currentCell += character === "|" ? character : `\\${character}`;
       escaped = false;
       continue;
     }
@@ -309,7 +332,97 @@ const splitTableCells = (line: string): string[] => {
 };
 
 const isTableDividerCell = (cell: string): boolean => {
-  return /^:?-{3,}:?$/.test(cell.trim());
+  return /^:?-+:?$/.test(cell.trim());
+};
+
+export type MarkdownTableAlignment = "center" | "left" | "right" | null;
+
+const parseTableAlignment = (value: unknown): MarkdownTableAlignment => {
+  return value === "center" || value === "left" || value === "right" ? value : null;
+};
+
+const parseTableDividerAlignment = (cell: string): MarkdownTableAlignment => {
+  const trimmedCell = cell.trim();
+  const hasLeadingColon = trimmedCell.startsWith(":");
+  const hasTrailingColon = trimmedCell.endsWith(":");
+  if (hasLeadingColon && hasTrailingColon) {
+    return "center";
+  }
+  if (hasLeadingColon) {
+    return "left";
+  }
+  return hasTrailingColon ? "right" : null;
+};
+
+const tableAlignmentState = createState("markdownTableAlignment", {
+  parse: (value: unknown): MarkdownTableAlignment[] => {
+    return Array.isArray(value) ? value.map(parseTableAlignment) : [];
+  },
+});
+
+// Tables whose rows were padded to equal widths (as Prettier writes them) are exported padded.
+const tablePaddedState = createState("markdownTablePadded", {
+  parse: (value: unknown): boolean => value === true,
+});
+
+export const $getTableAlignments = (tableNode: TableNode): MarkdownTableAlignment[] => {
+  return $getState(tableNode, tableAlignmentState);
+};
+
+export const $setTableAlignments = (
+  tableNode: TableNode,
+  alignments: readonly MarkdownTableAlignment[],
+): void => {
+  $setState(tableNode, tableAlignmentState, [...alignments]);
+};
+
+// Shows each column's markdown alignment on the paragraphs inside its cells.
+export const $applyTableAlignments = (tableNode: TableNode): void => {
+  const alignments = $getTableAlignments(tableNode);
+  for (const rowNode of tableNode.getChildren()) {
+    if (!$isTableRowNode(rowNode)) {
+      continue;
+    }
+
+    rowNode.getChildren().forEach((cellNode, columnIndex) => {
+      if (!$isTableCellNode(cellNode)) {
+        return;
+      }
+
+      const format = alignments[columnIndex] ?? "";
+      for (const child of cellNode.getChildren()) {
+        if ($isElementNode(child) && child.getFormatType() !== format) {
+          child.setFormat(format);
+        }
+      }
+    });
+  }
+};
+
+// Terminal column width: East Asian wide characters and emoji take two columns.
+const getDisplayWidth = (text: string): number => {
+  let width = 0;
+  for (const character of text) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    const isWide =
+      (codePoint >= 0x1100 && codePoint <= 0x115f) ||
+      (codePoint >= 0x2e80 && codePoint <= 0xa4cf) ||
+      (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
+      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+      (codePoint >= 0xfe30 && codePoint <= 0xfe4f) ||
+      (codePoint >= 0xff00 && codePoint <= 0xff60) ||
+      (codePoint >= 0xffe0 && codePoint <= 0xffe6) ||
+      (codePoint >= 0x1f300 && codePoint <= 0x1f64f) ||
+      (codePoint >= 0x1f900 && codePoint <= 0x1f9ff) ||
+      (codePoint >= 0x20000 && codePoint <= 0x3fffd);
+    width += isWide ? 2 : 1;
+  }
+  return width;
+};
+
+const isPaddedTable = (lines: readonly string[]): boolean => {
+  const widths = lines.map((line) => getDisplayWidth(line.trim()));
+  return widths.every((width) => width === widths[0]);
 };
 
 const isTableRowLine = (line: string): boolean => {
@@ -361,14 +474,30 @@ export const getSetextHeadingTag = (
   return match[1]?.startsWith("=") ? "h1" : "h2";
 };
 
-const getCellText = (cellNode: TableCellNode): string => {
-  return cellNode.getTextContent().trim();
+export const $getInlineMarkdown = (node: ElementNode): string => {
+  if (tableCellTransformers.length === 0) {
+    return node.getTextContent();
+  }
+
+  return $convertToMarkdownString([...tableCellTransformers], node);
 };
 
-const createParagraphWithText = (text: string): ElementNode => {
-  const paragraph = $createParagraphNode();
-  paragraph.append($createTextNode(text));
-  return paragraph;
+const fillTableCell = (cellNode: TableCellNode, markdown: string): void => {
+  cellNode.clear();
+  const cellMarkdown = markdown.replace(TABLE_CELL_LINE_BREAK_REGEXP, "\n");
+  if (tableCellTransformers.length > 0 && cellMarkdown.trim()) {
+    $convertFromMarkdownString(cellMarkdown, [...tableCellTransformers], cellNode);
+  } else {
+    const paragraph = $createParagraphNode();
+    if (cellMarkdown) {
+      paragraph.append($createTextNode(cellMarkdown));
+    }
+    cellNode.append(paragraph);
+  }
+
+  if (cellNode.getChildrenSize() === 0) {
+    cellNode.append($createParagraphNode());
+  }
 };
 
 const fillTableNode = (tableNode: TableNode, rows: readonly string[][]): void => {
@@ -385,10 +514,34 @@ const fillTableNode = (tableNode: TableNode, rows: readonly string[][]): void =>
         return;
       }
 
-      cellNode.clear();
-      cellNode.append(createParagraphWithText(cellValues[columnIndex] ?? ""));
+      fillTableCell(cellNode, cellValues[columnIndex] ?? "");
     });
   });
+};
+
+const formatTableDivider = (alignment: MarkdownTableAlignment, width: number): string => {
+  if (alignment === "center") {
+    return `:${"-".repeat(Math.max(width - 2, 1))}:`;
+  }
+  if (alignment === "left") {
+    return `:${"-".repeat(Math.max(width - 1, 1))}`;
+  }
+  if (alignment === "right") {
+    return `${"-".repeat(Math.max(width - 1, 1))}:`;
+  }
+  return "-".repeat(Math.max(width, 1));
+};
+
+const padTableCell = (text: string, alignment: MarkdownTableAlignment, width: number): string => {
+  const padding = Math.max(width - getDisplayWidth(text), 0);
+  if (alignment === "right") {
+    return `${" ".repeat(padding)}${text}`;
+  }
+  if (alignment === "center") {
+    const leftPadding = Math.floor(padding / 2);
+    return `${" ".repeat(leftPadding)}${text}${" ".repeat(padding - leftPadding)}`;
+  }
+  return `${text}${" ".repeat(padding)}`;
 };
 
 const exportTable = (tableNode: TableNode): string => {
@@ -399,7 +552,7 @@ const exportTable = (tableNode: TableNode): string => {
       return rowNode
         .getChildren()
         .filter($isTableCellNode)
-        .map((cellNode) => escapeTableCell(getCellText(cellNode)));
+        .map((cellNode) => escapeTableCell($getInlineMarkdown(cellNode)));
     });
 
   if (rows.length === 0) {
@@ -407,15 +560,35 @@ const exportTable = (tableNode: TableNode): string => {
   }
 
   const columnCount = Math.max(...rows.map((row) => row.length), 1);
-  const normalizedRows = rows.map((row) => {
-    return Array.from({ length: columnCount }, (_, index) => row[index] ?? "");
-  });
-  const [headerRow, ...bodyRows] = normalizedRows;
-  const header = `| ${headerRow.join(" | ")} |`;
-  const divider = `| ${Array.from({ length: columnCount }, () => "---").join(" | ")} |`;
-  const body = bodyRows.map((row) => `| ${row.join(" | ")} |`);
+  const alignments = $getTableAlignments(tableNode);
+  const columns = Array.from({ length: columnCount }, (_, index) => index);
+  const normalizedRows = rows.map((row) => columns.map((index) => row[index] ?? ""));
+  const formatRow = (cells: readonly string[]): string => `| ${cells.join(" | ")} |`;
 
-  return [header, divider, ...body].join("\n");
+  if (!$getState(tableNode, tablePaddedState)) {
+    const divider = columns.map((index) => {
+      const alignment = alignments[index] ?? null;
+      return formatTableDivider(alignment, alignment === "center" ? 5 : alignment ? 4 : 3);
+    });
+    const [headerRow = [], ...bodyRows] = normalizedRows;
+    return [formatRow(headerRow), formatRow(divider), ...bodyRows.map(formatRow)].join("\n");
+  }
+
+  const widths = columns.map((index) => {
+    return Math.max(3, ...normalizedRows.map((row) => getDisplayWidth(row[index] ?? "")));
+  });
+  const padRow = (row: readonly string[]): string => {
+    return formatRow(
+      columns.map((index) =>
+        padTableCell(row[index] ?? "", alignments[index] ?? null, widths[index] ?? 3),
+      ),
+    );
+  };
+  const divider = formatRow(
+    columns.map((index) => formatTableDivider(alignments[index] ?? null, widths[index] ?? 3)),
+  );
+  const [headerRow = [], ...bodyRows] = normalizedRows;
+  return [padRow(headerRow), divider, ...bodyRows.map(padRow)].join("\n");
 };
 
 export const IMAGE_TRANSFORMER: TextMatchTransformer = {
@@ -547,7 +720,9 @@ export const INLINE_MATH_TRANSFORMER: TextMatchTransformer = {
       return;
     }
 
-    textNode.replace($createMathNode(math.formula, false, false, math.delimiter));
+    const mathNode = $createMathNode(math.formula, false, false, math.delimiter);
+    $setState(mathNode, mathTextFormatState, textNode.getFormat());
+    textNode.replace(mathNode);
   },
   trigger: "$",
   type: "text-match",
@@ -607,27 +782,62 @@ export const MULTILINE_MATH_BLOCK_TRANSFORMER: MultilineElementTransformer = {
   type: "multiline-element",
 };
 
+const parseMarkdownSourceMarker = (value: unknown): string => {
+  return typeof value === "string" ? value : "";
+};
+
+// The source spelling of a rule ("***", "___") or setext underline, so it exports unchanged.
+const markdownSourceMarkerState = createState("markdownSourceMarker", {
+  parse: parseMarkdownSourceMarker,
+});
+
 export const HORIZONTAL_RULE_TRANSFORMER: ElementTransformer = {
   dependencies: [HorizontalRuleNode],
   export: (node: LexicalNode) => {
-    return $isHorizontalRuleNode(node) ? "---" : null;
+    if (!$isHorizontalRuleNode(node)) {
+      return null;
+    }
+
+    return $getState(node, markdownSourceMarkerState) || "---";
   },
   regExp: THEMATIC_BREAK_REGEXP,
-  replace: (parentNode: ElementNode, _children, _match, isImport) => {
+  replace: (parentNode: ElementNode, _children, match, isImport) => {
     const horizontalRuleNode = $createHorizontalRuleNode();
+    if (isImport) {
+      $setState(horizontalRuleNode, markdownSourceMarkerState, match[0]?.trim() ?? "");
+    }
     if (isImport || parentNode.getNextSibling() !== null) {
       parentNode.replace(horizontalRuleNode);
     } else {
       parentNode.insertBefore(horizontalRuleNode);
     }
-    horizontalRuleNode.selectNext();
+    if (!isImport) {
+      horizontalRuleNode.selectNext();
+    }
   },
   type: "element",
 };
 
 export const SETEXT_HEADING_TRANSFORMER: MultilineElementTransformer = {
   dependencies: [],
-  export: () => null,
+  export: (node, exportChildren) => {
+    if (!$isHeadingNode(node)) {
+      return null;
+    }
+
+    const underline = $getState(node, markdownSourceMarkerState);
+    const tag = node.getTag();
+    if (
+      !underline ||
+      (tag !== "h1" && tag !== "h2") ||
+      underline.trim().startsWith("=") !== (tag === "h1")
+    ) {
+      return null;
+    }
+
+    const text = exportChildren(node);
+    return text.trim() && !text.includes("\n") ? `${text}\n${underline}` : null;
+  },
   handleImportAfterStartMatch: ({ lines, rootNode, startLineIndex }) => {
     if (startLineIndex + 1 >= lines.length) {
       return null;
@@ -642,12 +852,50 @@ export const SETEXT_HEADING_TRANSFORMER: MultilineElementTransformer = {
 
     const headingNode = $createHeadingNode(headingTag);
     headingNode.append($createTextNode(textLine.trim()));
+    $setState(headingNode, markdownSourceMarkerState, markerLine.trimEnd());
     rootNode.append(headingNode);
     return [true, startLineIndex + 1];
   },
   regExpStart: SETEXT_HEADING_REGEXP,
   replace: () => false,
   type: "multiline-element",
+};
+
+const TABLE_HEADERS = { columns: false, rows: true } as const;
+
+interface MarkdownTableOptions {
+  alignments?: readonly MarkdownTableAlignment[];
+  padded?: boolean;
+}
+
+export const $createMarkdownTableNode = (
+  rows: readonly string[][],
+  { alignments = [], padded = false }: MarkdownTableOptions = {},
+): TableNode => {
+  const columnCount = Math.max(...rows.map((row) => row.length), 1);
+  const tableNode = $createTableNodeWithDimensions(rows.length, columnCount, TABLE_HEADERS);
+  fillTableNode(tableNode, rows);
+  if (alignments.some((alignment) => alignment !== null)) {
+    $setTableAlignments(tableNode, alignments);
+    $applyTableAlignments(tableNode);
+  }
+  if (padded) {
+    $setState(tableNode, tablePaddedState, true);
+  }
+  return tableNode;
+};
+
+const $createTableNodeFromLines = (lines: readonly string[]): TableNode | null => {
+  const parsedRows = parseMarkdownTableLines(lines);
+  if (!parsedRows) {
+    return null;
+  }
+
+  const tableLines = [lines[0] ?? "", ...lines.slice(1).filter(isTableRowLine)];
+  return $createMarkdownTableNode(parsedRows, {
+    alignments: splitTableCells(lines[1] ?? "").map(parseTableDividerAlignment),
+    padded: isPaddedTable(tableLines),
+  });
 };
 
 export const TABLE_TRANSFORMER: MultilineElementTransformer = {
@@ -677,14 +925,11 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
       cursor += 1;
     }
 
-    const parsedRows = parseMarkdownTableLines(rowLines);
-    if (!parsedRows) {
+    const tableNode = $createTableNodeFromLines(rowLines);
+    if (!tableNode) {
       return null;
     }
 
-    const columnCount = Math.max(...parsedRows.map((row) => row.length), 1);
-    const tableNode = $createTableNodeWithDimensions(parsedRows.length, columnCount, true);
-    fillTableNode(tableNode, parsedRows);
     rootNode.append(tableNode);
     return [true, cursor - 1];
   },
@@ -704,14 +949,11 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
       return false;
     }
 
-    const parsedRows = parseMarkdownTableLines([headerLine, ...bodyLines]);
-    if (!parsedRows) {
+    const tableNode = $createTableNodeFromLines([headerLine, ...bodyLines]);
+    if (!tableNode) {
       return false;
     }
 
-    const columnCount = Math.max(...parsedRows.map((row) => row.length), 1);
-    const tableNode = $createTableNodeWithDimensions(parsedRows.length, columnCount, true);
-    fillTableNode(tableNode, parsedRows);
     rootNode.append(tableNode);
   },
   type: "multiline-element",

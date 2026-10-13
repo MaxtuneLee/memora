@@ -56,9 +56,10 @@ export const createWidgetTools = (options: CreateChatToolsOptions): ToolDefiniti
           throw new Error(validationError);
         }
 
+        const title = payload.title.trim();
         return {
-          ok: true,
-          title: payload.title.trim(),
+          success: true,
+          message: `The widget "${title}" is now shown to the user. Do not call show_widget again for it.`,
         };
       },
     },

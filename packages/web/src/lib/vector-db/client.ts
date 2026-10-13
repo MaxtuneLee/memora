@@ -198,7 +198,15 @@ type VectorDbStorageResponse =
   | { type: "storage-write-result"; id: string; ok: true }
   | { type: "storage-read-result" | "storage-write-result"; id: string; ok: false; error: string };
 
-type IndexWorkerMessage = IndexWorkerResponse | VectorDbStorageRequest;
+type IndexWorkerMessage =
+  | IndexWorkerResponse
+  | VectorDbStorageRequest
+  | { type: "progress"; id: string; stage: string };
+
+export interface VectorDbClientOptions {
+  workerName?: string;
+  onProgress?: (stage: string) => void;
+}
 
 // Keep the legacy path so existing local indexes remain discoverable after the
 // SharedWorker storage bridge takes over persistence.
@@ -234,6 +242,12 @@ export const getVectorDbContentHash = async (value: string): Promise<string> => 
 };
 
 export class VectorDbClient {
+  private readonly options: VectorDbClientOptions;
+
+  constructor(options: VectorDbClientOptions = {}) {
+    this.options = options;
+  }
+
   private indexConfig: VectorDbIndexConfig | undefined;
   private worker: SharedWorker | null = null;
   private port: MessagePort | null = null;
@@ -293,7 +307,7 @@ export class VectorDbClient {
       new URL("../../workers/vector-db.shared-worker.ts", import.meta.url),
       {
         type: "module",
-        name: "memora-vector-db",
+        name: this.options.workerName ?? "memora-vector-db",
         extendedLifetime: true,
       },
     );
@@ -304,6 +318,10 @@ export class VectorDbClient {
         (event.data.type === "storage-read" || event.data.type === "storage-write")
       ) {
         void this.handleStorageRequest(port, event.data as VectorDbStorageRequest);
+        return;
+      }
+      if ("type" in event.data && event.data.type === "progress") {
+        if (this.pending.has(event.data.id)) this.options.onProgress?.(event.data.stage);
         return;
       }
       if (!("ok" in event.data)) return;
@@ -445,6 +463,6 @@ export type VectorDbIndexClient = Pick<
   | "checkDocuments"
 >;
 
-export const createVectorDbClient = (): VectorDbClient => {
-  return new VectorDbClient();
+export const createVectorDbClient = (options: VectorDbClientOptions = {}): VectorDbClient => {
+  return new VectorDbClient(options);
 };

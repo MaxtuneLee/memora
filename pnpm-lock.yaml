@@ -13,6 +13,11 @@ catalogs:
 overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.9
 
+patchedDependencies:
+  '@lexical/markdown@0.44.0':
+    hash: 4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2
+    path: patches/@lexical__markdown@0.44.0.patch
+
 importers:
 
   .:
@@ -292,7 +297,7 @@ importers:
         version: 0.44.0
       '@lexical/markdown':
         specifier: ^0.44.0
-        version: 0.44.0
+        version: 0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)
       '@lexical/react':
         specifier: ^0.44.0
         version: 0.44.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yjs@13.6.32)
@@ -10015,7 +10020,7 @@ snapshots:
       '@lexical/utils': 0.44.0
       lexical: 0.44.0
 
-  '@lexical/markdown@0.44.0':
+  '@lexical/markdown@0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)':
     dependencies:
       '@lexical/code-core': 0.44.0
       '@lexical/link': 0.44.0
@@ -10048,7 +10053,7 @@ snapshots:
       '@lexical/link': 0.44.0
       '@lexical/list': 0.44.0
       '@lexical/mark': 0.44.0
-      '@lexical/markdown': 0.44.0
+      '@lexical/markdown': 0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)
       '@lexical/overflow': 0.44.0
       '@lexical/plain-text': 0.44.0
       '@lexical/rich-text': 0.44.0

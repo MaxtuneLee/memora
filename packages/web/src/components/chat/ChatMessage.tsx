@@ -1,4 +1,8 @@
-import { ArrowCounterClockwiseIcon, PencilSimpleIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  ListMagnifyingGlassIcon,
+  PencilSimpleIcon,
+} from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import MemoraMascot, { type MemoraMascotState } from "@/components/assistant/MemoraMascot";
 import { motion } from "motion/react";
@@ -98,6 +102,8 @@ interface ChatMessageProps {
   onSendWidgetPrompt?: (text: string) => Promise<void> | void;
   onEditMessage?: (messageId: string, text: string) => Promise<void> | void;
   onRetryMessage?: (messageId: string) => Promise<void> | void;
+  /** Development builds: opens the Trace of the Run that wrote this reply. */
+  onViewTrace?: (messageId: string) => void;
   actionsDisabled?: boolean;
   mascotLayoutId?: string;
 }
@@ -114,6 +120,7 @@ function ChatMessageComponent({
   onSendWidgetPrompt,
   onEditMessage,
   onRetryMessage,
+  onViewTrace,
   actionsDisabled = false,
   mascotLayoutId,
 }: ChatMessageProps) {
@@ -127,7 +134,7 @@ function ChatMessageComponent({
   const [draftText, setDraftText] = useState(message.content);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const canShowHoverActions = Boolean(
-    (!isUser && onRetryMessage) || (isUser && onEditMessage && !isEditing),
+    (!isUser && (onRetryMessage || onViewTrace)) || (isUser && onEditMessage && !isEditing),
   );
 
   useEffect(() => {
@@ -287,6 +294,17 @@ function ChatMessageComponent({
                   />
                 </button>
               )}
+              {!isUser && onViewTrace && (
+                <button
+                  type="button"
+                  onClick={() => onViewTrace(message.id)}
+                  {...stylex.props(styles.actionButton)}
+                  aria-label="View trace"
+                  title="View trace"
+                >
+                  <ListMagnifyingGlassIcon className={stylex.props(styles.actionIcon).className} />
+                </button>
+              )}
             </div>
           )}
           {isUser ? (
@@ -346,6 +364,7 @@ const areChatMessagePropsEqual = (
     previousProps.onSendWidgetPrompt === nextProps.onSendWidgetPrompt &&
     previousProps.onEditMessage === nextProps.onEditMessage &&
     previousProps.onRetryMessage === nextProps.onRetryMessage &&
+    previousProps.onViewTrace === nextProps.onViewTrace &&
     previousProps.actionsDisabled === nextProps.actionsDisabled &&
     previousProps.mascotLayoutId === nextProps.mascotLayoutId
   );

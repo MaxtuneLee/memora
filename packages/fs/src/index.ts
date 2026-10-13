@@ -2,7 +2,8 @@ type WriteData = string | ArrayBuffer | ArrayBufferView | Blob;
 
 type FileRemoveOptions = { force?: boolean };
 type DirRemoveOptions = { recursive?: boolean; force?: boolean };
-type WriteOptions = { overwrite?: boolean };
+/** `append` adds to an existing file (or creates it) instead of replacing it. */
+type WriteOptions = { overwrite?: boolean; append?: boolean };
 
 export type FsEntry = {
   kind: "file" | "dir";
@@ -227,14 +228,16 @@ export const file = (path: string) => {
 
 export const write = async (path: string, data: WriteData, options?: WriteOptions) => {
   const normalized = normalizePath(path);
-  if (!options?.overwrite) {
+  if (!options?.overwrite && !options?.append) {
     const exists = await file(normalized).exists();
     if (exists) {
       throw new Error(`File already exists: ${normalized}`);
     }
   }
   const handle = await getFileHandle(normalized, true);
-  const writable = await handle.createWritable({ keepExistingData: false });
+  const append = Boolean(options?.append);
+  const writable = await handle.createWritable({ keepExistingData: append });
+  if (append) await writable.seek((await handle.getFile()).size);
   const buffer = await readAsArrayBuffer(data);
   await writable.write(buffer);
   await writable.close();

@@ -65,7 +65,6 @@ export const generateChatSessionTitle = async ({
     },
     {
       ...(reasoningMode === "thinking" ? { reasoning: "high" as const } : {}),
-      temperature: 0.2,
       maxTokens: 24,
       signal,
     },

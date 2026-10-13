@@ -9,3 +9,4 @@ export * from "./handlers/chat/media";
 export * from "./handlers/chat/qwen35";
 export * from "./handlers/chat/tokenUsage";
 export * from "./handlers/chat/toolParsing";
+export * from "./handlers/reranker";

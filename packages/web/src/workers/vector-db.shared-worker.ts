@@ -97,6 +97,7 @@ let db: SqliteDatabase | null = null;
 let config: VectorDbIndexConfig | null = null;
 let indexId: string | null = null;
 let persistent = false;
+let reportProgress: ((stage: string) => void) | undefined;
 
 interface VectorDbStorageReadRequest {
   type: "storage-read";
@@ -288,7 +289,7 @@ const createSchema = (nextConfig: VectorDbIndexConfig): void => {
   run("CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);");
   run("CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(chunk_content_hash);");
   run(
-    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, search_text, heading_path, tokenize = 'unicode61');",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_id UNINDEXED, document_id UNINDEXED, search_text, heading_path, tokenize = 'porter unicode61');",
   );
   run(
     `CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(chunk_rowid INTEGER PRIMARY KEY, document_id TEXT, embedding float[${nextConfig.dimensions}] distance_metric=cosine);`,
@@ -346,6 +347,7 @@ const persistCurrentIndex = async (): Promise<void> => {
 };
 
 const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbIndexHealth> => {
+  reportProgress?.("Calculating index identity");
   const nextIndexId = await getVectorDbIndexId(nextConfig);
   if (db && indexId === nextIndexId) return makeHealth();
   if (db && indexId !== nextIndexId) {
@@ -354,6 +356,7 @@ const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbInde
     db = null;
   }
   if (!sqlite) {
+    reportProgress?.("Loading SQLite WASM");
     const init = sqlite3InitModule as unknown as SqliteInit;
     sqlite = await init({
       locateFile: (path) =>
@@ -361,6 +364,7 @@ const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbInde
     });
   }
   if (!db) {
+    reportProgress?.("Reading local index snapshot");
     const snapshot = await loadSnapshot(nextIndexId);
     const opened = new sqlite.oo1.DB(":memory:");
     db = opened;
@@ -369,6 +373,7 @@ const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbInde
   }
   config = nextConfig;
   indexId = nextIndexId;
+  reportProgress?.("Creating SQLite index");
   createSchema(nextConfig);
   const storedConfig = getIndexMeta("config_json");
   const configJson = JSON.stringify(nextConfig);
@@ -381,7 +386,9 @@ const initialize = async (nextConfig: VectorDbIndexConfig): Promise<VectorDbInde
   setIndexMeta("sqlite_version", sqlite.version.libVersion);
   setIndexMeta("sqlite_vec_version", getIndexMeta("sqlite_vec_version") ?? "0.1.6");
   setIndexMeta("last_opened_at", String(Date.now()));
+  reportProgress?.("Saving local index snapshot");
   await persistCurrentIndex();
+  reportProgress?.("Index ready");
   return makeHealth();
 };
 
@@ -1002,12 +1009,20 @@ const MUTATING_REQUEST_TYPES = new Set<VectorDbWorkerRequest["type"]>([
 
 let requestQueue = Promise.resolve();
 
-const processRequest = (request: VectorDbWorkerRequest): Promise<unknown> => {
+const processRequest = (
+  request: VectorDbWorkerRequest,
+  onProgress?: (stage: string) => void,
+): Promise<unknown> => {
   const next = requestQueue.then(async () => {
-    if (request.type === "close") await persistCurrentIndex();
-    const payload = await handleVectorDbRequest(request);
-    if (MUTATING_REQUEST_TYPES.has(request.type)) await persistCurrentIndex();
-    return payload;
+    reportProgress = onProgress;
+    try {
+      if (request.type === "close") await persistCurrentIndex();
+      const payload = await handleVectorDbRequest(request);
+      if (MUTATING_REQUEST_TYPES.has(request.type)) await persistCurrentIndex();
+      return payload;
+    } finally {
+      reportProgress = undefined;
+    }
   });
   requestQueue = next.then(
     () => undefined,
@@ -1017,7 +1032,11 @@ const processRequest = (request: VectorDbWorkerRequest): Promise<unknown> => {
 };
 
 const respondToRequest = (port: MessagePort, request: VectorDbWorkerRequest): void => {
-  void processRequest(request)
+  const onProgress = (stage: string): void => {
+    port.postMessage({ type: "progress", id: request.id, stage });
+  };
+  onProgress("Waiting for database worker queue");
+  void processRequest(request, onProgress)
     .then((payload) => {
       port.postMessage({
         id: request.id,

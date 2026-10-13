@@ -1,12 +1,15 @@
 import { cat } from "@memora/fs";
-import type { ToolDefinition } from "@memora/ai-core";
 import * as v from "valibot";
 
 import { fileTable } from "@/livestore/file";
 
 import {
   EMPTY_REFERENCE_SCOPE,
+  accessFileForPath,
+  libraryReadRequest,
+  readLibrary,
   type ActiveFileRow,
+  type ChatToolDefinition,
   type CreateChatToolsOptions,
   type StoreQueryable,
   type TranscriptWord,
@@ -93,6 +96,55 @@ const findRangeIndexAtOffset = (ranges: TranscriptWordRange[], offset: number): 
   return ranges.length - 1;
 };
 
+const MAX_CONTEXT_CHARS = 200;
+const MAX_READ_SECONDS = 300;
+const DEFAULT_READ_SECONDS = 120;
+const MAX_LINE_SECONDS = 20;
+const SENTENCE_END_PATTERN = /[.?!。？！]["')\]」』]?$/;
+
+const findTranscriptFiles = (
+  store: StoreQueryable,
+  options: CreateChatToolsOptions,
+  filter: { file_id?: string; transcript_path?: string },
+): ActiveFileRow[] => {
+  const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
+  const scopedIds = new Set(referenceScope.fileIds);
+  const activeRows = store.query(
+    fileTable.where({ deletedAt: null, purgedAt: null }),
+  ) as ReadonlyArray<ActiveFileRow>;
+  return activeRows.filter((row) => {
+    if (!row.transcriptPath) return false;
+    if (row.type !== "audio" && row.type !== "video") return false;
+    if (filter.file_id && row.id !== filter.file_id) return false;
+    if (filter.transcript_path && row.transcriptPath !== filter.transcript_path) return false;
+    // A search without filters stays in the scope; a named file was approved on its own.
+    const named = Boolean(filter.file_id || filter.transcript_path);
+    if (!named && referenceScope.isActive && !scopedIds.has(row.id)) return false;
+    return true;
+  });
+};
+
+const formatSeconds = (value: number): string => String(Math.round(value * 10) / 10);
+
+// One line per sentence, or per 20 s of speech when there is no punctuation.
+const buildTimedLines = (words: TranscriptWord[]): string[] => {
+  const lines: string[] = [];
+  let text = "";
+  let start = 0;
+  let end = 0;
+  for (const word of words) {
+    if (!text) start = word.timestamp[0];
+    text += word.text;
+    end = word.timestamp[1];
+    if (SENTENCE_END_PATTERN.test(text.trimEnd()) || end - start >= MAX_LINE_SECONDS) {
+      lines.push(`[${formatSeconds(start)}-${formatSeconds(end)}] ${text.trim()}`);
+      text = "";
+    }
+  }
+  if (text.trim()) lines.push(`[${formatSeconds(start)}-${formatSeconds(end)}] ${text.trim()}`);
+  return lines;
+};
+
 const buildContextSnippet = (
   text: string,
   start: number,
@@ -108,13 +160,13 @@ const buildContextSnippet = (
 export const createTranscriptTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
-): ToolDefinition[] => {
+): ChatToolDefinition[] => {
   return [
     {
       type: "function",
       name: "search_transcript",
       description:
-        "Search transcript words by keyword and return direct timestamp ranges with context and media type. Supports filtering by file_id or transcript_path. If no filter is provided, searches all active transcripts.",
+        "Search transcript words by keyword and return direct timestamp ranges with context and media type. Supports filtering by file_id or transcript_path. If no filter is provided, searches all active transcripts. context_chars is the text kept on each side of a match, at most 200; larger values are capped. To read more of the passage around a match, call read_transcript with its fileId and a time range.",
       parameters: v.object({
         keyword: v.string(),
         file_id: v.optional(v.string()),
@@ -124,11 +176,27 @@ export const createTranscriptTools = (
           v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
           20,
         ),
-        context_chars: v.optional(
-          v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(200)),
-          48,
-        ),
+        // Capped in execute rather than rejected: models often ask for a little more.
+        context_chars: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 48),
       }),
+      access: (params) => {
+        const payload = params as { keyword: string; file_id?: string; transcript_path?: string };
+        const pathFile = payload.transcript_path
+          ? accessFileForPath(readLibrary(store), payload.transcript_path)
+          : null;
+        const fileId = payload.file_id ?? pathFile?.id;
+        if (payload.transcript_path && !fileId) return null;
+        return libraryReadRequest(
+          store,
+          options,
+          {
+            tool: "search_transcript",
+            summary: "search the transcripts of your recordings",
+            query: payload.keyword,
+          },
+          fileId ? [fileId] : undefined,
+        );
+      },
       execute: async (params: unknown) => {
         const payload = params as {
           keyword: string;
@@ -143,21 +211,7 @@ export const createTranscriptTools = (
           return { error: "keyword cannot be empty" };
         }
 
-        const referenceScope = options.getReferenceScope?.() ?? EMPTY_REFERENCE_SCOPE;
-        const scopedIds = new Set(referenceScope.fileIds);
-        const activeRows = store.query(
-          fileTable.where({ deletedAt: null, purgedAt: null }),
-        ) as ReadonlyArray<ActiveFileRow>;
-        const targetFiles = activeRows.filter((row) => {
-          if (!row.transcriptPath) return false;
-          if (row.type !== "audio" && row.type !== "video") return false;
-          if (payload.file_id && row.id !== payload.file_id) return false;
-          if (payload.transcript_path && row.transcriptPath !== payload.transcript_path) {
-            return false;
-          }
-          if (referenceScope.isActive && !scopedIds.has(row.id)) return false;
-          return true;
-        });
+        const targetFiles = findTranscriptFiles(store, options, payload);
 
         if (targetFiles.length === 0) {
           return {
@@ -169,7 +223,7 @@ export const createTranscriptTools = (
         }
 
         const maxResults = payload.max_results ?? 20;
-        const contextChars = payload.context_chars ?? 48;
+        const contextChars = Math.min(payload.context_chars ?? 48, MAX_CONTEXT_CHARS);
         const flags = payload.ignore_case === false ? "g" : "gi";
         const matches: Array<{
           fileId: string;
@@ -227,6 +281,63 @@ export const createTranscriptTools = (
           matches,
           count: matches.length,
           searchedFiles: targetFiles.length,
+        };
+      },
+    },
+    {
+      type: "function",
+      name: "read_transcript",
+      description: `Read the transcript of a video or audio file between two times, one line per sentence as "[startSec-endSec] text". Use it to read the passage around a search_transcript match and to find where a point starts and ends before citing it. end_sec defaults to ${DEFAULT_READ_SECONDS} s after start_sec; at most ${MAX_READ_SECONDS} s are returned per call.`,
+      parameters: v.object({
+        file_id: v.string(),
+        start_sec: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
+        end_sec: v.optional(v.pipe(v.number(), v.minValue(0))),
+      }),
+      access: (params) =>
+        libraryReadRequest(
+          store,
+          options,
+          { tool: "read_transcript", summary: "read part of a recording's transcript" },
+          [(params as { file_id: string }).file_id],
+          false,
+        ),
+      execute: async (params: unknown) => {
+        const payload = params as { file_id: string; start_sec?: number; end_sec?: number };
+        const file = findTranscriptFiles(store, options, { file_id: payload.file_id })[0];
+        if (!file?.transcriptPath) {
+          return { error: `No video or audio file with a transcript has id ${payload.file_id}.` };
+        }
+
+        let content = "";
+        try {
+          content = await cat(file.transcriptPath);
+        } catch {
+          return { error: "The transcript could not be read." };
+        }
+        const words = parseTranscriptWords(content);
+        if (words.length === 0) {
+          return { error: "The transcript is empty." };
+        }
+
+        const startSec = payload.start_sec ?? 0;
+        const endSec = Math.min(
+          payload.end_sec ?? startSec + DEFAULT_READ_SECONDS,
+          startSec + MAX_READ_SECONDS,
+        );
+        const durationSec = words.at(-1)?.timestamp[1] ?? 0;
+        const lines = buildTimedLines(
+          words.filter((word) => word.timestamp[1] > startSec && word.timestamp[0] < endSec),
+        );
+
+        return {
+          fileId: file.id,
+          fileName: file.name,
+          mediaType: file.type === "video" ? "video" : "audio",
+          startSec,
+          endSec,
+          durationSec,
+          lines,
+          ...(endSec < durationSec && { nextStartSec: endSec }),
         };
       },
     },
