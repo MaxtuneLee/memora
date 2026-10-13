@@ -5,6 +5,7 @@ import { Sidebar } from "@/app/components/Sidebar";
 import SearchPalette from "@/components/search/SearchPalette";
 import ToastStack from "@/components/ToastStack";
 import AppUpdateDialog from "@/components/AppUpdateDialog";
+import CredentialVaultPrompt from "@/components/CredentialVaultPrompt";
 import ChatFinishedToasts from "@/components/chat/ChatFinishedToasts";
 import { TabAccessDialog } from "@/components/chat/ToolAccessDialog";
 import SettingsDialog from "@/components/settings/SettingsDialog";
@@ -241,6 +242,7 @@ export default function AppLayout() {
           <ChatFinishedToasts />
           <TabAccessDialog />
           <AppUpdateDialog />
+          {!isOnboardingRoute && <CredentialVaultPrompt />}
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
     </Toast.Provider>

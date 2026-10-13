@@ -1,8 +1,10 @@
 import { Events, Schema, State, queryDb } from "@livestore/livestore";
 
+import { peekApiKey } from "@/lib/settings/credentialVault";
 import type { provider } from "./provider";
 
 // Device-local state only. Never include this table in workspace exports.
+// apiKey holds a key sealed by credentialVault; rows written before encryption hold plaintext.
 export const providerCredentialTable = State.SQLite.table({
   name: "provider_credentials",
   columns: {
@@ -46,6 +48,6 @@ export const readProviderApiKey = (
 ): string => {
   const credential = credentials.find((row) => row.providerId === provider.id);
   return credential && normalizeEndpoint(credential.baseUrl) === normalizeEndpoint(provider.baseUrl)
-    ? credential.apiKey
+    ? peekApiKey(credential.apiKey)
     : "";
 };

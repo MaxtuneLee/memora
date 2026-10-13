@@ -3,6 +3,7 @@ import { useCallback } from "react";
 
 import { createFeatureChatRuntime } from "@/lib/models/chatRuntime";
 import type { TextGenerationFeatureId } from "@/lib/models/modelRouting";
+import { useCredentialVaultVersion } from "@/lib/settings/credentialVault";
 import { settingsProvidersQuery$ } from "@/lib/settings/queries";
 import { providerCredentialsQuery$ } from "@/livestore/providerCredential";
 import { localModelUsageEvents } from "@/livestore/localModelUsage";
@@ -13,6 +14,8 @@ export const useFeatureModels = () => {
   const { routing, setFeatureModel } = useModelRouting();
   const providers = store.useQuery(settingsProvidersQuery$);
   const credentials = store.useQuery(providerCredentialsQuery$);
+  // Keys are read when a runtime is created; re-render consumers that show them after unlock.
+  useCredentialVaultVersion();
   const createRuntime = useCallback(
     (feature: TextGenerationFeatureId, priority: "interactive" | "background" = "interactive") =>
       createFeatureChatRuntime(
