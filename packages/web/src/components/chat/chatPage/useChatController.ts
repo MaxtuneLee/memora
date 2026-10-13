@@ -635,7 +635,6 @@ export const useChatController = ({
         onPaste: composerImages.handleComposerPaste,
         onCompositionStart: turnActions.handleCompositionStart,
         onCompositionEnd: turnActions.handleCompositionEnd,
-        onCreateSession,
         onImageButtonClick: () =>
           composerImages.handleImageButtonClick(references.closeReferencePicker),
         onReferenceButtonClick: references.handleReferenceButtonClick,

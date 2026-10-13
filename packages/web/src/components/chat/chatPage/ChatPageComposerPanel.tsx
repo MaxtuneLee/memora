@@ -8,7 +8,6 @@ import {
   HandIcon,
   ImageIcon,
   LockSimpleIcon,
-  PlusIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   StopIcon,
@@ -391,7 +390,6 @@ interface ChatPageComposerPanelProps {
   onPaste: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onCompositionStart: () => void;
   onCompositionEnd: () => void;
-  onCreateSession: () => void;
   onImageButtonClick: () => void;
   onReferenceButtonClick: () => void;
   onAbort: () => void;
@@ -458,7 +456,6 @@ export const ChatPageComposerPanel = ({
   onPaste,
   onCompositionStart,
   onCompositionEnd,
-  onCreateSession,
   onImageButtonClick,
   onReferenceButtonClick,
   onAbort,
@@ -678,15 +675,6 @@ export const ChatPageComposerPanel = ({
               />
               <div {...stylex.props(styles.composerFooter)}>
                 <div {...stylex.props(styles.toolGroup)}>
-                  <button
-                    type="button"
-                    onClick={onCreateSession}
-                    disabled={!sessionsReady || isPreparingTurn}
-                    {...stylex.props(styles.toolButton)}
-                    title="New session"
-                  >
-                    <PlusIcon className={stylex.props(styles.icon).className} weight="bold" />
-                  </button>
                   <button
                     type="button"
                     onClick={onImageButtonClick}
