@@ -4,24 +4,27 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
-## 2026-10-11
-
-- Tables in chat look tidier: copy, download, and full screen sit in one row above the table, and opening or closing full screen now animates smoothly.
-- Code blocks in chat show one line per row again, with the copy button back in the top right corner.
-
-## 2026-10-10
-
-- You can now choose whether chat asks before reading your files, not just before changing them, in Settings > Permissions. Each chat can change this from the menu under the chat box.
-- When chat asks, you can allow once, or always allow that file, its folder, or your whole library. Saved permissions are listed in Settings > Permissions, where you can also add or remove them.
-- Turn on Auto review to let a model approve routine requests for you. It asks you when it is unsure, and you can pick its model under Models by feature > Permission review.
-- Referencing files no longer blocks chat from everything else: reading other files asks you instead.
-
-## 2026-10-08
+## 2026-10-14
 
 - Turn on learning mode with the graduation cap button under the chat box. Memora then explains a concept, builds a hands-on lesson you work through step by step, and ends it with questions you answer by using the lesson itself. Your result goes back to Memora, which goes over what you missed. A large topic is taught in parts and ends with a final review across all of them.
-- Charts, diagrams, and lessons in a chat reply now appear at the point in the answer where they belong, instead of above all the text.
+- Learning mode looks up your library before explaining, sizes each part by the concept rather than by the document's sections, and no longer gives away the right answer by making it the longest option.
+- You can now choose whether chat asks before reading your files, not just before changing them, in Settings > Permissions. Each chat can change this from the menu under the chat box.
+- When chat asks, you can allow once, or always allow that file, its folder, or your whole library. Saved permissions are listed in Settings > Permissions, where you can also add or remove them.
+- The permission dialog says in plain words what the assistant wants to do, which files or folders it covers, and how large a change is.
+- Turn on Auto review to let a model approve routine requests for you. It asks you when it is unsure, and you can pick its model under Models by feature > Permission review.
+- Referencing files no longer blocks chat from everything else: reading other files asks you instead.
+- In browsers with WebMCP, the browser's own assistant can search and read your library through Memora. It asks in the Memora tab first, following your permission settings, and cannot change anything.
+- Charts, diagrams, and lessons in a chat reply now appear at the point in the answer where they belong, instead of above all the text. They also shrink to fit what they show, and interactive ones no longer show repeated content after they finish loading.
+- Text the assistant writes before using a tool no longer disappears when the reply finishes, and text after a tool starts a new paragraph instead of running into the previous sentence.
+- When a Gemini model stops without answering after using a tool, Memora asks it again automatically.
 - Chat replies show inline formulas written as `$x$`.
+- Tables in chat look tidier: copy, download, and full screen sit in one row above the table, and opening or closing full screen now animates smoothly.
+- Code blocks in chat show one line per row again, with the copy button back in the top right corner.
+- The New session button under the chat box is gone; start a new chat from the chat history.
 - Providers can now use the Anthropic messages API or the Gemini API. Choose "Anthropic messages" or "Gemini" as the API format when adding a provider.
+- Reviewing changes from the note chat keeps the rest of the note formatted in Preview. Only the changed parts show as Markdown with accept and reject buttons, and Code keeps your scroll position.
+- Searching your library also finds other forms of an English word, such as "running" for "run", and search results break at the end of a sentence.
+- Transcription no longer stays stuck after you close or reload a tab that was recording.
 
 ## 2026-09-29
 
