@@ -310,7 +310,9 @@ test("the actual page compares paired candidates, restores within a query, and p
     ),
   ).toBe(false);
   expect(p.requests.some((r) => r.path.includes("/pairs/0/items/29.json"))).toBe(true);
-  expect(p.files.get("beir-reranker-bge-small-en-cls-k20-c30-v1-progress.json")).toContain('"status": "complete"');
+  expect(p.files.get("beir-reranker-bge-small-en-cls-k20-c30-v1-progress.json")).toContain(
+    '"status": "complete"',
+  );
 });
 
 test("the actual page stops on a missing saved index without model loading or retrieval", async () => {
@@ -348,7 +350,9 @@ test("base model uses WebGPU and separate model checkpoints without overwriting 
   expect([...p.files.keys()].some((key) => key.includes("beir-reranker-base-checkpoints/"))).toBe(
     true,
   );
-  const output = JSON.parse(p.files.get("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")!);
+  const output = JSON.parse(
+    p.files.get("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")!,
+  );
   expect(output.config.reranker.modelId).toBe("Xenova/bge-reranker-base");
   expect(output.config.reranker.device).toBe("webgpu");
   expect(
@@ -365,7 +369,9 @@ test("a base speed trial saves only SciFact paired results in a separate report"
   expect(p.report().results).toHaveLength(2);
   expect(p.searches()).toBe(2);
   expect([...p.files.keys()].some((key) => key.includes("/nfcorpus/candidates/"))).toBe(false);
-  expect(p.files.has("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")).toBe(false);
+  expect(p.files.has("beir-reranker-base-fp32-webgpu-bge-small-en-cls-k20-c30-v1.json")).toBe(
+    false,
+  );
   expect(p.files.get(sourcePath)).toBe(source);
 });
 
@@ -392,7 +398,9 @@ test("Jev uses raw probabilities, saves usage separately, and resumes document s
   }
   expect(p.report().status).toBe("complete");
   expect(p.report().results.length).toBe(2);
-  const report = JSON.parse(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")!);
+  const report = JSON.parse(
+    p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")!,
+  );
   expect(report.execution.backend).toBe("remote-api");
   expect(report.execution.pairConcurrency).toBe(4);
   expect(report.apiBilling.usage).toEqual({ input_tokens: 600, output_tokens: 60 });
@@ -414,7 +422,9 @@ test("NFCorpus-only Jev evaluation runs every source query and preserves the Sci
   await p.run();
   expect(p.report().status).toBe("complete");
   expect(p.searches()).toBe(2);
-  const report = JSON.parse(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-nfcorpus.json")!);
+  const report = JSON.parse(
+    p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-nfcorpus.json")!,
+  );
   expect(report.config.datasets).toEqual(["nfcorpus"]);
   expect(report.config.queryLimitPerDataset).toBeUndefined();
   expect(report.results).toHaveLength(2);
@@ -430,6 +440,8 @@ test("NFCorpus-only Jev evaluation runs every source query and preserves the Sci
       (k) => k.startsWith("scifact question") || k.startsWith("arguana question"),
     ),
   ).toBe(false);
-  expect(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")).toBe("preserve-scifact-trial");
+  expect(p.files.get("beir-reranker-jev-bge-small-en-cls-k20-c30-v1-trial.json")).toBe(
+    "preserve-scifact-trial",
+  );
   expect(p.files.get(sourcePath)).toBe(source);
 });

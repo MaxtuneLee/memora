@@ -147,7 +147,10 @@ export class BeirEmbeddingPool {
         { signal: taskSignal, priority: "background", pooling: BEIR_EMBEDDING_POOLING },
       );
       if (taskSignal.aborted) throw new Error("Canceled");
-      if (vectors.length !== texts.length || vectors.some((v) => v.length !== BEIR_EMBEDDING_DIMENSIONS)) {
+      if (
+        vectors.length !== texts.length ||
+        vectors.some((v) => v.length !== BEIR_EMBEDDING_DIMENSIONS)
+      ) {
         throw new Error("BGE returned an incomplete embedding batch.");
       }
       if (vectors.some((v) => !v.every(Number.isFinite))) {

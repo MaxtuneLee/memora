@@ -394,7 +394,8 @@ test("query-only k=20 keeps the baseline, reuses indexes and resumes vectors acr
   await opened.ready;
   await runInContext("button.onclick()", opened.context);
   const saved = JSON.parse(
-    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ?? "",
+    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ??
+      "",
   );
   expect(saved.status).toBe("complete");
   expect(saved.results).toHaveLength(9);
@@ -445,14 +446,16 @@ test("query-only k=20 keeps the baseline, reuses indexes and resumes vectors acr
   await changed.ready;
   await runInContext("button.onclick()", changed.context);
   expect(
-    JSON.parse(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k30.json") ?? "")
-      .status,
+    JSON.parse(
+      files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k30.json") ??
+        "",
+    ).status,
   ).toBe("complete");
   expect(changed.embedding.queries).toHaveLength(0);
   expect(files.get(root)).toBe(original);
-  expect(files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json")).toBe(
-    JSON.stringify(saved, null, 2),
-  );
+  expect(
+    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json"),
+  ).toBe(JSON.stringify(saved, null, 2));
 }, 30000);
 
 test("query-only mode fails before searching when a saved index is unavailable", async () => {
@@ -463,7 +466,8 @@ test("query-only mode fails before searching when a saved index is unavailable",
   await opened.ready;
   await runInContext("button.onclick()", opened.context);
   const saved = JSON.parse(
-    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ?? "",
+    files.get("/api/playground/eval-data/results/beir-dissertation-bge-small-en-cls-k20.json") ??
+      "",
   );
   expect(saved.status).toBe("failed");
   expect(saved.errors[0]).toContain("will not rebuild passages");
