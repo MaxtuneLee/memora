@@ -255,6 +255,35 @@ export const normalizeChatWidgets = (value: unknown): ChatWidget[] | undefined =
   return normalized.length > 0 ? normalized : undefined;
 };
 
+const GIVEAWAY_RATIO = 1.2;
+const QUOTED = String.raw`(["'\x60])((?:\\.|(?!\1)[^\\])*)\1`;
+
+/**
+ * The first `.choice({...})` whose `answer` is more than a fifth longer than its longest `wrong`
+ * option, which a learner can pick by length alone. The evaluation's report uses the same rule.
+ * ponytail: reads string literals by pattern; options built from variables are not checked.
+ */
+const longestAnswerChoice = (
+  code: string,
+): { prompt: string; answer: number; longestWrong: number } | undefined => {
+  const starts = [...code.matchAll(/\.(?:task|choice)\(\s*\{/g)];
+  for (const [index, start] of starts.entries()) {
+    if (!start[0].startsWith(".choice")) continue;
+    const body = code.slice(start.index, starts[index + 1]?.index ?? code.length);
+    const answer = new RegExp(String.raw`\banswer\s*:\s*${QUOTED}`).exec(body)?.[2];
+    const wrong = [...body.matchAll(new RegExp(String.raw`\btext\s*:\s*${QUOTED}`, "g"))].map(
+      (match) => match[2].length,
+    );
+    if (answer === undefined || wrong.length === 0) continue;
+    const longestWrong = Math.max(...wrong);
+    if (answer.length > longestWrong * GIVEAWAY_RATIO) {
+      const prompt = new RegExp(String.raw`\bprompt\s*:\s*${QUOTED}`).exec(body)?.[2] ?? "";
+      return { prompt: prompt.slice(0, 80), answer: answer.length, longestWrong };
+    }
+  }
+  return undefined;
+};
+
 export const validateShowWidgetCall = (params: ShowWidgetArguments): string | null => {
   const normalizedTitle = params.title.trim();
   if (!normalizedTitle) {
@@ -278,6 +307,10 @@ export const validateShowWidgetCall = (params: ShowWidgetArguments): string | nu
   }
   if (usesQuiz && !/\.task\(/.test(code)) {
     return "A lesson needs at least one hands-on question: add a .task({...}) the learner answers by changing the model, as guidelines/lesson.md shows.";
+  }
+  const giveaway = usesQuiz ? longestAnswerChoice(code) : undefined;
+  if (giveaway) {
+    return `In the choice question "${giveaway.prompt}", the correct answer (${giveaway.answer} characters) is much longer than every wrong option (at most ${giveaway.longestWrong}), so it can be guessed by length. Rewrite the wrong options to the same length and detail as the answer, as "Writing choices" in guidelines/lesson.md says.`;
   }
 
   return null;

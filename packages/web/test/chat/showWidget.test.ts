@@ -117,3 +117,29 @@ test("a lesson must use lesson.quiz and include a hands-on question", () => {
   expect(call("<script>lesson.quiz(m, {}).choice({}).start()</script>")).toContain(".task(");
   expect(call("<script>lesson.quiz(m, {}).task({}).choice({}).start()</script>")).toBeNull();
 });
+
+test("validateShowWidgetCall refuses a choice whose answer is longer than every wrong option", () => {
+  const lessonWith = (answer: string) => ({
+    title: "Core points",
+    widget_code: `<script>
+const quiz = lesson.quiz(el("quiz"), { title: "DBSCAN part 1" });
+quiz.task({ concept: "core", prompt: "Drag ε", check: () => true });
+quiz.choice({
+  concept: "minPts",
+  prompt: "What happens when minPts goes up?",
+  answer: "${answer}",
+  wrong: [
+    { text: "More points become core points", why: "" },
+    { text: "Every circle gets larger", why: "" },
+  ],
+});
+</script>`,
+  });
+
+  expect(
+    validateShowWidgetCall(
+      lessonWith("Fewer points have enough neighbors within ε to be core points"),
+    ),
+  ).toMatch(/guessed by length/);
+  expect(validateShowWidgetCall(lessonWith("Fewer points become core points"))).toBeNull();
+});
