@@ -6,6 +6,7 @@ import SearchPalette from "@/components/search/SearchPalette";
 import ToastStack from "@/components/ToastStack";
 import AppUpdateDialog from "@/components/AppUpdateDialog";
 import ChatFinishedToasts from "@/components/chat/ChatFinishedToasts";
+import { TabAccessDialog } from "@/components/chat/ToolAccessDialog";
 import SettingsDialog from "@/components/settings/SettingsDialog";
 import { LocalModelDevtoolsPanel } from "@/components/devtools/LocalModelDevtoolsPanel";
 import {
@@ -23,9 +24,11 @@ import { appShellStyles } from "@/styles/stylex.stylex";
 import * as stylex from "@stylexjs/stylex";
 
 import { useAgentToolHost } from "@/hooks/chat/useAgentToolHost";
+import { useWebMcpTools } from "@/hooks/chat/useWebMcpTools";
 
 export default function AppLayout() {
   useAgentToolHost();
+  useWebMcpTools();
   const store = useAppStore();
   const settings = store.useQuery(settingsDocumentQuery$);
   useDocumentTheme(settings.theme ?? "system");
@@ -236,6 +239,7 @@ export default function AppLayout() {
           {import.meta.env.DEV && <LocalModelDevtoolsPanel currentPath={location.pathname} />}
           <ToastStack />
           <ChatFinishedToasts />
+          <TabAccessDialog />
           <AppUpdateDialog />
         </SearchPaletteContextProvider>
       </SettingsDialogContextProvider>
