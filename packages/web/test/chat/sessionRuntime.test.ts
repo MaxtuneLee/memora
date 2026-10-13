@@ -354,3 +354,50 @@ describe("file cards", () => {
     ]);
   });
 });
+
+describe("reply text", () => {
+  it("keeps text streamed before a tool call when the run finishes", async () => {
+    let snapshot = emptySessionSnapshot("session");
+    const runtime = new SessionRuntime({
+      snapshot,
+      publish: (next) => {
+        snapshot = next;
+      },
+      save: async () => {},
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {
+          const events: AgentEvent[] = [
+            { type: "text-delta", delta: "Before. " },
+            { type: "tool-call-start", toolCall: { id: "call-1", name: "show_widget" } },
+            {
+              type: "tool-result",
+              toolCall: { id: "call-1", name: "show_widget" },
+              result: "ok",
+              isError: false,
+            },
+            { type: "text-delta", delta: "After." },
+            {
+              type: "done",
+              message: {
+                id: "reply",
+                role: "assistant",
+                createdAt: 2,
+                content: [{ type: "text", text: "After." }],
+              },
+            },
+          ];
+          yield* events;
+        },
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+
+    await runtime.submit(submission("explain"));
+    await vi.waitFor(() => expect(snapshot.status.type).toBe("idle"));
+
+    const reply = snapshot.messages.find((message) => message.role === "assistant");
+    expect(reply?.content).toBe("Before. After.");
+  });
+});

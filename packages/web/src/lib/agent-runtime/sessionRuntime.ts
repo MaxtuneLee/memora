@@ -308,13 +308,16 @@ export class SessionRuntime {
         break;
       }
       case "done":
+        // The done message holds only the last model turn; text streamed before earlier tool
+        // calls is already in the reply, so the done text only fills a reply that never streamed.
         this.updateAssistant((message) => ({
           ...message,
           content:
+            message.content ||
             event.message.content
               .filter((item) => item.type === "text")
               .map((item) => item.text)
-              .join("") || message.content,
+              .join(""),
         }));
         break;
       case "usage":
