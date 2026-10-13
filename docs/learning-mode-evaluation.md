@@ -88,7 +88,6 @@ L12 reran the six DeepSeek cases those two fixes target: 11/18, against 7/18 in 
 
 ## Open issues
 
-- **English preamble in Chinese replies** (DeepSeek): the sentence written before the first tool call ("I'll first check whether your library has anything on DBSCAN.") is in English. The language check misses it because the rest of the reply is Chinese.
 - **Long answers to follow-ups**: n04 answers a one-line question in 110 to 200 words. The 100-word limit is the evaluation's guess; the guideline sets none.
 - **Sizing is now the model's judgment**: base rates were split into two parts in 2 of 6 DeepSeek attempts. Whether that counts as wrong is open; one attempt set a next part without any roadmap, which is inconsistent either way.
 - **Prerequisites**: the agent rarely checks what the learner knows (p01 at most 1/3). Needs a rule before it can be scored.
