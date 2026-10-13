@@ -23,7 +23,8 @@ const VIEW_OPTIONS = [
 ] as const;
 
 const styles = stylex.create({
-  root: { display: "flex", height: "100%", minHeight: 0 },
+  // clip, not hidden: overflow must not let focus/scrollIntoView scroll the app shell's scrollArea.
+  root: { display: "flex", height: "100%", minHeight: 0, overflow: "clip" },
   main: { display: "flex", flex: 1, flexDirection: "column", minHeight: 0, minWidth: 0 },
   views: { paddingInline: 16, paddingTop: 12 },
   hidden: { display: "none" },
