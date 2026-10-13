@@ -173,3 +173,57 @@ test("abort preserves steering that has not reached a model call", async () => {
     ["followup"],
   );
 });
+
+test("asks again when a Run ends without any text, at most twice", async () => {
+  const run = async (replies) => {
+    const requests = [];
+    const agent = createAgent({
+      config: { id: "empty-agent", maxIterations: 6 },
+      model: fakeModel,
+      stream: (model, context) => {
+        requests.push(context);
+        const reply = replies[requests.length - 1] ?? "";
+        return (async function* stream() {
+          if (reply.endsWith("tool")) {
+            if (reply !== "tool")
+              yield { type: "text_delta", delta: reply.slice(0, -"+tool".length) };
+            yield {
+              type: "toolcall_end",
+              contentIndex: 0,
+              toolCall: {
+                type: "toolCall",
+                id: `call-${requests.length}`,
+                name: "noop",
+                arguments: {},
+              },
+              partial: { content: [] },
+            };
+          } else if (reply) yield { type: "text_delta", delta: reply };
+        })();
+      },
+      persistence: createInMemoryAdapter(),
+    });
+    agent.registerTool({
+      type: "function",
+      name: "noop",
+      description: "Does nothing",
+      parameters: v.object({}),
+      execute: () => ({ ok: true }),
+    });
+    await agent.init();
+    for await (const event of agent.run("Hi")) void event;
+    run.lastRequests = requests;
+    return requests.length;
+  };
+
+  // Empty after a tool result with no text yet: asked again until it answers.
+  assert.equal(await run(["tool", "", "", "answer"]), 4);
+  // Each retry ends with the nudge; the first request does not.
+  const lastTexts = run.lastRequests.map((context) => context.messages.at(-1)?.content);
+  assert.match(JSON.stringify(lastTexts[2]), /Your last turn was empty/);
+  assert.doesNotMatch(JSON.stringify(lastTexts[0]), /Your last turn was empty/);
+  // Never more than two retries.
+  assert.equal(await run(["", "", "", "answer"]), 3);
+  // Text came with the tool call, so the empty turn after it is a normal end.
+  assert.equal(await run(["intro+tool", ""]), 2);
+});

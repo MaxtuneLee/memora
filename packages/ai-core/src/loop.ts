@@ -273,6 +273,15 @@ export class Agent {
       }
 
       const maxIterations = this.config.maxIterations ?? 10;
+      // Some models (Gemini) end a turn with STOP and no text or tool call, often right after a
+      // tool result. When the Run has written no text at all, the request is sent again instead
+      // of ending with an empty reply. An empty turn after earlier text is a normal end (for
+      // example after a widget the reply closes on).
+      // A plain retry gets the same empty answer, so the retry request ends with a short nudge
+      // that is sent only with that request, never stored in the history.
+      let emptyReplyRetries = 2;
+      let nudge: string | undefined;
+      let wroteText = false;
 
       while (this.state.iteration < maxIterations && !this.state.aborted) {
         this.state.iteration++;
@@ -282,12 +291,25 @@ export class Agent {
           await this.hooks.onBeforeThink(this.createHookContext());
         }
 
-        const thinkResult = yield* this.think();
+        const thinkResult = yield* this.think(nudge);
+        nudge = undefined;
 
         if (this.state.aborted) break;
 
         if (this.hooks.onAfterThink) {
           await this.hooks.onAfterThink(this.createHookContext(), thinkResult);
+        }
+
+        if (thinkResult.text.trim()) wroteText = true;
+        if (
+          thinkResult.toolCalls.length === 0 &&
+          !wroteText &&
+          emptyReplyRetries > 0 &&
+          this.steeringInputs.length === 0
+        ) {
+          emptyReplyRetries -= 1;
+          nudge = EMPTY_REPLY_NUDGE;
+          continue;
         }
 
         if (thinkResult.toolCalls.length === 0) {
@@ -816,7 +838,7 @@ export class Agent {
     return mergeSystemPromptWithMemory(baseSystemPrompt, personalityText ?? "", notices);
   }
 
-  private async *think(): AsyncGenerator<AgentEvent, ThinkResult> {
+  private async *think(nudge?: string): AsyncGenerator<AgentEvent, ThinkResult> {
     const systemPrompt = await this.composeSystemPrompt();
     const steered: string[] = [];
     while (this.steeringInputs.length > 0) {
@@ -832,7 +854,18 @@ export class Agent {
     const untrimmed = this.config.compaction
       ? await this.compactHistory(history, systemPrompt)
       : history;
-    const messages = this.fitToContextWindow(untrimmed, systemPrompt);
+    const fitted = this.fitToContextWindow(untrimmed, systemPrompt);
+    const messages: AgentMessage[] = nudge
+      ? [
+          ...fitted,
+          {
+            id: "empty-reply-nudge",
+            role: "user",
+            content: [{ type: "text", text: nudge }],
+            createdAt: now(),
+          },
+        ]
+      : fitted;
 
     let text = "";
     let reasoning = "";
@@ -844,7 +877,7 @@ export class Agent {
       ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
       ...(this.config.maxTokens !== undefined ? { maxTokens: this.config.maxTokens } : {}),
     };
-    this.traceRequest("reply", systemPrompt, untrimmed, messages, this.model, settings);
+    this.traceRequest("reply", systemPrompt, untrimmed, fitted, this.model, settings, nudge);
     const started = now();
     const traceResponse = (error?: unknown) =>
       this.emit({
@@ -961,6 +994,9 @@ export class Agent {
     };
   }
 }
+
+const EMPTY_REPLY_NUDGE =
+  "Your last turn was empty. Continue the task: call the next tool you need, or write your reply.";
 
 const stringifyToolResult = (result: unknown): string => {
   return typeof result === "string" ? result : JSON.stringify(result);
