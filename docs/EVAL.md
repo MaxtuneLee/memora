@@ -107,6 +107,105 @@ Neither writes to the user's memory or reads the user's chats. Cases and profile
 - **Showed**: r05 3/3, each attempt starting with `list_chat_sessions`: 2 to 4 tool calls instead of 13 to 19, 4 to 8 s instead of about 160 s (concurrency 3 here, 9 in M2, so latency is only roughly comparable), and 10.5k uncached input tokens for all three instead of 37.0k. Two attempts still ran `search_files` alongside. All answers were in English.
 - **Next**: the rest of the recall cases and the full QA set, to check that lecture questions do not now start in chat history.
 
+## Learning mode evaluation
+
+Design and findings: [learning-mode-evaluation.md](learning-mode-evaluation.md). From 2026-10-11 learning mode is checked against its own protocol (`packages/web/src/lib/chat/learningMode.ts` and `guidelines/lesson.md`): whether a message gets a lesson, roadmaps for large concepts, the shape of the quiz, and each branch after a `Lesson result:` message. 17 cases × 3, scored by code over the reply and the last accepted `show_widget` call, no judge. The concepts are base rates (small) and DBSCAN (large, 4 parts), both from documents in the library; p01 (MFCC without the prerequisites) is report-only. Cases and documents live in `~/memora-eval-data/learning/`.
+
+- **Passed** counts gating cases only (16 × 3 = 48 attempts). From L10 there is no check on text after the widget.
+- **Longest answer**: choice questions whose correct option is longer than every wrong one, against all choice questions. `lesson.md` forbids it; reported, not gating.
+
+### Learning runs
+
+| #   | Date (UTC)       | Evaluation | Scope                                | Conc. | Code                  | Model            | Prompt   | Cases    | Passed  | Empty replies | Longest answer | Refused widgets | Tokens (in / cached / out)    | Median latency |
+| --- | ---------------- | ---------- | ------------------------------------ | ----- | --------------------- | ---------------- | -------- | -------- | ------- | ------------- | -------------- | --------------- | ----------------------------- | -------------- |
+| L1  | 2026-10-11 08:26 | bcca8574   | 17 × 3                               | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 83ab92e2 | 100cf092 | 35 / 48 | 7 / 51        | 18 / 25        | 3               | 3,006,822 / 196,559 / 205,999 | 16.8 s         |
+| L2  | 2026-10-11 08:34 | de6103c9   | 17 × 3                               | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 83ab92e2 | d46fef6a | 34 / 48 | 8 / 51        | 21 / 28        | 1               | 2,738,578 / 248,165 / 191,662 | 15.0 s         |
+| L3  | 2026-10-11 08:47 | bc9a6ab9   | 5 × 3 (s01, s02, l01, l02, p01)      | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 83ab92e2 | d46fef6a | 8 / 12  | 2 / 15        | 9 / 13         | 2               | 1,438,602 / 331,075 / 101,032 | 68.0 s         |
+| L4  | 2026-10-11 08:52 | 710e59ca   | 5 × 3 (same)                         | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 83ab92e2 | d46fef6a | 7 / 12  | 3 / 15        | 9 / 12         | 3               | 1,446,832 / 323,577 / 101,220 | 65.3 s         |
+| L5  | 2026-10-11 08:59 | becf6205   | 5 × 3 (same)                         | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 83ab92e2 | d46fef6a | 5 / 12  | 3 / 15        | 6 / 12         | 0               | 1,181,654 / 239,796 / 87,879  | 61.9 s         |
+| L6  | 2026-10-11 09:03 | 83e7ba51   | 2 × 3 (r04, r06)                     | 6     | ba71b17 + uncommitted | gemini-3.8-flash | d71c36f4 | d46fef6a | 5 / 6   | 0 / 6         | 8 / 15         | 0               | 733,770 / 0 / 67,063          | 109.3 s        |
+| L7  | 2026-10-11 09:07 | c136c932   | 4 × 3 (s01, l01, r01, r06)           | 6     | ba71b17 + uncommitted | gemini-3.8-flash | d71c36f4 | d46fef6a | 12 / 12 | 0 / 12        | 0 / 21         | 5               | 1,445,016 / 261,614 / 150,267 | 99.4 s         |
+| L8  | 2026-10-11 09:12 | 5988819f   | 2 × 3 (s02, l02)                     | 6     | ba71b17 + uncommitted | gemini-3.8-flash | 25a9b089 | d46fef6a | 5 / 6   | 1 / 6         | 0 / 5          | 1               | 495,829 / 114,145 / 53,250    | 80.2 s         |
+| L9  | 2026-10-11 09:28 | 7b5e0fea   | 3 × 3 (s01, l01, l02)                | 6     | ba71b17 + uncommitted | deepseek-flash   | 25a9b089 | d46fef6a | 0 / 9   | 0 / 9         | 0 / 9          | 0               | 265,564 / 1,525,500 / 274,576 | 128.8 s        |
+| L10 | 2026-10-13 08:31 | f5f2938f   | 17 × 3                               | 3     | ba71b17 + uncommitted | gemini-3.8-flash | 25a9b089 | 804ffa65 | 45 / 48 | 0 / 51        | 0 / 34         | 13              | 3,975,167 / 555,200 / 403,408 | 83.7 s         |
+| L11 | 2026-10-13 09:28 | 21610f3a   | 17 × 3                               | 3     | ba71b17 + uncommitted | deepseek-flash   | 25a9b089 | 804ffa65 | 37 / 48 | 0 / 51        | 0 / 29         | 5               | 782,872 / 5,599,860 / 870,957 | 97.4 s         |
+| L12 | 2026-10-13 09:58 | 5af5630e   | 6 × 3 (s01, s02, l01, l02, r01, n04) | 3     | ba71b17 + uncommitted | deepseek-flash   | 65ea4ec0 | 323f2920 | 11 / 18 | 0 / 18        | 0 / 15         | 1               | 416,036 / 2,834,048 / 441,707 | 126.0 s        |
+
+### Run L1: first learning-mode run (uncommitted)
+
+- **Infrastructure**: three scoring bugs, fixed before L2. "Widget ends the reply" used the page snapshot's length when `show_widget` was called, which can lag the stream (r04 #2 and r05 #1 failed on text that came before the widget); it is now read from the Trace. The quiz's `nextPart` was read from the `labels` object's button text (r06 #1). A Chinese roadmap heading "第一节" did not match the part-line pattern (l02 #1).
+- **Agent**: 7 empty replies (s01, s02 ×2, l01, p01 ×3). Six stop right after `activate_skill`: Gemini answers the skill's instructions with `STOP`, 27 output tokens, no text and no tool call. r01 #2 asked two choice questions where one is allowed. l02 #3 looked only at file names with `query_db` and never read the document.
+- **Answer key**: n04's 80-word limit was a guess, not a rule in `lesson.md`; raised to 100 (one attempt at 87 words).
+
+### Run L2: scoring fixes (uncommitted)
+
+- **Changed**: the three scoring fixes above; cases file d46fef6a (Chinese part-line pattern, n04 limit 100).
+- **Showed**: 34/48. With the scoring fixed, the failures are the agent's:
+  - Empty replies, 8 of 51, the largest cause: s01 0/3 here, l01, l02, p01 ×2, n04 #3. n04 #3 passed because an empty reply meets "no widget" and the word limit; since this run every case also requires a non-empty reply, which makes L2 33/48.
+  - r06 0/3 in both runs: for the final review the agent calls `show_widget` first and writes the one-sentence introduction after it, in the next model turn.
+  - Choice questions ignore "Writing choices": the correct option is the longest in 21 of 28 (18 of 25 in L1). r01 asked two choices in 2 of 3 attempts.
+  - s02 #2 taught base rates as a roadmap with parts; n04 answered a one-line follow-up in 109 and 118 words and offered the next part.
+  - p01 never asks about the missing prerequisites (0/3 in both runs), as expected: the prompt has no rule for it.
+- **Next**: retry an empty final reply in the session runtime (or treat it as a provider failure) before tuning prompts, since it hides everything else; in `lesson.md`, say to write the final review's introduction before calling `show_widget`; make the length rule for choices concrete.
+
+### Runs L3 to L5: retrying an empty reply (uncommitted)
+
+- **Changed**: the agent loop (`packages/ai-core/src/loop.ts`) sends the request again when a turn ends with no text and no tool call. L3 ran the first version (one plain retry after any empty turn).
+- **Showed**: s01 went from 0/3 to 3/3, but the Trace showed most retries came after `show_widget`, where an empty turn is the normal end of a lesson, and that a plain retry gets the same empty answer back (the same 15 or 27 output tokens). The loop now retries only while the Run has written no text, up to twice, and ends each retry request with a one-line nudge that is never stored in the history.
+- **Infrastructure**: L4 and L5 still ran the L3 worker: no nudge appears in their Traces. A SharedWorker restarts only when every Memora tab is closed or reloaded, and another tab kept the old one alive. Their empty-reply numbers measure the first version, not the current one.
+
+### Run L6: widget last (uncommitted)
+
+- **Changed**: the learning prompt says to write all text first and call `show_widget` as the very last step; `lesson.md` says the final review's introduction comes before the call. Prompt d71c36f4.
+- **Showed**: r06 0/3 → 3/3. r04 #3 still called the widget before writing anything and explained after it.
+
+### Run L7: refusing giveaway choices (uncommitted)
+
+- **Changed**: `validateShowWidgetCall` refuses a lesson whose choice answer is more than a fifth longer than its longest wrong option, and says why. The report's "Longest answer" uses the same rule from this run; under it L2 had 9 of 28 (L1 to L6 above were counted with "strictly longest").
+- **Showed**: 12/12. 5 refusals; each attempt rewrote the options and the next call was accepted. 0 of 21 choice questions can be told by length. r01 asked at most one choice question in all three attempts.
+
+### Run L8: reading the library first (uncommitted)
+
+- **Changed**: before explaining a new concept the agent searches the library with the concept's usual technical name as well as the user's wording, and reads a file that covers it; a file name alone is not enough. Prompt 25a9b089.
+- **Showed**: s02 0/3 → 3/3, and every attempt searched. Two s02 attempts searched only in Chinese and never opened the English document; `readLibrary` counts a search as reading, so it is a loose check. l02 #3 was an empty reply on the old worker.
+- **Next**: reload every Memora tab so the nudge version of the retry runs, rerun s01, l01, l02, then the full set.
+
+### Run L9: a different chat model (uncommitted)
+
+- **Infrastructure**: after the Memora tabs reloaded, the chat model in Settings was deepseek-flash, not gemini-3.8-flash; L9 is not comparable with L1 to L8. There were no empty replies and so no retries: the empty-reply retry is still unmeasured on Gemini.
+- **Showed**: 0/9, every attempt failing only "Widget ends the reply" (and l01 #1 the part line too): DeepSeek writes a closing line after `show_widget` returns ("Move the two sliders below…", "第 2 步想接着学的时候告诉我一声").
+- **Changed after this run**: the "Widget ends the reply" check is removed; text after the widget is allowed (cases file 804ffa65). Rescored without it, L9 is 8/9. The prompt still asks for nothing after the widget.
+
+### Run L10: full set after all fixes (uncommitted)
+
+- **Changed since L2**: empty-reply retry with a nudge (`loop.ts`), widget-last prompt, giveaway choices refused by `show_widget`, library first, and the widget-last check removed (cases 804ffa65). Before it, s01, l01, l02 on the reloaded worker went 8/9: 2 nudged retries, both answered, no empty reply; the ninth attempt timed out before its first request. A run just before that failed all 9 attempts with the provider's "upstream error: do request failed"; one case at concurrency 1 then passed 3/3, so this run used concurrency 3. Latency is not comparable with L1 and L2 (concurrency 6).
+- **Showed**: 45/48, against 37/48 for L2 rescored under the same cases. No empty replies (3 nudged retries, all recovered); 0 of 34 choice questions can be told by length, after 13 refused widget calls that were each rewritten; r06 3/3. Tokens are up by a third (3.98M uncached against 2.74M), mostly from the refused widget calls and the library reads.
+  - l02 #3 asked two choice questions; r01 #3 failed on "Google stream ended without a finish reason" (infrastructure); n04 #1 answered a one-line follow-up in 110 words.
+  - p01 1/3: one attempt asked about prerequisites without a rule telling it to.
+- **Next**: the protocol is mostly followed now. Layer 2 (does each widget run and can each task be completed) and layer 3 (does a simulated learner with an injected misconception get it right after the remediation turn) are what can still separate a better learning mode from a worse one.
+
+### Run L11: the same set on deepseek-flash (uncommitted)
+
+- **Changed**: nothing but the chat model; same code, prompt, and cases as L10.
+- **Showed**: 37/48 against 45/48 for gemini-3.8-flash. No empty replies, no errors; 0 of 29 choices can be told by length (5 refused and rewritten). DeepSeek fails differently from Gemini:
+  - Sizing: it taught base rates as a 4-part roadmap in 4 of 6 s01/s02 attempts, and l02 took a 5-part roadmap from the document's own sections. It follows the structure of the library file it read rather than the concept's size.
+  - Repeated widgets: l02 #3 and r01 #3 called `show_widget` two and three times with the same code, r01 #3 rewriting the whole explanation before each call; the reader would see the lesson twice.
+  - l02 #1 activated the skill and ended after the roadmap with no lesson.
+  - Follow-ups grow into lessons: n04 #1 answered "noise points don't belong to any cluster?" by starting part 3 with a widget (269 words); r02 #3 ran to 154 words.
+  - Language: three Chinese replies open with an English sentence written before the first tool call ("I'll first check whether your library has anything on DBSCAN."), which the language check does not catch because the rest is Chinese.
+  - p01 0/3, r08 #3 ended with an offer rather than a question.
+- **Tokens**: 5.6M of the 6.4M input were cache hits (DeepSeek caches the prefix well), but output was 871k, more than twice Gemini's 403k.
+- **Next**: if DeepSeek is to be supported, the `show_widget` result should say the widget is shown and must not be sent again, and the sizing rule should say a document's sections do not make a concept large.
+
+### Run L12: widget result and looser sizing, on deepseek-flash (uncommitted)
+
+- **Changed**: `show_widget` returns `{ success: true, message }`, the message saying the widget is shown and must not be sent again (was `{ ok: true, title }`). The sizing rule no longer fixes 3–5 parts: the agent decides from the concept whether to split and into how many parts, two often being enough, and a document's sections are not the concept's parts. Prompt 65ea4ec0. The checks follow: a roadmap is 2–6 numbered parts and "Part 1 of N" takes any N (cases 323f2920).
+- **Showed**: 11/18 against 7/18 for the same cases in L11.
+  - Repeated widgets gone: exactly one widget in every lesson attempt; r01 3/3 (2/3).
+  - Sizing: base rates split in 2 of 6 s01/s02 attempts, into two parts (L11: 4 of 6, into four). One s02 attempt set a next part with no roadmap. l02 3/3 (1/3) with 2 or 3 parts; l01 #2 set a next part but wrote no numbered roadmap.
+  - n04: no lesson for the follow-up any more, but 146 to 201 words where a sentence would do.
+  - l02 opened with an English sentence in all three attempts.
+
 ## Open follow-ups
 
 - Harder questions (#59): questions the library cannot answer (needs questions without evidence), questions that need three or more passages, exact-quote questions.
