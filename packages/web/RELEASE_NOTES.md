@@ -4,6 +4,12 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-14.3
+
+- Exports now include your desktop widgets, and importing keeps all your settings, including assistant instructions and saved permissions. Thumbnails of imported files are kept too.
+- Import checks the whole archive before changing anything, so a damaged file no longer wipes your current data. It also opens archives you unpacked and zipped again.
+- File names with non-Latin characters show correctly when you open an export in other ZIP tools, and very large libraries can be exported.
+
 ## 2026-10-14.2
 
 - Citations in chat now open when you hover over the number, so you can see which recording moments they point to without clicking.
