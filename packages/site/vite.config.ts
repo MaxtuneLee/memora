@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 import stylex from "@stylexjs/unplugin";
 
 const siteDir = path.dirname(fileURLToPath(import.meta.url));
-const SITE_URL = "https://memora.xox.im";
+const SITE_URL = "https://memora.im";
 
 // sitemap.xml, built from the site's routes plus every docs page in src/pages/docs/content.tsx,
 // so new docs pages are listed without editing it by hand.

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://memora.xox.im/sitemap.xml
+Sitemap: https://memora.im/sitemap.xml
