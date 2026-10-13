@@ -120,7 +120,9 @@ test("a lesson must use lesson.quiz and include a hands-on question", () => {
 
 test("validateShowWidgetCall refuses a choice whose answer is longer than every wrong option", () => {
   const lessonWith = (answer: string) => ({
+    i_have_seen_read_me: true,
     title: "Core points",
+    loading_messages: [],
     widget_code: `<script>
 const quiz = lesson.quiz(el("quiz"), { title: "DBSCAN part 1" });
 quiz.task({ concept: "core", prompt: "Drag ε", check: () => true });
