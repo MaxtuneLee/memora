@@ -398,6 +398,64 @@ describe("reply text", () => {
     await vi.waitFor(() => expect(snapshot.status.type).toBe("idle"));
 
     const reply = snapshot.messages.find((message) => message.role === "assistant");
-    expect(reply?.content).toBe("Before. After.");
+    // The turn after the tool call starts a new paragraph instead of running into "Before."
+    expect(reply?.content).toBe("Before. \n\nAfter.");
+  });
+
+  it("anchors a widget where the reply text stood when it was called", async () => {
+    let snapshot = emptySessionSnapshot("session");
+    const args = { title: "Lesson", loading_messages: [], widget_code: "<div></div>" };
+    const runtime = new SessionRuntime({
+      snapshot,
+      publish: (next) => {
+        snapshot = next;
+      },
+      save: async () => {},
+      createRunner: async (): Promise<SessionRunner> => ({
+        async *run() {
+          const events: AgentEvent[] = [
+            { type: "text-delta", delta: "Before. " },
+            { type: "tool-call-start", toolCall: { id: "call-1", name: "show_widget" } },
+            {
+              type: "tool-call-args-delta",
+              toolCallId: "call-1",
+              delta: JSON.stringify(args).slice(0, 30),
+            },
+            {
+              type: "tool-call-complete",
+              toolCall: { id: "call-1", name: "show_widget", arguments: args },
+            },
+            {
+              type: "tool-result",
+              toolCall: { id: "call-1", name: "show_widget" },
+              result: "ok",
+              isError: false,
+            },
+            { type: "text-delta", delta: "After." },
+            {
+              type: "done",
+              message: {
+                id: "reply",
+                role: "assistant",
+                createdAt: 2,
+                content: [{ type: "text", text: "After." }],
+              },
+            },
+          ];
+          yield* events;
+        },
+        steer: () => false,
+        abort: () => {},
+        takeUnconsumedSteering: () => [],
+      }),
+    });
+
+    await runtime.submit(submission("explain"));
+    await vi.waitFor(() => expect(snapshot.status.type).toBe("idle"));
+
+    const reply = snapshot.messages.find((message) => message.role === "assistant");
+    expect(reply?.widgets).toHaveLength(1);
+    expect(reply?.widgets?.[0].contentOffset).toBe("Before. ".length);
+    expect(reply?.content).toBe("Before. \n\nAfter.");
   });
 });

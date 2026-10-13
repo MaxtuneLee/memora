@@ -36,6 +36,8 @@ export class SessionRuntime {
   private stopped = false;
   private writes: Promise<void> = Promise.resolve();
   private rawWidgetArgs = new Map<string, string>();
+  /** A tool call ended the model turn; the next turn's text starts a new paragraph. */
+  private turnEnded = false;
   private saveTimer?: ReturnType<typeof setTimeout>;
   private publishTimer?: ReturnType<typeof setTimeout>;
   private idleWaiters: Array<() => void> = [];
@@ -187,6 +189,15 @@ export class SessionRuntime {
     this.changed();
   }
 
+  /**
+   * Each model turn's text is appended to one reply. Without a break, a sentence written before a
+   * tool call runs into the next turn's first line ("Let me read it.## Your notes").
+   */
+  private turnBreak(content: string): string {
+    if (!this.turnEnded || !content || content.endsWith("\n\n")) return "";
+    return content.endsWith("\n") ? "\n" : "\n\n";
+  }
+
   private updateAssistant(update: (message: ChatMessage) => ChatMessage): void {
     this.snapshot.messages = this.snapshot.messages.map((message) =>
       message.id === this.snapshot.activeMessageId ? update(message) : message,
@@ -198,7 +209,11 @@ export class SessionRuntime {
       case "text-delta":
         this.snapshot.status = { type: "generating" };
         this.snapshot.thinkingCollapsed = true;
-        this.updateAssistant((message) => ({ ...message, content: message.content + event.delta }));
+        this.updateAssistant((message) => ({
+          ...message,
+          content: message.content + this.turnBreak(message.content) + event.delta,
+        }));
+        this.turnEnded = false;
         break;
       case "reasoning-delta": {
         const steps = this.snapshot.thinkingSteps;
@@ -225,6 +240,7 @@ export class SessionRuntime {
         );
         break;
       case "tool-call-start":
+        this.turnEnded = true;
         this.snapshot.status = { type: "tool-calling", toolName: event.toolCall.name };
         this.snapshot.thinkingSteps = [
           ...this.snapshot.thinkingSteps,
@@ -351,6 +367,8 @@ export class SessionRuntime {
   ): void {
     if (!args) return;
     this.updateAssistant((message) => {
+      const widgets = message.widgets ?? [];
+      const existing = widgets.find((item) => item.toolCallId === id);
       const widget = {
         toolCallId: id,
         title: args.title ?? "",
@@ -360,11 +378,13 @@ export class SessionRuntime {
         ...(args.data_source ? { dataSourceName: args.data_source } : {}),
         ...(args.data_source_params ? { dataSourceParams: args.data_source_params } : {}),
         ...(args.data_files ? { dataFiles: args.data_files } : {}),
+        // Anchor a new widget where the reply text stood when it was called, so it renders at
+        // that point in the text; streamed updates keep the first anchor.
+        contentOffset: existing?.contentOffset ?? message.content.length,
       };
-      const widgets = message.widgets ?? [];
       return {
         ...message,
-        widgets: widgets.some((item) => item.toolCallId === id)
+        widgets: existing
           ? widgets.map((item) => (item.toolCallId === id ? widget : item))
           : [...widgets, widget],
       };
@@ -404,6 +424,7 @@ export class SessionRuntime {
           { id: this.snapshot.activeMessageId!, role: "assistant", content: "" },
         ];
         this.rawWidgetArgs.clear();
+        this.turnEnded = false;
         this.publish();
         try {
           await this.checkpoint();
