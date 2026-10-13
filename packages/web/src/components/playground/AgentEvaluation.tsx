@@ -1,12 +1,15 @@
 import {
   createJevJudge,
   listAgentEvaluationResults,
+  runLearningEvaluation,
   runMemoryEvaluation,
   readAgentEvaluationResult,
   saveAgentEvaluationResult,
   type AgentAttemptResult,
   type AgentEvaluationResult,
   type EvaluationQuestion,
+  type LearningCase,
+  type LearningEvaluationResult,
   type MemoryCase,
   type MemoryEvaluationResult,
   type MemoryProfile,
@@ -23,6 +26,7 @@ import { createChatTools } from "@/lib/chat/tools";
 import { EVALUATION_PERMISSIONS } from "@/lib/chat/tools/shared";
 import {
   createWebAgentAdapter,
+  createWebLearningAdapter,
   createWebMemoryAdapter,
 } from "@/lib/playground/agentEvaluationAdapter";
 import { evaluationClient } from "@/lib/playground/evaluationClient";
@@ -364,6 +368,28 @@ export default function AgentEvaluation() {
     });
   };
 
+  // Development only, like the memory evaluation.
+  const runLearning = async (
+    file: { cases: LearningCase[]; revision: string },
+    concurrency: number,
+    signal: AbortSignal,
+  ): Promise<LearningEvaluationResult> => {
+    if (!providerConfig) throw new Error("Choose a chat model in Settings first.");
+    const agent = await createWebLearningAdapter({
+      provider: providerConfig,
+      compactionProvider: compactionProviderConfig,
+      config: agentConfig,
+      tools: createChatTools(store, EVALUATION_PERMISSIONS),
+    });
+    return runLearningEvaluation({
+      cases: file.cases,
+      revisions: { cases: file.revision },
+      agent,
+      concurrency,
+      signal,
+    });
+  };
+
   const importData = async (
     files: EvaluationImportFile[],
     questions: EvaluationImportFile,
@@ -402,6 +428,7 @@ export default function AgentEvaluation() {
       importData,
       runEvaluation,
       runMemory,
+      runLearning,
     };
   });
   useEffect(() => {

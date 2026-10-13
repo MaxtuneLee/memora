@@ -3,11 +3,15 @@ import {
   agentTokenTotals,
   attemptFailureReasons,
   attemptStatus,
+  learningAttemptReasons,
   memoryAttemptReasons,
+  parseLearningCases,
   parseMemoryCases,
   parseMemoryProfiles,
   type AgentEvaluationResult,
   type EvaluationQuestion,
+  type LearningCase,
+  type LearningEvaluationResult,
   type MemoryCase,
   type MemoryEvaluationResult,
   type MemoryProfile,
@@ -47,6 +51,11 @@ export interface EvaluationDevApiHandlers {
     concurrency: number,
     signal: AbortSignal,
   ) => Promise<MemoryEvaluationResult>;
+  runLearning: (
+    file: { cases: LearningCase[]; revision: string },
+    concurrency: number,
+    signal: AbortSignal,
+  ) => Promise<LearningEvaluationResult>;
 }
 
 export interface MemoraEvalApi {
@@ -79,6 +88,16 @@ export interface MemoraEvalApi {
   }>;
   /** Progress of the memory evaluation; a compact report when done. */
   memoryStatus(): unknown;
+  /**
+   * Starts the learning-mode evaluation (`learning/cases-v1.json`) and returns at once; like `run`,
+   * the result and a compact report are written to `results/` when it finishes.
+   */
+  runLearning(options?: { caseIds?: string[]; concurrency?: number; cases?: string }): Promise<{
+    cases: number;
+    attempts: number;
+  }>;
+  /** Progress of the learning evaluation; a compact report when done. */
+  learningStatus(): unknown;
   /** Progress while running; a compact report when done. */
   status(): unknown;
   /** Writes the last result with its Traces to `results/` in the data folder; returns the path. */
@@ -93,7 +112,7 @@ declare global {
 
 /** The result with each attempt's Trace inlined, keyed by `<sessionId>/<runId>`. */
 export async function evaluationExportJson(
-  result: AgentEvaluationResult | MemoryEvaluationResult,
+  result: AgentEvaluationResult | MemoryEvaluationResult | LearningEvaluationResult,
 ): Promise<string> {
   const traces: Record<string, unknown> = {};
   for (const attempt of result.attempts) {
@@ -203,15 +222,51 @@ const memoryReport = (result: MemoryEvaluationResult) => {
   };
 };
 
+/** Gating and report-only passes, per-case passes, and why each attempt that did not pass failed. */
+const learningReport = (result: LearningEvaluationResult) => ({
+  evaluationId: result.evaluationId,
+  kind: "learning",
+  outcome: result.status,
+  summary: {
+    ...result.summary,
+    cases: undefined,
+    tokens: agentTokenTotals(
+      result.attempts.map((attempt) => ({ trace: attempt.reply ?? attempt.trace })),
+    ),
+    durationMs: Date.parse(result.finishedAt) - Date.parse(result.startedAt),
+  },
+  cases: Object.fromEntries(
+    result.summary.cases.map(({ caseId, passes, attempts, report }) => [
+      caseId,
+      `${passes}/${attempts}${report ? " (report only)" : ""}`,
+    ]),
+  ),
+  notPassed: result.attempts
+    .filter((attempt) => !attempt.passed)
+    .map((attempt) => ({
+      caseId: attempt.caseId,
+      attempt: attempt.attempt,
+      reasons: learningAttemptReasons(attempt),
+    })),
+});
+
 /** Writes the export, then its report; the report appearing means both are complete. */
 const saveResult = async (
-  result: AgentEvaluationResult | MemoryEvaluationResult,
+  result: AgentEvaluationResult | MemoryEvaluationResult | LearningEvaluationResult,
 ): Promise<string> => {
-  const name = `${result.kind === "memory" ? "memory" : "agent"}-evaluation-${result.evaluationId}`;
+  const name = `${result.kind === "memory" || result.kind === "learning" ? result.kind : "agent"}-evaluation-${result.evaluationId}`;
   await putJson(`results/${name}.json`, await evaluationExportJson(result));
   await putJson(
     `results/${name}.report.json`,
-    JSON.stringify(result.kind === "memory" ? memoryReport(result) : report(result), null, 2),
+    JSON.stringify(
+      result.kind === "memory"
+        ? memoryReport(result)
+        : result.kind === "learning"
+          ? learningReport(result)
+          : report(result),
+      null,
+      2,
+    ),
   );
   return `results/${name}.json`;
 };
@@ -221,16 +276,17 @@ const fetchJson = async (path: string): Promise<{ data: unknown; revision: strin
   return { data: JSON.parse(new TextDecoder().decode(bytes)), revision: await sha256Hex(bytes) };
 };
 
-type MemoryRunState =
+type BackgroundRunState<Result> =
   | { status: "idle" }
   | { status: "running"; controller: AbortController }
   | { status: "failed"; message: string }
-  | { status: "done"; result: MemoryEvaluationResult };
+  | { status: "done"; result: Result };
 
 /** Installs `window.__memoraEval`; the returned function removes it. */
 export function installEvaluationDevApi(handlers: () => EvaluationDevApiHandlers): () => void {
   let imported: EvaluationImport | undefined;
-  let memoryRun: MemoryRunState = { status: "idle" };
+  let memoryRun: BackgroundRunState<MemoryEvaluationResult> = { status: "idle" };
+  let learningRun: BackgroundRunState<LearningEvaluationResult> = { status: "idle" };
   const api: MemoraEvalApi = {
     async import({
       dataset = "ocw-6-7960",
@@ -321,6 +377,38 @@ export function installEvaluationDevApi(handlers: () => EvaluationDevApiHandlers
           console.error(error);
         });
       return { cases: selected.length, attempts: selected.length * 3 };
+    },
+    async runLearning({ caseIds, concurrency = 3, cases = "learning/cases-v1.json" } = {}) {
+      if (learningRun.status === "running")
+        throw new Error("A learning evaluation is already running.");
+      const { data, revision } = await fetchJson(cases);
+      const all = parseLearningCases(data);
+      const unknown = (caseIds ?? []).filter((id) => !all.some(({ caseId }) => caseId === id));
+      if (unknown.length) throw new Error(`Not in ${cases}: ${unknown.join(", ")}`);
+      const selected = caseIds ? all.filter(({ caseId }) => caseIds.includes(caseId)) : all;
+      const controller = new AbortController();
+      learningRun = { status: "running", controller };
+      // Errors after the start are reported through learningStatus().
+      void handlers()
+        .runLearning({ cases: selected, revision }, concurrency, controller.signal)
+        .then(async (result) => {
+          learningRun = { status: "done", result };
+          await saveResult(result);
+        })
+        .catch((error: unknown) => {
+          learningRun = {
+            status: "failed",
+            message: error instanceof Error ? error.message : String(error),
+          };
+          console.error(error);
+        });
+      return { cases: selected.length, attempts: selected.length * 3 };
+    },
+    learningStatus() {
+      if (learningRun.status === "done")
+        return { status: "done", ...learningReport(learningRun.result) };
+      if (learningRun.status === "failed") return learningRun;
+      return { status: learningRun.status };
     },
     memoryStatus() {
       if (memoryRun.status === "done") return { status: "done", ...memoryReport(memoryRun.result) };

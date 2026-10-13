@@ -5,6 +5,7 @@ export * from "./agentTypes";
 export * from "./audioFeatures";
 export * from "./errors";
 export * from "./jevJudge";
+export * from "./learningEvaluation";
 export * from "./memoryEvaluation";
 export * from "./metrics";
 export * from "./results";

@@ -3,9 +3,12 @@ import {
   AgentAttemptError,
   READ_SESSION_TOOL,
   REMEMBER_TOOL,
+  SHOW_WIDGET_TOOL,
   type AgentAdapter,
   type AgentAnswer,
   type AgentCitation,
+  type LearningAdapter,
+  type LearningReply,
   type MemoryAdapter,
   type MemoryReply,
   type PastSession,
@@ -22,6 +25,8 @@ import {
 import { readRun } from "@/lib/agent-runtime/traceReader";
 import type { TraceEvent } from "@/lib/agent-runtime/traceRecorder";
 import { summarizeRun } from "@/lib/agent-runtime/traceTimeline";
+import { toAgentHistoryMessages } from "@/hooks/chat/useAgent/input";
+import { LEARNING_MODE_PROMPT } from "@/lib/chat/learningMode";
 import { parseMemoraJumpContent } from "@/lib/chat/memoraJump";
 import { EMPTY_REFERENCE_SCOPE, SYSTEM_PROMPT } from "@/lib/chat/tools";
 import type { CreateChatToolsOptions } from "@/lib/chat/tools/shared";
@@ -124,6 +129,8 @@ const describeTools = (tools: ToolDefinition[], names: readonly string[]) =>
 
 interface SessionRequest {
   sessionId: string;
+  /** Earlier turns the session starts with. */
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
   text: string;
   tools: AgentSubmission["tools"];
   notices?: string[];
@@ -140,8 +147,8 @@ type SessionOptions = Omit<WebAgentAdapterOptions, "tools">;
 const runSession = async (
   runtime: RuntimeClient,
   options: SessionOptions,
-  prompt: AgentSubmission["prompts"][number],
-  { sessionId, text, tools, notices, signal }: SessionRequest,
+  prompts: AgentSubmission["prompts"],
+  { sessionId, history, text, tools, notices, signal }: SessionRequest,
 ): Promise<
   { reply: SessionSnapshot["messages"][number] | undefined; runId: string } & Awaited<
     ReturnType<typeof readTraceFacts>
@@ -167,6 +174,16 @@ const runSession = async (
     });
     // Settled below; this only keeps an early cancel from surfacing as unhandled.
     finished.catch(() => {});
+    if (history?.length) {
+      const messages = history.map((message, index) => ({ id: `history-${index}`, ...message }));
+      await runtime.command({
+        type: "reset",
+        sessionId,
+        storage: "memory",
+        messages,
+        history: toAgentHistoryMessages(messages),
+      });
+    }
     await runtime.command({
       type: "submit",
       sessionId,
@@ -184,7 +201,7 @@ const runSession = async (
         provider: options.provider,
         ...(options.compactionProvider ? { compactionProvider: options.compactionProvider } : {}),
         config: { ...options.config, id: `memora-chat:${sessionId}` } as AgentConfig,
-        prompts: [prompt],
+        prompts,
         tools,
         scope: EMPTY_REFERENCE_SCOPE,
         ...(notices?.length ? { memory: { notices } } : {}),
@@ -217,13 +234,15 @@ const runSession = async (
 
 const identityOf = async (
   options: SessionOptions,
-  prompt: AgentSubmission["prompts"][number],
+  prompts: AgentSubmission["prompts"],
   tools: AgentSubmission["tools"],
   notices: string,
 ) => ({
   adapter: "memora-web",
   model: options.provider.selectedModelId,
-  promptRevision: await sha256Hex(new TextEncoder().encode(prompt.content)),
+  promptRevision: await sha256Hex(
+    new TextEncoder().encode(prompts.map(({ content }) => content).join("\n")),
+  ),
   tools: tools.map((tool) => tool.name),
   settings: {
     provider: options.provider.name,
@@ -250,10 +269,10 @@ export async function createWebAgentAdapter(
   const prompt = chatPrompt();
 
   return {
-    identity: await identityOf(options, prompt, tools, options.memoryProfileId ?? "none"),
+    identity: await identityOf(options, [prompt], tools, options.memoryProfileId ?? "none"),
     async answer(question, signal): Promise<AgentAnswer> {
       const sessionId = `eval-${crypto.randomUUID()}`;
-      const { reply, runId, ...facts } = await runSession(runtime, options, prompt, {
+      const { reply, runId, ...facts } = await runSession(runtime, options, [prompt], {
         sessionId,
         text: question.question,
         tools,
@@ -323,7 +342,7 @@ export async function createWebMemoryAdapter(
   );
 
   return {
-    identity: await identityOf(options, prompt, describedTools, "none"),
+    identity: await identityOf(options, [prompt], describedTools, "none"),
     async converse({ message }, signal): Promise<MemoryReply> {
       const sessionId = `eval-${crypto.randomUUID()}`;
       const toolCalls: MemoryReply["toolCalls"] = [];
@@ -343,13 +362,76 @@ export async function createWebMemoryAdapter(
         return tool.execute(v.parse(tool.parameters, call.args));
       });
       try {
-        const { reply, runId, ...facts } = await runSession(runtime, options, prompt, {
+        const { reply, runId, ...facts } = await runSession(runtime, options, [prompt], {
           sessionId,
           text: message,
           tools: describedTools,
           signal,
         });
         return { answer: reply?.content ?? "", toolCalls, notices, sessionId, runId, ...facts };
+      } finally {
+        release();
+      }
+    },
+  };
+}
+
+/** Learning mode adds the skill tools that load the lesson guideline, and the widget tool. */
+export const LEARNING_EVALUATION_TOOL_NAMES = [
+  ...EVALUATION_TOOL_NAMES,
+  "activate_skill",
+  "read_skill_resource",
+  SHOW_WIDGET_TOOL,
+] as const;
+
+/**
+ * Answers each learning case with learning mode on, in a fresh in-memory session seeded with the
+ * case's earlier turns. Tool calls run in this Window so refused widget calls are recorded.
+ */
+export async function createWebLearningAdapter(
+  options: WebAgentAdapterOptions,
+): Promise<LearningAdapter> {
+  const runtime = options.runtime ?? agentRuntime;
+  const prompts = [
+    chatPrompt(),
+    { ...LEARNING_MODE_PROMPT, content: String(LEARNING_MODE_PROMPT.content) },
+  ];
+  const describedTools = describeTools(options.tools, LEARNING_EVALUATION_TOOL_NAMES);
+
+  return {
+    identity: await identityOf(options, prompts, describedTools, "none"),
+    async converse({ message, history }, signal): Promise<LearningReply> {
+      const sessionId = `eval-${crypto.randomUUID()}`;
+      const toolCalls: LearningReply["toolCalls"] = [];
+      const release = runtime.registerSessionToolHost(sessionId, async (call) => {
+        const tool = options.tools.find((item) => item.name === call.name);
+        const record: LearningReply["toolCalls"][number] = { name: call.name, args: call.args };
+        toolCalls.push(record);
+        if (!tool || !(LEARNING_EVALUATION_TOOL_NAMES as readonly string[]).includes(call.name))
+          throw new Error(`Unknown tool: ${call.name}`);
+        try {
+          return await tool.execute(v.parse(tool.parameters, call.args));
+        } catch (error) {
+          record.error = error instanceof Error ? error.message : String(error);
+          throw error;
+        }
+      });
+      try {
+        const { reply, runId, ...facts } = await runSession(runtime, options, prompts, {
+          sessionId,
+          history,
+          text: message,
+          tools: describedTools,
+          signal,
+        });
+        const answer = reply?.content ?? "";
+        return {
+          answer,
+          toolCalls,
+          sessionId,
+          runId,
+          ...facts,
+        };
       } finally {
         release();
       }
