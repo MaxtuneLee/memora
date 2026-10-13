@@ -1,15 +1,20 @@
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { animate, stagger } from "animejs";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
+import { SearchResultRow } from "@web/components/search/searchPalette/SearchResultRow";
+import { ShortcutHint } from "@web/components/search/searchPalette/ShortcutHint";
 import { TranscriptionPanel } from "@web/components/transcript/TranscriptionPanel";
 import type { ChatMessageData } from "@web/components/chat/chatMessage/types";
 import type { AgentStatus, ThinkingStep } from "@web/hooks/chat/useAgent";
+import { buildContentSearchItems } from "@web/lib/search/searchItems";
+import type { ContentSearchResult } from "@web/lib/search/contentSearchService";
 
 import { FileChip, type FileKind } from "../lib/FileIcon";
 import { ChatMessage } from "../lib/LazyChatMessage";
 import { Matrix } from "../lib/Matrix";
 import { clamp, prefersReducedMotion, sleep } from "../lib/dots";
-import { AGENT_ANSWER, AGENT_QUESTION, LIVE_SEGMENTS } from "../mock/data";
+import { LIVE_SEGMENTS } from "../mock/data";
 import { BiotSavartDemo } from "./BiotSavartDemo";
 
 const PANELS = 5;
@@ -81,24 +86,23 @@ export function Features(): ReactElement {
           <Panel
             title={
               <>
-                Read your lecture notes <em>with you.</em>
+                Your whole library, <em>indexed in your browser.</em>
               </>
             }
-            text=""
-            tag="Available in Chat"
+            text="Transcripts, PDFs, notes, and the text in your photos are indexed locally as you add them, so you and the agent can search all of it any time."
           >
-            <ReadDemo running={active === 1} />
+            <SearchDemo running={active === 1} />
           </Panel>
           <Panel
             title={
               <>
-                Find the key points <em>from your files.</em>
+                Read your lecture notes <em>with you.</em>
               </>
             }
-            text="Ask the agent what mattered. It works through the whole recording and your notes, then answers with the moments to revisit."
+            text="Ask for a study sheet or the key points. Memora works through your notes and the whole recording, then answers with the moments to revisit."
             tag="Available in Chat"
           >
-            <AgentDemo running={active === 2} />
+            <ReadDemo running={active === 2} />
           </Panel>
           <Panel
             title={
@@ -245,7 +249,7 @@ function LiveDemo({ running }: { running: boolean }): ReactElement {
 const READ_QUESTION: ChatMessageData = {
   id: "rq",
   role: "user",
-  content: "Turn my Week 6 reading notes into a study sheet.",
+  content: "Turn my Week 6 notes and Lecture 04 into a study sheet. Quiz is on Friday.",
 };
 
 type Step = Omit<ThinkingStep, "status">;
@@ -260,18 +264,17 @@ const READ_STEPS: Step[] = [
   {
     id: "s4",
     type: "reasoning",
-    text: "Lead with the core idea, back it with the lecture moments, and end with questions to self-test.",
+    text: "Lead with the core idea, then the lecture moments worth replaying before the quiz.",
   },
 ];
 
+// Uses the app's jump tag format, so ChatMessage renders its real citations to recording moments.
 const STUDY_SHEET = [
   "### Study sheet · Week 6",
   "**Core idea:** split sources by heading, not by fixed size. *(notes, line 4)*",
-  "**Why it works**",
-  "- A timestamp on every chunk lets an answer point back to the moment. *(line 9)*",
-  "- Overlap helps short questions but grows the index. *(Lecture 04, 23:10)*",
-  "**Test yourself**",
-  "1. Why split by heading? *(notes, line 4)*\n2. What does recall@k measure? *(Lecture 04, 41:02)*",
+  '- A timestamp on every chunk lets an answer point back to the moment. The lecturer says this twice. <memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="768" endSec="812" context="Keep a timestamp on every chunk." />',
+  '- Overlap helps short questions but grows the index. <memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="1390" endSec="1452" context="Overlap between chunks: when it helps, and what it costs." />',
+  '- **On the quiz:** recall@k, how often the right chunk is in the top k results. <memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="2462" endSec="2501" context="“This will be on the quiz”: recall@k, defined in one sentence." />',
 ].join("\n\n");
 
 function ReadDemo({ running }: { running: boolean }): ReactElement {
@@ -341,7 +344,14 @@ function ReadDemo({ running }: { running: boolean }): ReactElement {
   }, [running]);
 
   return (
-    <div className="demo d-chat">
+    // Citation links point at app routes; React events bubble out of the portaled popup, so
+    // stopping the default here keeps a click from leaving the site.
+    <div
+      className="demo d-chat"
+      onClickCapture={(e) => {
+        if ((e.target as Element).closest("a")) e.preventDefault();
+      }}
+    >
       <ChatMessage message={READ_QUESTION} isStreaming={false} />
       <ChatMessage
         message={{ id: "ra", role: "assistant", content: answer }}
@@ -355,49 +365,155 @@ function ReadDemo({ running }: { running: boolean }): ReactElement {
   );
 }
 
-/* The agent: the app's real chat messages, with the answer streaming in. */
-function AgentDemo({ running }: { running: boolean }): ReactElement {
-  const [answer, setAnswer] = useState(AGENT_ANSWER);
-  const [status, setStatus] = useState<AgentStatus>({ type: "idle" });
-  const [streaming, setStreaming] = useState(false);
+/* Local search: the app's real result rows, built from content hits the way the palette builds them. */
+const hit = (
+  fileName: string,
+  fileMimeType: string,
+  fileType: ContentSearchResult["fileType"],
+  locator: ContentSearchResult["locator"],
+  content: string,
+): ContentSearchResult => ({
+  fileId: fileName,
+  fileName,
+  fileMimeType,
+  fileType,
+  content,
+  locator,
+  score: 1,
+  chunkId: `${fileName}:${content.length}`,
+});
+
+const SEARCHES = [
+  {
+    query: "recall@k",
+    items: buildContentSearchItems([
+      hit(
+        "Lecture 04.m4a",
+        "audio/mp4",
+        "audio",
+        { kind: "transcript", startSeconds: 2462, endSeconds: 2501 },
+        "This will be on the quiz. Recall@k counts how often the right chunk shows up in the top k results.",
+      ),
+      hit(
+        "Chapter 3.pdf",
+        "application/pdf",
+        "document",
+        { kind: "page", pageNumber: 42 },
+        "Recall@k is the share of queries whose relevant passage appears among the first k results.",
+      ),
+    ]),
+  },
+  {
+    query: "timestamp",
+    items: buildContentSearchItems([
+      hit(
+        "Reading notes.md",
+        "text/markdown",
+        "document",
+        { kind: "text", startOffset: 312, endOffset: 398 },
+        "Every chunk carries a timestamp, so an answer can point back to the moment.",
+      ),
+      hit(
+        "Lecture 04.m4a",
+        "audio/mp4",
+        "audio",
+        { kind: "transcript", startSeconds: 768, endSeconds: 812 },
+        "Keep a timestamp with every chunk. I'll say that twice because people forget it.",
+      ),
+    ]),
+  },
+  {
+    query: "magnetic field",
+    items: buildContentSearchItems([
+      hit(
+        "Whiteboard.jpg",
+        "image/jpeg",
+        "image",
+        { kind: "image" },
+        "Magnetic field around a long straight wire: B = μ₀I / 2πr",
+      ),
+      hit(
+        "Week 7 slides.pptx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "document",
+        { kind: "slide", slideNumber: 12 },
+        "Biot–Savart law: each small piece of current adds to the magnetic field at a point.",
+      ),
+    ]),
+  },
+];
+
+function SearchDemo({ running }: { running: boolean }): ReactElement {
+  const reducedMotion = prefersReducedMotion();
+  const [index, setIndex] = useState(0);
+  const [typed, setTyped] = useState(SEARCHES[0].query);
+  const [showResults, setShowResults] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     if (!running || prefersReducedMotion()) return;
     let alive = true;
     void (async () => {
-      while (alive) {
-        setAnswer("");
-        setStatus({ type: "tool-running", toolName: "read_transcript" });
-        await sleep(500);
-        if (!alive) return;
-        setStatus({ type: "generating" });
-        setStreaming(true);
-        for (let i = 0; i <= AGENT_ANSWER.length && alive; i += 12) {
-          setAnswer(AGENT_ANSWER.slice(0, i));
-          await sleep(18);
+      for (let n = 0; alive; n = (n + 1) % SEARCHES.length) {
+        const { query } = SEARCHES[n];
+        setIndex(n);
+        setShowResults(false);
+        setActiveIndex(0);
+        for (let i = 0; i <= query.length && alive; i++) {
+          setTyped(query.slice(0, i));
+          await sleep(55 + Math.random() * 50);
         }
-        setAnswer(AGENT_ANSWER);
-        setStreaming(false);
-        setStatus({ type: "idle" });
-        await sleep(5000);
+        await sleep(250);
+        setShowResults(true);
+        await sleep(1600);
+        setActiveIndex(1);
+        await sleep(2000);
       }
     })();
     return () => {
       alive = false;
-      setStreaming(false);
-      setStatus({ type: "idle" });
-      setAnswer(AGENT_ANSWER);
+      setIndex(0);
+      setTyped(SEARCHES[0].query);
+      setShowResults(true);
+      setActiveIndex(0);
     };
   }, [running]);
 
+  const { items } = SEARCHES[index];
   return (
-    <div className="demo d-chat">
-      <ChatMessage message={AGENT_QUESTION} isStreaming={false} />
-      <ChatMessage
-        message={{ id: "a1", role: "assistant", content: answer }}
-        isStreaming={streaming}
-        status={status}
-      />
+    <div className="demo d-search">
+      <div className="d-search-frame">
+        <MagnifyingGlassIcon aria-hidden="true" />
+        <span className={typed ? "" : "d-search-placeholder"}>
+          {typed || "Search or ask about files, chats, settings, and actions..."}
+        </span>
+      </div>
+      <div className="d-search-results" role="listbox" aria-label="Search results">
+        {showResults && (
+          <>
+            <div className="d-search-head">
+              <h3>Results</h3>
+              <span>{items.length}</span>
+            </div>
+            {items.map((item, i) => (
+              <SearchResultRow
+                key={item.id}
+                item={item}
+                index={i}
+                isActive={i === activeIndex}
+                reducedMotion={reducedMotion}
+                onHover={() => setActiveIndex(i)}
+                onSelect={() => setActiveIndex(i)}
+              />
+            ))}
+          </>
+        )}
+      </div>
+      <div className="d-search-foot">
+        <ShortcutHint keys="Enter" label="Open" />
+        <ShortcutHint keys="↑↓" label="Move" />
+        <ShortcutHint keys="Esc" label="Close" />
+      </div>
     </div>
   );
 }

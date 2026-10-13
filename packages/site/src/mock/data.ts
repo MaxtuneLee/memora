@@ -5,7 +5,6 @@ import {
   VideoCameraIcon,
 } from "@phosphor-icons/react";
 
-import type { ChatMessageData } from "@web/components/chat/chatMessage/types";
 import type { RecentItem } from "@web/components/dashboard/recentItems";
 import type { DesktopFileItem, DesktopFolderItem } from "@web/types/desktop";
 import type { FileMeta, FileType, RecordingWord } from "@web/types/library";
@@ -169,18 +168,3 @@ export const LIVE_SEGMENTS = [
   "Keep a timestamp with every chunk, so an answer can point back to the moment.",
   "Then test on questions you didn't write the chunks for.",
 ];
-
-export const AGENT_QUESTION: ChatMessageData = {
-  id: "q1",
-  role: "user",
-  content: "What were the key points in Lecture 04? I have a quiz on Friday.",
-};
-
-// Uses the app's jump tag format, so ChatMessage renders its real recording jump cards.
-export const AGENT_ANSWER = [
-  "Here are the three moments worth revisiting before Friday's quiz:",
-  '<memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="768" endSec="812" context="Keep a timestamp on every chunk. The lecturer says this twice." />',
-  '<memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="1390" endSec="1452" context="Overlap between chunks: when it helps, and what it costs." />',
-  '<memora-jump fileId="lec4" fileName="Lecture 04.m4a" mediaType="audio" startSec="2462" endSec="2501" context="“This will be on the quiz”: recall@k, defined in one sentence." />',
-  "Chapter 3.pdf covers the same ideas on pages 38 to 44.",
-].join("\n\n");

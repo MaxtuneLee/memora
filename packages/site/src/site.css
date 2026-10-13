@@ -1692,6 +1692,60 @@ footer .wrap {
   border-radius: 16px;
   background: var(--paper);
 }
+.d-search {
+  gap: 12px;
+}
+.d-search-frame {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  font-size: 15px;
+}
+.d-search-frame svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.d-search-frame span::after {
+  content: "";
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--olive);
+}
+.d-search-frame .d-search-placeholder {
+  color: var(--stone);
+}
+.d-search-results {
+  display: grid;
+  gap: 4px;
+  min-height: 230px;
+  align-content: start;
+}
+.d-search-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px 4px;
+  font-size: 13px;
+  color: var(--stone);
+}
+.d-search-head h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.d-search-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
 .d-chat {
   gap: 4px;
   max-height: min(560px, calc(100svh - 190px));

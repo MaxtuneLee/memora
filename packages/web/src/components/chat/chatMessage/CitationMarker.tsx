@@ -23,6 +23,7 @@ const styles = stylex.create({
     top: -6,
     transition: "background-color 150ms",
   },
+  positioner: { zIndex: 60 },
   popup: {
     backgroundColor: tokens.surface,
     border: `1px solid ${tokens.border}`,
@@ -33,7 +34,19 @@ const styles = stylex.create({
     gap: 2,
     outline: "none",
     padding: 4,
+    transitionDuration: "200ms",
+    transitionProperty: "opacity, transform, filter",
+    transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
     width: "min(22rem, calc(100vw - 2rem))",
+  },
+  // Rises into place and comes into focus; reduced motion keeps only the fade.
+  popupHidden: {
+    filter: { default: null, "@media (prefers-reduced-motion: no-preference)": "blur(4px)" },
+    opacity: 0,
+    transform: {
+      default: null,
+      "@media (prefers-reduced-motion: no-preference)": "translateY(6px)",
+    },
   },
   item: {
     alignItems: "flex-start",
@@ -84,14 +97,30 @@ export function CitationMarker({
   return (
     <Popover.Root>
       <Popover.Trigger
+        openOnHover
+        delay={100}
         aria-label={`Citation ${index}, ${moments.length} ${moments.length === 1 ? "moment" : "moments"}`}
         {...stylex.props(styles.trigger)}
       >
         {index}
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner align="start" collisionPadding={12} side="bottom" sideOffset={6}>
-          <Popover.Popup {...stylex.props(styles.popup)}>
+        <Popover.Positioner
+          align="start"
+          collisionPadding={12}
+          side="bottom"
+          sideOffset={6}
+          {...stylex.props(styles.positioner)}
+        >
+          <Popover.Popup
+            className={({ transitionStatus }) =>
+              stylex.props(
+                styles.popup,
+                (transitionStatus === "starting" || transitionStatus === "ending") &&
+                  styles.popupHidden,
+              ).className
+            }
+          >
             {moments.map((moment, momentIndex) => {
               const MomentIcon = moment.mediaType === "video" ? VideoCameraIcon : MicrophoneIcon;
               return (

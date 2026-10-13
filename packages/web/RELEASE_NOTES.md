@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-14.2
+
+- Citations in chat now open when you hover over the number, so you can see which recording moments they point to without clicking.
+
 ## 2026-10-14
 
 - Turn on learning mode with the graduation cap button under the chat box. Memora then explains a concept, builds a hands-on lesson you work through step by step, and ends it with questions you answer by using the lesson itself. Your result goes back to Memora, which goes over what you missed. A large topic is taught in parts and ends with a final review across all of them.
