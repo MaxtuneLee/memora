@@ -127,13 +127,3 @@ export const updateShowWidgetDebug = (
     });
   }
 };
-
-export const clearShowWidgetDebug = (toolCallId: string): void => {
-  if (!IS_DEV || !toolCallId) {
-    return;
-  }
-
-  if (debugStore.delete(toolCallId)) {
-    emitChange();
-  }
-};
