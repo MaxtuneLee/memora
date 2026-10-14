@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import PasskeyLockCard, {
   passkeySecondaryButtonClassName,
 } from "@/components/security/PasskeyLockCard";
@@ -30,6 +31,7 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const autoTried = useRef(false);
+  const [confirmingForget, setConfirmingForget] = useState(false);
 
   const unlock = async (silent = false): Promise<void> => {
     setBusy(true);
@@ -65,19 +67,23 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
           <button
             type="button"
             className={passkeySecondaryButtonClassName}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Stop using this passkey? Memora won't be locked anymore. If your API keys were encrypted with it, they can't be recovered and you'll need to enter them again in Settings.",
-                )
-              ) {
-                forgetPasskey();
-              }
-            }}
+            onClick={() => setConfirmingForget(true)}
           >
             Lost your passkey?
           </button>
         }
+      />
+      <ConfirmDialog
+        isOpen={confirmingForget}
+        title="Stop using this passkey?"
+        description="Memora won't be locked anymore. If your API keys were encrypted with this passkey, they can't be recovered and you'll need to enter them again in Providers."
+        confirmLabel="Stop using passkey"
+        tone="danger"
+        onConfirm={() => {
+          setConfirmingForget(false);
+          forgetPasskey();
+        }}
+        onCancel={() => setConfirmingForget(false)}
       />
     </main>
   );

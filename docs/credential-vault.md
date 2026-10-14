@@ -34,7 +34,7 @@ The settings are kept in `localStorage` under `memora.credentialVault.v2` as `{ 
 - **Encryption off** re-encrypts every key with a new device key.
 - **Lock on** creates a passkey if there isn't one. **Lock off** just removes the lock screen.
 - The passkey setting is dropped once both switches are off.
-- **Lost passkey:** "Lost your passkey?" on the lock screen turns both switches off. Keys sealed with that passkey can't be recovered; the unlock dialog after start offers to remove them so they can be entered again.
+- **Lost passkey:** Settings > Security shows "Remove passkey" whenever a passkey is set up or keys are sealed with one. After a confirmation, it deletes the API keys of every provider and turns both switches off; the keys are entered again in Providers. "Lost your passkey?" on the lock screen only turns the switches off, because LiveStore isn't loaded yet; the unlock dialog after start then offers to remove the keys that passkey sealed.
 
 ## Limits
 

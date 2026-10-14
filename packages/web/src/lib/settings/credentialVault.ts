@@ -130,9 +130,11 @@ const randomBytes = (length: number): Uint8Array<ArrayBuffer> =>
 export const isSealedApiKey = (value: string): boolean =>
   value.startsWith(PASSKEY_PREFIX) || value.startsWith(DEVICE_PREFIX);
 
+export const isPasskeySealed = (value: string): boolean => value.startsWith(PASSKEY_PREFIX);
+
 /** Sealed with the passkey and not decrypted yet. Device-sealed keys never need the user. */
 export const isPasskeyLocked = (value: string): boolean =>
-  value.startsWith(PASSKEY_PREFIX) && !plaintextBySealed.has(value);
+  isPasskeySealed(value) && !plaintextBySealed.has(value);
 
 /** The usable key for a stored value: plaintext as-is, a sealed key once unlocked, else "". */
 export const peekApiKey = (stored: string): string =>

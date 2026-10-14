@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import PasskeyLockCard, {
   passkeySecondaryButtonClassName,
 } from "@/components/security/PasskeyLockCard";
@@ -44,6 +45,7 @@ export default function CredentialVaultPrompt() {
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const migrating = useRef(new Set<string>());
 
   useEffect(() => {
@@ -93,21 +95,7 @@ export default function CredentialVaultPrompt() {
             <button
               type="button"
               className={passkeySecondaryButtonClassName}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Remove ${lockedRows.length === 1 ? "this API key" : `these ${lockedRows.length} API keys`}? You'll need to enter them again in Settings.`,
-                  )
-                ) {
-                  store.commit(
-                    ...lockedRows.map((row) =>
-                      providerCredentialEvents.providerCredentialDeleted({
-                        providerId: row.providerId,
-                      }),
-                    ),
-                  );
-                }
-              }}
+              onClick={() => setConfirmingRemove(true)}
             >
               I lost my passkey
             </button>
@@ -120,6 +108,24 @@ export default function CredentialVaultPrompt() {
             </button>
           </>
         }
+      />
+      <ConfirmDialog
+        isOpen={confirmingRemove}
+        title={
+          lockedRows.length === 1 ? "Remove this API key?" : `Remove ${lockedRows.length} API keys?`
+        }
+        description="They were encrypted with a passkey that isn't available. You'll need to enter them again in Providers. This can't be undone."
+        confirmLabel="Remove"
+        tone="danger"
+        onConfirm={() => {
+          setConfirmingRemove(false);
+          store.commit(
+            ...lockedRows.map((row) =>
+              providerCredentialEvents.providerCredentialDeleted({ providerId: row.providerId }),
+            ),
+          );
+        }}
+        onCancel={() => setConfirmingRemove(false)}
       />
     </div>
   );

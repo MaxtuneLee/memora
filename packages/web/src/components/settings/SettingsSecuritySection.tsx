@@ -9,8 +9,12 @@ import {
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
+import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
 import {
+  forgetPasskey,
+  isPasskeySealed,
   readVaultConfig,
   setAppLock,
   setKeyEncryption,
@@ -34,8 +38,30 @@ export default function SettingsSecuritySection() {
   const store = useAppStore();
   const { add } = Toast.useToastManager();
   useCredentialVaultVersion();
-  const { encryptKeys, lockApp } = readVaultConfig();
+  const credentials = store.useQuery(providerCredentialsQuery$);
+  const { passkey, encryptKeys, lockApp } = readVaultConfig();
   const [busy, setBusy] = useState<Busy>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  // Also offered when keys were sealed by a passkey this browser no longer has settings for.
+  const canReset = passkey !== null || credentials.some((row) => isPasskeySealed(row.apiKey));
+
+  const handleReset = (): void => {
+    setConfirmingReset(false);
+    const keyed = credentials.filter((row) => row.apiKey);
+    if (keyed.length > 0) {
+      store.commit(
+        ...keyed.map((row) =>
+          providerCredentialEvents.providerCredentialDeleted({ providerId: row.providerId }),
+        ),
+      );
+    }
+    forgetPasskey();
+    add({
+      title: "Passkey removed",
+      description: "Enter your API keys again in Providers.",
+      type: "success",
+    });
+  };
 
   const run = async (
     which: Exclude<Busy, null>,
@@ -120,7 +146,29 @@ export default function SettingsSecuritySection() {
             onCheckedChange={(checked) => void handleLockChange(checked)}
           />
         </div>
+        {canReset && (
+          <div className={`${SETTINGS_ROW_CLASS_NAME} ${stylex.props(styles.row).className}`}>
+            <span className={SETTINGS_FIELD_LABEL_CLASS_NAME}>Lost your passkey?</span>
+            <Button
+              variant="destructive"
+              type="button"
+              disabled={busy !== null}
+              onClick={() => setConfirmingReset(true)}
+            >
+              Remove passkey
+            </Button>
+          </div>
+        )}
       </div>
+      <ConfirmDialog
+        isOpen={confirmingReset}
+        title="Remove your passkey?"
+        description="This deletes the API keys of every provider and turns off passkey encryption and the lock. You'll need to enter the keys again in Providers. This can't be undone."
+        confirmLabel="Remove passkey and keys"
+        tone="danger"
+        onConfirm={handleReset}
+        onCancel={() => setConfirmingReset(false)}
+      />
     </section>
   );
 }
