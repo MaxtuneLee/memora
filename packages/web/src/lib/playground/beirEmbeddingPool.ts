@@ -1,4 +1,8 @@
-import type { BeirRerankerProfile, LocalModelExecutionBackend } from "@memora/local-model-runtime";
+import type {
+  BeirRerankerProfile,
+  LocalEmbeddingModel,
+  LocalModelExecutionBackend,
+} from "@memora/local-model-runtime";
 import { BeirRerankerClient } from "./beirRerankerClient";
 
 import { createModelWorkerFactory } from "../model-worker/factory";
@@ -30,6 +34,8 @@ export interface BeirWorkerProgress {
 
 export interface BeirEmbeddingPoolOptions {
   workerCount: number;
+  // Defaults to BEIR_EMBEDDING_MODEL with its CLS pooling and 384 dimensions.
+  model?: { id: LocalEmbeddingModel; pooling: "mean" | "cls"; dimensions: number };
   rerankerProfile?: BeirRerankerProfile;
   onUpdate?: (workerId: number, update: BgeWorkerUpdate) => void;
   onProgress?: (
@@ -130,8 +136,13 @@ export class BeirEmbeddingPool {
     };
     publish("dispatched");
     try {
+      const model = this.options.model ?? {
+        id: BEIR_EMBEDDING_MODEL,
+        pooling: BEIR_EMBEDDING_POOLING,
+        dimensions: BEIR_EMBEDDING_DIMENSIONS,
+      };
       const vectors = await worker.client.embed(
-        BEIR_EMBEDDING_MODEL,
+        model.id,
         texts,
         (update) => {
           worker.progress.lastWorkerEventAt = Date.now();
@@ -144,13 +155,10 @@ export class BeirEmbeddingPool {
           this.options.onUpdate?.(workerId, update);
           publish(update.type);
         },
-        { signal: taskSignal, priority: "background", pooling: BEIR_EMBEDDING_POOLING },
+        { signal: taskSignal, priority: "background", pooling: model.pooling },
       );
       if (taskSignal.aborted) throw new Error("Canceled");
-      if (
-        vectors.length !== texts.length ||
-        vectors.some((v) => v.length !== BEIR_EMBEDDING_DIMENSIONS)
-      ) {
+      if (vectors.length !== texts.length || vectors.some((v) => v.length !== model.dimensions)) {
         throw new Error("BGE returned an incomplete embedding batch.");
       }
       if (vectors.some((v) => !v.every(Number.isFinite))) {

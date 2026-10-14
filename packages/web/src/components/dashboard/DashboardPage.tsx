@@ -32,6 +32,7 @@ import {
 } from "@/components/dashboard/homeGrid/homeGridViewTransition";
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
 import { buildRecentItems } from "@/components/dashboard/recentItems";
+import { withoutAppFiles } from "@/lib/library/appFiles";
 import { AppMenu, AppMenuContent, AppMenuItem, AppMenuTrigger } from "@/components/menu/AppMenu";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
@@ -327,8 +328,8 @@ export const Component = (): ReactElement => {
   }, [fileRows]);
 
   const recentItems = useMemo(() => {
-    return buildRecentItems(files, chatSessions);
-  }, [chatSessions, files]);
+    return buildRecentItems(withoutAppFiles(files, folderRows), chatSessions);
+  }, [chatSessions, files, folderRows]);
 
   const recentActivityCount = useMemo(() => {
     return recentItems.filter((item) => item.updatedAt > 0).length;

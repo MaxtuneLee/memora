@@ -251,9 +251,9 @@ export default function SettingsIndexingSection() {
               if (mode !== "bm25") void reindexSemantic();
             }}
           >
-            <option value="hybrid">BM25 + BGE hybrid search</option>
+            <option value="hybrid">Hybrid search (BM25 and semantic)</option>
             <option value="bm25">BM25 search</option>
-            <option value="bge">BGE semantic search</option>
+            <option value="bge">Semantic search</option>
           </select>
         </label>
 

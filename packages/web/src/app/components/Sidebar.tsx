@@ -22,6 +22,8 @@ import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useStorageStats } from "@/hooks/settings/useStorageStats";
 import { activeFilesQuery$ } from "@/lib/library/queries";
+import { withoutAppFiles } from "@/lib/library/appFiles";
+import { desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import type { FileMeta } from "@/types/library";
 import type { SearchNavigationState } from "@/types/search";
@@ -394,6 +396,7 @@ export function Sidebar() {
   const reducedMotion = useReducedMotion() ?? false;
   const currentPath = location.pathname;
   const fileRows = store.useQuery(activeFilesQuery$);
+  const folderRows = store.useQuery(desktopFoldersQuery$);
   const { openSettings, isSettingsOpen, activeSection } = useSettingsDialog();
   const { openSearch, isSearchOpen } = useSearchPalette();
   const { storageQuota, storageUsage } = useStorageStats();
@@ -413,11 +416,11 @@ export function Sidebar() {
   );
 
   const recentFiles = useMemo(() => {
-    return fileRows
+    return withoutAppFiles(fileRows, folderRows)
       .map(mapLiveStoreFileToMeta)
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .slice(0, MAX_RECENT_FILES);
-  }, [fileRows]);
+  }, [fileRows, folderRows]);
 
   const storageSummary = useMemo(() => {
     if (!storageQuota) {
