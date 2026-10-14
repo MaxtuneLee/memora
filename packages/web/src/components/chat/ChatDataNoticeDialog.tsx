@@ -1,7 +1,10 @@
+import { ChatCircleTextIcon, FileTextIcon, ImageIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useId } from "react";
 import * as stylex from "@stylexjs/stylex";
 
-import IllustratedCard from "@/components/ui/IllustratedCard";
+import IllustratedCard, {
+  illustratedCardSecondaryButtonClassName,
+} from "@/components/ui/IllustratedCard";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { answerChatDataNotice, usePendingChatDataNotice } from "@/lib/chat/chatDataNotice";
 import { tokens } from "../../styles/stylex.stylex";
@@ -12,15 +15,24 @@ const styles = stylex.create({
     display: "flex",
     flexDirection: "column",
     fontSize: 14,
-    gap: 4,
+    gap: 8,
     lineHeight: 1.5,
-    listStyleType: "disc",
+    listStyleType: "none",
     margin: 0,
-    paddingInlineStart: 20,
+    padding: 0,
   },
+  item: { alignItems: "flex-start", display: "flex", gap: 10 },
+  icon: { color: tokens.textMuted, flexShrink: 0, height: 18, marginTop: 2, width: 18 },
   note: { color: tokens.textMuted, fontSize: 13, lineHeight: 1.5, margin: 0 },
   host: { color: tokens.textStrong, fontWeight: 500 },
 });
+
+const SENT_DATA = [
+  { icon: ChatCircleTextIcon, text: "Your messages and the conversation so far" },
+  { icon: ImageIcon, text: "Images you attach" },
+  { icon: UserCircleIcon, text: "Your profile and saved memory" },
+  { icon: FileTextIcon, text: "Text the assistant reads from your library" },
+] as const;
 
 const PANEL_RESET = {
   background: "transparent",
@@ -58,21 +70,25 @@ export default function ChatDataNoticeDialog() {
           actionLabel="I understand"
           busy={false}
           onAction={() => answerChatDataNotice(true)}
+          secondary={
+            <button
+              type="button"
+              className={illustratedCardSecondaryButtonClassName}
+              onClick={() => answerChatDataNotice(false)}
+            >
+              Cancel
+            </button>
+          }
         >
           <ul {...stylex.props(styles.list)}>
-            <li>Your messages and the conversation so far</li>
-            <li>Images you attach</li>
-            <li>Your profile and saved memory from Personalization</li>
-            <li>
-              Text the assistant reads from your library to answer, such as file names, search
-              results, and the notes or transcripts it opens
-            </li>
+            {SENT_DATA.map(({ icon: Icon, text }) => (
+              <li key={text} {...stylex.props(styles.item)}>
+                <Icon aria-hidden {...stylex.props(styles.icon)} />
+                {text}
+              </li>
+            ))}
           </ul>
-          <p {...stylex.props(styles.note)}>
-            Your files themselves aren't uploaded. Recordings, videos, PDFs, and other originals
-            stay on this device; only the text the assistant reads is sent, which can be a whole
-            note.
-          </p>
+          <p {...stylex.props(styles.note)}>Your entire files stay on this device.</p>
         </IllustratedCard>
       )}
     </NativeDialog>
