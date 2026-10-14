@@ -1,6 +1,8 @@
 import { file as opfsFile } from "@memora/fs";
 
+import { isAppFile } from "@/lib/library/appFiles";
 import { fileEvents, fileTable, type file as LiveStoreFile } from "@/livestore/file";
+import { folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 import { getVectorDbIndexId, type VectorDbClient } from "@/lib/vector-db";
 import type { EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
@@ -19,12 +21,20 @@ import {
 } from ".";
 
 interface ContentTaskStore {
-  query: (query: unknown) => readonly LiveStoreFile[];
+  query: (query: unknown) => readonly unknown[];
   commit: (event: unknown) => void;
 }
 
 const getFile = (store: ContentTaskStore, fileId: string): LiveStoreFile | null =>
   (store.query(fileTable.where({ id: fileId })) as readonly LiveStoreFile[])[0] ?? null;
+
+export const EXCLUDED_FROM_INDEX_SUMMARY = "Not indexed: app file.";
+
+const getParentFolder = (store: ContentTaskStore, row: LiveStoreFile): LiveStoreFolder | null =>
+  row.parentId
+    ? ((store.query(folderTable.where({ id: row.parentId })) as readonly LiveStoreFolder[])[0] ??
+      null)
+    : null;
 
 export const restoreStoredFileMetadata = (
   origin: File,
@@ -78,11 +88,23 @@ export const createContentTaskHandlers = (input: {
   vectorDb: VectorDbClient;
   getEmbeddingRuntime?: () => EmbeddingRuntime | null;
 }): BackgroundTaskHandler[] => {
+  const removeIndexedContent = async (fileId: string): Promise<void> => {
+    await removeContentArtifact(fileId);
+    await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).deleteDocument(fileId);
+    const runtime = input.getEmbeddingRuntime?.();
+    if (runtime) await input.vectorDb.forIndex(runtime.indexConfig).deleteDocument(fileId);
+  };
+
   const extract: BackgroundTaskHandler<{ fileId: string }> = {
     kind: "content.extract",
     run: async ({ fileId }, context) => {
       const row = getFile(input.store, fileId);
       if (!row || row.deletedAt || row.purgedAt) return;
+      if (isAppFile(row, getParentFolder(input.store, row))) {
+        await removeIndexedContent(fileId);
+        setIndexStatus(input.store, fileId, "indexed", EXCLUDED_FROM_INDEX_SUMMARY);
+        return;
+      }
       setIndexStatus(input.store, fileId, "processing");
       try {
         if ((row.type === "audio" || row.type === "video") && !row.transcriptPath) {
@@ -233,10 +255,7 @@ export const createContentTaskHandlers = (input: {
   const remove: BackgroundTaskHandler<{ fileId: string }> = {
     kind: "content.delete",
     run: async ({ fileId }) => {
-      await removeContentArtifact(fileId);
-      await input.vectorDb.forIndex(LEXICAL_INDEX_CONFIG).deleteDocument(fileId);
-      const runtime = input.getEmbeddingRuntime?.();
-      if (runtime) await input.vectorDb.forIndex(runtime.indexConfig).deleteDocument(fileId);
+      await removeIndexedContent(fileId);
     },
   };
 

@@ -46,7 +46,6 @@ interface OnboardingExperienceProps {
 }
 
 const TOTAL_STEPS = 6;
-const PATTERN_MARKS = Array.from({ length: 104 }, (_, index) => index);
 
 // ponytail: the brand panel, its pattern marks, the tail artwork, and the mobile brand
 // wordmark below keep a fixed brand-olive color in both themes, like a logo lockup —
@@ -64,40 +63,13 @@ const styles = stylex.create({
     overflow: "hidden",
     position: "relative",
   },
-  patternLayer: { inset: 0, opacity: 0.35, position: "absolute" },
-  patternGrid: {
-    display: "grid",
-    gap: "2.25rem 2.5rem",
-    gridTemplateColumns: "repeat(8,minmax(0,1fr))",
-    padding: "2.5rem",
-  },
-  patternMark: {
-    display: "block",
-    height: "1.25rem",
-    position: "relative",
-    width: "1.25rem",
-    "::before": {
-      backgroundColor: "#6f8050",
-      borderRadius: "9999px",
-      content: "''",
-      height: "100%",
-      left: "50%",
-      position: "absolute",
-      top: 0,
-      transform: "translateX(-50%) rotate(45deg)",
-      width: "5px",
-    },
-    "::after": {
-      backgroundColor: "#6f8050",
-      borderRadius: "9999px",
-      content: "''",
-      height: "100%",
-      left: "50%",
-      position: "absolute",
-      top: 0,
-      transform: "translateX(-50%) rotate(-45deg)",
-      width: "5px",
-    },
+  // One mark per tile, so the pattern fills the panel at any height.
+  patternLayer: {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='136' height='56'%3E%3Cpath d='M3 3 17 17M17 3 3 17' stroke='%236f8050' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E")`,
+    backgroundPosition: "2.5rem 2.25rem",
+    inset: 0,
+    opacity: 0.35,
+    position: "absolute",
   },
   tail: {
     height: "26rem",
@@ -538,13 +510,7 @@ function BrandPanel() {
 
   return (
     <aside {...stylex.props(styles.brandPanel)}>
-      <div {...stylex.props(styles.patternLayer)}>
-        <div {...stylex.props(styles.patternGrid)}>
-          {PATTERN_MARKS.map((mark) => (
-            <span key={mark} {...stylex.props(styles.patternMark)} />
-          ))}
-        </div>
-      </div>
+      <div {...stylex.props(styles.patternLayer)} />
 
       <div aria-hidden="true" {...stylex.props(styles.tail)}>
         <AnimatedTail prefersReducedMotion={!!prefersReducedMotion} />
