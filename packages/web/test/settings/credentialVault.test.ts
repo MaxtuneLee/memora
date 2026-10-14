@@ -5,6 +5,7 @@ import {
   ensureCredentialsUnlocked,
   forgetPasskey,
   isAppLocked,
+  isPasskeyLocked,
   lockCredentials,
   peekApiKey,
   readVaultConfig,
@@ -87,6 +88,8 @@ test("seals with the device key by default and reads it back without a prompt", 
   expect(sealed).toMatch(/^md1\./);
   expect(sealed).not.toContain("sk-device");
   restart();
+  // Before the device key decrypts it, the key isn't locked behind a passkey either.
+  expect(isPasskeyLocked(sealed)).toBe(false);
   await decryptCredentials([{ providerId: "p", apiKey: sealed }]);
   expect(peekApiKey(sealed)).toBe("sk-device");
   expect(create).not.toHaveBeenCalled();

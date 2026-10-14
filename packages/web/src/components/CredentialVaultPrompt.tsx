@@ -7,8 +7,8 @@ import PasskeyLockCard, {
 import {
   canSealSilently,
   decryptCredentials,
+  isPasskeyLocked,
   isSealedApiKey,
-  peekApiKey,
   readVaultConfig,
   sealApiKey,
   unlockWithPasskey,
@@ -62,9 +62,7 @@ export default function CredentialVaultPrompt() {
     }
   }, [credentials, store]);
 
-  const lockedRows = credentials.filter(
-    (row) => isSealedApiKey(row.apiKey) && !peekApiKey(row.apiKey),
-  );
+  const lockedRows = credentials.filter((row) => isPasskeyLocked(row.apiKey));
   // With a saved passkey, locked keys are unlocked when they are needed. Without one (the
   // setting was lost), ask here so the passkey gets saved again.
   if (dismissed || lockedRows.length === 0 || readVaultConfig().passkey) return null;

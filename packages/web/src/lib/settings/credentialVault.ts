@@ -130,6 +130,10 @@ const randomBytes = (length: number): Uint8Array<ArrayBuffer> =>
 export const isSealedApiKey = (value: string): boolean =>
   value.startsWith(PASSKEY_PREFIX) || value.startsWith(DEVICE_PREFIX);
 
+/** Sealed with the passkey and not decrypted yet. Device-sealed keys never need the user. */
+export const isPasskeyLocked = (value: string): boolean =>
+  value.startsWith(PASSKEY_PREFIX) && !plaintextBySealed.has(value);
+
 /** The usable key for a stored value: plaintext as-is, a sealed key once unlocked, else "". */
 export const peekApiKey = (stored: string): string =>
   isSealedApiKey(stored) ? (plaintextBySealed.get(stored) ?? "") : stored;
@@ -360,7 +364,7 @@ export const unlockWithPasskey = async (
   passkeyVerified = true;
   if (!config.passkey) writeVaultConfig({ ...config, passkey: target, encryptKeys: true });
   await decryptCredentials(credentials);
-  if (credentials.some((row) => row.apiKey.startsWith(PASSKEY_PREFIX) && !peekApiKey(row.apiKey))) {
+  if (credentials.some((row) => isPasskeyLocked(row.apiKey))) {
     throw new CredentialVaultError("This passkey does not match the one that encrypted your keys.");
   }
   notify();
@@ -387,9 +391,7 @@ export const ensureCredentialsUnlocked = async (
   credentials: readonly StoredCredential[],
 ): Promise<boolean> => {
   await decryptCredentials(credentials);
-  const locked = credentials.some(
-    (row) => row.apiKey.startsWith(PASSKEY_PREFIX) && !peekApiKey(row.apiKey),
-  );
+  const locked = credentials.some((row) => isPasskeyLocked(row.apiKey));
   if (!locked) return false;
   await unlockWithPasskey(credentials);
   return true;
@@ -472,7 +474,7 @@ export const setKeyEncryption = async (
     return resealed;
   }
 
-  if (credentials.some((row) => row.apiKey.startsWith(PASSKEY_PREFIX) && !peekApiKey(row.apiKey))) {
+  if (credentials.some((row) => isPasskeyLocked(row.apiKey))) {
     await unlockWithPasskey(credentials);
   }
   writeVaultConfig({ ...config, encryptKeys: false });
