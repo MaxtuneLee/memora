@@ -2,6 +2,7 @@ import AppLayout from "./layouts/AppLayout";
 import { StoreRegistryProvider } from "@livestore/react";
 import { Suspense } from "react";
 import LiveStoreLoadingScreen from "./components/LiveStoreLoadingScreen";
+import AppLockGate from "@/components/security/AppLockGate";
 import { ContentPipelineRoot } from "@/lib/content/contentPipelineRoot";
 import { appStoreRegistry, useLiveStoreLoadingStatus } from "@/livestore/store";
 
@@ -12,12 +13,14 @@ function LiveStoreFallback() {
 
 export default function App() {
   return (
-    <StoreRegistryProvider storeRegistry={appStoreRegistry}>
-      <Suspense fallback={<LiveStoreFallback />}>
-        <ContentPipelineRoot>
-          <AppLayout />
-        </ContentPipelineRoot>
-      </Suspense>
-    </StoreRegistryProvider>
+    <AppLockGate>
+      <StoreRegistryProvider storeRegistry={appStoreRegistry}>
+        <Suspense fallback={<LiveStoreFallback />}>
+          <ContentPipelineRoot>
+            <AppLayout />
+          </ContentPipelineRoot>
+        </Suspense>
+      </StoreRegistryProvider>
+    </AppLockGate>
   );
 }

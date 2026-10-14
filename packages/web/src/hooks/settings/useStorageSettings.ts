@@ -16,6 +16,12 @@ import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 import { providerTable, type provider as LiveStoreProvider } from "@/livestore/provider";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
+import {
+  widgetDefinitionTable,
+  widgetInstanceTable,
+  type widgetDefinition,
+  type widgetInstance,
+} from "@/livestore/widget";
 
 interface UseStorageSettingsOptions {
   open: boolean;
@@ -35,6 +41,14 @@ const storageExportCollectionsQuery$ = queryDb(() => collectionTable.orderBy("up
 
 const storageExportProvidersQuery$ = queryDb(() => providerTable.orderBy("updatedAt", "desc"), {
   label: "settings:storage-export-providers",
+});
+
+const storageExportWidgetDefinitionsQuery$ = queryDb(() => widgetDefinitionTable, {
+  label: "settings:storage-export-widget-definitions",
+});
+
+const storageExportWidgetInstancesQuery$ = queryDb(() => widgetInstanceTable, {
+  label: "settings:storage-export-widget-instances",
 });
 
 export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
@@ -66,6 +80,10 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
     storageExportCollectionsQuery$,
   ) as (typeof collectionTable.Type)[];
   const providers = store.useQuery(storageExportProvidersQuery$) as LiveStoreProvider[];
+  const widgetDefinitions = store.useQuery(
+    storageExportWidgetDefinitionsQuery$,
+  ) as widgetDefinition[];
+  const widgetInstances = store.useQuery(storageExportWidgetInstancesQuery$) as widgetInstance[];
 
   useEffect(() => {
     if (!open) {
@@ -128,6 +146,8 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
           files,
           folders,
           collections,
+          widgetDefinitions,
+          widgetInstances,
         },
         (progress) => {
           setExportProgress(progress);
@@ -149,7 +169,17 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
     } finally {
       setIsExporting(false);
     }
-  }, [add, collections, files, folders, isExporting, providers, settings]);
+  }, [
+    add,
+    collections,
+    files,
+    folders,
+    isExporting,
+    providers,
+    settings,
+    widgetDefinitions,
+    widgetInstances,
+  ]);
 
   const handleImportArchive = useCallback(
     async (archive: File) => {
@@ -177,6 +207,8 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
               files,
               folders,
               collections,
+              widgetDefinitions,
+              widgetInstances,
             },
             store,
           },
@@ -212,6 +244,8 @@ export const useStorageSettings = ({ open }: UseStorageSettingsOptions) => {
       refreshStorageState,
       settings,
       store,
+      widgetDefinitions,
+      widgetInstances,
     ],
   );
 

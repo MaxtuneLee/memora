@@ -1,4 +1,10 @@
-import { file as opfsFile, ls as opfsLs, rm as opfsRm, write as opfsWrite } from "@memora/fs";
+import {
+  file as opfsFile,
+  ls as opfsLs,
+  rm as opfsRm,
+  writeStream as opfsWriteStream,
+} from "@memora/fs";
+import { Schema } from "@livestore/livestore";
 
 import { assertNoPathMutationConflicts } from "@/lib/editor/pathMutations";
 import { collectionTable } from "@/livestore/collection";
@@ -12,54 +18,32 @@ import { providerEvents, toProviderMetadata } from "@/livestore/provider";
 import { providerCredentialEvents } from "@/livestore/providerCredential";
 import { parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { redactProviderEndpoint } from "@/lib/settings/providerEndpoint";
+import { buildZipArchive, readZipArchive, type ZipReadEntry } from "@/lib/settings/zipArchive";
 import { normalizeAiModelRouting } from "@/lib/models/modelRouting";
-import {
-  normalizeLocalModelUsageTotals,
-  type LocalModelUsageTotals,
-} from "@/lib/models/localTokenUsage";
-import type { StoredModelRouting } from "@/lib/models/modelRoutingSchema";
+import { normalizeLocalModelUsageTotals } from "@/lib/models/localTokenUsage";
 import {
   normalizeSettingsValue,
   settingEvents,
-  settingsTable,
-  type SemanticSearchMode,
+  settingsStoredValueSchema,
+  type setting,
 } from "@/livestore/setting";
+import {
+  BUILTIN_WIDGET_KEYS,
+  DATA_SOURCE_NAMES,
+  widgetEvents,
+  type widgetDefinition as LiveStoreWidgetDefinition,
+  type widgetInstance as LiveStoreWidgetInstance,
+} from "@/livestore/widget";
 
+// The archive layout is documented in docs/data-export-format.md. Update it with any change here.
+export const EXPORT_FORMAT_VERSION = 2;
+const SUPPORTED_FORMAT_VERSIONS = new Set([1, 2]);
 const EXPORT_ROOT_DIR_NAME = "memora-export";
 const EXPORT_OPFS_PREFIX = `${EXPORT_ROOT_DIR_NAME}/opfs/`;
 const USER_EXPORT_OPFS_ROOTS = ["/files", "/chat"] as const;
 const EXCLUDED_OPFS_PATH_PREFIXES = ["/chat/skills", "/transformers-cache"] as const;
-const IMPORT_RESET_OPFS_PATHS = [
-  "/files",
-  "/chat/profile",
-  "/chat/sessions",
-  "/chat/session-assets",
-] as const;
 
-type SettingsValue = {
-  localModelTokenUsage?: LocalModelUsageTotals;
-  modelRouting?: StoredModelRouting;
-  theme: "light" | "dark" | "system";
-  language: string;
-  defaultTranscriptionModel: string;
-  defaultSummarizationModel: string;
-  autoTranscribe: boolean;
-  autoIndex: boolean;
-  semanticSearchMode: SemanticSearchMode;
-  semanticSearchEnabled?: boolean;
-  sidebarCollapsed: boolean;
-  selectedProviderId: string;
-  selectedModel: string;
-  defaultNoteLocationMode: "root" | "folder";
-  defaultNoteFolderId: string;
-  attachmentPlacementMode: "root" | "fixed-folder" | "current-folder" | "current-subfolder";
-  attachmentFolderId: string;
-  attachmentSubfolderName: string;
-  editorFontSizePx: number;
-  onboardingName?: string;
-  onboardingCompleted?: boolean;
-  onboardingSkippedAt?: string;
-};
+type SettingsValue = setting;
 
 export interface StorageExportSnapshot {
   settings: SettingsValue;
@@ -67,6 +51,8 @@ export interface StorageExportSnapshot {
   files: readonly LiveStoreFile[];
   folders: readonly LiveStoreFolder[];
   collections: readonly (typeof collectionTable.Type)[];
+  widgetDefinitions: readonly LiveStoreWidgetDefinition[];
+  widgetInstances: readonly LiveStoreWidgetInstance[];
 }
 
 export interface StorageExportProgress {
@@ -98,11 +84,8 @@ interface StorageImportSnapshot {
   files: ImportedFile[];
   folders: ImportedFolder[];
   collections: ImportedCollection[];
-}
-
-interface ParsedZipEntry {
-  path: string;
-  data: Uint8Array;
+  /** Null for format 1 archives, which predate widget export. */
+  widgets: { definitions: ImportedWidgetDefinition[]; instances: ImportedWidgetInstance[] } | null;
 }
 
 interface StoreLike {
@@ -171,29 +154,18 @@ interface ImportedFile {
   purgedAt: Date | null;
 }
 
-interface ExportEntryInput {
+type ImportedWidgetDefinition = Omit<LiveStoreWidgetDefinition, "deletedAt"> & {
+  deletedAt: Date | null;
+};
+
+type ImportedWidgetInstance = Omit<LiveStoreWidgetInstance, "deletedAt"> & {
+  deletedAt: Date | null;
+};
+
+interface ExportEntry {
   path: string;
-  data: Uint8Array;
+  data: Blob;
 }
-
-interface ResolvedExportEntry extends ExportEntryInput {
-  crc32: number;
-  offset: number;
-}
-
-const textEncoder = new TextEncoder();
-
-const CRC32_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let index = 0; index < 256; index += 1) {
-    let value = index;
-    for (let bit = 0; bit < 8; bit += 1) {
-      value = (value & 1) === 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-    }
-    table[index] = value >>> 0;
-  }
-  return table;
-})();
 
 const normalizeArchivePath = (path: string): string => {
   return path.replace(/^\/+/, "").split("/").filter(Boolean).join("/");
@@ -208,8 +180,9 @@ const getJsonFileName = (name: string): string => {
 };
 
 const isExportableOpfsPath = (path: string): boolean => {
-  return !EXCLUDED_OPFS_PATH_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  return (
+    USER_EXPORT_OPFS_ROOTS.some((root) => path.startsWith(`${root}/`)) &&
+    !EXCLUDED_OPFS_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
   );
 };
 
@@ -231,7 +204,7 @@ const buildManifest = (
   exportedAt: string,
 ) => {
   return {
-    formatVersion: 1,
+    formatVersion: EXPORT_FORMAT_VERSION,
     exportedAt,
     app: "Memora",
     contents: {
@@ -240,48 +213,48 @@ const buildManifest = (
       files: snapshot.files.length,
       folders: snapshot.folders.length,
       collections: snapshot.collections.length,
+      widgetDefinitions: snapshot.widgetDefinitions.length,
+      widgetInstances: snapshot.widgetInstances.length,
       opfsFiles: opfsFiles.length,
     },
     notes: [
       "This archive contains Memora user data exported from browser storage.",
-      "Downloaded local model cache files are intentionally excluded from this export.",
+      "Downloaded local model cache files and search indexes are intentionally excluded. Memora rebuilds search indexes after import.",
       "Provider API keys are device-local and intentionally excluded. Enter them again on a new device.",
     ],
   };
 };
 
-const createJsonEntry = (path: string, value: unknown): ExportEntryInput => {
+const createJsonEntry = (path: string, value: unknown): ExportEntry => {
   return {
     path,
-    data: textEncoder.encode(`${JSON.stringify(value, null, 2)}\n`),
+    data: new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: "application/json" }),
   };
 };
 
-const createStoredEntries = async (
-  snapshot: StorageExportSnapshot,
-  onProgress?: (progress: StorageExportProgress) => void,
-): Promise<ExportEntryInput[]> => {
-  const opfsPaths = (
-    await Promise.all(
-      USER_EXPORT_OPFS_ROOTS.map(async (rootPath) => {
-        try {
-          return await opfsLs(rootPath, {
-            recursive: true,
-            includeFiles: true,
-            includeDirs: false,
-          });
-        } catch {
-          return [];
-        }
-      }),
-    )
-  )
+const listExportableOpfsFiles = async (): Promise<string[]> => {
+  const paths = await Promise.all(
+    USER_EXPORT_OPFS_ROOTS.map(async (rootPath) => {
+      try {
+        return await opfsLs(rootPath, { recursive: true, includeFiles: true, includeDirs: false });
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return paths
     .flat()
     .filter(isExportableOpfsPath)
     .sort((left, right) => left.localeCompare(right));
+};
 
+const createExportEntries = async (
+  snapshot: StorageExportSnapshot,
+  onProgress?: (progress: StorageExportProgress) => void,
+): Promise<ExportEntry[]> => {
+  const opfsPaths = await listExportableOpfsFiles();
   const exportedAt = new Date().toISOString();
-  const jsonEntries: ExportEntryInput[] = [
+  const entries: ExportEntry[] = [
     createJsonEntry(
       getJsonFileName("manifest.json"),
       buildManifest(snapshot, opfsPaths, exportedAt),
@@ -297,93 +270,34 @@ const createStoredEntries = async (
     createJsonEntry(getJsonFileName("livestore/files.json"), snapshot.files),
     createJsonEntry(getJsonFileName("livestore/folders.json"), snapshot.folders),
     createJsonEntry(getJsonFileName("livestore/collections.json"), snapshot.collections),
+    createJsonEntry(
+      getJsonFileName("livestore/widget-definitions.json"),
+      snapshot.widgetDefinitions,
+    ),
+    createJsonEntry(getJsonFileName("livestore/widget-instances.json"), snapshot.widgetInstances),
   ];
 
-  const opfsEntries: ExportEntryInput[] = [];
-  let completedBytes = 0;
-  const totalBytes = jsonEntries.reduce((sum, entry) => sum + entry.data.byteLength, 0);
-
-  for (const entry of jsonEntries) {
-    completedBytes += entry.data.byteLength;
+  for (const [index, opfsPath] of opfsPaths.entries()) {
     onProgress?.({
-      currentFile: entry.path.replace(`${EXPORT_ROOT_DIR_NAME}/`, ""),
-      completedBytes,
-      totalBytes,
-      completedFiles: opfsEntries.length + jsonEntries.indexOf(entry) + 1,
-      totalFiles: jsonEntries.length + opfsPaths.length,
+      currentFile: opfsPath,
+      completedBytes: 0,
+      totalBytes: 0,
+      completedFiles: index,
+      totalFiles: opfsPaths.length,
       phase: "preparing",
     });
-  }
-
-  let totalExportBytes = totalBytes;
-  for (const opfsPath of opfsPaths) {
+    let data: Blob;
     try {
-      totalExportBytes += await opfsFile(opfsPath).getSize();
+      // A disk-backed File: the archive Blob references it instead of copying it into memory.
+      data = await opfsFile(opfsPath).getOriginFile();
     } catch {
-      continue;
+      throw new Error(`Could not read ${opfsPath}. Nothing was exported.`);
     }
+    entries.push({ path: getArchiveFileName(opfsPath), data });
   }
 
-  completedBytes = jsonEntries.reduce((sum, entry) => sum + entry.data.byteLength, 0);
-  let completedFiles = jsonEntries.length;
-
-  for (const opfsPath of opfsPaths) {
-    try {
-      const data = new Uint8Array(await opfsFile(opfsPath).arrayBuffer());
-      opfsEntries.push({
-        path: getArchiveFileName(opfsPath),
-        data,
-      });
-      completedBytes += data.byteLength;
-      completedFiles += 1;
-      onProgress?.({
-        currentFile: getArchiveFileName(opfsPath).replace(`${EXPORT_ROOT_DIR_NAME}/`, ""),
-        completedBytes,
-        totalBytes: totalExportBytes,
-        completedFiles,
-        totalFiles: jsonEntries.length + opfsPaths.length,
-        phase: "preparing",
-      });
-    } catch {
-      continue;
-    }
-  }
-
-  return [...jsonEntries, ...opfsEntries];
+  return entries;
 };
-
-const calculateCrc32 = (data: Uint8Array): number => {
-  let crc = 0xffffffff;
-  for (const value of data) {
-    crc = CRC32_TABLE[(crc ^ value) & 0xff] ^ (crc >>> 8);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-};
-
-const getDosDateTime = (date = new Date()): { date: number; time: number } => {
-  const year = Math.max(date.getFullYear(), 1980);
-  const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | Math.max(1, date.getDate());
-  const dosTime =
-    (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
-  return {
-    date: dosDate & 0xffff,
-    time: dosTime & 0xffff,
-  };
-};
-
-const writeUint16 = (view: DataView, offset: number, value: number): void => {
-  view.setUint16(offset, value & 0xffff, true);
-};
-
-const writeUint32 = (view: DataView, offset: number, value: number): void => {
-  view.setUint32(offset, value >>> 0, true);
-};
-
-const toBlobPart = (value: Uint8Array): ArrayBuffer => {
-  return new Uint8Array(value).buffer;
-};
-
-const textDecoder = new TextDecoder();
 
 const normalizeImportedString = (value: unknown, fallback = ""): string => {
   return typeof value === "string" ? value : fallback;
@@ -423,41 +337,31 @@ const normalizeImportedNullableDate = (value: unknown): Date | null => {
   return normalizeImportedDate(value, new Date(0));
 };
 
+// One validator per stored settings field, so a setting added to the schema is imported
+// without touching this file, and one bad field only falls back to its own default.
+const SETTINGS_FIELD_VALIDATORS = Object.entries(settingsStoredValueSchema.fields).map(
+  ([key, field]) => [key, Schema.is(Schema.Struct({ [key]: field }))] as const,
+);
+
 export const normalizeImportedSettings = (value: unknown): SettingsValue => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ...settingsTable.default.value };
+    return normalizeSettingsValue({});
   }
 
   const record = value as Record<string, unknown>;
-  const theme =
-    record.theme === "light" || record.theme === "dark" || record.theme === "system"
-      ? record.theme
-      : undefined;
-  const defaultNoteLocationMode =
-    record.defaultNoteLocationMode === "root" || record.defaultNoteLocationMode === "folder"
-      ? record.defaultNoteLocationMode
-      : undefined;
-  const attachmentPlacementMode =
-    record.attachmentPlacementMode === "root" ||
-    record.attachmentPlacementMode === "fixed-folder" ||
-    record.attachmentPlacementMode === "current-folder" ||
-    record.attachmentPlacementMode === "current-subfolder"
-      ? record.attachmentPlacementMode
-      : undefined;
-  const semanticSearchMode =
-    record.semanticSearchMode === "hybrid" ||
-    record.semanticSearchMode === "bm25" ||
-    record.semanticSearchMode === "bge"
-      ? record.semanticSearchMode
-      : undefined;
+  const accepted: Record<string, unknown> = {};
+  for (const [key, isValid] of SETTINGS_FIELD_VALIDATORS) {
+    if (record[key] !== undefined && isValid({ [key]: record[key] })) {
+      accepted[key] = record[key];
+    }
+  }
 
+  delete accepted.localModelTokenUsage;
+  delete accepted.modelRouting;
+  const localModelTokenUsage = normalizeLocalModelUsageTotals(record.localModelTokenUsage);
   return normalizeSettingsValue({
-    ...(normalizeLocalModelUsageTotals(record.localModelTokenUsage)
-      ? {
-          localModelTokenUsage:
-            normalizeLocalModelUsageTotals(record.localModelTokenUsage) ?? undefined,
-        }
-      : {}),
+    ...(accepted as Partial<SettingsValue>),
+    ...(localModelTokenUsage ? { localModelTokenUsage } : {}),
     ...(record.modelRouting !== undefined
       ? {
           modelRouting: normalizeAiModelRouting(record.modelRouting, {
@@ -467,50 +371,6 @@ export const normalizeImportedSettings = (value: unknown): SettingsValue => {
               typeof record.selectedModel === "string" ? record.selectedModel : undefined,
           }),
         }
-      : {}),
-    ...(theme ? { theme } : {}),
-    ...(typeof record.language === "string" ? { language: record.language } : {}),
-    ...(typeof record.defaultTranscriptionModel === "string"
-      ? { defaultTranscriptionModel: record.defaultTranscriptionModel }
-      : {}),
-    ...(typeof record.defaultSummarizationModel === "string"
-      ? { defaultSummarizationModel: record.defaultSummarizationModel }
-      : {}),
-    ...(typeof record.autoTranscribe === "boolean"
-      ? { autoTranscribe: record.autoTranscribe }
-      : {}),
-    ...(typeof record.autoIndex === "boolean" ? { autoIndex: record.autoIndex } : {}),
-    ...(semanticSearchMode ? { semanticSearchMode } : {}),
-    ...(typeof record.semanticSearchEnabled === "boolean"
-      ? { semanticSearchEnabled: record.semanticSearchEnabled }
-      : {}),
-    ...(typeof record.sidebarCollapsed === "boolean"
-      ? { sidebarCollapsed: record.sidebarCollapsed }
-      : {}),
-    ...(typeof record.selectedProviderId === "string"
-      ? { selectedProviderId: record.selectedProviderId }
-      : {}),
-    ...(typeof record.selectedModel === "string" ? { selectedModel: record.selectedModel } : {}),
-    ...(defaultNoteLocationMode ? { defaultNoteLocationMode } : {}),
-    ...(typeof record.defaultNoteFolderId === "string"
-      ? { defaultNoteFolderId: record.defaultNoteFolderId }
-      : {}),
-    ...(attachmentPlacementMode ? { attachmentPlacementMode } : {}),
-    ...(typeof record.attachmentFolderId === "string"
-      ? { attachmentFolderId: record.attachmentFolderId }
-      : {}),
-    ...(typeof record.attachmentSubfolderName === "string"
-      ? { attachmentSubfolderName: record.attachmentSubfolderName }
-      : {}),
-    ...(typeof record.editorFontSizePx === "number" && Number.isFinite(record.editorFontSizePx)
-      ? { editorFontSizePx: record.editorFontSizePx }
-      : {}),
-    ...(typeof record.onboardingName === "string" ? { onboardingName: record.onboardingName } : {}),
-    ...(typeof record.onboardingCompleted === "boolean"
-      ? { onboardingCompleted: record.onboardingCompleted }
-      : {}),
-    ...(typeof record.onboardingSkippedAt === "string"
-      ? { onboardingSkippedAt: record.onboardingSkippedAt }
       : {}),
   });
 };
@@ -633,135 +493,221 @@ const normalizeImportedFiles = (value: unknown): ImportedFile[] => {
     .filter((record) => record.id && record.storagePath);
 };
 
-const parseZipArchive = async (
-  archive: Blob,
-  onProgress?: (progress: StorageImportProgress) => void,
-): Promise<ParsedZipEntry[]> => {
-  const bytes = new Uint8Array(await archive.arrayBuffer());
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const entries: ParsedZipEntry[] = [];
-  let offset = 0;
+const isOneOf = <T extends string>(values: readonly T[], value: unknown): value is T =>
+  typeof value === "string" && (values as readonly string[]).includes(value);
 
-  while (offset + 30 <= view.byteLength) {
-    const signature = view.getUint32(offset, true);
-    if (signature !== 0x04034b50) {
-      break;
-    }
-
-    const compressionMethod = view.getUint16(offset + 8, true);
-    if (compressionMethod !== 0) {
-      throw new Error("This archive uses an unsupported compression mode.");
-    }
-
-    const fileNameLength = view.getUint16(offset + 26, true);
-    const extraFieldLength = view.getUint16(offset + 28, true);
-    const compressedSize = view.getUint32(offset + 18, true);
-    const fileNameOffset = offset + 30;
-    const dataOffset = fileNameOffset + fileNameLength + extraFieldLength;
-    const dataEnd = dataOffset + compressedSize;
-
-    if (dataEnd > view.byteLength) {
-      throw new Error("The import archive looks incomplete.");
-    }
-
-    const path = textDecoder.decode(bytes.slice(fileNameOffset, fileNameOffset + fileNameLength));
-    const data = bytes.slice(dataOffset, dataEnd);
-    entries.push({ path, data });
-    offset = dataEnd;
-
-    onProgress?.({
-      currentFile: path.replace(`${EXPORT_ROOT_DIR_NAME}/`, ""),
-      completedBytes: offset,
-      totalBytes: bytes.byteLength,
-      completedFiles: entries.length,
-      totalFiles: entries.length,
-      phase: "reading",
-    });
-  }
-
-  if (entries.length === 0) {
-    throw new Error("No importable data was found in this ZIP archive.");
-  }
-
-  return entries;
+const normalizeImportedWidgetDefinitions = (value: unknown): ImportedWidgetDefinition[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => {
+      const record = item as Record<string, unknown>;
+      const createdAt = normalizeImportedDate(record.createdAt, new Date());
+      return {
+        id: normalizeImportedString(record.id),
+        kind: record.kind === "builtin" ? ("builtin" as const) : ("generated" as const),
+        builtinKey: isOneOf(BUILTIN_WIDGET_KEYS, record.builtinKey) ? record.builtinKey : null,
+        name: normalizeImportedString(record.name),
+        widgetCode: normalizeImportedString(record.widgetCode),
+        dataSourceName: isOneOf(DATA_SOURCE_NAMES, record.dataSourceName)
+          ? record.dataSourceName
+          : null,
+        dataSourceParams: normalizeImportedString(record.dataSourceParams, "{}"),
+        folderId: normalizeImportedNullableString(record.folderId),
+        sourceFileId: normalizeImportedNullableString(record.sourceFileId),
+        createdAt,
+        updatedAt: normalizeImportedDate(record.updatedAt, createdAt),
+        deletedAt: normalizeImportedNullableDate(record.deletedAt),
+      };
+    })
+    .filter((record) => record.id);
 };
 
-const readRequiredJsonEntry = (entries: readonly ParsedZipEntry[], path: string): unknown => {
+const normalizeImportedWidgetInstances = (value: unknown): ImportedWidgetInstance[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => {
+      const record = item as Record<string, unknown>;
+      const createdAt = normalizeImportedDate(record.createdAt, new Date());
+      return {
+        id: normalizeImportedString(record.id),
+        definitionId: normalizeImportedString(record.definitionId),
+        sortOrder: normalizeImportedNumber(record.sortOrder),
+        params: normalizeImportedString(record.params, "{}"),
+        columnSpan: normalizeImportedNumber(record.columnSpan, 1),
+        rowSpan: normalizeImportedNumber(record.rowSpan, 1),
+        createdAt,
+        updatedAt: normalizeImportedDate(record.updatedAt, createdAt),
+        deletedAt: normalizeImportedNullableDate(record.deletedAt),
+      };
+    })
+    .filter((record) => record.id && record.definitionId);
+};
+
+const readJsonEntry = async (
+  entries: readonly ZipReadEntry[],
+  path: string,
+  options: { required: boolean } = { required: true },
+): Promise<unknown> => {
   const entry = entries.find((candidate) => candidate.path === path);
   if (!entry) {
+    if (!options.required) return undefined;
     throw new Error(`The archive is missing ${path}.`);
   }
 
+  const text = await new Response(entry.open()).text();
   try {
-    return JSON.parse(textDecoder.decode(entry.data)) as unknown;
+    return JSON.parse(text) as unknown;
   } catch {
     throw new Error(`The archive entry ${path} is not valid JSON.`);
   }
 };
 
-const parseImportSnapshot = (entries: readonly ParsedZipEntry[]): StorageImportSnapshot => {
-  const manifest = readRequiredJsonEntry(entries, getJsonFileName("manifest.json")) as Record<
-    string,
-    unknown
-  >;
-  if (manifest.formatVersion !== 1) {
-    throw new Error("This archive uses an unsupported Memora export format.");
+const parseImportSnapshot = async (
+  entries: readonly ZipReadEntry[],
+): Promise<StorageImportSnapshot> => {
+  const manifest = await readJsonEntry(entries, getJsonFileName("manifest.json"));
+  const formatVersion =
+    manifest && typeof manifest === "object"
+      ? (manifest as Record<string, unknown>).formatVersion
+      : undefined;
+  if (typeof formatVersion !== "number" || !SUPPORTED_FORMAT_VERSIONS.has(formatVersion)) {
+    throw new Error(
+      typeof formatVersion === "number" && formatVersion > EXPORT_FORMAT_VERSION
+        ? "This archive was made by a newer version of Memora. Update Memora and try again."
+        : "This archive uses an unsupported Memora export format.",
+    );
   }
 
-  const storedSettings = readRequiredJsonEntry(entries, getJsonFileName("livestore/settings.json"));
+  const storedSettings = await readJsonEntry(entries, getJsonFileName("livestore/settings.json"));
   const settings = normalizeImportedSettings(storedSettings);
-  const routingPath = getJsonFileName("livestore/model-routing.json");
-  // Import archives from before routing was merged into settings.
+  // Format 1 archives from before routing was merged into settings.
   const hasNestedRouting =
     typeof storedSettings === "object" &&
     storedSettings !== null &&
     "modelRouting" in storedSettings;
-  settings.modelRouting = normalizeAiModelRouting(
-    !hasNestedRouting && entries.some((entry) => entry.path === routingPath)
-      ? readRequiredJsonEntry(entries, routingPath)
-      : settings.modelRouting,
-    settings,
+  const legacyRouting = hasNestedRouting
+    ? undefined
+    : await readJsonEntry(entries, getJsonFileName("livestore/model-routing.json"), {
+        required: false,
+      });
+  settings.modelRouting = normalizeAiModelRouting(legacyRouting ?? settings.modelRouting, settings);
+
+  const widgetDefinitions = await readJsonEntry(
+    entries,
+    getJsonFileName("livestore/widget-definitions.json"),
+    { required: formatVersion >= 2 },
+  );
+  const widgetInstances = await readJsonEntry(
+    entries,
+    getJsonFileName("livestore/widget-instances.json"),
+    { required: formatVersion >= 2 },
   );
 
   return {
     settings,
     providers: normalizeImportedProviders(
-      readRequiredJsonEntry(entries, getJsonFileName("livestore/providers.json")),
+      await readJsonEntry(entries, getJsonFileName("livestore/providers.json")),
     ),
     files: normalizeImportedFiles(
-      readRequiredJsonEntry(entries, getJsonFileName("livestore/files.json")),
+      await readJsonEntry(entries, getJsonFileName("livestore/files.json")),
     ),
     folders: normalizeImportedFolders(
-      readRequiredJsonEntry(entries, getJsonFileName("livestore/folders.json")),
+      await readJsonEntry(entries, getJsonFileName("livestore/folders.json")),
     ),
     collections: normalizeImportedCollections(
-      readRequiredJsonEntry(entries, getJsonFileName("livestore/collections.json")),
+      await readJsonEntry(entries, getJsonFileName("livestore/collections.json")),
     ),
+    widgets:
+      formatVersion >= 2
+        ? {
+            definitions: normalizeImportedWidgetDefinitions(widgetDefinitions),
+            instances: normalizeImportedWidgetInstances(widgetInstances),
+          }
+        : null,
   };
 };
 
-const listImportedOpfsEntries = (entries: readonly ParsedZipEntry[]): ParsedZipEntry[] => {
-  return entries.filter((entry) => entry.path.startsWith(EXPORT_OPFS_PREFIX));
+interface ImportedOpfsEntry {
+  opfsPath: string;
+  entry: ZipReadEntry;
+}
+
+// Only paths an export can produce are restored, so an archive cannot write over app internals
+// such as the LiveStore database or the model cache.
+const listImportedOpfsEntries = (entries: readonly ZipReadEntry[]): ImportedOpfsEntry[] => {
+  return entries
+    .filter((entry) => entry.path.startsWith(EXPORT_OPFS_PREFIX))
+    .map((entry) => {
+      const segments = entry.path.slice(EXPORT_OPFS_PREFIX.length).split("/");
+      const opfsPath = `/${segments.filter(Boolean).join("/")}`;
+      if (segments.some((segment) => segment === "." || segment === "..")) {
+        throw new Error(`The archive entry ${entry.path} has an invalid path.`);
+      }
+      if (!isExportableOpfsPath(opfsPath)) {
+        throw new Error(`The archive entry ${entry.path} is outside Memora's user data.`);
+      }
+      return { opfsPath, entry };
+    });
+};
+
+// Reads every file once before anything is deleted, so a damaged archive fails without
+// touching existing data.
+const verifyOpfsEntries = async (
+  entries: readonly ImportedOpfsEntry[],
+  onProgress?: (progress: StorageImportProgress) => void,
+): Promise<void> => {
+  const totalBytes = entries.reduce((sum, { entry }) => sum + entry.size, 0);
+  let completedBytes = 0;
+  for (const [index, { opfsPath, entry }] of entries.entries()) {
+    const reader = entry.open().getReader();
+    for (;;) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+    completedBytes += entry.size;
+    onProgress?.({
+      currentFile: opfsPath,
+      completedBytes,
+      totalBytes,
+      completedFiles: index + 1,
+      totalFiles: entries.length,
+      phase: "reading",
+    });
+  }
+};
+
+const clearExportableOpfsData = async (): Promise<void> => {
+  for (const root of USER_EXPORT_OPFS_ROOTS) {
+    let children: string[];
+    try {
+      children = await opfsLs(root, { recursive: false, includeFiles: true, includeDirs: true });
+    } catch {
+      continue;
+    }
+    for (const child of children) {
+      if (isExportableOpfsPath(child)) {
+        await opfsRm(child, { recursive: true, force: true });
+      }
+    }
+  }
 };
 
 const restoreOpfsData = async (
-  entries: readonly ParsedZipEntry[],
+  entries: readonly ImportedOpfsEntry[],
   onProgress?: (progress: StorageImportProgress) => void,
 ): Promise<number> => {
-  for (const resetPath of IMPORT_RESET_OPFS_PATHS) {
-    await opfsRm(resetPath, { recursive: true, force: true });
-  }
+  await clearExportableOpfsData();
 
-  const totalBytes = entries.reduce((sum, entry) => sum + entry.data.byteLength, 0);
+  const totalBytes = entries.reduce((sum, { entry }) => sum + entry.size, 0);
   let completedBytes = 0;
 
-  for (const [index, entry] of entries.entries()) {
-    const relativePath = entry.path.slice(EXPORT_OPFS_PREFIX.length);
-    const opfsPath = `/${relativePath}`;
-    await opfsWrite(opfsPath, entry.data, { overwrite: true });
-    completedBytes += entry.data.byteLength;
+  for (const [index, { opfsPath, entry }] of entries.entries()) {
+    await opfsWriteStream(opfsPath, entry.open(), { overwrite: true });
+    completedBytes += entry.size;
     onProgress?.({
-      currentFile: relativePath,
+      currentFile: opfsPath,
       completedBytes,
       totalBytes,
       completedFiles: index + 1,
@@ -953,28 +899,27 @@ const applyImportedFiles = (
           createdAt: row.createdAt,
         }),
       );
-    } else {
-      if (existing.deletedAt && !row.deletedAt) {
-        store.commit(fileEvents.fileRestored({ id: row.id, updatedAt: row.updatedAt }));
-      }
-      store.commit(
-        fileEvents.fileUpdated({
-          id: row.id,
-          name: row.name,
-          parentId: row.parentId,
-          positionX: row.positionX,
-          positionY: row.positionY,
-          collectionId: row.collectionId,
-          thumbnailPath: row.thumbnailPath,
-          durationSec: row.durationSec,
-          mimeType: row.mimeType,
-          sizeBytes: row.sizeBytes,
-          storageType: row.storageType,
-          storagePath: row.storagePath,
-          updatedAt: row.updatedAt,
-        }),
-      );
+    } else if (existing.deletedAt && !row.deletedAt) {
+      store.commit(fileEvents.fileRestored({ id: row.id, updatedAt: row.updatedAt }));
     }
+    // fileCreated has no thumbnailPath, so new rows need the update as well.
+    store.commit(
+      fileEvents.fileUpdated({
+        id: row.id,
+        name: row.name,
+        parentId: row.parentId,
+        positionX: row.positionX,
+        positionY: row.positionY,
+        collectionId: row.collectionId,
+        thumbnailPath: row.thumbnailPath,
+        durationSec: row.durationSec,
+        mimeType: row.mimeType,
+        sizeBytes: row.sizeBytes,
+        storageType: row.storageType,
+        storagePath: row.storagePath,
+        updatedAt: row.updatedAt,
+      }),
+    );
 
     if (row.transcriptPath) {
       store.commit(
@@ -1016,127 +961,135 @@ const applyImportedFiles = (
   }
 };
 
+const applyImportedWidgets = (
+  current: Pick<StorageExportSnapshot, "widgetDefinitions" | "widgetInstances">,
+  imported: NonNullable<StorageImportSnapshot["widgets"]>,
+  store: StoreLike,
+): void => {
+  const currentDefinitions = new Map(current.widgetDefinitions.map((row) => [row.id, row]));
+  const importedDefinitionIds = new Set(imported.definitions.map((row) => row.id));
+
+  for (const row of imported.definitions) {
+    const existing = currentDefinitions.get(row.id);
+    if (!existing) {
+      store.commit(
+        widgetEvents.widgetDefinitionCreated({
+          id: row.id,
+          kind: row.kind,
+          builtinKey: row.builtinKey ?? undefined,
+          name: row.name,
+          widgetCode: row.widgetCode,
+          dataSourceName: row.dataSourceName ?? undefined,
+          dataSourceParams: row.dataSourceParams,
+          folderId: row.folderId ?? undefined,
+          sourceFileId: row.sourceFileId ?? undefined,
+          createdAt: row.createdAt,
+        }),
+      );
+    } else {
+      // ponytail: there is no definition restore event and widgetCode is immutable, so a row
+      // already deleted on this device stays deleted. Add events if that case shows up.
+      store.commit(
+        widgetEvents.widgetDefinitionUpdated({
+          id: row.id,
+          name: row.name,
+          dataSourceName: row.dataSourceName,
+          dataSourceParams: row.dataSourceParams,
+          folderId: row.folderId ?? undefined,
+          sourceFileId: row.sourceFileId ?? undefined,
+          updatedAt: row.updatedAt,
+        }),
+      );
+    }
+    if (row.deletedAt && !existing?.deletedAt) {
+      store.commit(widgetEvents.widgetDefinitionDeleted({ id: row.id, deletedAt: row.deletedAt }));
+    }
+  }
+
+  for (const row of current.widgetDefinitions) {
+    if (!importedDefinitionIds.has(row.id) && !row.deletedAt) {
+      store.commit(widgetEvents.widgetDefinitionDeleted({ id: row.id, deletedAt: new Date() }));
+    }
+  }
+
+  const currentInstances = new Map(current.widgetInstances.map((row) => [row.id, row]));
+  const importedInstanceIds = new Set(imported.instances.map((row) => row.id));
+
+  for (const row of imported.instances) {
+    const existing = currentInstances.get(row.id);
+    if (!existing) {
+      store.commit(
+        widgetEvents.widgetInstanceCreated({
+          id: row.id,
+          definitionId: row.definitionId,
+          sortOrder: row.sortOrder,
+          params: row.params,
+          columnSpan: row.columnSpan,
+          rowSpan: row.rowSpan,
+          createdAt: row.createdAt,
+        }),
+      );
+    } else {
+      if (existing.deletedAt && !row.deletedAt) {
+        store.commit(widgetEvents.widgetInstanceRestored({ id: row.id, updatedAt: row.updatedAt }));
+      }
+      store.commit(
+        widgetEvents.widgetInstanceUpdated({
+          id: row.id,
+          params: row.params,
+          updatedAt: row.updatedAt,
+        }),
+      );
+      store.commit(
+        widgetEvents.widgetInstanceResized({
+          id: row.id,
+          columnSpan: row.columnSpan,
+          rowSpan: row.rowSpan,
+          updatedAt: row.updatedAt,
+        }),
+      );
+    }
+    if (row.deletedAt) {
+      store.commit(widgetEvents.widgetInstanceDeleted({ id: row.id, deletedAt: row.deletedAt }));
+    }
+  }
+
+  for (const row of current.widgetInstances) {
+    if (!importedInstanceIds.has(row.id) && !row.deletedAt) {
+      store.commit(widgetEvents.widgetInstanceDeleted({ id: row.id, deletedAt: new Date() }));
+    }
+  }
+
+  // Existing rows keep their local sortOrder until reordered to the archive's order.
+  const orderedIds = imported.instances
+    .toSorted((left, right) => left.sortOrder - right.sortOrder)
+    .map((row) => row.id);
+  if (orderedIds.length > 0) {
+    store.commit(widgetEvents.widgetInstanceReordered({ orderedIds, updatedAt: new Date() }));
+  }
+};
+
 const applyImportedSnapshot = (
   current: StorageExportSnapshot,
   imported: StorageImportSnapshot,
   store: StoreLike,
 ): void => {
-  store.commit(settingEvents.settingsSet(imported.settings));
+  const settings = imported.widgets
+    ? imported.settings
+    : {
+        // Format 1 archives carry no widget rows, so keep this device's widgets seeded as they are.
+        ...imported.settings,
+        homeGridSeeded: current.settings.homeGridSeeded,
+        widgetFoldersSeeded: current.settings.widgetFoldersSeeded,
+      };
+  store.commit(settingEvents.settingsSet(settings));
   applyImportedProviders(current.providers, imported.providers, store);
   applyImportedCollections(current.collections, imported.collections, store);
   applyImportedFolders(current.folders, imported.folders, store);
   applyImportedFiles(current.files, imported.files, store);
-};
-
-export const buildZipArchive = (
-  entries: readonly ExportEntryInput[],
-  onProgress?: (progress: StorageExportProgress) => void,
-): Blob => {
-  const resolvedEntries: ResolvedExportEntry[] = [];
-  const localFileParts: Uint8Array[] = [];
-  let offset = 0;
-  const totalBytes = entries.reduce((sum, entry) => sum + entry.data.byteLength, 0);
-  let packedBytes = 0;
-  const { date, time } = getDosDateTime();
-
-  entries.forEach((entry, index) => {
-    const pathBytes = textEncoder.encode(entry.path);
-    const header = new Uint8Array(30 + pathBytes.byteLength);
-    const headerView = new DataView(header.buffer);
-    const crc32 = calculateCrc32(entry.data);
-
-    writeUint32(headerView, 0, 0x04034b50);
-    writeUint16(headerView, 4, 20);
-    writeUint16(headerView, 6, 0);
-    writeUint16(headerView, 8, 0);
-    writeUint16(headerView, 10, time);
-    writeUint16(headerView, 12, date);
-    writeUint32(headerView, 14, crc32);
-    writeUint32(headerView, 18, entry.data.byteLength);
-    writeUint32(headerView, 22, entry.data.byteLength);
-    writeUint16(headerView, 26, pathBytes.byteLength);
-    writeUint16(headerView, 28, 0);
-    header.set(pathBytes, 30);
-
-    localFileParts.push(header, entry.data);
-    resolvedEntries.push({
-      ...entry,
-      crc32,
-      offset,
-    });
-    offset += header.byteLength + entry.data.byteLength;
-    packedBytes += entry.data.byteLength;
-    onProgress?.({
-      currentFile: entry.path.replace(`${EXPORT_ROOT_DIR_NAME}/`, ""),
-      completedBytes: packedBytes,
-      totalBytes,
-      completedFiles: index + 1,
-      totalFiles: entries.length,
-      phase: "packing",
-    });
-  });
-
-  const centralDirectoryParts: Uint8Array[] = [];
-  let centralDirectorySize = 0;
-
-  for (const entry of resolvedEntries) {
-    const pathBytes = textEncoder.encode(entry.path);
-    const header = new Uint8Array(46 + pathBytes.byteLength);
-    const headerView = new DataView(header.buffer);
-
-    writeUint32(headerView, 0, 0x02014b50);
-    writeUint16(headerView, 4, 20);
-    writeUint16(headerView, 6, 20);
-    writeUint16(headerView, 8, 0);
-    writeUint16(headerView, 10, 0);
-    writeUint16(headerView, 12, time);
-    writeUint16(headerView, 14, date);
-    writeUint32(headerView, 16, entry.crc32);
-    writeUint32(headerView, 20, entry.data.byteLength);
-    writeUint32(headerView, 24, entry.data.byteLength);
-    writeUint16(headerView, 28, pathBytes.byteLength);
-    writeUint16(headerView, 30, 0);
-    writeUint16(headerView, 32, 0);
-    writeUint16(headerView, 34, 0);
-    writeUint16(headerView, 36, 0);
-    writeUint32(headerView, 38, 0);
-    writeUint32(headerView, 42, entry.offset);
-    header.set(pathBytes, 46);
-
-    centralDirectoryParts.push(header);
-    centralDirectorySize += header.byteLength;
+  if (imported.widgets) {
+    applyImportedWidgets(current, imported.widgets, store);
   }
-
-  const endOfCentralDirectory = new Uint8Array(22);
-  const endView = new DataView(endOfCentralDirectory.buffer);
-  writeUint32(endView, 0, 0x06054b50);
-  writeUint16(endView, 4, 0);
-  writeUint16(endView, 6, 0);
-  writeUint16(endView, 8, resolvedEntries.length);
-  writeUint16(endView, 10, resolvedEntries.length);
-  writeUint32(endView, 12, centralDirectorySize);
-  writeUint32(endView, 16, offset);
-  writeUint16(endView, 20, 0);
-
-  onProgress?.({
-    currentFile: "archive-index",
-    completedBytes: totalBytes,
-    totalBytes,
-    completedFiles: resolvedEntries.length,
-    totalFiles: resolvedEntries.length,
-    phase: "finalizing",
-  });
-
-  return new Blob(
-    [
-      ...localFileParts.map(toBlobPart),
-      ...centralDirectoryParts.map(toBlobPart),
-      toBlobPart(endOfCentralDirectory),
-    ],
-    {
-      type: "application/zip",
-    },
-  );
 };
 
 const downloadBlob = (blob: Blob, fileName: string): void => {
@@ -1161,8 +1114,28 @@ export const exportStorageArchive = async (
   snapshot: StorageExportSnapshot,
   onProgress?: (progress: StorageExportProgress) => void,
 ): Promise<{ fileName: string; fileCount: number }> => {
-  const entries = await createStoredEntries(snapshot, onProgress);
-  const archive = buildZipArchive(entries, onProgress);
+  const entries = await createExportEntries(snapshot, onProgress);
+  const totalBytes = entries.reduce((sum, entry) => sum + entry.data.size, 0);
+  let completedBytes = 0;
+  const archive = await buildZipArchive(entries, (entry, index) => {
+    completedBytes += entry.data.size;
+    onProgress?.({
+      currentFile: entry.path.replace(`${EXPORT_ROOT_DIR_NAME}/`, ""),
+      completedBytes,
+      totalBytes,
+      completedFiles: index + 1,
+      totalFiles: entries.length,
+      phase: "packing",
+    });
+  });
+  onProgress?.({
+    currentFile: "archive-index",
+    completedBytes: totalBytes,
+    totalBytes,
+    completedFiles: entries.length,
+    totalFiles: entries.length,
+    phase: "finalizing",
+  });
   const fileName = buildExportFileName();
   downloadBlob(archive, fileName);
   return {
@@ -1176,19 +1149,21 @@ export const importStorageArchive = async (
   context: StorageImportContext,
   onProgress?: (progress: StorageImportProgress) => void,
 ): Promise<StorageImportResult> => {
-  const entries = await parseZipArchive(archive, onProgress);
-  const snapshot = parseImportSnapshot(entries);
+  const entries = await readZipArchive(archive);
+  const snapshot = await parseImportSnapshot(entries);
   assertNoPathMutationConflicts({
     files: snapshot.files,
     folders: snapshot.folders,
   });
   const opfsEntries = listImportedOpfsEntries(entries);
+  await verifyOpfsEntries(opfsEntries, onProgress);
   const importedFiles = await restoreOpfsData(opfsEntries, onProgress);
   applyImportedSnapshot(context.current, snapshot, context.store);
+  const totalBytes = opfsEntries.reduce((sum, { entry }) => sum + entry.size, 0);
   onProgress?.({
     currentFile: "restore-complete",
-    completedBytes: opfsEntries.reduce((sum, entry) => sum + entry.data.byteLength, 0),
-    totalBytes: opfsEntries.reduce((sum, entry) => sum + entry.data.byteLength, 0),
+    completedBytes: totalBytes,
+    totalBytes,
     completedFiles: importedFiles,
     totalFiles: importedFiles,
     phase: "finalizing",
