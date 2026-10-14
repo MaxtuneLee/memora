@@ -30,6 +30,11 @@ export const SETTINGS_SECTIONS = [
     description: "Choose which file access chat asks about, and who approves it.",
   },
   {
+    id: "security",
+    label: "Security",
+    description: "Lock Memora with a passkey and choose how your API keys are encrypted.",
+  },
+  {
     id: "indexing",
     label: "Indexing",
     description: "Background extraction, OCR, and local search behavior.",

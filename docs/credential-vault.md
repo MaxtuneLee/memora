@@ -1,35 +1,40 @@
-# Provider API key encryption
+# API key protection and the passkey lock
 
-Memora keeps provider API keys in the LiveStore `provider_credentials` table. LiveStore persists its state and event log in OPFS, which is a plain folder in the browser profile, so anything that can read the disk could read the keys. Keys are therefore encrypted before they are committed. The code is in `packages/web/src/lib/settings/credentialVault.ts`.
+Memora keeps provider API keys in the LiveStore `provider_credentials` table. LiveStore persists its state and event log in OPFS, which is a plain folder in the browser profile, so keys are encrypted before they are committed. The code is in `packages/web/src/lib/settings/credentialVault.ts`, and people choose the mode in **Settings > Security**.
+
+## Modes
+
+| Mode                 | Key                                                                              | Opening Memora                                               | Protects against                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Device key (default) | Non-extractable AES-GCM-256 key in IndexedDB (`memora-credential-vault`)         | No prompt                                                    | Reading OPFS files, LiveStore devtools, data exports. Not a full copy of the browser profile, which contains the device key too.          |
+| Passkey lock         | AES-GCM-256 key derived from the passkey's WebAuthn PRF output with HKDF-SHA-256 | Lock screen before the workspace loads; unlock once per load | Anything that only has the disk. The PRF output needs the passkey and user verification (Touch ID, Face ID, Windows Hello, security key). |
+
+The lock screen is a gate in the app, not disk encryption: library files and chats in OPFS stay readable on disk. Only API keys are encrypted.
 
 ## Stored format
 
 The encrypted key replaces the plaintext in the `apiKey` column and in the `v1.ProviderCredentialSet` event. It is a self-describing string with base64url parts:
 
 ```text
-mv1.<credentialId>.<salt>.<iv>.<ciphertext>   passkey protected
-md1.<iv>.<ciphertext>                         device key (fallback)
+mv1.<credentialId>.<salt>.<iv>.<ciphertext>   passkey
+md1.<iv>.<ciphertext>                         device key
 ```
 
-The format carries the passkey credential ID and PRF salt, so no other storage is needed to unlock it. A value without one of these prefixes is a plaintext key saved before encryption.
+A value without one of these prefixes is a plaintext key from before encryption. Memora encrypts such keys with the current mode the first time it runs.
 
-## Passkey (`mv1`)
+The mode is kept in `localStorage` under `memora.credentialVault.v1` as `{ "mode": "device" }` or `{ "mode": "passkey", "credentialId", "salt" }`. It holds no secret. It lives outside LiveStore because the lock screen has to decide before LiveStore starts. If it is missing while passkey-sealed keys exist, Memora shows an unlock dialog after start and saves the mode again.
 
-1. The first time a key is saved, Memora creates a passkey with the WebAuthn PRF extension and a random 32-byte salt.
-2. The PRF output for that salt goes through HKDF-SHA-256 (info `memora provider api keys v1`) to make a non-extractable AES-GCM-256 key.
-3. Each key is encrypted with a fresh 12-byte IV.
+## Passkey lock
 
-The AES key and the decrypted API keys exist only in memory. After each page load, the keys are locked until the user unlocks them with the passkey, from the prompt in the corner of the app or by editing a provider in Settings. Cloud model calls made while the keys are locked are sent without a key.
+- **Turning it on** creates a passkey with the PRF extension and a random 32-byte salt, re-encrypts every key with it, and deletes the device key from IndexedDB. Device-sealed copies left in LiveStore history then cannot be decrypted.
+- **Opening Memora** shows the lock screen before LiveStore loads. Memora asks for the passkey right away where the browser allows it, and otherwise waits for a click on Unlock. The derived key stays in memory for that page load, so using API keys afterwards needs no further prompts.
+- **Turning it off** re-encrypts every key with a new device key.
+- **Losing the passkey:** "Lost your passkey?" on the lock screen turns the lock off. Keys sealed with that passkey can't be recovered; the unlock dialog after start offers to remove them so they can be entered again.
 
-The passkey is held by the operating system or a security key, so a copy of the browser profile is not enough to decrypt the keys.
+Browsers or passkey providers without PRF support can't turn the lock on; Settings shows why.
 
-## Device key (`md1`)
+## Limits
 
-Browsers or authenticators without PRF support fall back to a non-extractable AES-GCM key generated with WebCrypto and stored in IndexedDB (`memora-credential-vault`). These keys unlock automatically. This keeps them out of OPFS and out of the LiveStore event log, but someone with a full copy of the browser profile can still use the device key. Once a device has device-sealed keys, new keys use the device key too.
-
-## Migration and limits
-
-- Keys saved before encryption stay readable. The app offers to encrypt them, which re-saves each one sealed.
-- Older plaintext events stay in the LiveStore event log, because LiveStore cannot rewrite history. Early versions also wrote keys into `v1.ProviderCreated` and `v1.ProviderUpdated` events. To fully remove an exposed key, rotate it with the provider.
-- If the passkey is deleted or lost, the keys cannot be recovered. Enter them again in Settings.
+- LiveStore records the previous value of every row it changes (`__livestore_session_changeset`), keeps the event log forever, and leaves state databases from earlier schemas in OPFS. Keys that were stored as plaintext before encryption therefore stay readable in those places, and so does the plaintext a key had right before Memora encrypted it. To fully retire such a key, create a new one with the provider. Keys first entered after encryption are only ever written encrypted.
+- Early versions also wrote keys into the synced `v1.ProviderCreated` and `v1.ProviderUpdated` events.
 - API keys are never part of a data export (see `docs/data-export-format.md`).

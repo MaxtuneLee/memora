@@ -1,0 +1,85 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import * as stylex from "@stylexjs/stylex";
+
+import PasskeyLockCard, {
+  passkeySecondaryButtonClassName,
+} from "@/components/security/PasskeyLockCard";
+import {
+  forgetPasskey,
+  isPasskeyUnlocked,
+  readVaultConfig,
+  unlockWithPasskey,
+  useCredentialVaultVersion,
+} from "@/lib/settings/credentialVault";
+import { tokens } from "../../styles/stylex.stylex";
+
+const styles = stylex.create({
+  screen: {
+    alignItems: "center",
+    backgroundColor: tokens.background,
+    display: "flex",
+    justifyContent: "center",
+    minHeight: "100dvh",
+    padding: 16,
+  },
+});
+
+/** Holds the app behind the passkey, before the workspace starts loading, when the lock is on. */
+export default function AppLockGate({ children }: { children: ReactNode }) {
+  useCredentialVaultVersion();
+  const locked = readVaultConfig().mode === "passkey" && !isPasskeyUnlocked();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const autoTried = useRef(false);
+
+  const unlock = async (silent = false): Promise<void> => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await unlockWithPasskey();
+    } catch (caught) {
+      // Browsers that need a click for the passkey reject the automatic attempt; wait for one.
+      if (!silent) setError(caught instanceof Error ? caught.message : "Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!locked || autoTried.current) return;
+    autoTried.current = true;
+    void unlock(true);
+  }, [locked]);
+
+  if (!locked) return children;
+
+  return (
+    <main {...stylex.props(styles.screen)}>
+      <PasskeyLockCard
+        title="Memora is locked"
+        description="Unlock with your passkey to open your workspace."
+        actionLabel="Unlock"
+        busy={busy}
+        error={error}
+        onAction={() => void unlock()}
+        secondary={
+          <button
+            type="button"
+            className={passkeySecondaryButtonClassName}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Turn off the passkey lock? API keys encrypted with it can't be recovered. You'll need to enter them again in Settings.",
+                )
+              ) {
+                forgetPasskey();
+              }
+            }}
+          >
+            Lost your passkey?
+          </button>
+        }
+      />
+    </main>
+  );
+}

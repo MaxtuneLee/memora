@@ -8,6 +8,7 @@ import {
   HardDrivesIcon,
   InfoIcon,
   ListMagnifyingGlassIcon,
+  LockKeyIcon,
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -25,6 +26,7 @@ import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
 import SettingsPermissionsSection from "@/components/settings/SettingsPermissionsSection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
+import SettingsSecuritySection from "@/components/settings/SettingsSecuritySection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import { NativeDialog } from "@/components/ui/NativeDialog";
@@ -208,6 +210,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
   permissions: ShieldCheckIcon,
+  security: LockKeyIcon,
   indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
@@ -339,6 +342,10 @@ export default function SettingsDialog({
 
     if (activeSection === "permissions") {
       return <SettingsPermissionsSection />;
+    }
+
+    if (activeSection === "security") {
+      return <SettingsSecuritySection />;
     }
 
     if (activeSection === "indexing") {

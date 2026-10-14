@@ -253,7 +253,7 @@ export default function AgentEvaluation() {
         providerCredentialEvents.providerCredentialSet({
           providerId: TYPESAFE_CREDENTIAL.id,
           baseUrl: TYPESAFE_CREDENTIAL.baseUrl,
-          apiKey: await sealApiKey(jevKeyDraft.trim(), credentials),
+          apiKey: await sealApiKey(jevKeyDraft.trim()),
         }),
       );
       setJevKeyDraft(undefined);

@@ -19,7 +19,7 @@ vi.mock("@/lib/settings/credentialVault", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/settings/credentialVault")>()),
   sealApiKey: async (apiKey: string) => (apiKey ? `sealed:${apiKey}` : ""),
   readCredentialVaultState: () => ({ locked: vault.locked, plaintext: false }),
-  unlockCredentials: vault.unlock,
+  unlockWithPasskey: vault.unlock,
 }));
 vi.mock("@base-ui/react/toast", () => ({ Toast: { useToastManager: () => ({ add: state.add }) } }));
 

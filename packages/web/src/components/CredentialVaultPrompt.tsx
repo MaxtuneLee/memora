@@ -1,12 +1,18 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 
+import PasskeyLockCard, {
+  passkeySecondaryButtonClassName,
+} from "@/components/security/PasskeyLockCard";
 import {
   decryptCredentials,
+  isPasskeyUnlocked,
   isSealedApiKey,
+  peekApiKey,
   readCredentialVaultState,
+  readVaultConfig,
   sealApiKey,
-  unlockCredentials,
+  unlockWithPasskey,
   useCredentialVaultVersion,
 } from "@/lib/settings/credentialVault";
 import {
@@ -14,87 +20,60 @@ import {
   providerCredentialsQuery$,
 } from "@/livestore/providerCredential";
 import { useAppStore } from "@/livestore/store";
-import { tokens } from "../styles/stylex.stylex";
-
-const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.textStrong}`;
 
 const styles = stylex.create({
-  card: {
-    backgroundColor: tokens.surface,
-    border: `1px solid ${tokens.border}`,
-    borderRadius: 12,
-    bottom: 16,
-    boxShadow: tokens.shadowLarge,
+  overlay: {
+    alignItems: "center",
+    backgroundColor: "color-mix(in srgb, black 40%, transparent)",
     display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    maxWidth: "calc(100vw - 32px)",
+    inset: 0,
+    justifyContent: "center",
     padding: 16,
     position: "fixed",
-    right: 16,
-    width: 340,
-    zIndex: 50,
-  },
-  title: { color: tokens.textStrong, fontSize: 14, fontWeight: 600, margin: 0 },
-  description: { color: tokens.textMuted, fontSize: 13, lineHeight: 1.5, margin: 0, marginTop: 4 },
-  error: { color: tokens.textStrong, fontSize: 13, margin: 0 },
-  actions: { display: "flex", gap: 8, justifyContent: "flex-end" },
-  secondary: {
-    border: `1px solid ${tokens.border}`,
-    borderRadius: 8,
-    color: tokens.text,
-    fontSize: 13,
-    paddingBlock: 5,
-    paddingInline: 10,
-    ":hover": { backgroundColor: tokens.hoverStrong },
-    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
-  },
-  primary: {
-    backgroundColor: tokens.primaryBackground,
-    borderRadius: 8,
-    color: tokens.primaryText,
-    fontSize: 13,
-    paddingBlock: 5,
-    paddingInline: 10,
-    ":disabled": { opacity: 0.6 },
-    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
+    zIndex: 60,
   },
 });
 
-/** Unlocks passkey-encrypted API keys, and offers to encrypt keys saved before encryption. */
+/**
+ * Keeps stored API keys encrypted: decrypts them for this session, encrypts keys saved before
+ * encryption, and asks for the passkey when keys it sealed are still locked.
+ */
 export default function CredentialVaultPrompt() {
   const store = useAppStore();
   const credentials = store.useQuery(providerCredentialsQuery$);
   useCredentialVaultVersion();
-  const titleId = useId();
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const migrating = useRef(new Set<string>());
 
   useEffect(() => {
     void decryptCredentials(credentials);
   }, [credentials]);
 
-  const { locked, plaintext } = readCredentialVaultState(credentials);
-  if (dismissed || (!locked && !plaintext)) return null;
+  // Encrypt keys saved before encryption existed, without asking: the passkey is already
+  // unlocked at startup when the lock is on.
+  useEffect(() => {
+    if (readVaultConfig().mode === "passkey" && !isPasskeyUnlocked()) return;
+    for (const row of credentials) {
+      if (!row.apiKey || isSealedApiKey(row.apiKey) || migrating.current.has(row.apiKey)) continue;
+      migrating.current.add(row.apiKey);
+      void sealApiKey(row.apiKey).then((apiKey) =>
+        store.commit(providerCredentialEvents.providerCredentialSet({ ...row, apiKey })),
+      );
+    }
+  }, [credentials, store]);
 
-  const run = async (): Promise<void> => {
+  const lockedRows = credentials.filter(
+    (row) => isSealedApiKey(row.apiKey) && !peekApiKey(row.apiKey),
+  );
+  if (dismissed || !readCredentialVaultState(credentials).locked) return null;
+
+  const unlock = async (): Promise<void> => {
     setBusy(true);
     setError(undefined);
     try {
-      if (locked) {
-        await unlockCredentials(credentials);
-      } else {
-        const unsealed = credentials.filter((row) => row.apiKey && !isSealedApiKey(row.apiKey));
-        for (const row of unsealed) {
-          store.commit(
-            providerCredentialEvents.providerCredentialSet({
-              ...row,
-              apiKey: await sealApiKey(row.apiKey, credentials),
-            }),
-          );
-        }
-      }
+      await unlockWithPasskey(credentials);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Please try again.");
     } finally {
@@ -103,35 +82,47 @@ export default function CredentialVaultPrompt() {
   };
 
   return (
-    <section aria-labelledby={titleId} {...stylex.props(styles.card)}>
-      <div>
-        <h2 id={titleId} {...stylex.props(styles.title)}>
-          {locked ? "Your API keys are locked" : "Encrypt your API keys"}
-        </h2>
-        <p {...stylex.props(styles.description)}>
-          {locked
-            ? "Unlock them with your passkey to use cloud models."
-            : "Your API keys are saved unencrypted on this device. Encrypt them with a passkey so they can't be read from disk."}
-        </p>
-      </div>
-      {error && <p {...stylex.props(styles.error)}>{error}</p>}
-      <div {...stylex.props(styles.actions)}>
-        <button
-          type="button"
-          onClick={() => setDismissed(true)}
-          {...stylex.props(styles.secondary)}
-        >
-          Later
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void run()}
-          {...stylex.props(styles.primary)}
-        >
-          {locked ? "Unlock" : "Encrypt"}
-        </button>
-      </div>
-    </section>
+    <div {...stylex.props(styles.overlay)}>
+      <PasskeyLockCard
+        title="Your API keys are locked"
+        description="They were encrypted with a passkey. Unlock them to use cloud models."
+        actionLabel="Unlock"
+        busy={busy}
+        error={error}
+        onAction={() => void unlock()}
+        secondary={
+          <>
+            <button
+              type="button"
+              className={passkeySecondaryButtonClassName}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Remove ${lockedRows.length === 1 ? "this API key" : `these ${lockedRows.length} API keys`}? You'll need to enter them again in Settings.`,
+                  )
+                ) {
+                  store.commit(
+                    ...lockedRows.map((row) =>
+                      providerCredentialEvents.providerCredentialDeleted({
+                        providerId: row.providerId,
+                      }),
+                    ),
+                  );
+                }
+              }}
+            >
+              I lost my passkey
+            </button>
+            <button
+              type="button"
+              className={passkeySecondaryButtonClassName}
+              onClick={() => setDismissed(true)}
+            >
+              Not now
+            </button>
+          </>
+        }
+      />
+    </div>
   );
 }

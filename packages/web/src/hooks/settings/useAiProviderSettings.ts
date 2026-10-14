@@ -12,7 +12,7 @@ import {
 import {
   readCredentialVaultState,
   sealApiKey,
-  unlockCredentials,
+  unlockWithPasskey,
 } from "@/lib/settings/credentialVault";
 import { useProviderCredentials } from "./useProviderCredentials";
 import { useModelRouting } from "./useModelRouting";
@@ -104,7 +104,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       const credentials = store.query(providerCredentialsQuery$);
       if (readCredentialVaultState(credentials).locked) {
         try {
-          await unlockCredentials(credentials);
+          await unlockWithPasskey(credentials);
         } catch (error) {
           add({
             title: "API keys are locked",
@@ -158,7 +158,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
 
     let apiKey: string;
     try {
-      apiKey = await sealApiKey(providerForm.apiKey.trim(), store.query(providerCredentialsQuery$));
+      apiKey = await sealApiKey(providerForm.apiKey.trim());
     } catch (error) {
       add({
         title: "API key not saved",

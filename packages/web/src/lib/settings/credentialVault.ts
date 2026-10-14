@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 //
 // A sealed key is a self-describing string stored where the plaintext key used to be:
 //   mv1.<credentialId>.<salt>.<iv>.<ciphertext>  passkey (WebAuthn PRF) protected
-//   md1.<iv>.<ciphertext>                        device key, for browsers without PRF
+//   md1.<iv>.<ciphertext>                        device key kept in IndexedDB
 // All parts are base64url. Decrypted keys are kept only in memory for this page load.
 
 export interface StoredCredential {
@@ -13,11 +13,22 @@ export interface StoredCredential {
   apiKey: string;
 }
 
+export interface SealedCredential {
+  providerId: string;
+  apiKey: string;
+}
+
+/** Which key protects API keys. Not secret; read synchronously before the app starts. */
+export type VaultConfig =
+  | { mode: "device" }
+  | { mode: "passkey"; credentialId: string; salt: string };
+
 export class CredentialVaultError extends Error {}
 
 const PASSKEY_PREFIX = "mv1.";
 const DEVICE_PREFIX = "md1.";
 const HKDF_INFO = new TextEncoder().encode("memora provider api keys v1");
+const CONFIG_STORAGE_KEY = "memora.credentialVault.v1";
 const DEVICE_DB_NAME = "memora-credential-vault";
 const DEVICE_KEY_ID = "device-key";
 
@@ -43,9 +54,34 @@ const subscribe = (listener: () => void): (() => void) => {
   return () => listeners.delete(listener);
 };
 
-/** Re-renders the caller when keys are unlocked or locked. */
+/** Re-renders the caller when keys are unlocked, locked, or the mode changes. */
 export const useCredentialVaultVersion = (): number =>
   useSyncExternalStore(subscribe, () => version);
+
+export const readVaultConfig = (): VaultConfig => {
+  try {
+    const value = JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) ?? "null") as unknown;
+    if (
+      value &&
+      typeof value === "object" &&
+      (value as VaultConfig).mode === "passkey" &&
+      typeof (value as { credentialId?: unknown }).credentialId === "string" &&
+      typeof (value as { salt?: unknown }).salt === "string"
+    ) {
+      return value as VaultConfig;
+    }
+  } catch {
+    // Unreadable config falls back to the device key; passkey-sealed rows then ask to unlock.
+  }
+  return { mode: "device" };
+};
+
+const writeVaultConfig = (config: VaultConfig): void => {
+  localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+  notify();
+};
+
+export const isPasskeyUnlocked = (): boolean => passkeyKey !== null;
 
 const toBase64Url = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes))
@@ -114,51 +150,65 @@ const deriveKey = async (secret: BufferSource): Promise<CryptoKey> => {
   );
 };
 
+// The browser reports a cancelled prompt, a timeout, and a missing passkey the same way.
+const callWebAuthn = async <T>(run: () => Promise<T>): Promise<T> => {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "NotAllowedError") {
+      throw new CredentialVaultError(
+        "The passkey request was cancelled or timed out. Try again, and choose the passkey you set up for Memora.",
+      );
+    }
+    throw error;
+  }
+};
+
 const evaluatePrf = async (credentialId: string, salt: string): Promise<BufferSource> => {
-  const assertion = (await navigator.credentials.get({
-    publicKey: {
-      challenge: randomBytes(32),
-      allowCredentials: [{ type: "public-key", id: fromBase64Url(credentialId) }],
-      userVerification: "required",
-      extensions: { prf: { eval: { first: fromBase64Url(salt) } } },
-    },
-  })) as PublicKeyCredential | null;
+  const assertion = (await callWebAuthn(() =>
+    navigator.credentials.get({
+      publicKey: {
+        challenge: randomBytes(32),
+        allowCredentials: [{ type: "public-key", id: fromBase64Url(credentialId) }],
+        userVerification: "required",
+        extensions: { prf: { eval: { first: fromBase64Url(salt) } } },
+      },
+    }),
+  )) as PublicKeyCredential | null;
   const secret = assertion?.getClientExtensionResults().prf?.results?.first;
   if (!secret) {
-    throw new CredentialVaultError("This passkey cannot unlock API keys in this browser.");
+    throw new CredentialVaultError("This passkey cannot unlock Memora in this browser.");
   }
   return secret;
 };
 
-class PrfUnsupportedError extends CredentialVaultError {}
-
 const createPasskeyKey = async (): Promise<PasskeyKey> => {
   if (typeof PublicKeyCredential === "undefined") {
-    throw new PrfUnsupportedError("This browser does not support passkeys.");
+    throw new CredentialVaultError("This browser does not support passkeys.");
   }
   const salt = toBase64Url(randomBytes(32));
-  const credential = (await navigator.credentials.create({
-    publicKey: {
-      rp: { name: "Memora" },
-      user: {
-        id: randomBytes(16),
-        name: "Memora API keys",
-        displayName: "Memora API keys",
+  const credential = (await callWebAuthn(() =>
+    navigator.credentials.create({
+      publicKey: {
+        rp: { name: "Memora" },
+        user: { id: randomBytes(16), name: "Memora", displayName: "Memora" },
+        challenge: randomBytes(32),
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -257 },
+        ],
+        authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+        extensions: { prf: { eval: { first: fromBase64Url(salt) } } },
       },
-      challenge: randomBytes(32),
-      pubKeyCredParams: [
-        { type: "public-key", alg: -7 },
-        { type: "public-key", alg: -257 },
-      ],
-      authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
-      extensions: { prf: { eval: { first: fromBase64Url(salt) } } },
-    },
-  })) as PublicKeyCredential | null;
+    }),
+  )) as PublicKeyCredential | null;
   if (!credential) throw new CredentialVaultError("Passkey setup was cancelled.");
 
   const prf = credential.getClientExtensionResults().prf;
   if (!prf?.enabled) {
-    throw new PrfUnsupportedError("This passkey cannot encrypt API keys.");
+    throw new CredentialVaultError(
+      "This passkey can't encrypt data. Try a different passkey provider or browser.",
+    );
   }
   const credentialId = toBase64Url(new Uint8Array(credential.rawId));
   // Some authenticators only evaluate PRF on sign-in, which asks the user a second time.
@@ -172,13 +222,17 @@ const requestStore = <T>(request: IDBRequest<T>): Promise<T> =>
     request.onerror = () => reject(request.error);
   });
 
-// Fallback for browsers without the PRF extension: a non-extractable key in IndexedDB keeps keys
-// out of OPFS, but anyone with the browser profile on disk can still use it.
+const openDeviceDb = async (): Promise<IDBDatabase> => {
+  const open = indexedDB.open(DEVICE_DB_NAME, 1);
+  open.onupgradeneeded = () => open.result.createObjectStore("keys");
+  return requestStore(open);
+};
+
+// A non-extractable key in IndexedDB keeps keys out of OPFS, but anyone with the browser profile
+// on disk can still use it. The passkey mode removes it.
 const getDeviceKey = (): Promise<CryptoKey> => {
   deviceKeyPromise ??= (async () => {
-    const open = indexedDB.open(DEVICE_DB_NAME, 1);
-    open.onupgradeneeded = () => open.result.createObjectStore("keys");
-    const db = await requestStore(open);
+    const db = await openDeviceDb();
     const existing = (await requestStore(
       db.transaction("keys").objectStore("keys").get(DEVICE_KEY_ID),
     )) as CryptoKey | undefined;
@@ -196,6 +250,12 @@ const getDeviceKey = (): Promise<CryptoKey> => {
     deviceKeyPromise = null;
   });
   return deviceKeyPromise;
+};
+
+const deleteDeviceKey = async (): Promise<void> => {
+  deviceKeyPromise = null;
+  const db = await openDeviceDb();
+  await requestStore(db.transaction("keys", "readwrite").objectStore("keys").delete(DEVICE_KEY_ID));
 };
 
 const findPasskeyEnvelope = (
@@ -235,49 +295,91 @@ export const decryptCredentials = async (
   if (changed) notify();
 };
 
-/** Asks for the passkey that sealed these keys. Needs a user gesture in some browsers. */
-export const unlockCredentials = async (
-  credentials: readonly StoredCredential[],
+/**
+ * Asks for the passkey. Uses the configured one, or the one that sealed these rows when the
+ * config is missing, and records it so the next start shows the lock screen.
+ */
+export const unlockWithPasskey = async (
+  credentials: readonly StoredCredential[] = [],
 ): Promise<void> => {
-  const envelope = findPasskeyEnvelope(credentials);
-  if (envelope && passkeyKey?.credentialId !== envelope.credentialId) {
-    const key = await deriveKey(await evaluatePrf(envelope.credentialId, envelope.salt));
-    passkeyKey = { ...envelope, key };
+  const config = readVaultConfig();
+  const target = config.mode === "passkey" ? config : findPasskeyEnvelope(credentials);
+  if (!target) throw new CredentialVaultError("No passkey is set up for Memora.");
+  if (passkeyKey?.credentialId !== target.credentialId) {
+    const key = await deriveKey(await evaluatePrf(target.credentialId, target.salt));
+    passkeyKey = { ...target, key };
   }
+  if (config.mode !== "passkey") writeVaultConfig({ mode: "passkey", ...target });
   await decryptCredentials(credentials);
   if (readCredentialVaultState(credentials).locked) {
     throw new CredentialVaultError("This passkey does not match the one that encrypted your keys.");
   }
+  notify();
 };
 
-/**
- * Encrypts an API key for storage. Reuses the unlocked passkey, unlocks the existing one, or
- * sets up a new passkey; falls back to the device key when the browser has no PRF support.
- */
-export const sealApiKey = async (
-  apiKey: string,
-  credentials: readonly StoredCredential[],
-): Promise<string> => {
+/** Encrypts an API key with the configured protection. */
+export const sealApiKey = async (apiKey: string): Promise<string> => {
   if (!apiKey) return "";
-  if (!passkeyKey) {
-    const envelope = findPasskeyEnvelope(credentials);
-    if (envelope) {
-      await unlockCredentials(credentials);
-    } else if (!credentials.some((row) => row.apiKey.startsWith(DEVICE_PREFIX))) {
-      try {
-        passkeyKey = await createPasskeyKey();
-      } catch (error) {
-        if (!(error instanceof PrfUnsupportedError)) throw error;
-      }
-    }
-  }
-
-  const sealed = passkeyKey
-    ? `${PASSKEY_PREFIX}${passkeyKey.credentialId}.${passkeyKey.salt}.${await encrypt(passkeyKey.key, apiKey)}`
-    : `${DEVICE_PREFIX}${await encrypt(await getDeviceKey(), apiKey)}`;
+  const config = readVaultConfig();
+  if (config.mode === "passkey" && !passkeyKey) await unlockWithPasskey();
+  const sealed =
+    config.mode === "passkey" && passkeyKey
+      ? `${PASSKEY_PREFIX}${passkeyKey.credentialId}.${passkeyKey.salt}.${await encrypt(passkeyKey.key, apiKey)}`
+      : `${DEVICE_PREFIX}${await encrypt(await getDeviceKey(), apiKey)}`;
   plaintextBySealed.set(sealed, apiKey);
   notify();
   return sealed;
+};
+
+const resealAll = async (credentials: readonly StoredCredential[]): Promise<SealedCredential[]> => {
+  const resealed: SealedCredential[] = [];
+  for (const row of credentials) {
+    const plaintext = peekApiKey(row.apiKey);
+    // Keys this page cannot read stay as they are.
+    if (!plaintext) continue;
+    resealed.push({ providerId: row.providerId, apiKey: await sealApiKey(plaintext) });
+  }
+  return resealed;
+};
+
+/**
+ * Creates a passkey, re-encrypts every readable key with it, and deletes the device key so copies
+ * sealed with it in LiveStore history can no longer be decrypted. Commit the returned rows.
+ */
+export const enablePasskey = async (
+  credentials: readonly StoredCredential[],
+): Promise<SealedCredential[]> => {
+  await decryptCredentials(credentials);
+  if (readCredentialVaultState(credentials).locked) {
+    throw new CredentialVaultError("Unlock your API keys before turning on the passkey.");
+  }
+  passkeyKey = await createPasskeyKey();
+  writeVaultConfig({
+    mode: "passkey",
+    credentialId: passkeyKey.credentialId,
+    salt: passkeyKey.salt,
+  });
+  const resealed = await resealAll(credentials);
+  await deleteDeviceKey();
+  return resealed;
+};
+
+/** Re-encrypts every readable key with the device key. Commit the returned rows. */
+export const disablePasskey = async (
+  credentials: readonly StoredCredential[],
+): Promise<SealedCredential[]> => {
+  if (readVaultConfig().mode === "passkey" && !passkeyKey) await unlockWithPasskey(credentials);
+  writeVaultConfig({ mode: "device" });
+  const resealed = await resealAll(credentials);
+  passkeyKey = null;
+  notify();
+  return resealed;
+};
+
+/** For a lost passkey: stops asking for it. Keys it sealed stay unreadable and must be re-entered. */
+export const forgetPasskey = (): void => {
+  passkeyKey = null;
+  writeVaultConfig({ mode: "device" });
 };
 
 /** Forgets decrypted keys and the passkey-derived key. */
