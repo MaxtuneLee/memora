@@ -10,6 +10,7 @@ import {
   providerCredentialsQuery$,
 } from "@/livestore/providerCredential";
 import {
+  ensureCredentialsUnlocked,
   readCredentialVaultState,
   sealApiKey,
   unlockWithPasskey,
@@ -244,6 +245,8 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
     async (provider: ProviderRow) => {
       setFetchingModels(provider.id);
       try {
+        // Fetching models sends the API key, so a passkey-encrypted key is unlocked first.
+        await ensureCredentialsUnlocked(store.query(providerCredentialsQuery$));
         const models = await fetchProviderModels(provider.baseUrl, getProviderApiKey(provider));
 
         if (import.meta.env.DEV) {

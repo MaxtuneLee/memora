@@ -13,13 +13,16 @@ const state = vi.hoisted(() => ({
   query: vi.fn(),
   add: vi.fn(),
 }));
-const vault = vi.hoisted(() => ({ locked: false, unlock: vi.fn() }));
+const vault = vi.hoisted(() => ({ locked: false, unlock: vi.fn(), ensure: vi.fn() }));
+const fetchModels = vi.hoisted(() => vi.fn(async () => []));
+vi.mock("@/lib/settings/providerModels", () => ({ fetchProviderModels: fetchModels }));
 vi.mock("@/livestore/store", () => ({ useAppStore: () => state }));
 vi.mock("@/lib/settings/credentialVault", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/settings/credentialVault")>()),
   sealApiKey: async (apiKey: string) => (apiKey ? `sealed:${apiKey}` : ""),
   readCredentialVaultState: () => ({ locked: vault.locked, plaintext: false }),
   unlockWithPasskey: vault.unlock,
+  ensureCredentialsUnlocked: vault.ensure,
 }));
 vi.mock("@base-ui/react/toast", () => ({ Toast: { useToastManager: () => ({ add: state.add }) } }));
 
@@ -88,6 +91,22 @@ describe("provider settings credential boundary", () => {
     expect(vault.unlock).toHaveBeenCalledOnce();
     expect(result.current.editingProviderId).toBeNull();
     expect(state.add).toHaveBeenCalledWith(expect.objectContaining({ type: "error" }));
+  });
+
+  test("refreshing models unlocks the key first and stops if that fails", async () => {
+    const { result } = renderHook(() => useAiProviderSettings({ open: true }));
+    await act(() => result.current.handleFetchModels(provider));
+    expect(vault.ensure.mock.invocationCallOrder[0]).toBeLessThan(
+      fetchModels.mock.invocationCallOrder[0],
+    );
+
+    fetchModels.mockClear();
+    vault.ensure.mockRejectedValueOnce(new Error("cancelled"));
+    await act(() => result.current.handleFetchModels(provider));
+    expect(fetchModels).not.toHaveBeenCalled();
+    expect(state.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Failed to fetch models", type: "error" }),
+    );
   });
 
   test("deleting a provider removes the credential too", () => {

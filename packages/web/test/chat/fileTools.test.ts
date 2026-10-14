@@ -8,8 +8,10 @@ const files = new Map<string, string>();
 const notFound = () => new DOMException("A requested file could not be found.", "NotFoundError");
 
 vi.mock("@memora/fs", () => ({
-  cat: async () => {
-    throw notFound();
+  cat: async (path: string) => {
+    const content = files.get(path);
+    if (content === undefined) throw notFound();
+    return content;
   },
   ls: async (path: string) => {
     if (path === "/files/f1") return ["/files/f1/f1.transcript.json", "/files/f1/f1.content.md"];
@@ -52,7 +54,31 @@ const readFile = () => {
   return (path: string) => tool.execute(v.parse(tool.parameters, { path }));
 };
 
+const runTool = (name: string, params: Record<string, unknown>) => {
+  const tool = createFileTools({ query: () => [] }, {}).find((entry) => entry.name === name);
+  if (!tool) throw new Error(`${name} is missing.`);
+  return tool.execute(v.parse(tool.parameters, params));
+};
+
 describe("read_file", () => {
+  test("returns at most a third of a library file per call, even with a larger limit", async () => {
+    files.set("/files/doc/doc.md", "a".repeat(30));
+    expect(await runTool("read_file", { path: "/files/doc/doc.md" })).toMatchObject({
+      content: "a".repeat(10),
+      offset: 0,
+      end: 10,
+      totalChars: 30,
+    });
+    expect(await runTool("read_file", { path: "/files/doc/doc.md", offset: 25, limit: 100 })).toBe(
+      "a".repeat(5),
+    );
+  });
+
+  test("reads the assistant's own working files in full", async () => {
+    files.set("/chat/notes.md", "draft text");
+    expect(await runTool("read_file", { path: "/chat/notes.md" })).toBe("draft text");
+  });
+
   test("lists the folder's files when the requested file does not exist", async () => {
     expect(await readFile()("/files/f1/transcript.json")).toEqual({
       error:
