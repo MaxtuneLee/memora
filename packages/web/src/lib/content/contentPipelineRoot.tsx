@@ -16,6 +16,7 @@ import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import { getVectorDbIndexId } from "@/lib/vector-db";
 import { BackgroundTaskQueue, createBackgroundTaskQueue } from "@/lib/background-tasks";
 import { fileTable, type file as LiveStoreFile } from "@/livestore/file";
+import { folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { normalizeSettingsValue, settingsTable, type setting } from "@/livestore/setting";
 
@@ -23,8 +24,17 @@ const contentPipelineFilesQuery$ = queryDb(
   () => fileTable.where({ deletedAt: null, purgedAt: null }).orderBy("updatedAt", "desc"),
   { label: "content-pipeline:files" },
 );
-import { isAppLogFile } from "@/lib/appLog/appLogCollector";
-import { createContentTaskHandlers } from "./contentTaskHandlers";
+const contentPipelineFoldersQuery$ = queryDb(
+  () => folderTable.where({ deletedAt: null, purgedAt: null }),
+  {
+    label: "content-pipeline:folders",
+  },
+);
+import {
+  createContentTaskHandlers,
+  EXCLUDED_FROM_INDEX_SUMMARY,
+  isExcludedFromContentIndex,
+} from "./contentTaskHandlers";
 import { readContentArtifact } from ".";
 
 interface ContentPipelineContextValue {
@@ -58,8 +68,17 @@ export const useContentPipeline = (): ContentPipelineContextValue => {
 export function ContentPipelineRoot({ children }: { children: ReactNode }) {
   const store = useAppStore();
   const allRows = store.useQuery(contentPipelineFilesQuery$) as LiveStoreFile[];
-  // The debug log changes constantly and holds nothing worth searching.
-  const rows = useMemo(() => allRows.filter((row) => !isAppLogFile(row)), [allRows]);
+  const folders = store.useQuery(contentPipelineFoldersQuery$) as LiveStoreFolder[];
+  const [rows, excludedRows] = useMemo(() => {
+    const foldersById = new Map(folders.map((folder) => [folder.id, folder]));
+    const included: LiveStoreFile[] = [];
+    const excluded: LiveStoreFile[] = [];
+    for (const row of allRows) {
+      const parent = row.parentId ? foldersById.get(row.parentId) : null;
+      (isExcludedFromContentIndex(row, parent) ? excluded : included).push(row);
+    }
+    return [included, excluded];
+  }, [allRows, folders]);
   const settings = normalizeSettingsValue(
     (store.useQuery(settingsDocumentQuery$) as Partial<setting> | undefined) ??
       settingsTable.default.value,
@@ -189,6 +208,18 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       if (disposed) return;
       const runtime = readEmbeddingRuntime(store);
       const indexId = runtime ? await getVectorDbIndexId(runtime.indexConfig) : null;
+      // Clears files indexed before they were excluded; the extract task drops their index.
+      for (const row of excludedRows) {
+        if (row.indexStatus !== "indexed" || row.indexSummary === EXCLUDED_FROM_INDEX_SUMMARY) {
+          continue;
+        }
+        await queue.enqueue({
+          kind: "content.extract",
+          payload: { fileId: row.id },
+          dedupeKey: `exclude:${row.id}`,
+          resourceGroup: "io",
+        });
+      }
       const fingerprintsByFileId = new Map<string, string>();
       for (const row of rows) {
         if (row.deletedAt || row.purgedAt) continue;
@@ -261,7 +292,7 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
     };
-  }, [ensureStarted, queue, rows, settings.autoIndex, store]);
+  }, [ensureStarted, excludedRows, queue, rows, settings.autoIndex, store]);
 
   const value = useMemo<ContentPipelineContextValue>(
     () => ({
