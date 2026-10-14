@@ -2,14 +2,18 @@
 
 Memora keeps provider API keys in the LiveStore `provider_credentials` table. LiveStore persists its state and event log in OPFS, which is a plain folder in the browser profile, so keys are encrypted before they are committed. The code is in `packages/web/src/lib/settings/credentialVault.ts`, and people choose the mode in **Settings > Security**.
 
-## Modes
+## Settings
 
-| Mode                 | Key                                                                              | Opening Memora                                               | Protects against                                                                                                                          |
-| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Device key (default) | Non-extractable AES-GCM-256 key in IndexedDB (`memora-credential-vault`)         | No prompt                                                    | Reading OPFS files, LiveStore devtools, data exports. Not a full copy of the browser profile, which contains the device key too.          |
-| Passkey lock         | AES-GCM-256 key derived from the passkey's WebAuthn PRF output with HKDF-SHA-256 | Lock screen before the workspace loads; unlock once per load | Anything that only has the disk. The PRF output needs the passkey and user verification (Touch ID, Face ID, Windows Hello, security key). |
+Settings > Security has two independent switches that share one passkey. When both are on, one prompt opens the app and decrypts the keys.
 
-The lock screen is a gate in the app, not disk encryption: library files and chats in OPFS stay readable on disk. Only API keys are encrypted.
+| Switch                          | Off                                                                                        | On                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encrypt API keys with a passkey | Keys use a non-extractable AES-GCM-256 device key in IndexedDB (`memora-credential-vault`) | Keys use an AES-GCM-256 key derived from the passkey's WebAuthn PRF output with HKDF-SHA-256. Memora asks for the passkey the first time a key is needed, such as when sending a chat message. |
+| Lock Memora when it opens       | No lock screen                                                                             | A lock screen appears before the workspace loads. With encryption off, the passkey is only verified; it needs no PRF support.                                                                  |
+
+The device key protects against reading OPFS files, LiveStore devtools, and data exports, but not against a full copy of the browser profile, which contains the device key too. Passkey encryption also protects against that.
+
+The lock screen is a gate in the app, not disk encryption: library files and chats in OPFS stay readable on disk.
 
 ## Stored format
 
@@ -22,16 +26,15 @@ md1.<iv>.<ciphertext>                         device key
 
 A value without one of these prefixes is a plaintext key from before encryption. Memora encrypts such keys with the current mode the first time it runs.
 
-The mode is kept in `localStorage` under `memora.credentialVault.v1` as `{ "mode": "device" }` or `{ "mode": "passkey", "credentialId", "salt" }`. It holds no secret. It lives outside LiveStore because the lock screen has to decide before LiveStore starts. If it is missing while passkey-sealed keys exist, Memora shows an unlock dialog after start and saves the mode again.
+The settings are kept in `localStorage` under `memora.credentialVault.v2` as `{ "passkey": { "credentialId", "salt" } | null, "encryptKeys", "lockApp" }`. They hold no secret. They live outside LiveStore because the lock screen has to decide before LiveStore starts. The first version's `memora.credentialVault.v1` `{ "mode": "passkey" }` reads as both switches on. If the settings are missing while passkey-sealed keys exist, Memora shows an unlock dialog after start and saves the passkey again.
 
-## Passkey lock
+## Turning things on and off
 
-- **Turning it on** creates a passkey with the PRF extension and a random 32-byte salt, re-encrypts every key with it, and deletes the device key from IndexedDB. Device-sealed copies left in LiveStore history then cannot be decrypted.
-- **Opening Memora** shows the lock screen before LiveStore loads. Memora asks for the passkey right away where the browser allows it, and otherwise waits for a click on Unlock. The derived key stays in memory for that page load, so using API keys afterwards needs no further prompts.
-- **Turning it off** re-encrypts every key with a new device key.
-- **Losing the passkey:** "Lost your passkey?" on the lock screen turns the lock off. Keys sealed with that passkey can't be recovered; the unlock dialog after start offers to remove them so they can be entered again.
-
-Browsers or passkey providers without PRF support can't turn the lock on; Settings shows why.
+- **Encryption on** uses the existing passkey if it supports PRF, or creates one, re-encrypts every key with it, and deletes the device key from IndexedDB. Device-sealed copies left in LiveStore history then can't be decrypted.
+- **Encryption off** re-encrypts every key with a new device key.
+- **Lock on** creates a passkey if there isn't one. **Lock off** just removes the lock screen.
+- The passkey setting is dropped once both switches are off.
+- **Lost passkey:** "Lost your passkey?" on the lock screen turns both switches off. Keys sealed with that passkey can't be recovered; the unlock dialog after start offers to remove them so they can be entered again.
 
 ## Limits
 

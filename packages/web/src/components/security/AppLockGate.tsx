@@ -6,9 +6,8 @@ import PasskeyLockCard, {
 } from "@/components/security/PasskeyLockCard";
 import {
   forgetPasskey,
-  isPasskeyUnlocked,
-  readVaultConfig,
-  unlockWithPasskey,
+  isAppLocked,
+  unlockApp,
   useCredentialVaultVersion,
 } from "@/lib/settings/credentialVault";
 import { tokens } from "../../styles/stylex.stylex";
@@ -27,7 +26,7 @@ const styles = stylex.create({
 /** Holds the app behind the passkey, before the workspace starts loading, when the lock is on. */
 export default function AppLockGate({ children }: { children: ReactNode }) {
   useCredentialVaultVersion();
-  const locked = readVaultConfig().mode === "passkey" && !isPasskeyUnlocked();
+  const locked = isAppLocked();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const autoTried = useRef(false);
@@ -36,7 +35,7 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
     setBusy(true);
     setError(undefined);
     try {
-      await unlockWithPasskey();
+      await unlockApp();
     } catch (caught) {
       // Browsers that need a click for the passkey reject the automatic attempt; wait for one.
       if (!silent) setError(caught instanceof Error ? caught.message : "Please try again.");
@@ -69,7 +68,7 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
             onClick={() => {
               if (
                 window.confirm(
-                  "Turn off the passkey lock? API keys encrypted with it can't be recovered. You'll need to enter them again in Settings.",
+                  "Stop using this passkey? Memora won't be locked anymore. If your API keys were encrypted with it, they can't be recovered and you'll need to enter them again in Settings.",
                 )
               ) {
                 forgetPasskey();

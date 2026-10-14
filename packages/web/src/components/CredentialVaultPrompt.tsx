@@ -5,11 +5,10 @@ import PasskeyLockCard, {
   passkeySecondaryButtonClassName,
 } from "@/components/security/PasskeyLockCard";
 import {
+  canSealSilently,
   decryptCredentials,
-  isPasskeyUnlocked,
   isSealedApiKey,
   peekApiKey,
-  readCredentialVaultState,
   readVaultConfig,
   sealApiKey,
   unlockWithPasskey,
@@ -36,7 +35,7 @@ const styles = stylex.create({
 
 /**
  * Keeps stored API keys encrypted: decrypts them for this session, encrypts keys saved before
- * encryption, and asks for the passkey when keys it sealed are still locked.
+ * encryption, and asks for the passkey when keys it sealed have no saved passkey setting.
  */
 export default function CredentialVaultPrompt() {
   const store = useAppStore();
@@ -51,10 +50,9 @@ export default function CredentialVaultPrompt() {
     void decryptCredentials(credentials);
   }, [credentials]);
 
-  // Encrypt keys saved before encryption existed, without asking: the passkey is already
-  // unlocked at startup when the lock is on.
+  // Encrypt keys saved before encryption existed, but never ask for the passkey just for that.
   useEffect(() => {
-    if (readVaultConfig().mode === "passkey" && !isPasskeyUnlocked()) return;
+    if (!canSealSilently()) return;
     for (const row of credentials) {
       if (!row.apiKey || isSealedApiKey(row.apiKey) || migrating.current.has(row.apiKey)) continue;
       migrating.current.add(row.apiKey);
@@ -67,7 +65,9 @@ export default function CredentialVaultPrompt() {
   const lockedRows = credentials.filter(
     (row) => isSealedApiKey(row.apiKey) && !peekApiKey(row.apiKey),
   );
-  if (dismissed || !readCredentialVaultState(credentials).locked) return null;
+  // With a saved passkey, locked keys are unlocked when they are needed. Without one (the
+  // setting was lost), ask here so the passkey gets saved again.
+  if (dismissed || lockedRows.length === 0 || readVaultConfig().passkey) return null;
 
   const unlock = async (): Promise<void> => {
     setBusy(true);

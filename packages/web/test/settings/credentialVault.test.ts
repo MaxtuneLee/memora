@@ -2,20 +2,25 @@ import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import {
   decryptCredentials,
-  disablePasskey,
-  enablePasskey,
+  ensureCredentialsUnlocked,
   forgetPasskey,
-  isPasskeyUnlocked,
+  isAppLocked,
   lockCredentials,
   peekApiKey,
-  readCredentialVaultState,
   readVaultConfig,
   sealApiKey,
+  setAppLock,
+  setKeyEncryption,
+  unlockApp,
   unlockWithPasskey,
 } from "@/lib/settings/credentialVault";
 
 let prfSecret = new Uint8Array(32).fill(7);
-const prfResult = () => ({ prf: { enabled: true, results: { first: prfSecret } } });
+let prfSupported = true;
+const prfResult = () =>
+  prfSupported
+    ? { prf: { enabled: true, results: { first: prfSecret } } }
+    : { prf: { enabled: false } };
 const create = vi.fn(async () => ({
   rawId: new Uint8Array([1, 2, 3]).buffer,
   getClientExtensionResults: prfResult,
@@ -57,6 +62,7 @@ const storage = new Map<string, string>();
 
 beforeEach(() => {
   prfSecret = new Uint8Array(32).fill(7);
+  prfSupported = true;
   idbKeys.clear();
   storage.clear();
   vi.stubGlobal("PublicKeyCredential", class {});
@@ -74,60 +80,119 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const restart = () => lockCredentials();
+
 test("seals with the device key by default and reads it back without a prompt", async () => {
   const sealed = await sealApiKey("sk-device");
   expect(sealed).toMatch(/^md1\./);
   expect(sealed).not.toContain("sk-device");
-  lockCredentials();
+  restart();
   await decryptCredentials([{ providerId: "p", apiKey: sealed }]);
   expect(peekApiKey(sealed)).toBe("sk-device");
   expect(create).not.toHaveBeenCalled();
+  expect(isAppLocked()).toBe(false);
 });
 
-test("turning the passkey on re-encrypts keys, needs the passkey after a restart, and drops the device key", async () => {
+test("passkey encryption without the app lock asks only when a key is needed", async () => {
   const deviceSealed = await sealApiKey("sk-secret");
-  const plaintextRow = { providerId: "old", apiKey: "sk-plain" };
-  const resealed = await enablePasskey([{ providerId: "p", apiKey: deviceSealed }, plaintextRow]);
-
-  expect(readVaultConfig().mode).toBe("passkey");
-  expect(resealed.map((row) => row.apiKey)).toEqual([
+  const rows = await setKeyEncryption(true, [
+    { providerId: "p", apiKey: deviceSealed },
+    { providerId: "old", apiKey: "sk-plain" },
+  ]);
+  expect(readVaultConfig()).toMatchObject({ encryptKeys: true, lockApp: false });
+  expect(rows.map((row) => row.apiKey)).toEqual([
     expect.stringMatching(/^mv1\./),
     expect.stringMatching(/^mv1\./),
   ]);
   expect(idbKeys.size).toBe(0);
 
-  // A restart: nothing decrypted in memory, so the app must ask for the passkey.
-  lockCredentials();
-  const rows = resealed.map((row) => ({ ...row }));
-  expect(isPasskeyUnlocked()).toBe(false);
-  expect(readCredentialVaultState(rows).locked).toBe(true);
+  restart();
+  expect(isAppLocked()).toBe(false);
+  await decryptCredentials(rows);
+  expect(peekApiKey(rows[0].apiKey)).toBe("");
 
   prfSecret = new Uint8Array(32).fill(9);
-  await expect(unlockWithPasskey(rows)).rejects.toThrow(/does not match/);
-
-  lockCredentials();
+  await expect(ensureCredentialsUnlocked(rows)).rejects.toThrow(/does not match/);
+  restart();
   prfSecret = new Uint8Array(32).fill(7);
-  await unlockWithPasskey(rows);
+  await expect(ensureCredentialsUnlocked(rows)).resolves.toBe(true);
   expect(rows.map((row) => peekApiKey(row.apiKey))).toEqual(["sk-secret", "sk-plain"]);
-  // The old device-sealed copy can no longer be opened.
-  lockCredentials();
+  await expect(ensureCredentialsUnlocked(rows)).resolves.toBe(false);
+
+  // The device-sealed copy left in history can no longer be opened.
+  restart();
   await decryptCredentials([{ providerId: "p", apiKey: deviceSealed }]);
   expect(peekApiKey(deviceSealed)).toBe("");
 });
 
-test("turning the passkey off moves keys back to the device key", async () => {
-  const [row] = await enablePasskey([{ providerId: "p", apiKey: "sk-secret" }]);
-  const [back] = await disablePasskey([row]);
-  expect(readVaultConfig().mode).toBe("device");
+test("the app lock alone keeps device-encrypted keys and only verifies the passkey", async () => {
+  prfSupported = false;
+  await setAppLock(true);
+  expect(readVaultConfig()).toMatchObject({ encryptKeys: false, lockApp: true });
+  const sealed = await sealApiKey("sk-secret");
+  expect(sealed).toMatch(/^md1\./);
+
+  restart();
+  expect(isAppLocked()).toBe(true);
+  await unlockApp();
+  expect(isAppLocked()).toBe(false);
+  expect(get).toHaveBeenCalledOnce();
+
+  // That passkey can't encrypt, so turning encryption on asks for a new one, which also can't.
+  await expect(setKeyEncryption(true, [{ providerId: "p", apiKey: sealed }])).rejects.toThrow(
+    /can't encrypt/,
+  );
+  expect(readVaultConfig()).toMatchObject({ encryptKeys: false, lockApp: true });
+});
+
+test("with both on, one unlock opens the app and decrypts the keys", async () => {
+  await setAppLock(true);
+  const [row] = await setKeyEncryption(true, [{ providerId: "p", apiKey: "sk-secret" }]);
+  expect(create).toHaveBeenCalledOnce();
+
+  restart();
+  get.mockClear();
+  expect(isAppLocked()).toBe(true);
+  await unlockApp();
+  expect(isAppLocked()).toBe(false);
+  await decryptCredentials([row]);
+  expect(peekApiKey(row.apiKey)).toBe("sk-secret");
+  await expect(ensureCredentialsUnlocked([row])).resolves.toBe(false);
+  expect(get).toHaveBeenCalledOnce();
+});
+
+test("turning encryption off moves keys back to the device key and keeps the lock", async () => {
+  await setAppLock(true);
+  const [row] = await setKeyEncryption(true, [{ providerId: "p", apiKey: "sk-secret" }]);
+  const [back] = await setKeyEncryption(false, [row]);
   expect(back.apiKey).toMatch(/^md1\./);
   expect(peekApiKey(back.apiKey)).toBe("sk-secret");
+  expect(readVaultConfig()).toMatchObject({ encryptKeys: false, lockApp: true });
+  await setAppLock(false);
+  expect(readVaultConfig()).toEqual({ passkey: null, encryptKeys: false, lockApp: false });
+});
+
+test("the first passkey setting turns into both options", () => {
+  storage.set(
+    "memora.credentialVault.v1",
+    JSON.stringify({ mode: "passkey", credentialId: "AQID", salt: "AAAA" }),
+  );
+  expect(readVaultConfig()).toEqual({
+    passkey: { credentialId: "AQID", salt: "AAAA" },
+    encryptKeys: true,
+    lockApp: true,
+  });
 });
 
 test("a lost passkey stops the lock and leaves its keys unreadable", async () => {
-  const [row] = await enablePasskey([{ providerId: "p", apiKey: "sk-secret" }]);
-  lockCredentials();
+  await setAppLock(true);
+  const [row] = await setKeyEncryption(true, [{ providerId: "p", apiKey: "sk-secret" }]);
+  restart();
   forgetPasskey();
-  expect(readVaultConfig().mode).toBe("device");
+  expect(isAppLocked()).toBe(false);
   await decryptCredentials([row]);
   expect(peekApiKey(row.apiKey)).toBe("");
+  // Unlocking from the sealed row itself still works if the passkey turns up again.
+  await unlockWithPasskey([row]);
+  expect(peekApiKey(row.apiKey)).toBe("sk-secret");
 });

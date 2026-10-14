@@ -8,7 +8,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 
 - Exports now include your desktop widgets, and importing keeps all your settings, including assistant instructions and saved permissions. Thumbnails of imported files are kept too.
 - Import checks the whole archive before changing anything, so a damaged file no longer wipes your current data. It also opens archives you unpacked and zipped again.
-- Your API keys are now encrypted on this device. For stronger protection, turn on the passkey lock in Settings > Security: Memora then asks for your passkey (Touch ID, Face ID, Windows Hello, or a security key) when it opens, and your keys can't be read without it.
+- Your API keys are now encrypted on this device. In Settings > Security you can also encrypt them with a passkey (Touch ID, Face ID, Windows Hello, or a security key), lock Memora with your passkey when it opens, or both.
 - Keys you saved before this update may still be readable in older local data. To be safe, create new keys with your provider.
 - File names with non-Latin characters show correctly when you open an export in other ZIP tools, and very large libraries can be exported.
 
