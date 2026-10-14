@@ -174,6 +174,7 @@ export const useSearchResults = ({
             signal: controller.signal,
             semantic: readEmbeddingRuntime(store),
             semanticMode: settings?.semanticSearchMode,
+            standoutOnly: true,
           }),
         )
         .then((results) => {
@@ -196,7 +197,15 @@ export const useSearchResults = ({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [fileRows, isSearchOpen, queryValue, modelRouting, settings?.semanticSearchEnabled, store]);
+  }, [
+    fileRows,
+    isSearchOpen,
+    queryValue,
+    modelRouting,
+    settings?.semanticSearchEnabled,
+    settings?.semanticSearchMode,
+    store,
+  ]);
 
   return {
     displaySections,

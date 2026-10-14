@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import * as stylex from "@stylexjs/stylex";
 
+import { useOpfsImageUrl } from "@/hooks/library/useOpfsImageUrl";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import type { GlobalSearchItem } from "@/types/search";
 
@@ -9,7 +10,7 @@ import { tokens } from "../../../styles/stylex.stylex";
 
 const styles = stylex.create({
   row: {
-    alignItems: "flex-start",
+    alignItems: "center",
     backgroundColor: "transparent",
     borderRadius: 14,
     display: "flex",
@@ -32,21 +33,26 @@ const styles = stylex.create({
     inset: 0,
     position: "absolute",
   },
+  // Icons and picture previews share one tile, so every row lines up.
   iconWrap: {
     alignItems: "center",
+    backgroundColor: tokens.surfaceMuted,
+    border: `1px solid ${tokens.borderSoft}`,
+    borderRadius: 10,
     color: tokens.textSoft,
     display: "flex",
     flexShrink: 0,
-    height: 32,
+    height: 44,
     justifyContent: "center",
-    marginTop: 2,
+    overflow: "hidden",
     position: "relative",
     transition: "color 150ms",
-    width: 32,
+    width: 44,
     zIndex: 10,
   },
   activeIcon: { color: tokens.text },
-  icon: { height: 20, width: 20 },
+  thumbnail: { display: "block", height: "100%", objectFit: "cover", width: "100%" },
+  icon: { height: 22, width: 22 },
   body: { flex: 1, minWidth: 0, position: "relative", zIndex: 10 },
   heading: {
     alignItems: "baseline",
@@ -104,6 +110,7 @@ export function SearchResultRow({
   onSelect: () => void;
 }) {
   const Icon = item.fileIcon ? getFileIcon(item.fileIcon) : SEARCH_ITEM_ICONS[item.kind];
+  const imageUrl = useOpfsImageUrl(item.imagePath);
 
   return (
     <motion.button
@@ -140,7 +147,17 @@ export function SearchResultRow({
       ) : null}
 
       <div {...stylex.props(styles.iconWrap, isActive && styles.activeIcon)}>
-        <Icon className={stylex.props(styles.icon).className} weight="regular" />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            {...stylex.props(styles.thumbnail)}
+          />
+        ) : (
+          <Icon className={stylex.props(styles.icon).className} weight="regular" />
+        )}
       </div>
 
       <div {...stylex.props(styles.body)}>
