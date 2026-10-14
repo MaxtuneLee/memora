@@ -35,6 +35,49 @@ const groupAdjacentHits = (hits: VectorDbSearchHit[]): VectorDbSearchHit[] => {
   return result;
 };
 
+// EmbeddingGemma puts every chunk within a narrow distance band of any query (about 0.30-0.38),
+// and a nearest-neighbor search always returns something. Two filters keep only real matches:
+// - Very short chunks ("Open", a lone heading) sit near the center of the space and come out
+//   close to every query, so they don't count as semantic matches. Lexical search still finds
+//   them. The picture vector of an image is kept whatever its caption length.
+// - Of the rest, only hits that stand out from this query's own distances are kept: closer than
+//   the median by MATCH_MADS robust deviations. A median and MAD aren't dragged along when many
+//   chunks really match, unlike a mean and standard deviation.
+const MIN_MEANINGFUL_LENGTH = 12;
+const MATCH_MADS = 3;
+const MIN_SEMANTIC_POOL = 10;
+const SEMANTIC_POOL = 300;
+
+const meaningfulLength = (text: string): number => {
+  let length = 0;
+  for (const char of text.replace(/[\s\p{P}\p{S}]+/gu, "")) {
+    // A Han character carries about as much as a short word.
+    length += /\p{Script=Han}/u.test(char) ? 3 : 1;
+  }
+  return length;
+};
+
+const median = (values: readonly number[]): number => {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
+export const filterSemanticHits = (hits: readonly VectorDbSearchHit[]): VectorDbSearchHit[] => {
+  const candidates = hits.filter(
+    (hit) =>
+      hit.vectorDistance !== undefined &&
+      (hit.chunkId.endsWith(":image") || meaningfulLength(hit.content) >= MIN_MEANINGFUL_LENGTH),
+  );
+  // ponytail: too few candidates to tell a match from the background; lexical hits still show.
+  if (candidates.length < MIN_SEMANTIC_POOL) return [];
+  const distances = candidates.map((hit) => hit.vectorDistance ?? Infinity);
+  const center = median(distances);
+  const spread = median(distances.map((distance) => Math.abs(distance - center))) * 1.4826;
+  const cutoff = center - MATCH_MADS * spread;
+  return candidates.filter((hit) => (hit.vectorDistance ?? Infinity) <= cutoff);
+};
+
 export const searchContent = async (input: {
   query: string;
   vectorDb: VectorDbClient;
@@ -74,16 +117,20 @@ export const searchContent = async (input: {
     input.signal?.throwIfAborted();
     validateEmbeddings(embeddings, 1, input.semantic.indexConfig.dimensions);
     semantic.push(
-      ...(await input.vectorDb.forIndex(input.semantic.indexConfig).search({
-        query,
-        scope,
-        topK: 40,
-        lexicalCandidateK: 0,
-        semanticCandidateK: 40,
-        lexicalWeight: 0,
-        semanticWeight: 1,
-        queryEmbedding: embeddings[0],
-      })),
+      ...filterSemanticHits(
+        await input.vectorDb.forIndex(input.semantic.indexConfig).search({
+          query,
+          scope,
+          // A wide pool keeps unrelated chunks the majority, so the median stays a fair baseline
+          // even when a topic fills many chunks. In a small library it's every chunk.
+          topK: SEMANTIC_POOL,
+          lexicalCandidateK: 0,
+          semanticCandidateK: SEMANTIC_POOL,
+          lexicalWeight: 0,
+          semanticWeight: 1,
+          queryEmbedding: embeddings[0],
+        }),
+      ),
     );
   }
   input.signal?.throwIfAborted();
