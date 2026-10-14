@@ -4,6 +4,11 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-14.4
+
+- Semantic search now uses EmbeddingGemma 2. It finds relevant passages more often, and its download is about half the size of the previous model. Your library is indexed again in the background the first time it runs.
+- Search can now find images by what they show, not only by the text Memora reads in them.
+
 ## 2026-10-14.3
 
 - Exports now include your desktop widgets, and importing keeps all your settings, including assistant instructions and saved permissions. Thumbnails of imported files are kept too.

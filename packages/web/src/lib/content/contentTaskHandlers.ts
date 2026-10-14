@@ -179,7 +179,7 @@ export const createContentTaskHandlers = (input: {
             input.store,
             fileId,
             "processing",
-            "BM25 index ready; building BGE semantic index.",
+            "BM25 index ready; building semantic index.",
           );
           const indexId = await getVectorDbIndexId(runtime.indexConfig);
           await context.enqueue({
@@ -224,7 +224,7 @@ export const createContentTaskHandlers = (input: {
       const artifact = await readContentArtifact(fileId);
       if (!artifact || (sourceRevision && artifact.sourceRevision !== sourceRevision)) return;
       try {
-        setIndexStatus(input.store, fileId, "processing", "BGE semantic index is being built.");
+        setIndexStatus(input.store, fileId, "processing", "Semantic index is being built.");
         await indexContentArtifactSemantically(
           input.vectorDb.forIndex(runtime.indexConfig),
           artifact,
@@ -232,6 +232,7 @@ export const createContentTaskHandlers = (input: {
           {
             signal: context.signal,
             onProgress: context.reportProgress,
+            image: artifact.parser.name === "image" ? await resolveFile(row) : undefined,
           },
         );
         setIndexStatus(

@@ -33,6 +33,7 @@ const contentPipelineFoldersQuery$ = queryDb(
 import { createContentTaskHandlers, EXCLUDED_FROM_INDEX_SUMMARY } from "./contentTaskHandlers";
 import { isAppFile } from "@/lib/library/appFiles";
 import { readContentArtifact } from ".";
+import { removeLegacyContentIndexes } from "./legacyIndexCleanup";
 
 interface ContentPipelineContextValue {
   reindexFile: (fileId: string) => Promise<void>;
@@ -93,6 +94,12 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
       }),
     [store],
   );
+
+  useEffect(() => {
+    removeLegacyContentIndexes().catch((error: unknown) => {
+      console.warn("Could not remove old search indexes.", error);
+    });
+  }, []);
 
   const ensureStarted = useCallback(async () => {
     if (started.current) return;

@@ -56,16 +56,16 @@ export default function SettingsLocalModelsSection({ open }: SettingsLocalModels
       <section {...stylex.props(styles.overview)}>
         <div {...stylex.props(styles.overviewHeader)}>
           <div>
-            <h3 {...stylex.props(styles.title)}>BGE semantic retrieval</h3>
+            <h3 {...stylex.props(styles.title)}>Semantic retrieval</h3>
             <p {...stylex.props(styles.body, styles.titleBody)}>
-              BGE runs locally to build the semantic index and improve meaning-based search.
+              EmbeddingGemma 2 runs locally to index text and images by meaning.
             </p>
           </div>
           <span {...stylex.props(styles.badge)}>Local</span>
         </div>
         <p {...stylex.props(styles.body, styles.overviewBody)}>
-          Select BM25, BGE, or hybrid retrieval in Indexing settings. The model is loaded when a
-          semantic index is built.
+          Select BM25, semantic, or hybrid retrieval in Indexing settings. The model is loaded when
+          a semantic index is built.
         </p>
       </section>
       {localModelOptions.map((model) => {

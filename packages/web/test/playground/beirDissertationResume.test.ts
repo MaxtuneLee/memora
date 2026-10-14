@@ -154,8 +154,7 @@ function page(
     BeirEmbeddingPool: Pool,
     createVectorDbClient: () => db,
     getVectorDbContentHash: async () => "a".repeat(64),
-    buildBgeIndexConfig: () => ({}),
-    BGE_SMALL_EN_QUERY_PREFIX: "",
+    buildBgeIndexConfig: () => ({ queryPrefix: "", documentPrefix: "" }),
     testDb: db,
     fetch: async (url: string, init?: { method?: string; body?: string }) => {
       requests.push(url);

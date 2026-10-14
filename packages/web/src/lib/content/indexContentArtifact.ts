@@ -2,7 +2,7 @@ import type { VectorDbIndexClient, VectorDbIndexedChunk } from "@/lib/vector-db"
 import { LEXICAL_INDEX_CONFIG } from "@/lib/search/searchIndexConfig";
 import { validateEmbeddings, type EmbeddingRuntime } from "@/lib/models/embeddingRuntime";
 
-import { chunkContentArtifact } from "./chunkDocument";
+import { chunkContentArtifact, type ContentChunk } from "./chunkDocument";
 import type { ContentArtifact } from "./types";
 
 export const indexContentArtifactLexically = async (
@@ -51,14 +51,31 @@ export const indexContentArtifactSemantically = async (
   options: {
     signal?: AbortSignal;
     onProgress?: (progress: { label: string; current?: number; total?: number }) => void;
+    // An image file's pixels, embedded as one extra chunk next to its OCR text.
+    image?: Blob;
   } = {},
 ): Promise<{ chunkCount: number }> => {
   options.signal?.throwIfAborted();
-  const chunks = await chunkContentArtifact(artifact, {
+  const textChunks = await chunkContentArtifact(artifact, {
     size: runtime.indexConfig.chunkSize,
     overlap: runtime.indexConfig.chunkOverlap,
     locale: runtime.indexConfig.segmenterLocale,
   });
+  const imageChunk: ContentChunk | null = options.image
+    ? {
+        chunkId: `${artifact.fileId}:image`,
+        documentId: artifact.fileId,
+        // The gap keeps search from merging this chunk with the last OCR chunk.
+        chunkIndex: textChunks.length + 1,
+        // Search results show this text when the picture itself matches.
+        content: [artifact.title, artifact.plainText].filter(Boolean).join(" — ").slice(0, 280),
+        // The source revision already hashes the image bytes.
+        contentHash: artifact.sourceRevision,
+        headingPath: [],
+        locator: { kind: "image" },
+      }
+    : null;
+  const chunks = imageChunk ? [...textChunks, imageChunk] : textChunks;
   const plan = {
     documentId: artifact.fileId,
     contentHash: artifact.sourceRevision,
@@ -72,7 +89,7 @@ export const indexContentArtifactSemantically = async (
   const checkpoint = await vectorDb.prepareDocument(plan);
   if (checkpoint.complete) return { chunkCount: chunks.length };
   const persisted = new Set(checkpoint.persistedChunkIds);
-  const pending = chunks.filter((chunk) => !persisted.has(chunk.chunkId));
+  const pending = textChunks.filter((chunk) => !persisted.has(chunk.chunkId));
   for (let offset = 0; offset < pending.length; offset += 8) {
     options.signal?.throwIfAborted();
     const batch = pending.slice(offset, offset + 8);
@@ -90,8 +107,18 @@ export const indexContentArtifactSemantically = async (
     });
     options.onProgress?.({
       label: "Indexing semantic content",
-      current: chunks.length - pending.length + offset + batch.length,
+      current: textChunks.length - pending.length + offset + batch.length,
       total: chunks.length,
+    });
+  }
+  if (imageChunk && options.image && !persisted.has(imageChunk.chunkId)) {
+    options.signal?.throwIfAborted();
+    const [embedding] = await runtime.embedImages([options.image], options);
+    options.signal?.throwIfAborted();
+    await vectorDb.upsertChunkBatch({
+      documentId: artifact.fileId,
+      contentHash: artifact.sourceRevision,
+      chunks: [{ ...imageChunk, embedding }],
     });
   }
   options.signal?.throwIfAborted();
