@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
-import PasskeyLockCard, {
-  passkeySecondaryButtonClassName,
-} from "@/components/security/PasskeyLockCard";
+import IllustratedCard, {
+  illustratedCardSecondaryButtonClassName,
+} from "@/components/ui/IllustratedCard";
 import {
   forgetPasskey,
   isAppLocked,
@@ -56,17 +56,18 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
 
   return (
     <main {...stylex.props(styles.screen)}>
-      <PasskeyLockCard
+      <IllustratedCard
+        imageSrc="/protection.webp"
         title="Memora is locked"
         description="Unlock with your passkey to open your workspace."
-        actionLabel="Unlock"
+        actionLabel={busy ? "Waiting for passkey…" : "Unlock"}
         busy={busy}
         error={error}
         onAction={() => void unlock()}
         secondary={
           <button
             type="button"
-            className={passkeySecondaryButtonClassName}
+            className={illustratedCardSecondaryButtonClassName}
             onClick={() => setConfirmingForget(true)}
           >
             Lost your passkey?

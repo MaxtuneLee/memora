@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import { ConfirmDialog } from "@/components/desktop/ConfirmDialog";
-import PasskeyLockCard, {
-  passkeySecondaryButtonClassName,
-} from "@/components/security/PasskeyLockCard";
+import IllustratedCard, {
+  illustratedCardSecondaryButtonClassName,
+} from "@/components/ui/IllustratedCard";
 import {
   canSealSilently,
   decryptCredentials,
@@ -83,10 +83,11 @@ export default function CredentialVaultPrompt() {
 
   return (
     <div {...stylex.props(styles.overlay)}>
-      <PasskeyLockCard
+      <IllustratedCard
+        imageSrc="/protection.webp"
         title="Your API keys are locked"
         description="They were encrypted with a passkey. Unlock them to use cloud models."
-        actionLabel="Unlock"
+        actionLabel={busy ? "Waiting for passkey…" : "Unlock"}
         busy={busy}
         error={error}
         onAction={() => void unlock()}
@@ -94,14 +95,14 @@ export default function CredentialVaultPrompt() {
           <>
             <button
               type="button"
-              className={passkeySecondaryButtonClassName}
+              className={illustratedCardSecondaryButtonClassName}
               onClick={() => setConfirmingRemove(true)}
             >
               I lost my passkey
             </button>
             <button
               type="button"
-              className={passkeySecondaryButtonClassName}
+              className={illustratedCardSecondaryButtonClassName}
               onClick={() => setDismissed(true)}
             >
               Not now

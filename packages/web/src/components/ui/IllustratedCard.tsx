@@ -48,9 +48,13 @@ const styles = stylex.create({
   },
 });
 
-interface PasskeyLockCardProps {
+interface IllustratedCardProps {
+  imageSrc: string;
   title: string;
-  description: string;
+  description: ReactNode;
+  /** Lets a surrounding dialog point aria-labelledby at the title. */
+  titleId?: string;
+  children?: ReactNode;
   actionLabel: string;
   busy: boolean;
   error?: string;
@@ -58,19 +62,24 @@ interface PasskeyLockCardProps {
   secondary?: ReactNode;
 }
 
-export default function PasskeyLockCard({
+/** A card with an illustration on top, used by the lock screen and one-time notices. */
+export default function IllustratedCard({
+  imageSrc,
   title,
   description,
+  titleId: providedTitleId,
+  children,
   actionLabel,
   busy,
   error,
   onAction,
   secondary,
-}: PasskeyLockCardProps) {
-  const titleId = useId();
+}: IllustratedCardProps) {
+  const generatedTitleId = useId();
+  const titleId = providedTitleId ?? generatedTitleId;
   return (
     <section aria-labelledby={titleId} {...stylex.props(styles.card)}>
-      <img src="/protection.webp" alt="" width={960} height={540} {...stylex.props(styles.image)} />
+      <img src={imageSrc} alt="" width={960} height={540} {...stylex.props(styles.image)} />
       <div {...stylex.props(styles.body)}>
         <div>
           <h2 id={titleId} {...stylex.props(styles.title)}>
@@ -78,6 +87,7 @@ export default function PasskeyLockCard({
           </h2>
           <p {...stylex.props(styles.description)}>{description}</p>
         </div>
+        {children}
         {error && (
           <p role="alert" {...stylex.props(styles.error)}>
             {error}
@@ -90,7 +100,7 @@ export default function PasskeyLockCard({
             onClick={onAction}
             {...stylex.props(styles.primary)}
           >
-            {busy ? "Waiting for passkey…" : actionLabel}
+            {actionLabel}
           </button>
           {secondary}
         </div>
@@ -99,4 +109,4 @@ export default function PasskeyLockCard({
   );
 }
 
-export const passkeySecondaryButtonClassName = stylex.props(styles.secondary).className;
+export const illustratedCardSecondaryButtonClassName = stylex.props(styles.secondary).className;

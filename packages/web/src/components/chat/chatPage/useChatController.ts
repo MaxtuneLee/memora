@@ -19,6 +19,7 @@ import {
   chatActiveFoldersQuery$,
   chatProvidersQuery$,
 } from "@/lib/chat/queries";
+import { ensureChatDataNoticeAcknowledged, hostOf } from "@/lib/chat/chatDataNotice";
 import { ensureCredentialsUnlocked } from "@/lib/settings/credentialVault";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { providerCredentialsQuery$ } from "@/livestore/providerCredential";
@@ -260,6 +261,12 @@ export const useChatController = ({
       // New messages carry the caller's quote (such as selected note text); edits and retries
       // keep the quote already on the message.
       const quote = options?.existingUserMessage ? undefined : (getTurnQuote?.() ?? undefined);
+      if (providerConfig) {
+        await ensureChatDataNoticeAcknowledged({
+          providerName: providerConfig.name,
+          host: hostOf(providerConfig.baseUrl),
+        });
+      }
       // Passkey-encrypted keys are unlocked on first use. useAgent reads the provider config at
       // send time, so give React one task to commit the decrypted key first.
       if (await ensureCredentialsUnlocked(store.query(providerCredentialsQuery$))) {
@@ -268,7 +275,7 @@ export const useChatController = ({
       await send(input, { ...options, userMessageQuote: quote });
       onTurnSent?.();
     },
-    [send, getTurnQuote, onTurnSent, store],
+    [send, getTurnQuote, onTurnSent, store, providerConfig],
   );
 
   const turnActions = useChatTurnActions({
