@@ -15,6 +15,8 @@ export interface ContentSearchResult {
   locator?: ContentLocator;
   score: number;
   chunkId: string;
+  /** Set for image files: the picture to preview. */
+  imagePath?: string;
 }
 
 const groupAdjacentHits = (hits: VectorDbSearchHit[]): VectorDbSearchHit[] => {
@@ -35,7 +37,7 @@ const groupAdjacentHits = (hits: VectorDbSearchHit[]): VectorDbSearchHit[] => {
   return result;
 };
 
-// EmbeddingGemma puts every chunk within a narrow distance band of any query (about 0.30-0.38),
+// EmbeddingGemma puts every chunk within a narrow cosine-distance band of any query (about 0.29-0.40),
 // and a nearest-neighbor search always returns something. Two filters keep only real matches:
 // - Very short chunks ("Open", a lone heading) sit near the center of the space and come out
 //   close to every query, so they don't count as semantic matches. Lexical search still finds
@@ -46,6 +48,11 @@ const groupAdjacentHits = (hits: VectorDbSearchHit[]): VectorDbSearchHit[] => {
 const MIN_MEANINGFUL_LENGTH = 12;
 const MATCH_MADS = 3;
 const MIN_SEMANTIC_POOL = 10;
+// The best keyword hit counts as much as a semantic hit right at the cutoff. Any semantic match
+// then ranks above keyword-only hits, and a chunk found both ways adds the two. BM25 scores of a
+// short query are often close together, so a higher weight let every keyword hit outrank all
+// but the most striking semantic matches.
+const LEXICAL_MATCH_WEIGHT = MATCH_MADS;
 const SEMANTIC_POOL = 300;
 
 const meaningfulLength = (text: string): number => {
@@ -75,7 +82,49 @@ export const filterSemanticHits = (hits: readonly VectorDbSearchHit[]): VectorDb
   const center = median(distances);
   const spread = median(distances.map((distance) => Math.abs(distance - center))) * 1.4826;
   const cutoff = center - MATCH_MADS * spread;
-  return candidates.filter((hit) => (hit.vectorDistance ?? Infinity) <= cutoff);
+  // Score each match by how far it stands out, in robust deviations, so fusion can tell a
+  // striking match from one that barely passed.
+  return candidates
+    .filter((hit) => (hit.vectorDistance ?? Infinity) <= cutoff)
+    .map((hit) => ({
+      ...hit,
+      score: (center - (hit.vectorDistance ?? center)) / Math.max(spread, 1e-6),
+    }));
+};
+
+// Adds the two signals by size, not by rank: a picture that matches far better than anything
+// else shouldn't lose to a chunk that matches both lists weakly.
+const fuseByScore = (
+  lexical: readonly VectorDbSearchHit[],
+  semantic: readonly VectorDbSearchHit[],
+): Map<string, VectorDbSearchHit> => {
+  const bestBm25 = Math.max(0, ...lexical.map((hit) => hit.bm25Score ?? 0));
+  const merged = new Map<string, VectorDbSearchHit>();
+  for (const hit of lexical) {
+    const strength =
+      bestBm25 > 0 ? (hit.bm25Score ?? 0) / bestBm25 : 1 / ((hit.lexicalRank ?? 1) + 1);
+    merged.set(hit.chunkId, { ...hit, score: LEXICAL_MATCH_WEIGHT * strength });
+  }
+  for (const hit of semantic) {
+    const previous = merged.get(hit.chunkId);
+    merged.set(hit.chunkId, { ...(previous ?? hit), score: (previous?.score ?? 0) + hit.score });
+  }
+  return merged;
+};
+
+// Reciprocal rank fusion: only the order within each list counts.
+const fuseByRank = (
+  lexical: readonly VectorDbSearchHit[],
+  semantic: readonly VectorDbSearchHit[],
+): Map<string, VectorDbSearchHit> => {
+  const merged = new Map<string, VectorDbSearchHit>();
+  for (const list of [lexical, semantic]) {
+    list.forEach((hit, rank) => {
+      const previous = merged.get(hit.chunkId);
+      merged.set(hit.chunkId, { ...hit, score: (previous?.score ?? 0) + 1 / (60 + rank + 1) });
+    });
+  }
+  return merged;
 };
 
 export const searchContent = async (input: {
@@ -87,7 +136,14 @@ export const searchContent = async (input: {
   signal?: AbortSignal;
   semantic?: EmbeddingRuntime | null;
   semanticMode?: SemanticSearchMode;
+  /**
+   * Show only semantic hits that stand out and fuse by score size, for people scanning a short
+   * list. The assistant's search tool leaves this off: it reads and judges results itself, so it
+   * keeps every candidate and the rank-based fusion it was evaluated with.
+   */
+  standoutOnly?: boolean;
 }): Promise<ContentSearchResult[]> => {
+  const standoutOnly = input.standoutOnly ?? false;
   const query = input.query.trim();
   if (!query) return [];
   input.signal?.throwIfAborted();
@@ -112,35 +168,27 @@ export const searchContent = async (input: {
         });
   input.signal?.throwIfAborted();
   const semantic: VectorDbSearchHit[] = [];
+  const semanticPool = standoutOnly ? SEMANTIC_POOL : 40;
   if (input.semantic) {
     const embeddings = await input.semantic.embed([query], "query", { signal: input.signal });
     input.signal?.throwIfAborted();
     validateEmbeddings(embeddings, 1, input.semantic.indexConfig.dimensions);
-    semantic.push(
-      ...filterSemanticHits(
-        await input.vectorDb.forIndex(input.semantic.indexConfig).search({
-          query,
-          scope,
-          // A wide pool keeps unrelated chunks the majority, so the median stays a fair baseline
-          // even when a topic fills many chunks. In a small library it's every chunk.
-          topK: SEMANTIC_POOL,
-          lexicalCandidateK: 0,
-          semanticCandidateK: SEMANTIC_POOL,
-          lexicalWeight: 0,
-          semanticWeight: 1,
-          queryEmbedding: embeddings[0],
-        }),
-      ),
-    );
+    const nearest = await input.vectorDb.forIndex(input.semantic.indexConfig).search({
+      query,
+      scope,
+      // A wide pool keeps unrelated chunks the majority, so the median stays a fair baseline
+      // even when a topic fills many chunks. In a small library it's every chunk.
+      topK: semanticPool,
+      lexicalCandidateK: 0,
+      semanticCandidateK: semanticPool,
+      lexicalWeight: 0,
+      semanticWeight: 1,
+      queryEmbedding: embeddings[0],
+    });
+    semantic.push(...(standoutOnly ? filterSemanticHits(nearest) : nearest));
   }
   input.signal?.throwIfAborted();
-  const merged = new Map<string, VectorDbSearchHit>();
-  for (const list of [lexical, semantic]) {
-    list.forEach((hit, rank) => {
-      const previous = merged.get(hit.chunkId);
-      merged.set(hit.chunkId, { ...hit, score: (previous?.score ?? 0) + 1 / (60 + rank + 1) });
-    });
-  }
+  const merged = standoutOnly ? fuseByScore(lexical, semantic) : fuseByRank(lexical, semantic);
   const hits = [...merged.values()].sort((a, b) => b.score - a.score).slice(0, topK);
   const filesById = new Map(activeFiles.map((file) => [file.id, file]));
   const results: ContentSearchResult[] = [];
@@ -156,6 +204,7 @@ export const searchContent = async (input: {
       locator: hit.locator,
       score: hit.score,
       chunkId: hit.chunkId,
+      ...(file.type === "image" ? { imagePath: file.thumbnailPath ?? file.storagePath } : {}),
     });
   }
   return results;

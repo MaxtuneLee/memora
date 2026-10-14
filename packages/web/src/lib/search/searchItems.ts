@@ -98,6 +98,7 @@ export const buildFileSearchItems = (
         mimeType: file.mimeType,
         type: file.type,
       },
+      ...(file.type === "image" ? { imagePath: file.thumbnailPath ?? file.storagePath } : {}),
       intent:
         file.type === "audio" || file.type === "video"
           ? {
@@ -194,6 +195,7 @@ export const buildContentSearchItems = (
     description: `Content match${result.locator?.kind === "page" ? ` · Page ${result.locator.pageNumber}` : ""}`,
     preview: result.content,
     keywords: [result.fileName, result.content, "content", "extracted text"],
+    ...(result.imagePath ? { imagePath: result.imagePath } : {}),
     fileIcon: {
       name: result.fileName,
       mimeType: result.fileMimeType,

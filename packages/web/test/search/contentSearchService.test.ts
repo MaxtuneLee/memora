@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vite-plus/test";
 
 import { buildContentSearchItems } from "@/lib/search/searchItems";
-import { filterSemanticHits, type ContentSearchResult } from "@/lib/search/contentSearchService";
+import {
+  filterSemanticHits,
+  searchContent,
+  type ContentSearchResult,
+} from "@/lib/search/contentSearchService";
 import type { VectorDbSearchHit } from "@/lib/vector-db";
 
 const hit = (chunkId: string, content: string, vectorDistance: number): VectorDbSearchHit =>
@@ -65,6 +69,26 @@ describe("content search presentation", () => {
   });
 });
 
+describe("image previews", () => {
+  test("content matches of images carry the picture to preview", () => {
+    const base: ContentSearchResult = {
+      fileId: "img",
+      fileName: "street.png",
+      fileMimeType: "image/png",
+      fileType: "image",
+      content: "street.png",
+      score: 1,
+      chunkId: "img:image",
+    };
+    const [image, text] = buildContentSearchItems([
+      { ...base, imagePath: "/files/img/thumb.webp" },
+      { ...base, fileType: "document", chunkId: "doc:1" },
+    ]);
+    expect(image?.imagePath).toBe("/files/img/thumb.webp");
+    expect(text?.imagePath).toBeUndefined();
+  });
+});
+
 describe("semantic hit filtering", () => {
   test("keeps the picture that matches and drops short chunks and the background", () => {
     expect(filterSemanticHits(busyStreet).map((entry) => entry.chunkId)).toEqual(["street:image"]);
@@ -86,5 +110,121 @@ describe("semantic hit filtering", () => {
 
   test("returns nothing when there are too few candidates to judge", () => {
     expect(filterSemanticHits(busyStreet.slice(0, 5))).toEqual([]);
+  });
+});
+
+describe("fusing keyword and semantic hits", () => {
+  test("a striking semantic match beats a chunk that matches both lists weakly", async () => {
+    // Shaped like a real "camera" search: a PDF chunk has the keyword and a modest semantic
+    // match (similarity 0.64); a photo of a camera matches far better (0.77) with no keyword.
+    const pdf = {
+      ...hit("pdf:3", "讲讲校园里你发现了哪些巧妙机位 camera 构图", 0.3558),
+      bm25Score: 8,
+    };
+    const photo = hit("photo:image", "Camera photo", 0.2296);
+    const semanticHits = [
+      photo,
+      pdf,
+      ...Array.from({ length: 298 }, (_, index) =>
+        hit(`bg${index}:1`, LONG, 0.385 + (index % 30) * 0.001),
+      ),
+    ];
+    const vectorDb = {
+      forIndex: (config: { model: string }) => ({
+        search: async () => (config.model === "lexical-only" ? [pdf] : semanticHits),
+      }),
+    };
+    const files = ["pdf", "photo", ...Array.from({ length: 298 }, (_, index) => `bg${index}`)].map(
+      (id) => ({ id, name: id, mimeType: "", type: "document", deletedAt: null, purgedAt: null }),
+    );
+    const results = await searchContent({
+      query: "camera",
+      vectorDb: vectorDb as never,
+      files: files as never,
+      semantic: {
+        indexConfig: { model: "semantic", dimensions: 2 },
+        embed: async () => [new Float32Array([1, 0])],
+      } as never,
+      standoutOnly: true,
+    });
+    expect(results.map((result) => result.fileId).slice(0, 2)).toEqual(["photo", "pdf"]);
+  });
+
+  test("the assistant's search keeps rank fusion, where a chunk in both lists leads", async () => {
+    // Shaped like a real "camera" search: a PDF chunk has the keyword and a modest semantic
+    // match (similarity 0.64); a photo of a camera matches far better (0.77) with no keyword.
+    const pdf = {
+      ...hit("pdf:3", "讲讲校园里你发现了哪些巧妙机位 camera 构图", 0.3558),
+      bm25Score: 8,
+    };
+    const photo = hit("photo:image", "Camera photo", 0.2296);
+    const semanticHits = [
+      photo,
+      pdf,
+      ...Array.from({ length: 298 }, (_, index) =>
+        hit(`bg${index}:1`, LONG, 0.385 + (index % 30) * 0.001),
+      ),
+    ];
+    const vectorDb = {
+      forIndex: (config: { model: string }) => ({
+        search: async () => (config.model === "lexical-only" ? [pdf] : semanticHits),
+      }),
+    };
+    const files = ["pdf", "photo", ...Array.from({ length: 298 }, (_, index) => `bg${index}`)].map(
+      (id) => ({ id, name: id, mimeType: "", type: "document", deletedAt: null, purgedAt: null }),
+    );
+    const results = await searchContent({
+      query: "camera",
+      vectorDb: vectorDb as never,
+      files: files as never,
+      semantic: {
+        indexConfig: { model: "semantic", dimensions: 2 },
+        embed: async () => [new Float32Array([1, 0])],
+      } as never,
+    });
+    expect(results.map((result) => result.fileId).slice(0, 2)).toEqual(["pdf", "photo"]);
+  });
+
+  test("a modest semantic match still beats keyword-only hits with near-equal BM25", async () => {
+    // Shaped like the second real search: keyword hits all score about the same, and the
+    // matching picture stands out by only about five deviations.
+    const keywordHits = Array.from({ length: 8 }, (_, index) => ({
+      ...hit(`note${index}:1`, LONG, 0.5),
+      bm25Score: 10 - index * 0.05,
+    }));
+    const picture = hit("painting:image", "Painting", 0.2927);
+    const semanticHits = [
+      picture,
+      ...Array.from({ length: 299 }, (_, index) =>
+        hit(`bg${index}:1`, LONG, 0.33 + (index % 30) * 0.001),
+      ),
+    ];
+    const ids = [
+      "painting",
+      ...keywordHits.map((entry) => entry.documentId),
+      ...semanticHits.slice(1).map((entry) => entry.documentId),
+    ];
+    const results = await searchContent({
+      query: "painting",
+      vectorDb: {
+        forIndex: (config: { model: string }) => ({
+          search: async () => (config.model === "lexical-only" ? keywordHits : semanticHits),
+        }),
+      } as never,
+      files: ids.map((id) => ({
+        id,
+        name: id,
+        mimeType: "",
+        type: "document",
+        deletedAt: null,
+        purgedAt: null,
+      })) as never,
+      semantic: {
+        indexConfig: { model: "semantic", dimensions: 2 },
+        embed: async () => [new Float32Array([1, 0])],
+      } as never,
+      standoutOnly: true,
+    });
+    expect(results[0]?.fileId).toBe("painting");
   });
 });

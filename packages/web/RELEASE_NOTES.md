@@ -4,6 +4,12 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-15
+
+- Search shows fewer unrelated results: a match by meaning appears only when it fits your query clearly better than the rest of your library, and short snippets like a lone heading no longer show up for every search.
+- A picture that matches what you searched for now ranks above passages that only share a word with it.
+- Image results in search show a preview of the picture.
+
 ## 2026-10-14.4
 
 - Semantic search now uses EmbeddingGemma 2. It finds relevant passages more often, and its download is about half the size of the previous model. Your library is indexed again in the background the first time it runs.
