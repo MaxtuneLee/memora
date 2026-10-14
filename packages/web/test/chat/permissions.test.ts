@@ -323,10 +323,7 @@ describe("Permission grants", () => {
     ["library", grant("read", { kind: "library" })],
   ])("a %s grant allows the read", async (_label, readGrant) => {
     const { run, asked } = setup({ grants: [readGrant] });
-    expect(await run("read_file", { path: "/files/a/a.md" })).toMatchObject({
-      content: "al",
-      totalChars: 5,
-    });
+    expect(await run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
     expect(asked).toEqual([]);
   });
 
@@ -434,10 +431,7 @@ describe("query_db", () => {
 describe("without an approval handler", () => {
   test("with only writes guarded, as in the evaluation playground, reads pass and writes are refused", async () => {
     const { run } = setup({ handler: false, mode: { guard: "writes", approver: "user" } });
-    expect(await run("read_file", { path: "/files/a/a.md" })).toMatchObject({
-      content: "al",
-      totalChars: 5,
-    });
+    expect(await run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
     expect(
       await run("modify_text_file", {
         path: "/chat/notes/n.md",
@@ -460,10 +454,7 @@ describe("without an approval handler", () => {
       handler: false,
       grants: [grant("read", { kind: "file", fileId: "a" })],
     });
-    expect(await granted.run("read_file", { path: "/files/a/a.md" })).toMatchObject({
-      content: "al",
-      totalChars: 5,
-    });
+    expect(await granted.run("read_file", { path: "/files/a/a.md" })).toBe("alpha");
   });
 });
 

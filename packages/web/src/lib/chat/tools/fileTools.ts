@@ -117,21 +117,6 @@ const pathReadRequest = async (
 const grepFileId = (cwd: string): string | null =>
   /^\/files\/([^/]+)/.exec(cwd.replace(/\/+$/, ""))?.[1] ?? null;
 
-// Library files are read at most a third at a time, so one read never sends a whole document
-// to the model. The assistant's own working files under /chat/ are read in full.
-export const libraryReadLimit = (totalChars: number): number => Math.ceil(totalChars / 3);
-
-const readLibraryText = (content: string, offset = 0, limit?: number) => {
-  const cap = libraryReadLimit(content.length);
-  const end = Math.min(content.length, offset + Math.min(limit ?? cap, cap));
-  const text = content.slice(offset, end);
-  return {
-    text,
-    truncated: end < content.length,
-    range: { offset, end, totalChars: content.length },
-  };
-};
-
 export const createFileTools = (
   store: StoreQueryable,
   options: CreateChatToolsOptions,
@@ -141,7 +126,7 @@ export const createFileTools = (
       type: "function",
       name: "read_file",
       description:
-        "Read the text content of a file at the given OPFS path. Use storagePath or transcriptPath from query_db results. Supports optional offset (0-based character index to start from) and limit (number of characters to read). Library files under /files/ return at most a third of the file per call; read only the parts you need.",
+        "Read the text content of a file at the given OPFS path. Use storagePath or transcriptPath from query_db results. Supports optional offset (0-based character index to start from) and limit (number of characters to read).",
       parameters: v.object({
         path: v.string(),
         offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
@@ -168,19 +153,6 @@ export const createFileTools = (
           return {
             error: `No file at ${payload.path}. Use a storagePath or transcriptPath from query_db.`,
             ...(filesInFolder ? { filesInFolder } : { folderExists: false }),
-          };
-        }
-        if (payload.path.startsWith("/files/")) {
-          const { text, truncated, range } = readLibraryText(
-            content,
-            payload.offset,
-            payload.limit,
-          );
-          if (!truncated) return text;
-          return {
-            content: text,
-            ...range,
-            note: `Showing characters ${range.offset}-${range.end} of ${range.totalChars}. Library files return at most a third per call; use offset to read another part only if you need it.`,
           };
         }
         if (payload.offset == null && payload.limit == null) {
@@ -498,12 +470,11 @@ export const createFileTools = (
     {
       type: "function",
       name: "read_extracted_content",
-      description:
-        "Read extracted text or OCR content for a file by character offset. Returns at most a third of the file per call; read only the parts you need.",
+      description: "Read extracted text or OCR content for a file by character offset.",
       parameters: v.object({
         file_id: v.string(),
         offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
-        limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+        limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 12000),
       }),
       access: (params) =>
         libraryReadRequest(
@@ -523,17 +494,12 @@ export const createFileTools = (
         const content = await readExtractedContent(payload.file_id);
         if (content == null)
           return { error: "No extracted content is available for this file yet." };
-        const { text, truncated, range } = readLibraryText(
-          content,
-          payload.offset ?? 0,
-          Math.min(payload.limit ?? 12000, 12000),
-        );
+        const offset = payload.offset ?? 0;
         return {
           fileId: row.id,
           fileName: row.name,
-          ...range,
-          content: text,
-          ...(truncated ? { note: "Use offset to read another part only if you need it." } : {}),
+          offset,
+          content: content.slice(offset, offset + (payload.limit ?? 12000)),
         };
       },
     },
