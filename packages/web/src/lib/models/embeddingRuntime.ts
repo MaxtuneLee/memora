@@ -14,6 +14,8 @@ export interface EmbeddingRuntime {
       onProgress?: (progress: { label: string; current?: number; total?: number }) => void;
     },
   ): Promise<Float32Array[]>;
+  // One vector per image, comparable with query vectors.
+  embedImages(images: Blob[], options?: { signal?: AbortSignal }): Promise<Float32Array[]>;
 }
 
 export const validateEmbeddings = (
@@ -37,14 +39,10 @@ export const validateEmbeddings = (
 
 export const createEmbeddingRuntime = (
   target: ModelTarget,
-  client: Pick<BgeEmbeddingClient, "embed"> = bgeEmbeddingClient,
+  client: Pick<BgeEmbeddingClient, "embed" | "embedImages"> = bgeEmbeddingClient,
 ): EmbeddingRuntime => {
   const route = parseFeatureModelRoute("embedding", target);
-  if (
-    !route ||
-    route.source !== "local" ||
-    (route.modelId !== "bge-m3" && route.modelId !== "bge-small-en")
-  ) {
+  if (!route || route.source !== "local" || route.modelId !== "embeddinggemma-2") {
     // No remote adapter or automatic fallback until cloud content upload is authorized.
     throw new Error(
       "Cloud embeddings are not available yet. Choose a local embedding model or disable semantic search.",
@@ -55,7 +53,7 @@ export const createEmbeddingRuntime = (
   const indexConfig: VectorDbIndexConfig = {
     ...LEXICAL_INDEX_CONFIG,
     model: `local:${modelConfig.model}`,
-    modelRevision: `${modelConfig.modelRevision}:q8:content-v1`,
+    modelRevision: `${modelConfig.modelRevision}:q4:content-v1`,
     dimensions: modelConfig.dimensions,
     pooling: modelConfig.pooling,
     queryPrefix: modelConfig.queryPrefix,
@@ -77,6 +75,17 @@ export const createEmbeddingRuntime = (
       );
       options.signal?.throwIfAborted();
       validateEmbeddings(result, texts.length, indexConfig.dimensions);
+      return result;
+    },
+    async embedImages(images, options = {}) {
+      options.signal?.throwIfAborted();
+      if (images.length === 0) return [];
+      const result = await client.embedImages(model, images, undefined, {
+        priority: "background",
+        signal: options.signal,
+      });
+      options.signal?.throwIfAborted();
+      validateEmbeddings(result, images.length, indexConfig.dimensions);
       return result;
     },
   };

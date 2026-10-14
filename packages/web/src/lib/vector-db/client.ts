@@ -212,7 +212,7 @@ export interface VectorDbClientOptions {
 // SharedWorker storage bridge takes over persistence.
 const VECTOR_DB_SNAPSHOT_ROOT = "/search-indexes";
 
-const getSnapshotPath = (indexId: string): string => {
+export const getVectorDbSnapshotPath = (indexId: string): string => {
   return `${VECTOR_DB_SNAPSHOT_ROOT}/${indexId}.sqlite3`;
 };
 
@@ -262,7 +262,7 @@ export class VectorDbClient {
     request: Extract<VectorDbStorageRequest, { type: "storage-read" | "storage-write" }>,
   ): Promise<void> {
     try {
-      const path = getSnapshotPath(request.indexId);
+      const path = getVectorDbSnapshotPath(request.indexId);
       if (request.type === "storage-read") {
         const exists = await opfsFile(path).exists();
         if (!exists) {

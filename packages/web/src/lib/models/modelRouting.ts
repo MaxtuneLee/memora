@@ -103,7 +103,7 @@ export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   contextCompaction: { source: "inherit", featureId: "assistant" },
   imageExtraction: { source: "local", modelId: "paddle-document-pipeline" },
   formulaRecognition: { source: "local", modelId: "texo" },
-  embedding: { source: "local", modelId: "bge-m3" },
+  embedding: { source: "local", modelId: "embeddinggemma-2" },
 };
 
 const LOCAL_CHAT_MODELS = ["qwen3.5-0.8b-onnx-opt", "gemma-4-e2b-it-onnx"] as const;
@@ -118,7 +118,7 @@ export const LOCAL_FEATURE_MODELS: Record<AiFeatureId, readonly string[]> = {
   contextCompaction: [],
   imageExtraction: ["paddle-document-pipeline"],
   formulaRecognition: ["texo"],
-  embedding: ["bge-m3", "bge-small-en"],
+  embedding: ["embeddinggemma-2"],
 };
 
 export const canInheritChatModel = (feature: AiFeatureId): boolean =>
@@ -143,6 +143,10 @@ export const parseFeatureModelRoute = (
     return { source: "inherit", featureId: "assistant" };
   }
   if (typeof value.modelId !== "string") return null;
+  // EmbeddingGemma 2 replaced the BGE models; saved BGE choices move to it.
+  if (feature === "embedding" && value.source === "local" && value.modelId.startsWith("bge-")) {
+    return DEFAULT_AI_MODEL_ROUTING.embedding;
+  }
   if (value.source === "local" && LOCAL_FEATURE_MODELS[feature].includes(value.modelId)) {
     return { source: "local", modelId: value.modelId };
   }

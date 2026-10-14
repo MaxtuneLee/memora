@@ -102,6 +102,15 @@ describe("feature model routing", () => {
     }
   });
 
+  test("moves saved BGE embedding choices to EmbeddingGemma 2", () => {
+    const gemma = { source: "local", modelId: "embeddinggemma-2" };
+    expect(normalizeAiModelRouting({}).embedding).toEqual(gemma);
+    for (const modelId of ["bge-m3", "bge-small-en"])
+      expect(
+        normalizeAiModelRouting({ embedding: { source: "local", modelId } }).embedding,
+      ).toEqual(gemma);
+  });
+
   test("rejects incompatible local models and cross-task inheritance", () => {
     expect(
       parseFeatureModelRoute("transcription", { source: "local", modelId: "gemma-4-e2b-it-onnx" }),

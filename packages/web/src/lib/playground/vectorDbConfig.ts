@@ -9,7 +9,13 @@ export const BGE_SMALL_EN_QUERY_PREFIX =
 
 const BGE_INDEX_CONFIG: Record<
   BgeEmbeddingModel,
-  { dimensions: number; pooling: "mean" | "cls"; revision: string }
+  {
+    dimensions: number;
+    pooling: "mean" | "cls";
+    revision: string;
+    queryPrefix?: string;
+    documentPrefix?: string;
+  }
 > = {
   "bge-small-en": {
     dimensions: 384,
@@ -20,6 +26,13 @@ const BGE_INDEX_CONFIG: Record<
     dimensions: 1024,
     pooling: "cls",
     revision: "Xenova/bge-m3",
+  },
+  "embeddinggemma-2": {
+    dimensions: 768,
+    pooling: "mean",
+    revision: "onnx-community/embeddinggemma-2-ONNX",
+    queryPrefix: "task: search result | query: ",
+    documentPrefix: "title: none | text: ",
   },
 };
 
@@ -35,8 +48,9 @@ export const buildBgeIndexConfig = (
     metric: "cosine",
     normalized: true,
     pooling: modelConfig.pooling,
-    queryPrefix: model === "bge-small-en" ? BGE_SMALL_EN_QUERY_PREFIX : "",
-    documentPrefix: "",
+    queryPrefix:
+      modelConfig.queryPrefix ?? (model === "bge-small-en" ? BGE_SMALL_EN_QUERY_PREFIX : ""),
+    documentPrefix: modelConfig.documentPrefix ?? "",
     chunkerName: "transcript-characters",
     chunkerVersion: "2",
     chunkSize,
