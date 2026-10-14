@@ -1,7 +1,6 @@
 import { file as opfsFile } from "@memora/fs";
 
-import { isAppLogFile } from "@/lib/appLog/appLogCollector";
-import { WIDGET_MANIFEST_FILE_NAME, WIDGET_SOURCE_FILE_NAME } from "@/lib/widgets/widgetManifest";
+import { isAppFile } from "@/lib/library/appFiles";
 import { fileEvents, fileTable, type file as LiveStoreFile } from "@/livestore/file";
 import { folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 import { getVectorDbIndexId, type VectorDbClient } from "@/lib/vector-db";
@@ -30,16 +29,6 @@ const getFile = (store: ContentTaskStore, fileId: string): LiveStoreFile | null 
   (store.query(fileTable.where({ id: fileId })) as readonly LiveStoreFile[])[0] ?? null;
 
 export const EXCLUDED_FROM_INDEX_SUMMARY = "Not indexed: app file.";
-
-// The debug log and the widget code inside widget definition folders are app files, not
-// content worth searching.
-export const isExcludedFromContentIndex = (
-  file: Pick<LiveStoreFile, "name" | "parentId">,
-  parent: Pick<LiveStoreFolder, "reservedKind"> | null | undefined,
-): boolean =>
-  isAppLogFile(file) ||
-  (parent?.reservedKind === "widgetDefinition" &&
-    (file.name === WIDGET_MANIFEST_FILE_NAME || file.name === WIDGET_SOURCE_FILE_NAME));
 
 const getParentFolder = (store: ContentTaskStore, row: LiveStoreFile): LiveStoreFolder | null =>
   row.parentId
@@ -111,7 +100,7 @@ export const createContentTaskHandlers = (input: {
     run: async ({ fileId }, context) => {
       const row = getFile(input.store, fileId);
       if (!row || row.deletedAt || row.purgedAt) return;
-      if (isExcludedFromContentIndex(row, getParentFolder(input.store, row))) {
+      if (isAppFile(row, getParentFolder(input.store, row))) {
         await removeIndexedContent(fileId);
         setIndexStatus(input.store, fileId, "indexed", EXCLUDED_FROM_INDEX_SUMMARY);
         return;

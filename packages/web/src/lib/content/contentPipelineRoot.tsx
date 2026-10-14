@@ -30,11 +30,8 @@ const contentPipelineFoldersQuery$ = queryDb(
     label: "content-pipeline:folders",
   },
 );
-import {
-  createContentTaskHandlers,
-  EXCLUDED_FROM_INDEX_SUMMARY,
-  isExcludedFromContentIndex,
-} from "./contentTaskHandlers";
+import { createContentTaskHandlers, EXCLUDED_FROM_INDEX_SUMMARY } from "./contentTaskHandlers";
+import { isAppFile } from "@/lib/library/appFiles";
 import { readContentArtifact } from ".";
 
 interface ContentPipelineContextValue {
@@ -75,7 +72,7 @@ export function ContentPipelineRoot({ children }: { children: ReactNode }) {
     const excluded: LiveStoreFile[] = [];
     for (const row of allRows) {
       const parent = row.parentId ? foldersById.get(row.parentId) : null;
-      (isExcludedFromContentIndex(row, parent) ? excluded : included).push(row);
+      (isAppFile(row, parent) ? excluded : included).push(row);
     }
     return [included, excluded];
   }, [allRows, folders]);
