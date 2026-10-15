@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-15.2
+
+- Search finds pictures by what they show again when your library has only a few files.
+
 ## 2026-10-15
 
 - Search shows fewer unrelated results: a match by meaning appears only when it fits your query clearly better than the rest of your library, and short snippets like a lone heading no longer show up for every search.
