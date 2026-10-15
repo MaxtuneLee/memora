@@ -12,6 +12,8 @@ export interface UploadedPart {
  * adapter. Keys are plain strings such as `main/files/<id>/content-<clientId>-<time>`.
  */
 export interface BlobProvider {
+  /** Identifies the storage location, such as the server URL. Transfer records are kept per id. */
+  readonly id: string;
   /** Size of every part except the last. R2 needs equal parts of at least 5 MiB. */
   readonly partSize: number;
   createUpload(key: string, contentType: string): Promise<string>;

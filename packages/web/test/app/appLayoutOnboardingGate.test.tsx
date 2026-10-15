@@ -20,7 +20,15 @@ vi.mock("react-router", async () => {
 
 const state = vi.hoisted(() => ({ settings: { onboardingCompleted: false } }));
 vi.mock("@/livestore/store", () => ({
-  useAppStore: () => ({ useQuery: () => state.settings }),
+  useAppStore: () => ({
+    useQuery: () => state.settings,
+    query: () => [],
+    commit: () => {},
+    subscribe: () => () => {},
+  }),
+  appStoreOptions: { storeId: "main" },
+  readWebdavSyncPayload: () => undefined,
+  SYNC_CONFIG_CHANNEL: "memora.sync-config",
 }));
 
 const gate = vi.hoisted(() => ({

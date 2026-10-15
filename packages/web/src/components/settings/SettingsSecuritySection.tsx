@@ -51,7 +51,7 @@ export default function SettingsSecuritySection() {
     if (keyed.length > 0) {
       store.commit(
         ...keyed.map((row) =>
-          providerCredentialEvents.providerCredentialDeleted({ providerId: row.providerId }),
+          providerCredentialEvents.providerCredentialDeletedHere({ providerId: row.providerId }),
         ),
       );
     }

@@ -12,5 +12,21 @@
     "@cloudflare/workers-types": "4.20251118.0",
     "typescript": "~5.9.3",
     "wrangler": "^4.0.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DAV_USERNAME": {
+        "description": "Username Memora signs in with. Enter the same one in Memora under **Settings → Sync**."
+      },
+      "DAV_PASSWORD": {
+        "description": "Password Memora signs in with. Use a long random one."
+      },
+      "ALLOWED_ORIGIN": {
+        "description": "Site allowed to call this server, for example `https://app.memora.im`. Leave `*` to allow any."
+      },
+      "BUCKET": {
+        "description": "R2 bucket that stores your synced data."
+      }
+    }
   }
 }

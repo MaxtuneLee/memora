@@ -11,6 +11,7 @@ const fakeProvider = () => {
   let next = 0;
 
   const provider: BlobProvider = {
+    id: "fake",
     partSize: 4,
     async createUpload() {
       const uploadId = `u${++next}`;

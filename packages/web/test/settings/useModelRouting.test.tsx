@@ -55,7 +55,9 @@ describe("model routing settings hook", () => {
         sessionTitle: { source: "local", modelId: "gemma-4-e2b-it-onnx" },
       },
     });
-    expect(state.commit.mock.calls.every(([event]) => event.name === "settingsSet")).toBe(true);
+    expect(state.commit.mock.calls.every(([event]) => event.name === "v1.SettingsUpdated")).toBe(
+      true,
+    );
   });
 
   test("chat selection and its legacy fields are updated in one settings event", () => {

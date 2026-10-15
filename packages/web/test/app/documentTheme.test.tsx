@@ -174,7 +174,7 @@ describe("appearance settings", () => {
 
     expect(store.commit).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
-        name: "settingsSet",
+        name: "v1.SettingsUpdated",
         args: expect.objectContaining({ value: { theme: "dark" } }),
       }),
     );

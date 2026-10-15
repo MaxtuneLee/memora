@@ -27,9 +27,10 @@ export type UploadProgress = { uploadId: string; size: number; parts: UploadedPa
 export type FileSyncStatus = { state: "remote" } | { state: "downloading"; progress: number };
 
 // One marker file per key, so tabs can record their own transfers without overwriting each other.
-const DONE_DIR = "/sync/done";
-const UPLOADS_DIR = "/sync/uploads";
-const PURGED_DIR = "/sync/purged";
+// Markers are kept per storage location: switching servers starts from nothing.
+let DONE_DIR = "";
+let UPLOADS_DIR = "";
+let PURGED_DIR = "";
 const PASS_INTERVAL_MS = 5000;
 /** Contents up to one upload part download in the background; larger files wait until opened. */
 const AUTO_DOWNLOAD_MAX_BYTES = 8 * 1024 * 1024;
@@ -117,7 +118,14 @@ export const uploadBlob = async ({
   }
 };
 
+/**
+ * `changed`: the server is not the one this device synced with before (it was reset or
+ * replaced). LiveStore stops syncing events then, so files stop too.
+ */
+export type SyncServerState = "unknown" | "same" | "changed";
+
 let session: { store: SyncStore; storeId: string; provider: BlobProvider } | null = null;
+let serverState: SyncServerState = "unknown";
 
 const statuses = new Map<string, FileSyncStatus>();
 const listeners = new Set<() => void>();
@@ -144,6 +152,13 @@ export const getFileSyncStatus = (fileId: string): FileSyncStatus | undefined =>
 
 export const useFileSyncStatus = (fileId: string): FileSyncStatus | undefined =>
   useSyncExternalStore(subscribe, () => statuses.get(fileId));
+
+/** How many files have contents on another device that this device has not downloaded. */
+export const useRemoteFileCount = (): number =>
+  useSyncExternalStore(subscribe, () => statuses.size);
+
+export const useSyncServerState = (): SyncServerState =>
+  useSyncExternalStore(subscribe, () => serverState);
 
 const versionsOf = (row: FileRow, clientId: string): Version[] => {
   const versions: Version[] = [];
@@ -326,19 +341,36 @@ const refreshStatuses = async (): Promise<void> => {
  * file on open; one tab per browser (picked with a Web Lock) also uploads, downloads small files in
  * the background, and deletes purged files. Returns a stop function.
  */
-export const startBlobSync = (options: {
+export const startBlobSync = ({
+  verifyServer,
+  ...options
+}: {
   store: SyncStore;
   storeId: string;
   provider: BlobProvider;
+  /** Compares the server with the one this device synced with before. */
+  verifyServer: () => Promise<SyncServerState>;
 }): (() => void) => {
   session = options;
+  const base = `/sync/${encodeURIComponent(options.provider.id)}`;
+  DONE_DIR = `${base}/done`;
+  UPLOADS_DIR = `${base}/uploads`;
+  PURGED_DIR = `${base}/purged`;
   const controller = new AbortController();
   const { signal } = controller;
   const sleep = () => new Promise((resolve) => setTimeout(resolve, PASS_INTERVAL_MS));
+  const serverIsSame = async (): Promise<boolean> => {
+    if (serverState !== "same") {
+      serverState = await verifyServer();
+      listeners.forEach((listener) => listener());
+    }
+    return serverState === "same";
+  };
 
   void (async () => {
     while (!signal.aborted) {
-      await refreshStatuses().catch((error: unknown) => console.warn(error));
+      if (await serverIsSame())
+        await refreshStatuses().catch((error: unknown) => console.warn(error));
       await sleep();
     }
   })();
@@ -346,7 +378,7 @@ export const startBlobSync = (options: {
   navigator.locks
     .request("memora-blob-sync", { signal }, async () => {
       while (!signal.aborted) {
-        await runTransfers();
+        if (await serverIsSame()) await runTransfers();
         await sleep();
       }
     })
@@ -357,6 +389,7 @@ export const startBlobSync = (options: {
   return () => {
     controller.abort();
     session = null;
+    serverState = "unknown";
     statuses.clear();
     listeners.forEach((listener) => listener());
   };

@@ -1,0 +1,3 @@
+# The Deploy to Cloudflare button asks for these. For the CLI, use `wrangler secret put`.
+DAV_USERNAME=
+DAV_PASSWORD=

@@ -1,7 +1,7 @@
 # Proposal: sync across devices through WebDAV
 
-Status: proposal with a working demo. Nothing ships to users yet; sync is switched on per browser
-through `localStorage`.
+Status: proposal with a working demo. Nothing ships to users yet; sync is switched on per device in
+Settings > Sync.
 
 ## Summary
 
@@ -19,8 +19,8 @@ person's own devices without Memora running a server or seeing their data:
   works for the event log.
 
 The demo syncs folders, file records, widgets, and file contents between two browsers, including
-two devices writing at the same moment and a 120 MiB video uploaded in 15 parts. Two things must be
-built before release: end-to-end encryption and a settings screen. See [Roadmap](#roadmap).
+two devices writing at the same moment and a 120 MiB video uploaded in 15 parts. Moving a device to
+another server must be built before release. See [Roadmap](#roadmap).
 
 ## Goals
 
@@ -34,26 +34,45 @@ workspace with someone else, or browsing the synced folder from Finder or Explor
 
 ## Background: where Memora keeps data today
 
-| Data                                                              | Where                                      | Synced by this proposal       |
-| ----------------------------------------------------------------- | ------------------------------------------ | ----------------------------- |
-| Workspace: folders, files, collections, Home Grid widgets, trash  | LiveStore synced events                    | Yes                           |
-| AI providers: name, base URL, API format, model list              | LiveStore synced events                    | Yes, without API keys         |
-| Settings: theme, language, model routing, permissions, onboarding | LiveStore client document                  | No, each device keeps its own |
-| Provider API keys, UI state, model usage counters                 | LiveStore client-only events and documents | No, by LiveStore's design     |
-| File contents and transcripts                                     | OPFS paths referenced by file events       | Yes, through object storage   |
-| Thumbnails, `.meta.json` copies of file records                   | OPFS                                       | Not yet                       |
-| Search indexes, model caches, chat history                        | OPFS / IndexedDB                           | No. Each device rebuilds them |
+| Data                                                              | Where                                                  | Synced by this proposal              |
+| ----------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------ |
+| Workspace: folders, files, collections, Home Grid widgets, trash  | LiveStore synced events                                | Yes                                  |
+| AI providers: name, base URL, API format, model list              | LiveStore synced events                                | Yes                                  |
+| Settings: theme, language, model routing, permissions, onboarding | Synced settings table, one row per setting             | Yes, except three device-only fields |
+| Provider API keys                                                 | `provider_credentials`, sealed by the credential vault | Passkey-sealed keys only             |
+| Sidebar state, log collection switch, local model usage, UI state | Client document and client-only events                 | No, by design                        |
+| File contents and transcripts                                     | OPFS paths referenced by file events                   | Yes, through object storage          |
+| Thumbnails, `.meta.json` copies of file records                   | OPFS                                                   | Not yet                              |
+| Search indexes, model caches, chat history                        | OPFS / IndexedDB                                       | No. Each device rebuilds them        |
 
 LiveStore separates synced events (`Events.synced`) from client-only events (`Events.clientOnly`)
-and client documents. Provider credentials are client-only, so a new device lists the providers
-but asks for each API key again. Because settings stay local, model routing (which model the
-assistant uses) and permission grants are also set per device.
+and client documents.
+
+**Settings.** `settingEvents.settingsSet` commits a synced `v1.SettingsUpdated` event, and its
+materializer writes one row per setting into `synced_settings`. A change on one device reaches the
+others like any other event, and the reverse works the same way. When two devices change
+different settings at the same time, both changes stay; when they change the same setting, the
+later event wins on every device. The settings query merges the synced rows over this device's
+document. Three fields describe the device rather than the person and stay in the device document
+(`deviceSettingsSet`): `sidebarCollapsed`, `logCollectionEnabled`, and `localModelTokenUsage`. On
+start, settings saved before this change are copied once into the synced table, skipping
+defaults and settings another device has already synced. Model routing syncs too, so a device can
+be routed to a local model it has not downloaded yet.
+
+**API keys.** Keys are sealed by the credential vault (`docs/credential-vault.md`). A key sealed
+with the passkey (`mv1.`) is saved with the synced `v2.ProviderCredentialSet`, because any device
+with the same passkey (synced through iCloud Keychain or Google Password Manager) derives the same
+key from the passkey's PRF output and can open it. A key sealed with the device key (`md1.`) or
+still in plaintext is saved with the client-only `v1.ProviderCredentialSet` and stays on the
+device. On a device that receives a passkey-sealed key, the existing "Your API keys are locked"
+prompt asks for the passkey. Removing a key (`v2.ProviderCredentialDeleted`) removes it on every
+device; the "lost passkey" flows remove keys on this device only.
 
 Events from before API keys moved to client-only state still carry the key in old local logs: the
 current schema drops the field when reading, but LiveStore pushes the stored JSON unchanged. The
 sync backend removes `apiKey` from `v1.ProviderCreated` and `v1.ProviderUpdated` before uploading
 (`withoutCredentials` in `webdavSync.ts`, covered by a test). Keys already copied anywhere else
-should still be rotated, as the comment in `provider.ts` notes.
+should still be rotated, as `docs/credential-vault.md` notes.
 
 ## Architecture
 
@@ -245,7 +264,7 @@ App side (`packages/web`):
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/livestore/webdavSync.ts`                                                             | The LiveStore sync backend: setup and server check, push with create-only `PUT`, pull with `PROPFIND` + `GET`, polling, offline state          |
 | `src/workers/livestore.worker.ts`                                                         | Registers the backend, blocks boot on the first pull (5 s cap), never wipes local data on a backend id change                                  |
-| `src/livestore/store.ts`                                                                  | Reads the demo config from `localStorage["memora.webdavSync"]` and passes it to the worker as `syncPayload`                                    |
+| `src/livestore/store.ts`                                                                  | Reads the sync config and passes it to the worker as `syncPayload`; `saveWebdavSyncPayload` saves it and restarts LiveStore                    |
 | `src/lib/widgets/seedHomeGrid.ts`                                                         | Fix found by the demo: skips seeding when built-in widgets already arrived from another device                                                 |
 | `test/livestore/webdavSync.test.ts`                                                       | Conflict, refusal of servers that ignore `If-None-Match`, and listing parser, against an in-memory fake server                                 |
 | `src/livestore/file.ts`                                                                   | `contentKey` and `transcriptKey` on file records, derived by the materializers                                                                 |
@@ -291,6 +310,19 @@ Cloudflare Worker with local R2 under `wrangler dev`, Wrangler 4.151 (2026-10-15
   `000000000023.json` `201`, then `412` for the same key, then `000000000024.json` `201`. The bucket
   held 24 contiguous events, and both devices showed the same 6 folders.
 
+Settings and API keys through the same Worker (2026-10-15, after merging `main`):
+
+- On start, B's earlier onboarding settings were migrated into the synced table and appeared on A.
+- A switched to the dark theme; B's page turned dark within about a second, both through a
+  committed event and through Settings > Appearance.
+- In the same poll window, B switched to the light theme and A set the editor font size to 20.
+  Both devices ended with the light theme and size 20.
+- A saved a passkey-sealed key (`mv1.`) and a device-sealed key (`md1.`). B received the provider
+  list and only the `mv1.` key, and showed "Your API keys are locked". The event files on the
+  server contained the `mv1.` value and not the `md1.` one. A removed the passkey-sealed key; B
+  removed it and the prompt closed about 2 s later. Unlocking with a real passkey on a second
+  device was not tested, because the test browser has no authenticator.
+
 File contents through the same Worker and local R2 (2026-10-15):
 
 - curl: a two-part upload (5 MiB + 1,234 bytes) completes, and the downloaded object has the same
@@ -323,20 +355,31 @@ vp run @memora/webdav-worker#dev
 vp run @memora/web#dev
 ```
 
-`webdav-worker#dev` starts the Worker on port 8787 with the user `dev` and password `dev`. Then
-use two origins as two devices, because each origin has its own OPFS: `http://localhost:9003` and
-`http://[::1]:9003`. In each, run the following in the console, then close every tab of that
-origin and open it again:
+`webdav-worker#dev` starts the Worker on port 8787 with the user `dev` and password `dev`. Use two
+origins as two devices, because each origin has its own OPFS: `http://localhost:9003` and
+`http://[::1]:9003`. In each, open **Settings > Sync**, enter `http://localhost:8787`, `dev`, and
+`dev`, and choose **Turn on sync**. Passkeys need a domain, so testing API key sync takes two
+browser profiles on `http://localhost:9003` instead.
 
-```js
-localStorage.setItem(
-  "memora.webdavSync",
-  JSON.stringify({ url: "http://localhost:8787", username: "dev", password: "dev" }),
-);
-```
+In development, `__debugLiveStore.main` is the store, handy for checking state from the console.
 
-`pollIntervalMs` (at least 1000) is optional. In development, `__debugLiveStore.main` is the store,
-handy for checking state from the console.
+### Settings > Sync
+
+`src/components/settings/SettingsSyncSection.tsx`:
+
+- **Test connection** lists the server root (wrong credentials and non-WebDAV servers get their
+  own message), then writes a probe file twice with `If-None-Match: *` and requires `412` the
+  second time, then deletes it. **Turn on sync** and **Save changes** run the same test first.
+- Saving stores the config and restarts LiveStore (`saveWebdavSyncPayload` in `store.ts`): it
+  posts LiveStore's own shutdown message on `livestore.shutdown.<storeId>`, which makes the shared
+  worker drop the leader and the config it started with, and every open tab reloads. No tab has
+  to be closed by hand.
+- With sync on, the section shows the connection state from LiveStore's `networkStatus` and how
+  many files are on other devices but not here.
+- If the server is not the one this device synced with before, the section says sync is paused
+  (see [Things to watch](#things-to-watch)).
+
+The config, including the password, stays in `localStorage`: the store needs it before it starts.
 
 ## Advantages
 
@@ -361,13 +404,12 @@ handy for checking state from the console.
    on, it is copied to the person's chosen server. The settings screen must say so, sync must stay
    off by default, and any "data never leaves your device" wording in the app and the dissertation
    needs a "unless you turn on sync" qualifier.
-2. **Data on the server is plain text today.** Events include file names and `indexSummary`, which
-   contains document text. Before release, encrypt each batch file with AES-GCM using a key derived
-   from a passphrase entered on each device (PBKDF2 or Argon2). Sequence numbers in file names and
-   `backend-id.txt` can stay readable, since the protocol depends on them. The same key encrypts file
-   contents. Losing the passphrase means losing the synced copy, but not the local one.
-3. **Credentials sit in `localStorage` in the demo.** Move them to the settings screen and store them
-   like provider keys, as device-local state.
+2. **Data on the server is plain text.** Events include file names and `indexSummary`, which
+   contains document text. End-to-end encryption is not planned: the server is one the person
+   deploys to their own account, and the docs tell them to use only a server they control. API
+   keys are the exception: only passkey-sealed keys sync.
+3. **The server password sits in `localStorage`.** The store needs the config before it starts, so
+   it can't live in LiveStore. Seal it with the credential vault's device key before release.
 
 ### Correctness
 
@@ -383,9 +425,14 @@ handy for checking state from the console.
 6. **Derived events sync too.** `FileIndexed` describes one device's processing, and each device
    indexes on its own anyway. `FileIndexed` was 8 of the first 22 events
    in the demo. Make them client-only.
-7. **Changing the sync config needs every tab closed.** The LiveStore leader runs in a SharedWorker
-   that outlives reloads and keeps the config it started with. The settings screen should apply a
-   change by shutting the store down and restarting it.
+7. **A device can't move to another server yet.** LiveStore remembers the id of the first server
+   a device synced with, and never re-uploads events that server already confirmed. Pointing the
+   device at a different (or reset) server makes the ids differ; the worker then stops syncing
+   rather than wipe local data (`onBackendIdMismatch: "ignore"`), and Settings > Sync shows
+   "Paused". The app keeps the same check in `localStorage` (`memora.syncBackendId`) because the
+   main thread can't see the leader's. Moving needs one of: re-uploading this device's whole log
+   to the new server under the old id, or resetting this device and loading the workspace from the
+   new server. File transfer records are kept per server, so they start fresh either way.
 8. **The event log keeps deleted metadata.** Purging a file deletes its contents everywhere, but
    its events (name, `indexSummary`) stay in the log. Removing them needs a snapshot of current
    state and a rewrite of the log.
@@ -409,8 +456,8 @@ handy for checking state from the console.
     is untested outside Apache. The backend refuses servers that ignore it, which is safe but may
     surprise people. Test Nextcloud and Synology before advertising them.
 13. **A server that loses data is a problem.** If the bucket is deleted, devices stop syncing (they
-    keep their data). Re-creating sync from a device means uploading its log to a new folder; the
-    settings screen needs that action.
+    keep their data) and show "Paused". Recovering is the same work as moving to another server
+    (item 7).
 14. **Every multipart request is preflighted.** Browsers cache CORS preflights per URL, and each
     part has its own URL, so a 120 MiB upload (15 parts, plus start and finish) costs 34 requests instead of 17. Serving the app
     and the Worker from the same site would remove them.
@@ -458,8 +505,8 @@ notifies devices of new batches, while WebDAV stays the storage protocol. Only t
 this; generic WebDAV servers keep polling.
 
 **General WebDAV access.** Adding `DELETE`, `MOVE`, `COPY`, and `LOCK` to the Worker would let
-people mount the folder in Finder or Explorer. With encryption on, the contents are unreadable
-there, so the value is limited to backups.
+people mount the folder in Finder or Explorer. The event batches are not meant to be read by hand,
+so the value is limited to backups.
 
 ## Deployment
 
@@ -503,7 +550,7 @@ dashboard. A custom domain is optional.
   the multipart requests, and the layout in this document. Moving it to a package now would add
   structure without a second user.
 - **Extract the client into `packages/sync` when a second consumer appears**, for example a
-  command-line backup and restore tool, or once encryption joins it. The provider API and
+  command-line backup and restore tool. The provider API and
   `uploadBlob` already avoid LiveStore, so they would move as they are.
 
 ## Roadmap
@@ -512,18 +559,16 @@ dashboard. A custom domain is optional.
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 0     | This demo                                                                                                                                                                                                   | Done: two devices converge through Apache and the Worker, including racing writes                                      |
 | 1     | File contents, download on open, and purge: done in the demo. Still to do: download from document links and the agent's file tools, fixed-id materializers made idempotent, derived events made client-only | Every way of opening a file works on a device that does not have it; a device with local data joins without duplicates |
-| 2     | End-to-end encryption; settings screen (server, credentials, passphrase, status, turn off); minimum app version check                                                                                       | Server holds no readable content; sync is set up without the console                                                   |
+| 2     | Moving a device to another server; minimum app version check; seal the server password                                                                                                                      | A device can change servers without losing data                                                                        |
 | 3     | Polling by `GET` of the next batch; snapshots for new devices                                                                                                                                               | Poll cost stays flat as history grows; a new device's first sync is bounded                                            |
 | 4     | Deploy the Worker for real; try the deploy button; test Nextcloud and Synology; write the user guide                                                                                                        | A non-developer sets up sync from the guide                                                                            |
 
 ## Open questions
 
 1. Is 8 MiB the right limit for background downloads, or should it be a setting?
-2. Is a passphrase acceptable for encryption, or should keys be exchanged between devices another
-   way (for example a QR code shown on an already-synced device)?
-3. Should Memora offer a hosted Worker for people who do not want a Cloudflare account? That
+2. Should Memora offer a hosted Worker for people who do not want a Cloudflare account? That
    changes the "Memora runs no server" goal.
-4. How should a device with an existing workspace join a synced one: merge, or replace its local
+3. How should a device with an existing workspace join a synced one: merge, or replace its local
    workspace?
 
 ## Appendix: Apache as a test server

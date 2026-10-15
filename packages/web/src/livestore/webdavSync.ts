@@ -77,6 +77,91 @@ export const parseBatchListing = (xml: string): number[] =>
     .map(Number)
     .sort((a, b) => a - b);
 
+export const basicAuthHeaders = (config: WebdavSyncPayload): Record<string, string> =>
+  config.username !== undefined
+    ? { Authorization: `Basic ${btoa(`${config.username}:${config.password ?? ""}`)}` }
+    : {};
+
+export type ServerCheck = { ok: true } | { ok: false; message: string };
+
+/**
+ * Checks a server before sync is turned on: that it answers, accepts the credentials, and refuses
+ * to overwrite a file created with `If-None-Match: *`, which the sync protocol depends on.
+ */
+export const checkWebdavServer = async (config: WebdavSyncPayload): Promise<ServerCheck> => {
+  const headers = basicAuthHeaders(config);
+  try {
+    const listing = await fetch(`${config.url}/`, {
+      method: "PROPFIND",
+      headers: { ...headers, Depth: "0" },
+    });
+    if (listing.status === 401 || listing.status === 403) {
+      return { ok: false, message: "The username or password is wrong." };
+    }
+    if (listing.status === 503) {
+      return { ok: false, message: "The server isn't set up yet. Set its username and password." };
+    }
+    if (listing.status !== 207) {
+      return {
+        ok: false,
+        message: `This doesn't look like a WebDAV server (it answered ${listing.status}).`,
+      };
+    }
+
+    const probeUrl = `${config.url}/.memora-write-check-${crypto.randomUUID()}`;
+    const put = () =>
+      fetch(probeUrl, { method: "PUT", headers: { ...headers, "If-None-Match": "*" }, body: "" });
+    const first = await put();
+    const second = await put();
+    await fetch(probeUrl, { method: "DELETE", headers }).catch(() => undefined);
+    if (!first.ok) {
+      return {
+        ok: false,
+        message: `Memora can't write to this server (it answered ${first.status}).`,
+      };
+    }
+    if (second.status !== 412) {
+      return {
+        ok: false,
+        message:
+          "This server can't protect a file from being overwritten, so devices could erase each other's changes. Use the Memora Worker or another server that supports If-None-Match.",
+      };
+    }
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Memora can't reach the server. Check the address, and that the server accepts requests from this site.",
+    };
+  }
+};
+
+const BACKEND_ID_KEY = "memora.syncBackendId";
+
+/**
+ * Mirrors LiveStore's own check from the main thread, which cannot see the leader's: the first
+ * server id this device sees is remembered, and a different id later means the server was reset
+ * or replaced. LiveStore then stops syncing events (see `onBackendIdMismatch`).
+ */
+export const verifyBackendId = async (
+  config: WebdavSyncPayload,
+  storeId: string,
+): Promise<"unknown" | "same" | "changed"> => {
+  try {
+    const response = await fetch(`${config.url}/${encodeURIComponent(storeId)}/backend-id.txt`, {
+      headers: basicAuthHeaders(config),
+    });
+    if (!response.ok) return "unknown"; // Not created yet; the sync backend creates it.
+    const id = (await response.text()).trim();
+    const known = localStorage.getItem(BACKEND_ID_KEY);
+    if (known === null) localStorage.setItem(BACKEND_ID_KEY, id);
+    return known === null || known === id ? "same" : "changed";
+  } catch {
+    return "unknown";
+  }
+};
+
 export const makeWebdavSyncBackend: SyncBackend.SyncBackendConstructor = ({ storeId, payload }) =>
   Effect.gen(function* () {
     const config = parseWebdavSyncPayload(payload);
@@ -105,11 +190,7 @@ export const makeWebdavSyncBackend: SyncBackend.SyncBackendConstructor = ({ stor
     const storeUrl = `${config.url}/${encodeURIComponent(storeId)}`;
     const eventsUrl = `${storeUrl}/events/`;
     const backendIdUrl = `${storeUrl}/backend-id.txt`;
-    const authHeader: Record<string, string> =
-      config.username !== undefined
-        ? { Authorization: `Basic ${btoa(`${config.username}:${config.password ?? ""}`)}` }
-        : {};
-
+    const authHeader = basicAuthHeaders(config);
     const request = (
       method: string,
       url: string,

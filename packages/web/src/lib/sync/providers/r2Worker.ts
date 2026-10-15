@@ -34,6 +34,7 @@ export const createR2WorkerProvider = ({
   };
 
   return {
+    id: url,
     partSize: 8 * 1024 * 1024,
 
     async createUpload(key, contentType) {

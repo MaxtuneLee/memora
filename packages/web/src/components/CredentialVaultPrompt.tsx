@@ -122,7 +122,9 @@ export default function CredentialVaultPrompt() {
           setConfirmingRemove(false);
           store.commit(
             ...lockedRows.map((row) =>
-              providerCredentialEvents.providerCredentialDeleted({ providerId: row.providerId }),
+              providerCredentialEvents.providerCredentialDeletedHere({
+                providerId: row.providerId,
+              }),
             ),
           );
         }}

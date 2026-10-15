@@ -3,7 +3,7 @@ import { Schema } from "@livestore/livestore";
 import { describe, expect, test } from "vite-plus/test";
 
 import { schema } from "@/livestore/schema";
-import { defaultSettings, settingEvents, settingsStoredValueSchema } from "@/livestore/setting";
+import { defaultSettings, settingEventDefs, settingsStoredValueSchema } from "@/livestore/setting";
 import {
   legacyModelRoutingEvents,
   legacyModelRoutingMaterializers,
@@ -11,10 +11,11 @@ import {
 import type { StoredModelRouting } from "@/lib/models/modelRoutingSchema";
 
 describe("model routing stored in settings", () => {
-  test("uses the existing settings document and keeps its events client-only", () => {
+  test("keeps the device settings document client-only and syncs settings changes", () => {
     expect(schema.state.sqlite.tables.has("settings")).toBe(true);
     expect(schema.state.sqlite.tables.has("ai_model_routing")).toBe(false);
-    expect(settingEvents.settingsSet.options.clientOnly).toBe(true);
+    expect(settingEventDefs.settingsSet.options.clientOnly).toBe(true);
+    expect(settingEventDefs.settingsUpdated.options.clientOnly).toBe(false);
     expect(legacyModelRoutingEvents.legacyModelRoutingSet.options.clientOnly).toBe(true);
     expect(schema.state.materializers.has("ai_model_routingSet")).toBe(true);
     expect(Schema.decodeUnknownSync(settingsStoredValueSchema)({ theme: "dark" })).toEqual({

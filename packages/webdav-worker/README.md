@@ -3,11 +3,18 @@
 A small WebDAV server on Cloudflare Workers that stores files in R2. Memora uses it to sync a
 workspace between your devices. Your data stays in your own Cloudflare account.
 
+Sync is experimental. Keep a backup of your library, and only use a server you control: it can
+read what it stores.
+
 Design and protocol: [docs/proposal-webdav-sync.md](../../docs/proposal-webdav-sync.md).
 
 ## Deploy
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MaxtuneLee/memora/tree/main/packages/webdav-worker)
+
+The button copies this folder into a new repository in your GitHub or GitLab account, creates the
+R2 bucket, asks for a username and password, and deploys. It reads `main`, so it only works once
+this package is merged there.
 
 Or from this folder:
 
