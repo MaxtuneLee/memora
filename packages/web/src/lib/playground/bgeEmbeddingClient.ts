@@ -1,6 +1,7 @@
 import type {
   LocalEmbeddingEvent,
   LocalEmbeddingModel,
+  LocalEmbeddingRequest,
   LocalModelExecutionBackend,
   LocalModelPriority,
 } from "@memora/local-model-runtime";
@@ -27,6 +28,12 @@ export type BgeWorkerUpdate =
   | (Extract<LocalEmbeddingEvent, { type: "status" }> & { label: string })
   | (Extract<LocalEmbeddingEvent, { type: "embedding-progress" }> & { label: string });
 
+interface EmbeddingRunOptions {
+  priority?: LocalModelPriority;
+  signal?: AbortSignal;
+  pooling?: "mean" | "cls";
+}
+
 export class BgeEmbeddingClient {
   private readonly workerFactory: Pick<ModelWorkerFactory, "run">;
 
@@ -34,20 +41,34 @@ export class BgeEmbeddingClient {
     this.workerFactory = workerFactory;
   }
 
-  async embed(
+  embed(
     model: BgeEmbeddingModel,
     texts: string[],
     onUpdate?: (update: BgeWorkerUpdate) => void,
-    options: {
-      priority?: LocalModelPriority;
-      signal?: AbortSignal;
-      pooling?: "mean" | "cls";
-    } = {},
+    options: EmbeddingRunOptions = {},
+  ): Promise<Float32Array[]> {
+    return this.run({ model, texts, pooling: options.pooling }, onUpdate, options);
+  }
+
+  // One vector per image, in the same space as text. Only embeddinggemma-2 supports images.
+  embedImages(
+    model: BgeEmbeddingModel,
+    images: Blob[],
+    onUpdate?: (update: BgeWorkerUpdate) => void,
+    options: EmbeddingRunOptions = {},
+  ): Promise<Float32Array[]> {
+    return this.run({ model, texts: [], images }, onUpdate, options);
+  }
+
+  private async run(
+    input: LocalEmbeddingRequest,
+    onUpdate: ((update: BgeWorkerUpdate) => void) | undefined,
+    options: EmbeddingRunOptions,
   ): Promise<Float32Array[]> {
     let result: Extract<LocalEmbeddingEvent, { type: "embedding-complete" }> | null = null;
     for await (const event of this.workerFactory.run("embedding", {
       priority: options.priority ?? "interactive",
-      task: { kind: "embedding.generate", input: { model, texts, pooling: options.pooling } },
+      task: { kind: "embedding.generate", input },
       signal: options.signal,
     }) as AsyncGenerator<LocalEmbeddingEvent>) {
       if (event.type === "backend") {
@@ -57,7 +78,7 @@ export class BgeEmbeddingClient {
       } else if (event.type === "model-progress") {
         onUpdate?.({
           type: "progress",
-          label: event.file ?? "Loading BGE model",
+          label: event.file ?? "Loading embedding model",
           progress: event.progress,
         });
       } else if (event.type === "error") {
@@ -69,7 +90,7 @@ export class BgeEmbeddingClient {
       }
     }
 
-    if (!result) throw new Error("The BGE shared worker returned no embedding result.");
+    if (!result) throw new Error("The embedding shared worker returned no embedding result.");
     const values = Float32Array.from(result.values);
     return Array.from({ length: values.length / result.dimension }, (_, index) => {
       return values.slice(index * result.dimension, (index + 1) * result.dimension);

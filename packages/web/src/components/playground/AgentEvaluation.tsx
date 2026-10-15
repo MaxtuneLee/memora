@@ -41,6 +41,7 @@ import {
   type EvaluationImport,
   type EvaluationImportFile,
 } from "@/lib/playground/evaluationImport";
+import { sealApiKey } from "@/lib/settings/credentialVault";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import type { provider as ProviderRow } from "@/livestore/provider";
 import {
@@ -241,10 +242,25 @@ export default function AgentEvaluation() {
 
   const settings = store.useQuery(settingsDocumentQuery$) as setting;
   const providers = store.useQuery(chatProvidersQuery$) as ProviderRow[];
-  const jevKey = readProviderApiKey(
-    TYPESAFE_CREDENTIAL,
-    store.useQuery(providerCredentialsQuery$),
-  ).trim();
+  const credentials = store.useQuery(providerCredentialsQuery$);
+  const jevKey = readProviderApiKey(TYPESAFE_CREDENTIAL, credentials).trim();
+  // Sealing may ask for a passkey, so the key is saved on blur rather than on every keystroke.
+  const [jevKeyDraft, setJevKeyDraft] = useState<string>();
+  const saveJevKey = async (): Promise<void> => {
+    if (jevKeyDraft === undefined || jevKeyDraft === jevKey) return setJevKeyDraft(undefined);
+    try {
+      store.commit(
+        providerCredentialEvents.providerCredentialSet({
+          providerId: TYPESAFE_CREDENTIAL.id,
+          baseUrl: TYPESAFE_CREDENTIAL.baseUrl,
+          apiKey: await sealApiKey(jevKeyDraft.trim()),
+        }),
+      );
+      setJevKeyDraft(undefined);
+    } catch (error) {
+      setOpenError(errorMessage(error));
+    }
+  };
   const { createRuntime } = useFeatureModels();
   const { agentConfig, providerConfig, compactionProviderConfig } = useChatModelConfig({
     providers,
@@ -529,17 +545,10 @@ export default function AgentEvaluation() {
             <input
               type="password"
               autoComplete="off"
-              value={jevKey}
+              value={jevKeyDraft ?? jevKey}
               disabled={run.status === "running"}
-              onChange={(event) =>
-                store.commit(
-                  providerCredentialEvents.providerCredentialSet({
-                    providerId: TYPESAFE_CREDENTIAL.id,
-                    baseUrl: TYPESAFE_CREDENTIAL.baseUrl,
-                    apiKey: event.target.value,
-                  }),
-                )
-              }
+              onChange={(event) => setJevKeyDraft(event.target.value)}
+              onBlur={() => void saveJevKey()}
               {...stylex.props(styles.number, styles.key)}
             />
           </label>

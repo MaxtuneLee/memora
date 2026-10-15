@@ -42,6 +42,36 @@ const VENDOR_ASSETS = {
   sqliteVec: `vendor/sqlite-vec-wasm@${packageVersion("sqlite-vec-wasm")}`,
   vadWeb: `vendor/vad-web@${packageVersion("@ricky0123/vad-web")}`,
 };
+// Transformers.js loads ONNX Runtime's WASM from jsDelivr (its default when wasmPaths is unset),
+// so the copy bundled from its own onnxruntime-web is never fetched. It is also above Cloudflare
+// Pages' 25 MiB file limit. The onnxruntime-web the app depends on keeps its local WASM.
+const TRANSFORMERS_ORT_VERSION = (
+  JSON.parse(
+    readFileSync(
+      new URL(
+        "../local-model-runtime/node_modules/@huggingface/transformers/package.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as { dependencies: Record<string, string> }
+).dependencies["onnxruntime-web"];
+const dropTransformersOrtWasm = (): Plugin => ({
+  name: "memora-drop-transformers-ort-wasm",
+  apply: "build",
+  generateBundle(_options, bundle) {
+    for (const [fileName, output] of Object.entries(bundle)) {
+      if (
+        output.type === "asset" &&
+        fileName.endsWith(".wasm") &&
+        output.originalFileNames.some((name) =>
+          name.includes(`/onnxruntime-web@${TRANSFORMERS_ORT_VERSION}/`),
+        )
+      )
+        delete bundle[fileName];
+    }
+  },
+});
 const isVitest = process.env.VITEST === "true" || process.env.VITEST === "1";
 const nanoBeirProxy = {
   target: "https://datasets-server.huggingface.co",
@@ -318,6 +348,7 @@ const config = {
   },
   worker: {
     format: "es",
+    plugins: () => [dropTransformersOrtWasm()],
   },
   resolve: {
     // Keep React and its renderer on the same module instance in the pnpm workspace.

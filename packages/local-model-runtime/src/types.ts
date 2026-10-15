@@ -130,12 +130,15 @@ export interface LocalAsrStreamOpenRequest {
   returnTimestamps?: "word";
 }
 
-export type LocalEmbeddingModel = "bge-small-en" | "bge-m3";
+export type LocalEmbeddingModel = "bge-small-en" | "bge-m3" | "embeddinggemma-2";
 export type LocalModelExecutionBackend = "webgpu" | "wasm";
 
 export interface LocalEmbeddingRequest {
   model: LocalEmbeddingModel;
   texts: string[];
+  // Embeds these images instead of texts (one vector each, in the text space). Only
+  // embeddinggemma-2 supports images.
+  images?: Blob[];
   // Overrides the model's default pooling; the BEIR evaluation uses the official CLS pooling.
   pooling?: "mean" | "cls";
 }

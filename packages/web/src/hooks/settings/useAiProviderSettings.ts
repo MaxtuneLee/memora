@@ -5,7 +5,16 @@ import { fetchProviderModels } from "@/lib/settings/providerModels";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 import { settingsDocumentQuery$, settingsProvidersQuery$ } from "@/lib/settings/queries";
 import { providerEvents, type provider as ProviderRow } from "@/livestore/provider";
-import { providerCredentialEvents } from "@/livestore/providerCredential";
+import {
+  providerCredentialEvents,
+  providerCredentialsQuery$,
+} from "@/livestore/providerCredential";
+import {
+  ensureCredentialsUnlocked,
+  readCredentialVaultState,
+  sealApiKey,
+  unlockWithPasskey,
+} from "@/lib/settings/credentialVault";
 import { useProviderCredentials } from "./useProviderCredentials";
 import { useModelRouting } from "./useModelRouting";
 import { settingEvents, type setting } from "@/livestore/setting";
@@ -91,7 +100,22 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
   }, []);
 
   const handleEditProvider = useCallback(
-    (provider: ProviderRow) => {
+    async (provider: ProviderRow) => {
+      // Saving while locked would replace the stored key with the empty field.
+      const credentials = store.query(providerCredentialsQuery$);
+      if (readCredentialVaultState(credentials).locked) {
+        try {
+          await unlockWithPasskey(credentials);
+        } catch (error) {
+          add({
+            title: "API keys are locked",
+            description:
+              error instanceof Error ? error.message : "Unlock them to edit this provider.",
+            type: "error",
+          });
+          return;
+        }
+      }
       setEditingProviderId(provider.id);
       setIsAddingProvider(false);
       setProviderForm({
@@ -102,7 +126,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       });
       setShowApiKey(false);
     },
-    [getProviderApiKey],
+    [add, getProviderApiKey, store],
   );
 
   const handleCancelProviderForm = useCallback(() => {
@@ -111,7 +135,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
     setShowApiKey(false);
   }, []);
 
-  const handleSaveProvider = useCallback(() => {
+  const handleSaveProvider = useCallback(async () => {
     if (!providerForm.name.trim() || !providerForm.baseUrl.trim()) {
       add({
         title: "Missing fields",
@@ -132,6 +156,21 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
       });
       return;
     }
+
+    let apiKey: string;
+    try {
+      apiKey = await sealApiKey(providerForm.apiKey.trim());
+    } catch (error) {
+      add({
+        title: "API key not saved",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Encrypting the API key with your passkey failed.",
+        type: "error",
+      });
+      return;
+    }
     if (isAddingProvider) {
       const id = crypto.randomUUID();
       store.commit(
@@ -145,7 +184,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
         providerCredentialEvents.providerCredentialSet({
           providerId: id,
           baseUrl,
-          apiKey: providerForm.apiKey.trim(),
+          apiKey,
         }),
       );
       add({ title: "Provider added", type: "success" });
@@ -161,7 +200,7 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
         providerCredentialEvents.providerCredentialSet({
           providerId: editingProviderId,
           baseUrl,
-          apiKey: providerForm.apiKey.trim(),
+          apiKey,
         }),
       );
       add({ title: "Provider updated", type: "success" });
@@ -206,6 +245,8 @@ export const useAiProviderSettings = ({ open }: UseAiProviderSettingsOptions) =>
     async (provider: ProviderRow) => {
       setFetchingModels(provider.id);
       try {
+        // Fetching models sends the API key, so a passkey-encrypted key is unlocked first.
+        await ensureCredentialsUnlocked(store.query(providerCredentialsQuery$));
         const models = await fetchProviderModels(provider.baseUrl, getProviderApiKey(provider));
 
         if (import.meta.env.DEV) {

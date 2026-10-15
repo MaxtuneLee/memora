@@ -594,7 +594,8 @@ export function DesktopPreviewWindow({
                 </span>
               ) : null}
             </div>
-            {item.indexState.summary ? (
+            {/* The index summary is for checking extraction while developing. */}
+            {import.meta.env.DEV && item.indexState.summary ? (
               <p {...stylex.props(styles.summary)}>{item.indexState.summary}</p>
             ) : null}
           </div>

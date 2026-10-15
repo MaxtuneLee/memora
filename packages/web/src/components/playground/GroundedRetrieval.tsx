@@ -767,6 +767,11 @@ const BGE_MODELS: Record<BgeEmbeddingModel, { label: string; description: string
     description:
       "Multilingual 1024-dimension model; downloads one 569 MB q8 model, prefers WebGPU, and falls back to WASM.",
   },
+  "embeddinggemma-2": {
+    label: "EmbeddingGemma 2",
+    description:
+      "Multilingual 768-dimension text and image model; downloads about 290 MB of q4 weights, prefers WebGPU, and falls back to WASM.",
+  },
 };
 const BGE_SMALL_EN_MAX_VECTOR_DISTANCE = 0.45;
 const HYBRID_LEXICAL_WEIGHT = 1;

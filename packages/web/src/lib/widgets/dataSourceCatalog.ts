@@ -2,7 +2,8 @@ import type { Queryable } from "@livestore/livestore";
 import { file as opfsFile } from "@memora/fs";
 
 import { activeFilesQuery$ } from "@/lib/library/queries";
-import { desktopFilesQuery$ } from "@/lib/desktop/queries";
+import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
+import { withoutAppFiles } from "@/lib/library/appFiles";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { findTodoDocument } from "@/components/dashboard/todoDocument";
 import { parseTodoMarkdown } from "@/components/dashboard/todoMarkdown";
@@ -166,7 +167,10 @@ const resolveRecentFiles: DataSourceResolver = (store, params) => {
     typeof requestedLimit === "number" && requestedLimit > 0
       ? requestedLimit
       : DEFAULT_RECENT_FILES_LIMIT;
-  const rows = store.query(desktopFilesQuery$) as readonly LiveStoreFile[];
+  const rows = withoutAppFiles(
+    store.query(desktopFilesQuery$) as readonly LiveStoreFile[],
+    store.query(desktopFoldersQuery$) as readonly LiveStoreFolder[],
+  );
 
   const data: RecentFilesData = {
     files: rows.slice(0, limit).map((row) => {

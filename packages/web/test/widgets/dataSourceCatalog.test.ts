@@ -20,7 +20,7 @@ const testState = vi.hoisted(() => {
 vi.mock("@memora/fs", () => ({ file: testState.file }));
 vi.mock("@/lib/chat/chatSessionStorage", () => ({ listChatSessions: testState.listChatSessions }));
 
-import { desktopFilesQuery$ } from "@/lib/desktop/queries";
+import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { activeFilesQuery$ } from "@/lib/library/queries";
 import {
   DATA_SOURCE_CATALOG,
@@ -86,14 +86,32 @@ test("recentFiles defaults to a fixed limit when none is given", async () => {
   expect(data.files).toHaveLength(5);
 });
 
-test("recentFiles never resolves via a query other than the catalog's own", async () => {
+test("recentFiles reads files only through the catalog's own query", async () => {
   const store = { query: vi.fn((_query: unknown) => []) };
 
   await resolveDataSource("recentFiles", store);
 
   for (const call of store.query.mock.calls) {
-    expect(call[0]).toBe(desktopFilesQuery$);
+    expect([desktopFilesQuery$, desktopFoldersQuery$]).toContain(call[0]);
   }
+});
+
+test("recentFiles leaves out the debug log and widget code", async () => {
+  const rows = [
+    buildFileRow({ id: "log", name: "memora-debug.log", parentId: null }),
+    buildFileRow({ id: "code", name: "widget.html", parentId: "widget-folder" }),
+    buildFileRow({ id: "note", name: "Note", parentId: null }),
+  ];
+  const folders = [{ id: "widget-folder", reservedKind: "widgetDefinition" }];
+  const store = {
+    query: vi.fn((query: unknown) =>
+      query === desktopFilesQuery$ ? rows : query === desktopFoldersQuery$ ? folders : [],
+    ),
+  };
+
+  const data = (await resolveDataSource("recentFiles", store)) as { files: { id: string }[] };
+
+  expect(data.files.map((file) => file.id)).toEqual(["note"]);
 });
 
 test("todoProgress resolves counts from the todo document when one exists", async () => {

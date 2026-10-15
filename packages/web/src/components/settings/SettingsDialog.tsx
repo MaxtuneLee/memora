@@ -8,6 +8,7 @@ import {
   HardDrivesIcon,
   InfoIcon,
   ListMagnifyingGlassIcon,
+  LockKeyIcon,
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -25,10 +26,11 @@ import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
 import SettingsPermissionsSection from "@/components/settings/SettingsPermissionsSection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
+import SettingsSecuritySection from "@/components/settings/SettingsSecuritySection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import { NativeDialog } from "@/components/ui/NativeDialog";
-import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/types/settings";
+import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionId } from "@/types/settings";
 import { tokens } from "../../styles/stylex.stylex";
 
 interface SettingsDialogProps {
@@ -103,6 +105,15 @@ const styles = stylex.create({
     zIndex: 10,
   },
   navStack: { display: "flex", flexDirection: "column", gap: 2 },
+  navGroups: { display: "flex", flexDirection: "column", gap: 14 },
+  navGroupLabel: {
+    color: tokens.textSoft,
+    fontSize: 12,
+    fontWeight: 500,
+    margin: 0,
+    paddingBottom: 4,
+    paddingInline: 10,
+  },
   viewport: {
     padding: 12,
     "@media (min-width: 640px)": { padding: 20 },
@@ -208,6 +219,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   "local-models": HardDrivesIcon,
   memory: BrainIcon,
   permissions: ShieldCheckIcon,
+  security: LockKeyIcon,
   indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
   "data-storage": DatabaseIcon,
@@ -278,19 +290,38 @@ function SettingsSectionNav({
   return (
     <nav aria-label="Settings sections">
       <LayoutGroup id={layoutGroupId}>
-        <div {...stylex.props(styles.navStack)}>
-          {SETTINGS_SECTIONS.map((section) => (
-            <SettingsNavItem
-              key={section.id}
-              activeSection={activeSection}
-              icon={SETTINGS_SECTION_ICONS[section.id]}
-              layoutId={layoutId}
-              label={section.label}
-              onSectionChange={onSectionChange}
-              reducedMotion={reducedMotion}
-              sectionId={section.id}
-            />
-          ))}
+        <div {...stylex.props(styles.navGroups)}>
+          {SETTINGS_GROUPS.map((group) => {
+            const labelId = `${layoutGroupId}-${group.id}`;
+            return (
+              <div
+                key={group.id}
+                role="group"
+                aria-labelledby={group.label ? labelId : undefined}
+                {...stylex.props(styles.navStack)}
+              >
+                {group.label && (
+                  <p id={labelId} {...stylex.props(styles.navGroupLabel)}>
+                    {group.label}
+                  </p>
+                )}
+                {SETTINGS_SECTIONS.filter((section) => section.group === group.id).map(
+                  (section) => (
+                    <SettingsNavItem
+                      key={section.id}
+                      activeSection={activeSection}
+                      icon={SETTINGS_SECTION_ICONS[section.id]}
+                      layoutId={layoutId}
+                      label={section.label}
+                      onSectionChange={onSectionChange}
+                      reducedMotion={reducedMotion}
+                      sectionId={section.id}
+                    />
+                  ),
+                )}
+              </div>
+            );
+          })}
         </div>
       </LayoutGroup>
     </nav>
@@ -339,6 +370,10 @@ export default function SettingsDialog({
 
     if (activeSection === "permissions") {
       return <SettingsPermissionsSection />;
+    }
+
+    if (activeSection === "security") {
+      return <SettingsSecuritySection />;
     }
 
     if (activeSection === "indexing") {

@@ -74,5 +74,7 @@ export interface GlobalSearchItem {
     mimeType: string;
     type: FileType;
   };
+  /** OPFS path of a picture to show in place of the icon. */
+  imagePath?: string;
   intent: SearchIntent;
 }

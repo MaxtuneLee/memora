@@ -17,6 +17,8 @@ const current = {
   files: [],
   folders: [],
   collections: [],
+  widgetDefinitions: [],
+  widgetInstances: [],
 };
 const cloud = { source: "cloud", providerId: "scribe", modelId: "scribe_v2_realtime" } as const;
 const root = "memora-export/";

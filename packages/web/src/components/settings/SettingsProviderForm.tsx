@@ -21,8 +21,8 @@ const styles = stylex.create({
     height: 32,
     position: "absolute",
     right: 6,
-    top: "50%",
-    transform: "translateY(-50%)",
+    // Centered without transform: Button sets transform on hover and press.
+    top: "calc(50% - 16px)",
     width: 32,
   },
   icon: { height: 16, width: 16 },

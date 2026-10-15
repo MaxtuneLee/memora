@@ -2,6 +2,7 @@ export {
   createVectorDbClient,
   getVectorDbContentHash,
   getVectorDbIndexId,
+  getVectorDbSnapshotPath,
   VectorDbClient,
   type VectorDbChunkBatch,
   type VectorDbChunkFingerprint,

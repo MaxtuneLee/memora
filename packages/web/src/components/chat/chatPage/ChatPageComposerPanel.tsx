@@ -60,7 +60,14 @@ const styles = stylex.create({
     zIndex: 0,
   },
   overlay: { paddingBlock: 64, paddingBottom: 24, paddingInline: 16 },
-  composerArea: { marginInline: "auto", maxWidth: 672, pointerEvents: "auto" },
+  // Positioned above the fade, so notices without their own stacking stay readable.
+  composerArea: {
+    marginInline: "auto",
+    maxWidth: 672,
+    pointerEvents: "auto",
+    position: "relative",
+    zIndex: 1,
+  },
   notice: {
     border: `1px solid ${tokens.infoBorder}`,
     borderRadius: 12,
