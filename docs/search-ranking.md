@@ -40,9 +40,24 @@ cutoff = median − 3 × 1.4826 × MAD
 - The cutoff adapts per query, which a fixed similarity threshold can't do when every query's distances sit in a different narrow band.
 - Median and MAD barely move when many chunks really match. With 10 matches among 40 candidates, a mean and standard deviation cutoff dropped all 10; median and MAD kept all of them.
 - The pool is 300 candidates, so unrelated chunks stay the majority and the median stays a fair baseline even when a topic covers 100 chunks. In a small library the pool is every chunk.
-- With fewer than 10 candidates there's no baseline, so semantic hits are skipped and only lexical hits show.
+- With fewer than 10 candidates the library can't set its own baseline (see below).
 
 Each kept hit is scored by how many MADs it stands out (the "semantic strength").
+
+#### Small libraries
+
+A library with fewer than 10 candidates used to get no semantic matches at all. In one with three pictures (the Matterhorn, a house, a whale) and the Today Tasks widget, no query found a picture by meaning. Below 10 candidates, pictures are now judged against a fixed baseline instead: a median of 0.43 and a spread of 0.02 (`SMALL_POOL_CENTER`, `SMALL_POOL_SPREAD`), which puts the cutoff at 0.37. Strength is scored the same way, so fusion is unchanged.
+
+The baseline comes from that library, measured in production (cosine distance; bold is the picture that should match):
+
+| Query                         | Matterhorn | House     | Whale     |
+| ----------------------------- | ---------- | --------- | --------- |
+| snowy mountain peak           | **0.315**  | 0.423     | 0.448     |
+| house                         | 0.398      | **0.332** | 0.424     |
+| a whale swimming in the ocean | 0.470      | 0.465     | **0.343** |
+| a person (no match)           | 0.445      | 0.425     | 0.431     |
+
+A matching picture is 0.30–0.34 away and an unrelated one 0.40–0.47. Text is left out of this fallback and still found by lexical search, because unrelated long text sits at 0.33–0.35 and a fixed 0.37 cutoff would let it through.
 
 ### 3. Fuse by score, not rank
 
@@ -82,6 +97,8 @@ The constants are at the top of `contentSearchService.ts`:
 | `MIN_MEANINGFUL_LENGTH` | 12           | drop longer headings                      | keep short chunks       |
 | `LEXICAL_MATCH_WEIGHT`  | `MATCH_MADS` | favor keyword matches                     | favor semantic matches  |
 | `SEMANTIC_POOL`         | 300          | steady the baseline in large libraries    | search faster           |
+| `SMALL_POOL_CENTER`     | 0.43         | find more pictures in a small library     | find fewer, surer ones  |
+| `SMALL_POOL_SPREAD`     | 0.02         | find fewer pictures in a small library    | find more of them       |
 
 To see real numbers, log the semantic hits' `vectorDistance` (similarity is `1 − distance`) and the fused scores for a few queries: a word in the text, something only an image shows, and a word the library doesn't have. A new embedding model needs this again: its distance band and spread will differ.
 
@@ -90,3 +107,5 @@ To see real numbers, log the semantic hits' `vectorDistance` (similarity is `1 �
 - Content matches are still listed after all name matches, whatever their score.
 - Weak but relevant text matches (for "camera", a passage about f-stops at similarity 0.62) can't be told from unrelated text at the same similarity, so some are dropped and some unrelated ones pass. They rank low and are often cut by the top 8.
 - The cutoff was calibrated on one library with two queries in depth.
+- The small-library baseline was measured on three pictures and eight queries. In a library with fewer than 10 candidates, text gets no semantic matches.
+- Text and pictures share one pool once there are 10 or more candidates. Unrelated long text sits at 0.33–0.35, about as close as a matching picture (0.30–0.34), so in a library that is mostly text, a matching picture rarely stands out from the text-made baseline.

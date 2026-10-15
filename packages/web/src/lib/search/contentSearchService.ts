@@ -48,6 +48,11 @@ const groupAdjacentHits = (hits: VectorDbSearchHit[]): VectorDbSearchHit[] => {
 const MIN_MEANINGFUL_LENGTH = 12;
 const MATCH_MADS = 3;
 const MIN_SEMANTIC_POOL = 10;
+// Below MIN_SEMANTIC_POOL a library's own distances can't set a baseline, so a fixed one stands
+// in for pictures. Measured on a three-picture library: a picture that matches the query is 0.30-0.34 away,
+// an unrelated one 0.40-0.47. This median and spread put the cutoff at 0.37.
+const SMALL_POOL_CENTER = 0.43;
+const SMALL_POOL_SPREAD = 0.02;
 // The best keyword hit counts as much as a semantic hit right at the cutoff. Any semantic match
 // then ranks above keyword-only hits, and a chunk found both ways adds the two. BM25 scores of a
 // short query are often close together, so a higher weight let every keyword hit outrank all
@@ -76,15 +81,19 @@ export const filterSemanticHits = (hits: readonly VectorDbSearchHit[]): VectorDb
       hit.vectorDistance !== undefined &&
       (hit.chunkId.endsWith(":image") || meaningfulLength(hit.content) >= MIN_MEANINGFUL_LENGTH),
   );
-  // ponytail: too few candidates to tell a match from the background; lexical hits still show.
-  if (candidates.length < MIN_SEMANTIC_POOL) return [];
-  const distances = candidates.map((hit) => hit.vectorDistance ?? Infinity);
-  const center = median(distances);
-  const spread = median(distances.map((distance) => Math.abs(distance - center))) * 1.4826;
+  const smallPool = candidates.length < MIN_SEMANTIC_POOL;
+  // ponytail: the fixed baseline was measured on pictures only. Unrelated text sits closer
+  // (0.33-0.35), so in a small library text is left to lexical search.
+  const pool = smallPool ? candidates.filter((hit) => hit.chunkId.endsWith(":image")) : candidates;
+  const distances = pool.map((hit) => hit.vectorDistance ?? Infinity);
+  const center = smallPool ? SMALL_POOL_CENTER : median(distances);
+  const spread = smallPool
+    ? SMALL_POOL_SPREAD
+    : median(distances.map((distance) => Math.abs(distance - center))) * 1.4826;
   const cutoff = center - MATCH_MADS * spread;
   // Score each match by how far it stands out, in robust deviations, so fusion can tell a
   // striking match from one that barely passed.
-  return candidates
+  return pool
     .filter((hit) => (hit.vectorDistance ?? Infinity) <= cutoff)
     .map((hit) => ({
       ...hit,

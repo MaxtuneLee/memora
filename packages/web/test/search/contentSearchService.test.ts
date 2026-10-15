@@ -108,8 +108,26 @@ describe("semantic hit filtering", () => {
     expect(kept).toHaveLength(count);
   });
 
-  test("returns nothing when there are too few candidates to judge", () => {
-    expect(filterSemanticHits(busyStreet.slice(0, 5))).toEqual([]);
+  // Distances from a real library of three pictures and the Today Tasks widget.
+  const smallLibrary = (matterhorn: number, house: number, whale: number) => [
+    hit("tasks:1", "Open", 0.271),
+    hit("tasks:2", "Today Tasks", 0.295),
+    hit("matterhorn:image", "221DA5BAB3E3568BE43BB91C2C110A8E", matterhorn),
+    hit("house:image", "sijmen-van-hooff-vvMW6zL4ssM-unsplash", house),
+    hit("whale:image", "ChatGPT Image Aug 29, 2025, 06_10_06 PM", whale),
+  ];
+
+  test.each([
+    ["snowy mountain peak", smallLibrary(0.315, 0.423, 0.448), ["matterhorn:image"]],
+    ["house", smallLibrary(0.398, 0.332, 0.424), ["house:image"]],
+    ["a whale swimming in the ocean", smallLibrary(0.47, 0.465, 0.343), ["whale:image"]],
+    ["a person", smallLibrary(0.445, 0.425, 0.431), []],
+  ])("in a small library, finds the picture that matches %s", (_query, hits, expected) => {
+    expect(filterSemanticHits(hits).map((entry) => entry.chunkId)).toEqual(expected);
+  });
+
+  test("in a small library, leaves text to keyword search", () => {
+    expect(filterSemanticHits(busyStreet.slice(3, 9))).toEqual([]);
   });
 });
 
