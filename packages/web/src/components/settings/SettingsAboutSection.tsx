@@ -184,7 +184,7 @@ function LogCollectionSection() {
           checked={enabled}
           aria-label="Collect debug logs"
           onCheckedChange={(checked) =>
-            store.commit(settingEvents.settingsSet({ logCollectionEnabled: checked }))
+            store.commit(settingEvents.deviceSettingsSet({ logCollectionEnabled: checked }))
           }
         />
       </div>

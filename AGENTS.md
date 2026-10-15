@@ -24,6 +24,8 @@
 - Run the marketing site (`@memora/site`, port `9004`): `vp run @memora/site#dev`
   - It renders real `@memora/web` components from source on mock data; `@/livestore/store` is aliased to a stub, so only embed components that don't need the store.
 - Build the web app with workspace dependencies: `vp run -t @memora/web#build`
+- Run the WebDAV sync server (`@memora/webdav-worker`, port `8787`, user and password `dev`): `vp run @memora/webdav-worker#dev`
+  - Deploy it with `pnpm exec wrangler deploy` from `packages/webdav-worker`; see its README.
 
 ### Development
 

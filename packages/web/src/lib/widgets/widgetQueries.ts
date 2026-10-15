@@ -15,6 +15,11 @@ export const activeWidgetDefinitionsQuery$ = queryDb(
   { label: "widgets:active-definitions" },
 );
 
+// Includes deleted rows: their ids are still taken in the table.
+export const allWidgetDefinitionIdsQuery$ = queryDb(() => widgetDefinitionTable.select("id"), {
+  label: "widgets:all-definition-ids",
+});
+
 export const activeWidgetInstancesQuery$ = queryDb(
   () => widgetInstanceTable.where({ deletedAt: null }).orderBy("sortOrder", "asc"),
   { label: "widgets:active-instances" },

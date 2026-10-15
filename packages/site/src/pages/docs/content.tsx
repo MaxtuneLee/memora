@@ -104,9 +104,13 @@ export const DOCS: DocPage[] = [
               model from a provider you connect with your own API key; only the requests you make in
               chat, and the context they need, are sent to that provider.
             </p>
+            <p>
+              If you turn on <Link to="/docs/sync">Sync</Link> (experimental), your library is also
+              copied to a server you run, so your other devices can use it.
+            </p>
             <Note>
               Because everything is stored in the browser, clearing this site's data in your browser
-              settings deletes your library.
+              settings deletes your library, unless it is synced to another device.
             </Note>
           </>
         ),
@@ -525,9 +529,138 @@ export const DOCS: DocPage[] = [
             </p>
             <Note>
               API keys stay on this device. Only requests for features you route to a provider leave
-              it.
+              it. With Sync on, keys encrypted with a passkey also go to your sync server, still
+              encrypted.
             </Note>
           </>
+        ),
+      },
+    ],
+  },
+  {
+    slug: "sync",
+    group: "Configure",
+    title: "Sync",
+    lead: "Experimental: keep the same library on several devices through a server you run in your own Cloudflare account.",
+    sections: [
+      {
+        id: "experimental",
+        title: "Before you start",
+        body: (
+          <>
+            <p>
+              Sync is experimental. It works, but it is new, and how it stores data may still
+              change. Keep a backup of anything you can't lose: export it from{" "}
+              <b>Settings → Data Storage</b> first.
+            </p>
+            <Note>The sync server can read what it stores, so only use a server you control.</Note>
+          </>
+        ),
+      },
+      {
+        id: "how-it-works",
+        title: "How it works",
+        body: (
+          <>
+            <p>
+              Each device keeps its full library in the browser, as before, and works offline. When
+              it's online, it sends its changes to the sync server and picks up changes made on your
+              other devices.
+            </p>
+            <p>
+              The server is a small Worker on Cloudflare. It speaks WebDAV for the list of changes,
+              and stores file contents in R2, Cloudflare's object storage. Large files upload in
+              parts, so there's no size limit beyond your storage.
+            </p>
+          </>
+        ),
+      },
+      {
+        id: "what-syncs",
+        title: "What syncs",
+        body: (
+          <ul>
+            <li>Folders, files, documents, transcripts, and the trash.</li>
+            <li>Your Home widgets.</li>
+            <li>
+              Settings, except a few that belong to one device: the sidebar, log collection, and
+              local model usage.
+            </li>
+            <li>
+              API keys, only when they're encrypted with a passkey. Another device asks for the
+              passkey before using them. Keys encrypted for one device only stay on it.
+            </li>
+          </ul>
+        ),
+      },
+      {
+        id: "server",
+        title: "Set up the server",
+        body: (
+          <>
+            <p>
+              The quickest way is the button below. It copies the Worker into a new repository in
+              your GitHub or GitLab account, creates the R2 bucket, asks you for a username and
+              password, and deploys it to your Cloudflare account.
+            </p>
+            <p>
+              <a
+                href="https://deploy.workers.cloudflare.com/?url=https://github.com/MaxtuneLee/memora/tree/main/packages/webdav-worker"
+                target="_blank"
+                rel="noopener"
+              >
+                <img
+                  src="https://deploy.workers.cloudflare.com/button"
+                  alt="Deploy to Cloudflare"
+                />
+              </a>
+            </p>
+            <p>
+              Or deploy it from <code>packages/webdav-worker</code> with Wrangler, then set the
+              username and password:
+            </p>
+            <Code>{`cd packages/webdav-worker
+pnpm exec wrangler deploy
+pnpm exec wrangler secret put DAV_USERNAME
+pnpm exec wrangler secret put DAV_PASSWORD`}</Code>
+            <p>
+              The first deploy creates the R2 bucket. Until both secrets are set, the server turns
+              every request away. To allow only your copy of Memora to call it, set{" "}
+              <code>ALLOWED_ORIGIN</code> in <code>wrangler.jsonc</code> to its address.
+            </p>
+          </>
+        ),
+      },
+      {
+        id: "turn-on",
+        title: "Turn on sync",
+        body: (
+          <>
+            <p>
+              Open <b>Settings → Sync</b> and enter the Worker's address (for example{" "}
+              <code>https://memora-webdav.&lt;account&gt;.workers.dev</code>), the username, and the
+              password. <b>Test connection</b> checks that the server is reachable and safe to sync
+              with. <b>Turn on sync</b> saves it and reloads Memora.
+            </p>
+            <p>
+              Do the same on each device. Files under 8 MB download in the background; larger ones
+              show a cloud icon and download when you open them.
+            </p>
+          </>
+        ),
+      },
+      {
+        id: "limits",
+        title: "Known limits",
+        body: (
+          <ul>
+            <li>
+              A device stays tied to the first server it synced with. If you point it at a new or
+              reset server, Settings shows sync as paused.
+            </li>
+            <li>When two devices edit the same document at the same time, the last save wins.</li>
+            <li>The server password is stored in this browser.</li>
+          </ul>
         ),
       },
     ],

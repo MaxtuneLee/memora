@@ -1082,7 +1082,8 @@ const applyImportedSnapshot = (
         homeGridSeeded: current.settings.homeGridSeeded,
         widgetFoldersSeeded: current.settings.widgetFoldersSeeded,
       };
-  store.commit(settingEvents.settingsSet(settings));
+  // Device-only fields (such as local model usage) restore to this device; the rest sync.
+  store.commit(settingEvents.settingsSet(settings), settingEvents.deviceSettingsSet(settings));
   applyImportedProviders(current.providers, imported.providers, store);
   applyImportedCollections(current.collections, imported.collections, store);
   applyImportedFolders(current.folders, imported.folders, store);

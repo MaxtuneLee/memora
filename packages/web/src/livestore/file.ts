@@ -104,6 +104,10 @@ export const fileTable = State.SQLite.table({
     collectionId: State.SQLite.text({ nullable: true }),
     durationSec: State.SQLite.real({ nullable: true }),
     thumbnailPath: State.SQLite.text({ nullable: true }),
+    /** Object-storage key of the current contents of `storagePath`. See `contentKeyFor`. */
+    contentKey: State.SQLite.text({ nullable: true }),
+    /** Object-storage key of the current contents of `transcriptPath`. */
+    transcriptKey: State.SQLite.text({ nullable: true }),
     createdAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     updatedAt: State.SQLite.integer({ schema: Schema.DateFromNumber }),
     deletedAt: State.SQLite.integer({
@@ -203,9 +207,24 @@ export const fileEvents = {
   }),
 };
 
+type MaterializerContext = { event: { clientId: string } };
+
+/**
+ * Names one version of a file's contents in object storage. It is derived from the event, so every
+ * device computes the same key, and the device whose `clientId` appears in it is the one that has
+ * those bytes and uploads them. A new version gets a new key, so stored objects never change.
+ */
+export const contentKeyFor = (
+  fileId: string,
+  kind: "content" | "transcript",
+  clientId: string,
+  at: Date,
+): string => `files/${fileId}/${kind}-${clientId}-${at.getTime()}`;
+
 export const fileMaterializers = {
-  "v1.FileCreated": (event: FileCreatedEvent) =>
+  "v1.FileCreated": (event: FileCreatedEvent, { event: meta }: MaterializerContext) =>
     fileTable.insert({
+      contentKey: contentKeyFor(event.id, "content", meta.clientId, event.createdAt),
       id: event.id,
       name: event.name,
       type: event.type,
@@ -221,9 +240,13 @@ export const fileMaterializers = {
       createdAt: event.createdAt,
       updatedAt: event.createdAt,
     }),
-  "v1.FileUpdated": (event: FileUpdatedEvent) =>
+  "v1.FileUpdated": (event: FileUpdatedEvent, { event: meta }: MaterializerContext) =>
     fileTable
       .update({
+        // Every writer of file contents reports the new size; renames and moves do not.
+        ...(event.sizeBytes !== undefined || event.storagePath !== undefined
+          ? { contentKey: contentKeyFor(event.id, "content", meta.clientId, event.updatedAt) }
+          : {}),
         ...(event.name !== undefined ? { name: event.name } : {}),
         ...(event.parentId !== undefined ? { parentId: event.parentId ?? null } : {}),
         ...(event.positionX !== undefined ? { positionX: event.positionX ?? null } : {}),
@@ -247,10 +270,11 @@ export const fileMaterializers = {
         updatedAt: event.updatedAt,
       })
       .where({ id: event.id }),
-  "v1.FileTranscribed": (event: FileTranscribedEvent) =>
+  "v1.FileTranscribed": (event: FileTranscribedEvent, { event: meta }: MaterializerContext) =>
     fileTable
       .update({
         transcriptPath: event.transcriptPath,
+        transcriptKey: contentKeyFor(event.id, "transcript", meta.clientId, event.updatedAt),
         indexStatus: "pending",
         indexedAt: null,
         indexSummary: null,

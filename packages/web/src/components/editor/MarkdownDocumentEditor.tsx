@@ -250,8 +250,10 @@ const DOCUMENT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
   minute: "2-digit",
 });
 
-const formatDocumentDate = (timestamp: number): string => {
-  return Number.isFinite(timestamp) ? DOCUMENT_DATE_FORMAT.format(timestamp) : "Unknown";
+// Store rows reach the editor with `Date` values despite the `number` type, so accept both.
+const formatDocumentDate = (timestamp: number | Date): string => {
+  const ms = Number(timestamp);
+  return Number.isFinite(ms) ? DOCUMENT_DATE_FORMAT.format(ms) : "Unknown";
 };
 
 const getSaveStatusLabel = (saveState: MarkdownDocumentEditorProps["saveState"]): string => {

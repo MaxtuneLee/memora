@@ -202,7 +202,7 @@ const createFakeStore = (
         });
         break;
       }
-      case "settingsSet": {
+      case "v1.SettingsUpdated": {
         const args = event.args as unknown as SettingsSetArgs;
         Object.assign(settings, args.value);
         break;
@@ -299,7 +299,7 @@ test("seeds a builtin Definition, Instance, and Widgets folder for calendar, tod
   );
   expect(manifestFileEvents).toHaveLength(3);
 
-  const settingsEvent = commits.find((event) => event.name === "settingsSet");
+  const settingsEvent = commits.find((event) => event.name === "v1.SettingsUpdated");
   expect(settingsEvent?.args.value).toMatchObject({
     homeGridSeeded: true,
     widgetFoldersSeeded: true,
@@ -411,7 +411,7 @@ test("backfills Widgets folders for a legacy install that already has homeGridSe
       .sort((left, right) => left.localeCompare(right)),
   ).toEqual(["Calendar", "Recent", "Todo"]);
 
-  const settingsEvent = commits.find((event) => event.name === "settingsSet");
+  const settingsEvent = commits.find((event) => event.name === "v1.SettingsUpdated");
   expect(settingsEvent?.args.value).toMatchObject({ widgetFoldersSeeded: true });
 
   // The legacy rows' folderId is backfilled too, not just matched transiently by name — so a
@@ -463,6 +463,6 @@ test("shares one in-flight run across concurrent calls (e.g. a React StrictMode 
   const instanceEvents = commits.filter((event) => event.name === "v1.WidgetInstanceCreated");
   expect(instanceEvents).toHaveLength(3);
 
-  const settingsEvents = commits.filter((event) => event.name === "settingsSet");
+  const settingsEvents = commits.filter((event) => event.name === "v1.SettingsUpdated");
   expect(settingsEvents).toHaveLength(1);
 });

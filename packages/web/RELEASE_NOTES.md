@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-15.3
+
+- Experimental: Sync keeps your folders, files, and settings the same on several devices, through a server you run in your own Cloudflare account. Turn it on in Settings → Sync.
+
 ## 2026-10-15.2
 
 - Search finds pictures by what they show again when your library has only a few files.

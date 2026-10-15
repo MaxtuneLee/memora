@@ -216,20 +216,24 @@ export const widgetEvents = {
 };
 
 export const widgetMaterializers = {
+  // Built-in definitions have fixed ids (`builtin:<key>`), so every device creates the same rows.
+  // When a device that already used Memora joins sync, its copies replay after the synced ones.
   "v1.WidgetDefinitionCreated": (event: WidgetDefinitionCreatedEvent) =>
-    widgetDefinitionTable.insert({
-      id: event.id,
-      kind: event.kind,
-      builtinKey: event.builtinKey ?? null,
-      name: event.name,
-      widgetCode: event.widgetCode ?? "",
-      dataSourceName: event.dataSourceName ?? null,
-      dataSourceParams: event.dataSourceParams ?? "{}",
-      folderId: event.folderId ?? null,
-      sourceFileId: event.sourceFileId ?? null,
-      createdAt: event.createdAt,
-      updatedAt: event.createdAt,
-    }),
+    widgetDefinitionTable
+      .insert({
+        id: event.id,
+        kind: event.kind,
+        builtinKey: event.builtinKey ?? null,
+        name: event.name,
+        widgetCode: event.widgetCode ?? "",
+        dataSourceName: event.dataSourceName ?? null,
+        dataSourceParams: event.dataSourceParams ?? "{}",
+        folderId: event.folderId ?? null,
+        sourceFileId: event.sourceFileId ?? null,
+        createdAt: event.createdAt,
+        updatedAt: event.createdAt,
+      })
+      .onConflict("id", "ignore"),
   "v1.WidgetDefinitionUpdated": (event: WidgetDefinitionUpdatedEvent) =>
     widgetDefinitionTable
       .update({

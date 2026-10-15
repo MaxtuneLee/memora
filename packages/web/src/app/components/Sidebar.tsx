@@ -27,6 +27,8 @@ import { desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import type { FileMeta } from "@/types/library";
 import type { SearchNavigationState } from "@/types/search";
+import FileSyncBadge from "@/components/library/FileSyncBadge";
+import { ensureFileLocal, getFileSyncStatus } from "@/lib/sync/blobSync";
 import { tokens } from "../../styles/stylex.stylex";
 
 const MAX_RECENT_FILES = 4;
@@ -504,14 +506,17 @@ export function Sidebar() {
                   <Link
                     key={file.id}
                     to={href}
-                    onClick={
-                      opensOnDesktop
-                        ? (event) => {
-                            event.preventDefault();
-                            openFilePreview(file.id);
-                          }
-                        : undefined
-                    }
+                    onClick={(event) => {
+                      const isRemote = getFileSyncStatus(file.id) !== undefined;
+                      if (!opensOnDesktop && !isRemote) return;
+                      event.preventDefault();
+                      // Contents on another device download first; the badge shows progress.
+                      void ensureFileLocal(file.id)
+                        .catch((error: unknown) => console.warn("Download failed.", error))
+                        .finally(() =>
+                          opensOnDesktop ? openFilePreview(file.id) : void navigate(href),
+                        );
+                    }}
                     {...stylex.props(styles.recentItem, isActive && styles.recentItemActive)}
                   >
                     <Icon
@@ -530,6 +535,7 @@ export function Sidebar() {
                       }
                     />
                     <span {...stylex.props(styles.fileName)}>{file.name}</span>
+                    <FileSyncBadge fileId={file.id} />
                   </Link>
                 );
               })}

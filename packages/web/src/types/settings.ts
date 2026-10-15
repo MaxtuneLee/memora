@@ -67,6 +67,13 @@ export const SETTINGS_SECTIONS = [
     description: "Background extraction, OCR, and local search behavior.",
   },
   {
+    id: "sync",
+    group: "data",
+    label: "Sync",
+    badge: "Experimental",
+    description: "Keep sync your data on the other client",
+  },
+  {
     id: "data-storage",
     group: "data",
     label: "Data storage",
@@ -82,6 +89,8 @@ export const SETTINGS_SECTIONS = [
   id: string;
   group: SettingsGroupId;
   label: string;
+  /** A short tag shown next to the label, such as "Experimental". */
+  badge?: string;
   description: string;
 }>;
 

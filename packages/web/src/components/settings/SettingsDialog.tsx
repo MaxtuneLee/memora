@@ -3,6 +3,7 @@ import {
   ShieldCheckIcon,
   CaretDownIcon,
   CpuIcon,
+  ArrowsClockwiseIcon,
   DatabaseIcon,
   GearSixIcon,
   HardDrivesIcon,
@@ -21,12 +22,14 @@ import SettingsModelRoutingSection from "@/components/settings/SettingsModelRout
 import SettingsAboutSection from "@/components/settings/SettingsAboutSection";
 import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection";
 import SettingsGeneralSection from "@/components/settings/SettingsGeneralSection";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import SettingsMemorySection from "@/components/settings/SettingsMemorySection";
 import SettingsPermissionsSection from "@/components/settings/SettingsPermissionsSection";
 import SettingsIndexingSection from "@/components/settings/SettingsIndexingSection";
 import SettingsLocalModelsSection from "@/components/settings/SettingsLocalModelsSection";
 import SettingsSecuritySection from "@/components/settings/SettingsSecuritySection";
+import SettingsSyncSection from "@/components/settings/SettingsSyncSection";
 import SettingsSkillsSection from "@/components/settings/SettingsSkillsSection";
 import SettingsStorageSection from "@/components/settings/SettingsStorageSection";
 import { NativeDialog } from "@/components/ui/NativeDialog";
@@ -104,6 +107,8 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
     zIndex: 10,
   },
+  navBadge: { marginInlineStart: "auto", position: "relative", zIndex: 10 },
+  titleBadge: { fontFamily: "var(--font-sans)", marginInlineStart: 10, verticalAlign: "middle" },
   navStack: { display: "flex", flexDirection: "column", gap: 2 },
   navGroups: { display: "flex", flexDirection: "column", gap: 14 },
   navGroupLabel: {
@@ -222,6 +227,7 @@ const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, typeof GearSixIcon> = {
   security: LockKeyIcon,
   indexing: ListMagnifyingGlassIcon,
   skills: SparkleIcon,
+  sync: ArrowsClockwiseIcon,
   "data-storage": DatabaseIcon,
   about: InfoIcon,
 };
@@ -231,6 +237,7 @@ function SettingsNavItem({
   icon: Icon,
   layoutId,
   label,
+  badge,
   onSectionChange,
   reducedMotion,
   sectionId,
@@ -239,6 +246,7 @@ function SettingsNavItem({
   icon: typeof GearSixIcon;
   layoutId: string;
   label: string;
+  badge?: string;
   onSectionChange: (section: SettingsSectionId) => void;
   reducedMotion: boolean;
   sectionId: SettingsSectionId;
@@ -270,6 +278,11 @@ function SettingsNavItem({
         }
       />
       <span {...stylex.props(styles.navLabel)}>{label}</span>
+      {badge && (
+        <Badge variant="warning" className={stylex.props(styles.navBadge).className}>
+          {badge}
+        </Badge>
+      )}
     </Button>
   );
 }
@@ -313,6 +326,7 @@ function SettingsSectionNav({
                       icon={SETTINGS_SECTION_ICONS[section.id]}
                       layoutId={layoutId}
                       label={section.label}
+                      badge={"badge" in section ? section.badge : undefined}
                       onSectionChange={onSectionChange}
                       reducedMotion={reducedMotion}
                       sectionId={section.id}
@@ -388,6 +402,10 @@ export default function SettingsDialog({
       return <SettingsSkillsSection />;
     }
 
+    if (activeSection === "sync") {
+      return <SettingsSyncSection />;
+    }
+
     if (activeSection === "data-storage") {
       return <SettingsStorageSection open={open} />;
     }
@@ -428,6 +446,14 @@ export default function SettingsDialog({
                     style={{ fontFamily: "var(--font-serif)" }}
                   >
                     {activeSectionData?.label ?? "Settings"}
+                    {activeSectionData && "badge" in activeSectionData && (
+                      <Badge
+                        variant="warning"
+                        className={stylex.props(styles.titleBadge).className}
+                      >
+                        {activeSectionData.badge}
+                      </Badge>
+                    )}
                   </h2>
                   <p id={descriptionId} {...stylex.props(styles.description)}>
                     {activeSectionData?.description ?? "Manage your workspace preferences."}

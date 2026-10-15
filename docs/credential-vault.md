@@ -36,6 +36,10 @@ The settings are kept in `localStorage` under `memora.credentialVault.v2` as `{ 
 - The passkey setting is dropped once both switches are off.
 - **Lost passkey:** Settings > Security shows "Remove passkey" whenever a passkey is set up or keys are sealed with one. After a confirmation, it deletes the API keys of every provider and turns both switches off; the keys are entered again in Providers. "Lost your passkey?" on the lock screen only turns the switches off, because LiveStore isn't loaded yet; the unlock dialog after start then offers to remove the keys that passkey sealed.
 
+## Sync between devices
+
+With sync on (`docs/proposal-webdav-sync.md`), a passkey-sealed key (`mv1.`) is saved with the synced `v2.ProviderCredentialSet` event, because any device with the same passkey derives the same key from its PRF output. Device-sealed (`md1.`) and plaintext keys use the client-only `v1.ProviderCredentialSet` and never leave the device. A device that receives a passkey-sealed key shows the unlock dialog above. Removing a key in Providers (`v2.ProviderCredentialDeleted`) removes it on every device; "Remove passkey" and "I lost my passkey" remove keys on this device only.
+
 ## Limits
 
 - LiveStore records the previous value of every row it changes (`__livestore_session_changeset`), keeps the event log forever, and leaves state databases from earlier schemas in OPFS. Keys that were stored as plaintext before encryption therefore stay readable in those places, and so does the plaintext a key had right before Memora encrypted it. To fully retire such a key, create a new one with the provider. Keys first entered after encryption are only ever written encrypted.

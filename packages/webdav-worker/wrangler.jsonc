@@ -1,0 +1,10 @@
+{
+  "name": "memora-webdav",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // No bucket_name: `wrangler deploy` creates a bucket for this Worker on first deploy.
+  "r2_buckets": [{ "binding": "BUCKET" }],
+  // Set to the app's origin, e.g. "https://app.memora.im", to refuse other sites.
+  "vars": { "ALLOWED_ORIGIN": "*" },
+  // Credentials: wrangler secret put DAV_USERNAME && wrangler secret put DAV_PASSWORD
+}

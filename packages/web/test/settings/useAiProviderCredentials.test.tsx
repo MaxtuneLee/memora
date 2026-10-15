@@ -114,7 +114,7 @@ describe("provider settings credential boundary", () => {
     act(() => result.current.handleDeleteProvider(provider.id));
     expect(state.commit.mock.calls[0].map((event: { name: string }) => event.name)).toEqual([
       "v1.ProviderDeleted",
-      "v1.ProviderCredentialDeleted",
+      "v2.ProviderCredentialDeleted",
     ]);
   });
 });

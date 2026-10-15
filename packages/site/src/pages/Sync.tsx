@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { Link } from "react-router";
 
 import { Matrix } from "../lib/Matrix";
 import { usePageMeta } from "../lib/pageMeta";
@@ -38,40 +39,44 @@ const PHONE = [
 
 const NODES = [
   { icon: LAPTOP, title: "This device", sub: "Your library in OPFS" },
-  { icon: CLOUD, title: "Your private cloud", sub: "Any WebDAV server" },
+  { icon: CLOUD, title: "Your sync server", sub: "A Worker and R2 on your Cloudflare" },
   { icon: PHONE, title: "Another device", sub: "The same library" },
 ];
 
 const POINTS: Array<[string, string]> = [
   [
-    "Use WebDAV",
-    "Memora library is already real files and folders in the browser's private file system (OPFS). That makes it a good fit for WebDAV, a long-standing standard for syncing files.",
+    "Still local-first",
+    "Every device keeps the whole library in the browser and works offline. Changes go to the server when you're online and reach your other devices from there.",
   ],
   [
-    "You own your data",
-    "Sync can go to a server you choose: your NAS, a Nextcloud instance, or a provider you already use.",
+    "Your server, your data",
+    "The server is a small Cloudflare Worker you deploy to your own account. Changes travel over WebDAV, and file contents go to R2 in parts, so large recordings sync too.",
   ],
+  ["Experimental", "It works, but it's new: keep a backup, and only use a server you control."],
 ];
 
 export function Sync(): ReactElement {
   usePageMeta({
     title: "Sync · Memora",
     description:
-      "Sync is in progress: your Memora library, mirrored over WebDAV to storage you own and on to your other devices.",
+      "Experimental: sync your Memora library between devices through a Cloudflare Worker and R2 storage in your own account.",
     path: "/sync",
   });
   return (
     <section className="page-head sync-page">
       <div className="wrap">
-        <span className="sync-chip">In progress</span>
+        <span className="sync-chip">Experimental</span>
         <h1 className="page-title">
           Sync to the <em>Cloud.</em>
         </h1>
-        <p className="lede">Still working on it, feel free to share your thought</p>
+        <p className="lede">
+          Keep the same library on your laptop and your other devices, through a sync server you run
+          yourself.
+        </p>
 
         <div
           className="sync-diagram"
-          aria-label="This device syncs to your private cloud over WebDAV, which syncs to another device"
+          aria-label="This device syncs to your sync server over WebDAV, which syncs to another device"
           role="img"
         >
           {NODES.map((n, i) => (
@@ -101,8 +106,11 @@ export function Sync(): ReactElement {
           ))}
         </div>
         <div className="actions">
+          <Link className="btn btn-primary" to="/docs/sync">
+            Set it up
+          </Link>
           <a
-            className="btn btn-primary"
+            className="btn btn-soft"
             href="https://github.com/MaxtuneLee/memora/issues"
             target="_blank"
             rel="noopener"

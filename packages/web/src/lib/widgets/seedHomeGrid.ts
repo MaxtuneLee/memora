@@ -21,7 +21,7 @@ import {
 } from "./widgetFolders";
 import { buildWidgetManifest } from "./widgetManifest";
 import { createWidgetManifestFile } from "./widgetManifestFile";
-import { activeWidgetDefinitionsQuery$ } from "./widgetQueries";
+import { activeWidgetDefinitionsQuery$, allWidgetDefinitionIdsQuery$ } from "./widgetQueries";
 import type { WidgetQueryableStore } from "./widgetStore";
 
 interface SeedHomeGridStore extends WidgetQueryableStore, WidgetFolderStoreLike {
@@ -178,6 +178,16 @@ const seedHomeGridOnce = async ({
 }): Promise<void> => {
   const settings = store.query(settingsDocumentQuery$) as Partial<setting> | undefined;
   const folders = store.query(widgetFoldersQuery$) as readonly LiveStoreFolder[];
+
+  // Settings are device-local, but Definitions sync. When another device already seeded the
+  // Home Grid, seeding again would re-create the fixed builtin:* ids and crash the materializer.
+  if (!settings?.homeGridSeeded) {
+    const definitionIds = store.query(allWidgetDefinitionIdsQuery$) as readonly string[];
+    if (definitionIds.includes(builtinWidgetDefinitionId(BUILTIN_WIDGET_KEYS[0]))) {
+      store.commit(settingEvents.settingsSet({ homeGridSeeded: true, widgetFoldersSeeded: true }));
+      return;
+    }
+  }
 
   if (!settings?.homeGridSeeded) {
     const { folder: rootFolder } = ensureWidgetsRootFolder({ store, folders });

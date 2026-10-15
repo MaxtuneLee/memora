@@ -105,6 +105,8 @@ describe("storage archive", () => {
           collectionId: null,
           durationSec: null,
           thumbnailPath: "/files/f1/thumb.webp",
+          contentKey: null,
+          transcriptKey: null,
           createdAt: now,
           updatedAt: now,
           deletedAt: null,

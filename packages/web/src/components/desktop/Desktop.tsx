@@ -12,6 +12,7 @@ import { DesktopSurface } from "./DesktopSurface";
 import { StorageWidget } from "./StorageWidget";
 import { useTrashActions } from "@/hooks/desktop/useTrashActions";
 import { useDesktopState } from "@/hooks/desktop/useDesktopState";
+import { ensureFileLocal } from "@/lib/sync/blobSync";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import {
   createFolderWithPathPolicy,
@@ -471,6 +472,17 @@ export function Desktop({
     void reindexFile(targetId);
   }, [closeContextMenu, contextMenu.targetId, items, reindexFile]);
 
+  // Contents written on another device download before the preview opens; the badge on the
+  // file shows progress meanwhile.
+  const openPreviewWhenLocal = useCallback(
+    (fileId: string) => {
+      void ensureFileLocal(fileId)
+        .catch((error: unknown) => console.warn("Download failed.", error))
+        .finally(() => openPreviewWindow(fileId));
+    },
+    [openPreviewWindow],
+  );
+
   const handleOpenItem = useCallback(
     (item: DesktopItemType, activeFolderId?: string | null) => {
       if (item.type === "widget" && item.widgetType === "trash") {
@@ -478,7 +490,7 @@ export function Desktop({
         return;
       }
       if (item.type === "file") {
-        openPreviewWindow(item.id);
+        openPreviewWhenLocal(item.id);
         return;
       }
       if (activeFolderId !== undefined) {
@@ -487,14 +499,14 @@ export function Desktop({
       }
       openFolderWindow(item.id);
     },
-    [openFolderWindow, openPreviewWindow, openTrashWindow, replaceFolderWindowFolder],
+    [openFolderWindow, openPreviewWhenLocal, openTrashWindow, replaceFolderWindowFolder],
   );
 
   useDesktopExternalIntent({
     externalIntent,
     onExternalIntentHandled,
     onUploadFile,
-    onOpenPreview: openPreviewWindow,
+    onOpenPreview: openPreviewWhenLocal,
     onOpenFolder: openFolderWindow,
     onNewFolder: handleNewFolder,
     onOpenTrash: openTrashWindow,

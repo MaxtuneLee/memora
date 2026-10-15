@@ -7,7 +7,11 @@ import {
   providerTable,
   toProviderMetadata,
 } from "@/livestore/provider";
-import { providerCredentialEvents, readProviderApiKey } from "@/livestore/providerCredential";
+import {
+  providerCredentialEventDefs,
+  providerCredentialEvents,
+  readProviderApiKey,
+} from "@/livestore/providerCredential";
 import { parseProviderModel } from "@/lib/settings/dialogHelpers";
 import { normalizeProviderEndpoint } from "@/lib/settings/providerEndpoint";
 
@@ -52,9 +56,22 @@ describe("device-local provider credentials", () => {
       toProviderMetadata({ ...provider, models: JSON.stringify([model]) }).models,
     ).not.toContain("secret");
   });
-  test("credential writes and deletes never enter the sync stream", () => {
-    expect(providerCredentialEvents.providerCredentialSet.options.clientOnly).toBe(true);
-    expect(providerCredentialEvents.providerCredentialDeleted.options.clientOnly).toBe(true);
+  test("only passkey-sealed keys enter the sync stream", () => {
+    const set = (apiKey: string) =>
+      providerCredentialEvents.providerCredentialSet({ providerId: "p", baseUrl: "u", apiKey });
+    const isSynced = (name: string) =>
+      Object.values(providerCredentialEventDefs).some(
+        (def) => def.name === name && def.options.clientOnly === false,
+      );
+    expect(isSynced(set("mv1.cred.salt.iv.ct").name)).toBe(true);
+    expect(isSynced(set("md1.iv.ct").name)).toBe(false);
+    expect(isSynced(set("sk-plaintext").name)).toBe(false);
+    expect(
+      isSynced(providerCredentialEvents.providerCredentialDeleted({ providerId: "p" }).name),
+    ).toBe(true);
+    expect(
+      isSynced(providerCredentialEvents.providerCredentialDeletedHere({ providerId: "p" }).name),
+    ).toBe(false);
     expect(providerEvents.providerCreated.options.clientOnly).toBe(false);
     expect(providerEvents.providerUpdated.options.clientOnly).toBe(false);
     expect(providerTable.sqliteDef.columns).not.toHaveProperty("apiKey");

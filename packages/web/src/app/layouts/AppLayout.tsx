@@ -19,7 +19,17 @@ import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialo
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 import { startAppLogCollection } from "@/lib/appLog/appLogCollector";
 import type { SettingsSectionId } from "@/types/settings";
-import { useAppStore } from "@/livestore/store";
+import {
+  appStoreOptions,
+  readWebdavSyncPayload,
+  SYNC_CONFIG_CHANNEL,
+  useAppStore,
+} from "@/livestore/store";
+import { createBlobProvider } from "@/lib/sync/blobProvider";
+import { startBlobSync } from "@/lib/sync/blobSync";
+import { migrateSettingsToSync } from "@/livestore/setting";
+import { watchSeededWidgetDuplicates } from "@/lib/widgets/dedupeSeededWidgets";
+import { verifyBackendId } from "@/livestore/webdavSync";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
 import { appShellStyles } from "@/styles/stylex.stylex";
@@ -38,6 +48,24 @@ export default function AppLayout() {
     if (!settings.logCollectionEnabled) return;
     return startAppLogCollection(store);
   }, [settings.logCollectionEnabled, store]);
+  useEffect(() => migrateSettingsToSync(store), [store]);
+  useEffect(() => watchSeededWidgetDuplicates(store), [store]);
+  useEffect(() => {
+    // Another tab changed the sync config and restarted LiveStore.
+    const channel = new BroadcastChannel(SYNC_CONFIG_CHANNEL);
+    channel.onmessage = () => window.location.reload();
+    return () => channel.close();
+  }, []);
+  useEffect(() => {
+    const syncConfig = readWebdavSyncPayload();
+    if (!syncConfig) return;
+    return startBlobSync({
+      store,
+      storeId: appStoreOptions.storeId,
+      provider: createBlobProvider(syncConfig),
+      verifyServer: () => verifyBackendId(syncConfig, appStoreOptions.storeId),
+    });
+  }, [store]);
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);

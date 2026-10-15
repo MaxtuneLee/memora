@@ -48,7 +48,7 @@ describe("model routing archive compatibility", () => {
       }),
       { current, store: { commit } },
     );
-    expect(commit.mock.calls[0]?.[0].args.value.localModelTokenUsage).toEqual({
+    expect(commit.mock.calls[0]?.[1].args.value.localModelTokenUsage).toEqual({
       inputTokens: 120,
       outputTokens: 30,
       allInputTokens: 120,
@@ -57,7 +57,7 @@ describe("model routing archive compatibility", () => {
     });
     commit.mockClear();
     await importStorageArchive(await makeArchive({}), { current, store: { commit } });
-    expect(commit.mock.calls[0]?.[0].args.value.localModelTokenUsage).toEqual({
+    expect(commit.mock.calls[0]?.[1].args.value.localModelTokenUsage).toEqual({
       inputTokens: 0,
       outputTokens: 0,
       allInputTokens: 0,
@@ -73,7 +73,7 @@ describe("model routing archive compatibility", () => {
     await importStorageArchive(await makeArchive(settings, legacy), { current, store: { commit } });
     expect(commit).toHaveBeenCalledOnce();
     expect(commit.mock.calls[0]?.[0]).toMatchObject({
-      name: "settingsSet",
+      name: "v1.SettingsUpdated",
       args: { value: { theme: "dark", modelRouting: { transcription: cloud } } },
     });
   });

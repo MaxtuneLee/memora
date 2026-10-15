@@ -1,6 +1,7 @@
 import { makeWorker } from "@livestore/adapter-web/worker";
 
 import { schema } from "@/livestore/schema";
+import { makeWebdavSyncBackend } from "@/livestore/webdavSync";
 
 if (import.meta.env.DEV) {
   const diagnostics = new BroadcastChannel("memora-livestore-worker-diagnostics");
@@ -25,4 +26,11 @@ if (import.meta.env.DEV) {
 
 makeWorker({
   schema,
+  sync: {
+    backend: makeWebdavSyncBackend,
+    // A new device must see the existing workspace before it seeds its own defaults.
+    initialSyncOptions: { _tag: "Blocking", timeout: 5000 },
+    // Never wipe local data because the remote folder was reset; keep working offline instead.
+    onBackendIdMismatch: "ignore",
+  },
 });

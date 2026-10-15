@@ -1,4 +1,4 @@
-import { Schema, State } from "@livestore/livestore";
+import { Events, Schema, State, queryDb } from "@livestore/livestore";
 
 export type SemanticSearchMode = "hybrid" | "bm25" | "bge";
 import { modelRoutingSchema, type StoredModelRouting } from "@/lib/models/modelRoutingSchema";
@@ -157,6 +157,10 @@ export const normalizeSettingsValue = (value: Partial<setting> | null | undefine
   };
 };
 
+/**
+ * This device's settings document. It still holds the fields in `DEVICE_SETTING_KEYS`, and values
+ * written before settings synced, which `migrateSettingsToSync` copies over once.
+ */
 export const settingsTable = State.SQLite.clientDocument({
   name: "settings",
   schema: settingsStoredValueSchema,
@@ -166,6 +170,111 @@ export const settingsTable = State.SQLite.clientDocument({
   },
 });
 
-export const settingEvents = {
+type StoredSettings = typeof settingsStoredValueSchema.Type;
+
+/** Fields that describe this device rather than the person. They never sync. */
+export const DEVICE_SETTING_KEYS: ReadonlySet<string> = new Set([
+  "sidebarCollapsed",
+  "logCollectionEnabled",
+  "localModelTokenUsage",
+]);
+
+/** One row per setting, so two devices changing different settings both keep their change. */
+export const syncedSettingsTable = State.SQLite.table({
+  name: "synced_settings",
+  columns: {
+    key: State.SQLite.text({ primaryKey: true }),
+    /** JSON-encoded value. */
+    value: State.SQLite.text(),
+  },
+});
+
+const settingsUpdated = Events.synced({
+  name: "v1.SettingsUpdated",
+  schema: Schema.Struct({ value: settingsStoredValueSchema }),
+});
+
+const syncedEntries = (value: Partial<StoredSettings>): [string, unknown][] =>
+  Object.entries(value).filter(
+    ([key, item]) => item !== undefined && !DEVICE_SETTING_KEYS.has(key),
+  );
+
+/** Event definitions for the schema. */
+export const settingEventDefs = {
   settingsSet: settingsTable.set,
+  settingsUpdated,
+};
+
+export const settingEvents = {
+  /**
+   * Changes this person's settings on every device. Fields in `DEVICE_SETTING_KEYS` are left
+   * out; change those with `deviceSettingsSet`.
+   */
+  settingsSet: (value: Partial<StoredSettings>) =>
+    settingsUpdated({ value: Object.fromEntries(syncedEntries(value)) as StoredSettings }),
+  /** Changes settings on this device only. */
+  deviceSettingsSet: (value: Partial<StoredSettings>) => settingsTable.set(value),
+};
+
+export const settingMaterializers = {
+  "v1.SettingsUpdated": ({ value }: { value: StoredSettings }) =>
+    syncedEntries(value).map(([key, item]) =>
+      syncedSettingsTable.insert({ key, value: JSON.stringify(item) }).onConflict("key", "replace"),
+    ),
+};
+
+export const deviceSettingsQuery$ = queryDb(() => settingsTable.get("user-settings"), {
+  label: "settings:device",
+});
+
+export const syncedSettingsQuery$ = queryDb(() => syncedSettingsTable.select(), {
+  label: "settings:synced",
+});
+
+/** Synced values win over this device's document, except for device-only fields. */
+export const mergeSettings = (
+  device: StoredSettings,
+  rows: readonly { key: string; value: string }[],
+): StoredSettings => {
+  const synced: Record<string, unknown> = {};
+  for (const row of rows) {
+    if (DEVICE_SETTING_KEYS.has(row.key)) continue;
+    try {
+      synced[row.key] = JSON.parse(row.value);
+    } catch {
+      // A malformed row keeps the device value.
+    }
+  }
+  return { ...device, ...synced } as StoredSettings;
+};
+
+/**
+ * Settings saved on this device before they synced, which no device has synced yet. Values equal
+ * to the defaults are skipped so a fresh device does not overwrite another device's choices.
+ */
+export const settingsToMigrate = (
+  device: StoredSettings,
+  syncedKeys: ReadonlySet<string>,
+): Partial<StoredSettings> => {
+  const defaults: Record<string, unknown> = { ...defaultSettings };
+  return Object.fromEntries(
+    syncedEntries(device).filter(
+      ([key, item]) =>
+        !syncedKeys.has(key) && JSON.stringify(item) !== JSON.stringify(defaults[key]),
+    ),
+  ) as Partial<StoredSettings>;
+};
+
+/** Copies settings saved before sync into the synced table. Safe to run on every start. */
+export const migrateSettingsToSync = (store: {
+  query: {
+    (query: typeof deviceSettingsQuery$): StoredSettings;
+    (query: typeof syncedSettingsQuery$): readonly { key: string }[];
+  };
+  commit: (event: ReturnType<typeof settingsUpdated>) => void;
+}): void => {
+  const device = store.query(deviceSettingsQuery$);
+  const syncedKeys = new Set(store.query(syncedSettingsQuery$).map((row) => row.key));
+  const pending = settingsToMigrate(device, syncedKeys);
+  if (Object.keys(pending).length > 0) store.commit(settingEvents.settingsSet(pending));
 };

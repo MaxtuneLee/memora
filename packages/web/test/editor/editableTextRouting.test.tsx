@@ -51,6 +51,8 @@ const createSearchFile = (overrides: Partial<LiveStoreFile> = {}): LiveStoreFile
     collectionId: overrides.collectionId ?? null,
     durationSec: overrides.durationSec ?? null,
     thumbnailPath: overrides.thumbnailPath ?? null,
+    contentKey: overrides.contentKey ?? null,
+    transcriptKey: overrides.transcriptKey ?? null,
     createdAt: overrides.createdAt ?? new Date(1_746_000_000_000),
     updatedAt: overrides.updatedAt ?? new Date(1_746_000_000_000),
     deletedAt: overrides.deletedAt ?? null,

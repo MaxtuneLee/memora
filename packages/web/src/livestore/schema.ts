@@ -10,11 +10,16 @@ import {
   providerTable,
 } from "./provider";
 import {
-  providerCredentialEvents,
+  providerCredentialEventDefs,
   providerCredentialMaterializers,
   providerCredentialTable,
 } from "./providerCredential";
-import { settingEvents, settingsTable } from "./setting";
+import {
+  settingEventDefs,
+  settingMaterializers,
+  settingsTable,
+  syncedSettingsTable,
+} from "./setting";
 import { legacyModelRoutingEvents, legacyModelRoutingMaterializers } from "./legacyModelRouting";
 import { localModelUsageEvents, localModelUsageMaterializers } from "./localModelUsage";
 import { uiEvents, uiTable } from "./ui";
@@ -32,6 +37,7 @@ const tables = {
   providers: providerTable,
   providerCredentials: providerCredentialTable,
   settings: settingsTable,
+  syncedSettings: syncedSettingsTable,
   uiState: uiTable,
   widgetDefinitions: widgetDefinitionTable,
   widgetInstances: widgetInstanceTable,
@@ -43,8 +49,8 @@ const events = {
   ...collectionEvents,
   ...providerEvents,
   ...legacyProviderEvents,
-  ...providerCredentialEvents,
-  ...settingEvents,
+  ...providerCredentialEventDefs,
+  ...settingEventDefs,
   ...legacyModelRoutingEvents,
   ...localModelUsageEvents,
   ...uiEvents,
@@ -57,6 +63,7 @@ const materializers = State.SQLite.materializers(events, {
   ...collectionMaterializers,
   ...providerMaterializers,
   ...providerCredentialMaterializers,
+  ...settingMaterializers,
   ...legacyModelRoutingMaterializers,
   ...localModelUsageMaterializers,
   ...widgetMaterializers,
