@@ -29,6 +29,7 @@
     "@lexical/table": "^0.44.0",
     "@lezer/highlight": "^1.2.3",
     "@livestore/adapter-web": "^0.4.0",
+    "@livestore/common": "0.4.0",
     "@livestore/devtools-vite": "^0.4.0",
     "@livestore/livestore": "^0.4.0",
     "@livestore/peer-deps": "^0.4.0",

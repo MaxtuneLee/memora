@@ -9,6 +9,7 @@ import { GRID_SIZE, ICON_SIZE } from "@/types/desktop";
 import { DesktopFileTip } from "./DesktopFileTip";
 import { areDesktopItemsEqual } from "./desktop/utils";
 import { DesktopIndexStatusIcon } from "./DesktopIndexStatus";
+import FileSyncBadge from "@/components/library/FileSyncBadge";
 import { tokens } from "../../styles/stylex.stylex";
 import type { JSX } from "react";
 
@@ -327,6 +328,7 @@ function DesktopItemComponent({
           )}
         >
           {item.name}
+          {item.type === "file" ? <FileSyncBadge fileId={item.id} /> : null}
         </span>
       )}
     </div>

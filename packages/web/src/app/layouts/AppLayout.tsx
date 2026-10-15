@@ -17,7 +17,9 @@ import { SettingsDialogContextProvider } from "@/hooks/settings/useSettingsDialo
 import { getOnboardingGateStatus } from "@/lib/onboarding/onboardingGate";
 import { startAppLogCollection } from "@/lib/appLog/appLogCollector";
 import type { SettingsSectionId } from "@/types/settings";
-import { useAppStore } from "@/livestore/store";
+import { appStoreOptions, readWebdavSyncPayload, useAppStore } from "@/livestore/store";
+import { createBlobProvider } from "@/lib/sync/blobProvider";
+import { startBlobSync } from "@/lib/sync/blobSync";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
 import { appShellStyles } from "@/styles/stylex.stylex";
@@ -36,6 +38,15 @@ export default function AppLayout() {
     if (!settings.logCollectionEnabled) return;
     return startAppLogCollection(store);
   }, [settings.logCollectionEnabled, store]);
+  useEffect(() => {
+    const syncConfig = readWebdavSyncPayload();
+    if (!syncConfig) return;
+    return startBlobSync({
+      store,
+      storeId: appStoreOptions.storeId,
+      provider: createBlobProvider(syncConfig),
+    });
+  }, [store]);
   const location = useLocation();
   const navigate = useNavigate();
   const [onboardingGateReady, setOnboardingGateReady] = useState(false);

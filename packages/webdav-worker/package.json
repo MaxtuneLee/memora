@@ -1,0 +1,16 @@
+{
+  "name": "@memora/webdav-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --var DAV_USERNAME:dev --var DAV_PASSWORD:dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20251118.0",
+    "typescript": "~5.9.3",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import { unstable_batchedUpdates as batchUpdates } from "react-dom";
 import LiveStoreWorker from "@/workers/livestore.worker?worker";
 import { schema } from "./schema";
+import { parseWebdavSyncPayload, type WebdavSyncPayload } from "./webdavSync";
 import {
   createLiveStoreLoadingStatus,
   type LiveStoreLoadingStatus,
@@ -34,10 +35,22 @@ function getLoadingStatus(): LiveStoreLoadingStatus {
   return loadingStatus;
 }
 
+// ponytail: demo switch. Set `localStorage["memora.webdavSync"]` to
+// `{"url":"https://dav.example.com/memora","username":"…","password":"…"}` and reload.
+// Replace with a settings form (and keep the password out of localStorage) before shipping.
+export const readWebdavSyncPayload = (): WebdavSyncPayload | undefined => {
+  try {
+    return parseWebdavSyncPayload(JSON.parse(localStorage.getItem("memora.webdavSync") ?? "null"));
+  } catch {
+    return undefined;
+  }
+};
+
 export const appStoreOptions = storeOptions({
   schema,
   adapter,
   storeId: "main",
+  syncPayload: readWebdavSyncPayload(),
   onBootStatus: updateLoadingStatus,
 });
 
