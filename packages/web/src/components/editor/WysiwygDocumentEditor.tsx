@@ -37,6 +37,10 @@ import {
 } from "lexical";
 import { ListItemNode } from "@lexical/list";
 import { $isCodeNode, registerCodeHighlighting } from "@lexical/code";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-yaml";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { EditorRefPlugin } from "@lexical/react/LexicalEditorRefPlugin";
@@ -356,8 +360,35 @@ const editorStyles = stylex.create({
 const classNameFor = (...values: ReadonlyArray<stylex.StyleXStyles>): string =>
   stylex.props(values).className ?? "";
 
+const codeTokenStyles = stylex.create({
+  comment: { color: tokens.textMuted },
+  keyword: { color: tokens.oliveText },
+  string: { color: tokens.successText },
+  number: { color: tokens.infoText },
+  function: { color: tokens.warningText },
+  deleted: { color: tokens.dangerText },
+});
+
+const CODE_HIGHLIGHT_THEME: Record<string, string> = {};
+for (const [style, types] of [
+  [codeTokenStyles.comment, ["comment", "prolog", "doctype", "cdata", "punctuation"]],
+  [codeTokenStyles.keyword, ["keyword", "atrule", "selector", "tag", "important", "builtin"]],
+  [codeTokenStyles.string, ["string", "char", "attr", "inserted", "regex", "url"]],
+  [
+    codeTokenStyles.number,
+    ["number", "boolean", "constant", "symbol", "property", "variable", "operator", "entity"],
+  ],
+  [codeTokenStyles.function, ["function", "class-name", "namespace"]],
+  [codeTokenStyles.deleted, ["deleted"]],
+] as const) {
+  for (const type of types) {
+    CODE_HIGHLIGHT_THEME[type] = classNameFor(style);
+  }
+}
+
 const theme = {
   code: classNameFor(editorStyles.codeBlock),
+  codeHighlight: CODE_HIGHLIGHT_THEME,
   heading: {
     h1: classNameFor(editorStyles.h1),
     h2: classNameFor(editorStyles.h2),
@@ -1592,6 +1623,24 @@ const ensureCodeFences = (
   };
 };
 
+// A block whose fence lines were edited so they no longer read as fences goes back to plain text.
+const unwrapCodeNode = (
+  codeNode: CodeNode,
+  openFence: CodeFenceNode,
+  closeFence: CodeFenceNode,
+): void => {
+  for (const line of codeNode.getTextContent().split("\n")) {
+    const paragraph = $createParagraphNode();
+    if (line) {
+      paragraph.append($createTextNode(line));
+    }
+    codeNode.insertBefore(paragraph);
+  }
+  codeNode.remove();
+  openFence.replace($createParagraphNode(), true);
+  closeFence.replace($createParagraphNode(), true);
+};
+
 function SelectionTextPlugin({
   onSelectionTextChange,
 }: {
@@ -1629,7 +1678,33 @@ function CodeShikiPlugin() {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    return registerCodeHighlighting(editor);
+    // Highlighting puts the caret back by text offset inside the code, so a caret in a fence line
+    // (such as while editing the language) would jump into the code. Restore it afterwards.
+    let fenceCaret: { key: NodeKey; offset: number; type: "element" | "text" } | null = null;
+    return mergeRegister(
+      editor.registerNodeTransform(CodeNode, () => {
+        const selection = $getSelection();
+        fenceCaret =
+          $isRangeSelection(selection) &&
+          selection.isCollapsed() &&
+          findCodeFenceNode(selection.anchor.getNode())
+            ? {
+                key: selection.anchor.key,
+                offset: selection.anchor.offset,
+                type: selection.anchor.type,
+              }
+            : null;
+      }),
+      registerCodeHighlighting(editor),
+      editor.registerNodeTransform(CodeNode, () => {
+        const selection = $getSelection();
+        if (fenceCaret && $isRangeSelection(selection) && $getNodeByKey(fenceCaret.key)) {
+          selection.anchor.set(fenceCaret.key, fenceCaret.offset, fenceCaret.type);
+          selection.focus.set(fenceCaret.key, fenceCaret.offset, fenceCaret.type);
+        }
+        fenceCaret = null;
+      }),
+    );
   }, [editor]);
 
   return null;
@@ -1645,8 +1720,18 @@ function CodeFencePlugin() {
       const activeCodeNodeKey = activeCodeNode?.getKey() ?? null;
 
       for (const child of root.getChildren()) {
+        if (!child.isAttached()) {
+          continue;
+        }
         if ($isCodeNode(child)) {
-          const { openFence } = ensureCodeFences(child);
+          const { closeFence, openFence } = ensureCodeFences(child);
+          if (
+            !/^`{3,}/.test(openFence.getTextContent()) ||
+            !/^`{3,}\s*$/.test(closeFence.getTextContent())
+          ) {
+            unwrapCodeNode(child, openFence, closeFence);
+            continue;
+          }
           const language = parseCodeFenceLanguage(openFence.getTextContent());
           if (language && child.getLanguage() !== language) {
             child.setLanguage(language);

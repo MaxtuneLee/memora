@@ -20,6 +20,7 @@ import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
   CHECK_LIST,
+  CODE,
   TRANSFORMERS,
   type ElementTransformer,
   type MultilineElementTransformer,
@@ -76,9 +77,21 @@ const isDefaultLinkTransformer = (transformer: (typeof TRANSFORMERS)[number]): b
   return dependencies?.some((dependency) => dependency === LinkNode) === true;
 };
 
+// The fence lines of a code block are paragraphs of their own; pressing Enter after the closing
+// "```" must not run the default shortcut, which would open a new code block.
+const CODE_SHORTCUT_TRANSFORMER: MultilineElementTransformer = {
+  ...CODE,
+  replace: (parentNode, children, startMatch, endMatch, linesInBetween, isImport) => {
+    if ($isCodeFenceNode(parentNode)) {
+      return false;
+    }
+    return CODE.replace(parentNode, children, startMatch, endMatch, linesInBetween, isImport);
+  },
+};
+
 const DEFAULT_WYSIWYG_TRANSFORMERS = TRANSFORMERS.filter((transformer) => {
   return !isDefaultLinkTransformer(transformer);
-});
+}).map((transformer) => (transformer === CODE ? CODE_SHORTCUT_TRANSFORMER : transformer));
 
 // Lexical only reads a lowercase "x" as checked, so "- [X] done" would come back unchecked.
 export const TASK_LIST_TRANSFORMER: ElementTransformer = {
