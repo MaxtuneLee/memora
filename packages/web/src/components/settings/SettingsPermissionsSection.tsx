@@ -29,6 +29,7 @@ import { tokens } from "../../styles/stylex.stylex";
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 16 },
   heading: { display: "flex", flexDirection: "column", gap: 8 },
+  titleRow: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8 },
   twoColumn: {
     display: "grid",
     gap: 16,
@@ -117,7 +118,10 @@ export default function SettingsPermissionsSection() {
     <div {...stylex.props(styles.stack)}>
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <div {...stylex.props(styles.heading)}>
-          <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>WebMCP</h3>
+          <div {...stylex.props(styles.titleRow)}>
+            <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>WebMCP</h3>
+            <Badge variant="warning">Experimental</Badge>
+          </div>
           <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
             Let external assistants use Memora through WebMCP. These controls apply to this device
             only.

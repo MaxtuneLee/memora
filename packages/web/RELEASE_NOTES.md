@@ -4,6 +4,11 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-17
+
+- Settings sections can now scroll on small screens and in shorter windows, so every section is reachable.
+- WebMCP is now marked as experimental in Settings > Permissions.
+
 ## 2026-10-16.2
 
 - WebMCP is now off by default. Enable it in Settings > Permissions and choose whether external assistants can read content or make changes on this device.
