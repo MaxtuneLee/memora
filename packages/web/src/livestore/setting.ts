@@ -27,6 +27,9 @@ const permissionGrantSchema = Schema.Struct({
 });
 
 export interface setting {
+  webMcpEnabled?: boolean;
+  webMcpReadEnabled?: boolean;
+  webMcpWriteEnabled?: boolean;
   agentDeliveryMode?: "pending" | "steer";
   /** The default for new chats; a chat can override it. */
   permissionMode?: PermissionMode;
@@ -62,6 +65,9 @@ export interface setting {
 }
 
 export const defaultSettings: setting = {
+  webMcpEnabled: false,
+  webMcpReadEnabled: true,
+  webMcpWriteEnabled: false,
   agentDeliveryMode: "pending",
   permissionMode: DEFAULT_PERMISSION_MODE,
   permissionGrants: [],
@@ -102,6 +108,9 @@ export const defaultSettings: setting = {
 };
 
 export const settingsStoredValueSchema = Schema.Struct({
+  webMcpEnabled: Schema.optional(Schema.Boolean),
+  webMcpReadEnabled: Schema.optional(Schema.Boolean),
+  webMcpWriteEnabled: Schema.optional(Schema.Boolean),
   agentDeliveryMode: Schema.optional(Schema.Literal("pending", "steer")),
   permissionMode: Schema.optional(permissionModeSchema),
   permissionGrants: Schema.optional(Schema.Array(permissionGrantSchema)),
@@ -174,6 +183,9 @@ type StoredSettings = typeof settingsStoredValueSchema.Type;
 
 /** Fields that describe this device rather than the person. They never sync. */
 export const DEVICE_SETTING_KEYS: ReadonlySet<string> = new Set([
+  "webMcpEnabled",
+  "webMcpReadEnabled",
+  "webMcpWriteEnabled",
   "sidebarCollapsed",
   "logCollectionEnabled",
   "localModelTokenUsage",

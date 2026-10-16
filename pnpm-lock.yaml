@@ -337,6 +337,9 @@ importers:
       '@livestore/wa-sqlite':
         specifier: 0.4.0
         version: 0.4.0
+      '@mcp-b/global':
+        specifier: 6.0.3
+        version: 6.0.3
       '@memora/ai-core':
         specifier: workspace:*
         version: link:../ai-core
@@ -2922,11 +2925,31 @@ packages:
   '@marijn/find-cluster-break@1.0.3':
     resolution: {integrity: sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA==}
 
+  '@mcp-b/global@6.0.3':
+    resolution: {integrity: sha512-ga4Z92+gAgFjy9mlGiYK5HQ6fLXTsWjIuaAQbGBtzPmB8IaFm1hFMb4PCJtiGmjrZStjbRSKEeuyQJ5Q11n5mw==}
+    engines: {node: '>=20'}
+
+  '@mcp-b/transports@6.0.3':
+    resolution: {integrity: sha512-j+HReArxaFmgdPY21T1ZzFDJSBf66yEOUmCUkKUZS147uL9J6DLjHUTWpzWT2NIa4ub2x4QAb49ITbohPQINjg==}
+    engines: {node: '>=20'}
+
+  '@mcp-b/webmcp-polyfill@6.0.3':
+    resolution: {integrity: sha512-pD8iKBXpDKLeYyqDcWPiNFI0JuK7/f+/RxspA6qW81kcDdabWUTt7A0fH+cJx6EIjpoHkk4o3QPci7yQPuHofA==}
+    engines: {node: '>=20'}
+
+  '@mcp-b/webmcp-ts-sdk@6.0.3':
+    resolution: {integrity: sha512-KNbsRW/lE05vE2lSrxNMgZuufuNyXYPRYMqoeKoFX3Se+9KzAOXdniTeGCIyoHJZbn6Zl0WQgDtijqgJmGLrHA==}
+    engines: {node: '>=20'}
+
   '@medv/finder@4.0.2':
     resolution: {integrity: sha512-RraNY9SCcx4KZV0Dh6BEW6XEW2swkqYca74pkFFRw6hHItSHiy+O/xMnpbofjYbzXj0tSpBGthUF1hHTsr3vIQ==}
 
   '@mermaid-js/parser@1.0.1':
     resolution: {integrity: sha512-opmV19kN1JsK0T6HhhokHpcVkqKpF+x2pPDKKM2ThHtZAB5F4PROopk0amuVYK5qMrIA4erzpNm8gmPNJgMDxQ==}
+
+  '@modelcontextprotocol/core@2.0.0':
+    resolution: {integrity: sha512-pJCEwGG7Lfr/+PQp9ZTwKXNeO5wzbfKL7H3MYpCorM4oFBoQrdjnBgEoqG+RjhsvS1FKrDbKux+M1HhlnGWqcA==}
+    engines: {node: '>=20'}
 
   '@modelcontextprotocol/sdk@1.27.1':
     resolution: {integrity: sha512-sr6GbP+4edBwFndLbM60gf07z0FQ79gaExpnsjMGePXqFcSSb7t6iscpjk9DhFhwd+mTEQrzNafGP8/iGGFYaA==}
@@ -2947,6 +2970,10 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@modelcontextprotocol/server@2.0.0':
+    resolution: {integrity: sha512-YhHWdHfpFMQfd0prsEnxKeS3Qz3ytIGmsS0sth4KDjnacIT7hxk6hXHkJ9KysxlkvTM+WZAtQbbcUhdoP4Hvtw==}
+    engines: {node: '>=20'}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     resolution: {integrity: sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw==}
@@ -8082,6 +8109,9 @@ packages:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
 
+  webmcp-types@0.1.9:
+    resolution: {integrity: sha512-ibdkppgRDkQ/nvH541YS48kVt96OiuDr+d9JHnirAtI5k0coaFdo2QqCipbXyfwrteDC6xXwPoUGC9uS5ZGwfw==}
+
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
 
@@ -10849,11 +10879,38 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.3': {}
 
+  '@mcp-b/global@6.0.3':
+    dependencies:
+      '@mcp-b/transports': 6.0.3
+      '@mcp-b/webmcp-polyfill': 6.0.3
+      '@mcp-b/webmcp-ts-sdk': 6.0.3
+      '@modelcontextprotocol/server': 2.0.0
+
+  '@mcp-b/transports@6.0.3':
+    dependencies:
+      '@modelcontextprotocol/core': 2.0.0
+      '@modelcontextprotocol/server': 2.0.0
+
+  '@mcp-b/webmcp-polyfill@6.0.3':
+    dependencies:
+      webmcp-types: 0.1.9
+
+  '@mcp-b/webmcp-ts-sdk@6.0.3':
+    dependencies:
+      '@mcp-b/webmcp-polyfill': 6.0.3
+      '@modelcontextprotocol/server': 2.0.0
+      '@standard-schema/spec': 1.1.0
+      webmcp-types: 0.1.9
+
   '@medv/finder@4.0.2': {}
 
   '@mermaid-js/parser@1.0.1':
     dependencies:
       langium: 4.2.1
+
+  '@modelcontextprotocol/core@2.0.0':
+    dependencies:
+      zod: 4.4.3
 
   '@modelcontextprotocol/sdk@1.27.1(zod@3.25.76)':
     dependencies:
@@ -10898,6 +10955,11 @@ snapshots:
       zod-to-json-schema: 3.25.1(zod@4.4.3)
     transitivePeerDependencies:
       - supports-color
+
+  '@modelcontextprotocol/server@2.0.0':
+    dependencies:
+      '@modelcontextprotocol/core': 2.0.0
+      zod: 4.4.3
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
@@ -16859,6 +16921,8 @@ snapshots:
   webidl-conversions@4.0.2: {}
 
   webidl-conversions@7.0.0: {}
+
+  webmcp-types@0.1.9: {}
 
   webpack-virtual-modules@0.6.2: {}
 

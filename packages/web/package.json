@@ -37,6 +37,7 @@
     "@livestore/sqlite-wasm": "0.4.0",
     "@livestore/utils": "0.4.0",
     "@livestore/wa-sqlite": "0.4.0",
+    "@mcp-b/global": "6.0.3",
     "@memora/ai-core": "workspace:*",
     "@memora/ai-extension-skills": "workspace:*",
     "@memora/ai-provider-pi": "workspace:*",

@@ -61,6 +61,7 @@ Memora 的主前端应用，基于 React 19、Vite、React Router 和 StyleX。
 - `src/generated-routes.ts` 为生成文件，不要手改
 - `react-scan` 仅在开发环境启用
 - 大型静态资源（VAD worklet、ONNX、WASM）由 Vite 在构建时复制
+- WebMCP 默认关闭，可在 Settings > Permissions 中分别允许读取和修改。MCP-B runtime 与外部 relay 的接入方式见 [WebMCP 文档](../../docs/webmcp.md)。
 
 ## PWA
 

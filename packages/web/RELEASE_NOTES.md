@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-16.2
+
+- WebMCP is now off by default. Enable it in Settings > Permissions and choose whether external assistants can read content or make changes on this device.
+
 ## 2026-10-16
 
 - Code blocks in notes are now syntax highlighted.
