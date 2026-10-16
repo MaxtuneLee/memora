@@ -451,6 +451,9 @@ importers:
       pptx-viewer-core:
         specifier: ^3.0.1
         version: 3.0.1(@xmldom/xmldom@0.8.15)
+      prismjs:
+        specifier: 1.30.0
+        version: 1.30.0
       react:
         specifier: ^19.2.0
         version: 19.2.3

@@ -3,11 +3,12 @@ import type {
   LexicalNode,
   LexicalUpdateJSON,
   NodeKey,
+  ParagraphNode,
   SerializedElementNode,
   Spread,
 } from "lexical";
 import * as stylex from "@stylexjs/stylex";
-import { $createTextNode, ElementNode } from "lexical";
+import { $createParagraphNode, $createTextNode, ElementNode } from "lexical";
 
 import { tokens } from "../../../styles/stylex.stylex";
 
@@ -119,6 +120,17 @@ export class CodeFenceNode extends ElementNode {
   updateFromJSON(serializedNode: LexicalUpdateJSON<SerializedCodeFenceNode>): this {
     super.updateFromJSON(serializedNode);
     return this.setActive(serializedNode.active).setRole(serializedNode.role);
+  }
+
+  // Enter on the closing fence leaves the block; the opening fence has no line after it to open.
+  insertNewAfter(): ParagraphNode | null {
+    if (this.getLatest().__role !== "close") {
+      return null;
+    }
+
+    const paragraph = $createParagraphNode();
+    this.insertAfter(paragraph);
+    return paragraph;
   }
 
   getRole(): CodeFenceRole {
