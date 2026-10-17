@@ -52,7 +52,7 @@ interface LessonQuestion {
   part?: string;
 }
 
-export interface LessonRecord {
+interface LessonRecord {
   question: LessonQuestion;
   correct: boolean;
   answer: string;
@@ -74,7 +74,7 @@ export const shuffle = <T>(items: readonly T[], random = Math.random): T[] => {
   return result;
 };
 
-export const buildLessonReport = (
+const buildLessonReport = (
   options: LessonQuizOptions,
   records: readonly LessonRecord[],
 ): string => {

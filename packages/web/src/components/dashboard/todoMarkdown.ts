@@ -1,6 +1,6 @@
 export const TODO_DOCUMENT_NAME = "Today Tasks";
-export const TODO_OPEN_HEADING = "## Open";
-export const TODO_DONE_HEADING = "## Done";
+const TODO_OPEN_HEADING = "## Open";
+const TODO_DONE_HEADING = "## Done";
 
 export interface TodoTask {
   id: string;

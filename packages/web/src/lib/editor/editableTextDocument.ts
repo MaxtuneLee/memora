@@ -30,7 +30,7 @@ export const getFileExtension = (name: string): string => {
   return trimmedName.slice(extensionIndex).toLowerCase();
 };
 
-export const hasEditableTextExtension = (name: string): boolean => {
+const hasEditableTextExtension = (name: string): boolean => {
   const extension = getFileExtension(name);
   return (
     MARKDOWN_EXTENSIONS.has(extension) ||

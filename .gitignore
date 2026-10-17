@@ -172,3 +172,4 @@ packages/.DS_Store
 .codex/
 .vitest-attachments/
 __screenshots__/
+.fallow/

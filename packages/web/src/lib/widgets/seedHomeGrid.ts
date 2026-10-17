@@ -48,7 +48,7 @@ const BUILTIN_WIDGET_DATA_SOURCES: Record<BuiltinWidgetKey, DataSourceName> = {
   recent: "recentFiles",
 };
 
-export const readLegacyWidgetVisibility = (): LegacyWidgetVisibility => {
+const readLegacyWidgetVisibility = (): LegacyWidgetVisibility => {
   if (typeof window === "undefined") {
     return {};
   }
@@ -66,7 +66,7 @@ export const readLegacyWidgetVisibility = (): LegacyWidgetVisibility => {
   }
 };
 
-export const builtinWidgetDefinitionId = (key: BuiltinWidgetKey): string => `builtin:${key}`;
+const builtinWidgetDefinitionId = (key: BuiltinWidgetKey): string => `builtin:${key}`;
 
 // A root Today Tasks document predates Widget Definitions living in folders; move it into
 // Widgets/Todo/ the first time we see it, instead of leaving an orphaned root file behind.

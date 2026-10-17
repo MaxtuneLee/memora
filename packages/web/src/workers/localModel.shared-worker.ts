@@ -1,5 +1,4 @@
 import { runLocalModelTask, setLocalModelAssetCache } from "@memora/local-model-runtime/worker";
-import type { LocalModelTask } from "@memora/local-model-runtime";
 
 import { opfsLocalModelAssetCache } from "./local-model/cache";
 import { startSharedModelWorkerRuntime } from "./model-worker/sharedRuntime";
@@ -17,5 +16,3 @@ setLocalModelAssetCache(opfsLocalModelAssetCache);
 startSharedModelWorkerRuntime(pool, (task, context) =>
   runLocalModelTask(task, context.emit, context.isCanceled, context.stream),
 );
-
-export type SharedModelWorkerTask = LocalModelTask;

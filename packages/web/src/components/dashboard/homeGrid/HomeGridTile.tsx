@@ -24,7 +24,7 @@ export const getHomeGridTileViewTransitionName = (instanceId: string): string =>
 
 // Single source of truth for a widget's corner: the tile clips its content, and every widget card
 // inside uses border-radius: inherit rather than repeating a value per widget.
-export const HOME_GRID_TILE_RADIUS_PX = 27;
+const HOME_GRID_TILE_RADIUS_PX = 27;
 
 export const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;

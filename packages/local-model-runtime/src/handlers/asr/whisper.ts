@@ -109,16 +109,6 @@ const toProgressEvent = (item: ProgressItem): LocalAsrEvent | null => {
   };
 };
 
-export const loadWhisperTranscriber = async (
-  emit: (event: LocalAsrEvent) => void,
-): Promise<void> => {
-  emit({ type: "status", status: "loading-model" });
-  await WhisperPipeline.getReadyInstance((progress) => {
-    const event = toProgressEvent(progress as ProgressItem);
-    if (event) emit(event);
-  });
-};
-
 export const runWhisperTranscription = async (
   request: LocalAsrRequest,
   emit: (event: LocalAsrEvent) => void,

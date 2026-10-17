@@ -2,8 +2,8 @@ import { queryDb } from "@livestore/livestore";
 
 import { folderEvents, folderTable, type folder as LiveStoreFolder } from "@/livestore/folder";
 
-export const WIDGETS_ROOT_FOLDER_NAME = "Widgets";
-export const WIDGET_DATA_FOLDER_NAME = "data";
+const WIDGETS_ROOT_FOLDER_NAME = "Widgets";
+const WIDGET_DATA_FOLDER_NAME = "data";
 
 export const widgetFoldersQuery$ = queryDb(() => folderTable.orderBy("updatedAt", "desc"), {
   label: "widgets:folders",
@@ -16,13 +16,6 @@ export interface WidgetFolderStoreLike {
 export const findWidgetsRootFolder = (
   folders: readonly LiveStoreFolder[],
 ): LiveStoreFolder | null => folders.find((folder) => folder.reservedKind === "widgets") ?? null;
-
-export const findWidgetDefinitionFolder = (
-  folders: readonly LiveStoreFolder[],
-  folderId: string,
-): LiveStoreFolder | null =>
-  folders.find((folder) => folder.id === folderId && folder.reservedKind === "widgetDefinition") ??
-  null;
 
 const uniqueFolderName = (
   folders: readonly LiveStoreFolder[],

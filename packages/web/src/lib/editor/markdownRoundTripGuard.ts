@@ -69,7 +69,7 @@ const isBlockBoundary = (previous: string, next: string): boolean => {
  * heading or before a list, do not change the rendered note. Returns null when the non-blank
  * lines themselves differ.
  */
-export const findParagraphBreakChanges = (before: string, after: string): ContentLine[] | null => {
+const findParagraphBreakChanges = (before: string, after: string): ContentLine[] | null => {
   const beforeLines = toContentLines(before);
   const afterLines = toContentLines(after);
   if (

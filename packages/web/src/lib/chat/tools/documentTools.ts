@@ -83,8 +83,6 @@ export const applyDocumentEdits = (
   return { text: nextText };
 };
 
-export const DOCUMENT_TOOL_NAMES = ["read_document", "edit_document", "write_document"] as const;
-
 export const createDocumentTools = (
   target: DocumentToolTarget,
   store?: StoreQueryable,

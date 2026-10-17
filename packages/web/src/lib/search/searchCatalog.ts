@@ -1,7 +1,7 @@
 import { SETTINGS_SECTIONS } from "@/types/settings";
 import type { GlobalSearchItem } from "@/types/search";
 
-export const PAGE_SEARCH_ITEMS: GlobalSearchItem[] = [
+const PAGE_SEARCH_ITEMS: GlobalSearchItem[] = [
   {
     id: "page:home",
     kind: "page",
@@ -126,7 +126,7 @@ export const ACTION_SEARCH_ITEMS: GlobalSearchItem[] = [
   },
 ];
 
-export const SETTINGS_SEARCH_ITEMS: GlobalSearchItem[] = SETTINGS_SECTIONS.map((section) => ({
+const SETTINGS_SEARCH_ITEMS: GlobalSearchItem[] = SETTINGS_SECTIONS.map((section) => ({
   id: `settings:${section.id}`,
   kind: "settings",
   title: section.label,

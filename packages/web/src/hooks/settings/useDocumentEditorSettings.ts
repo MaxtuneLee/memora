@@ -20,12 +20,12 @@ const documentEditorFoldersQuery$ = queryDb(
 type DefaultNoteLocationMode = setting["defaultNoteLocationMode"];
 type AttachmentPlacementMode = setting["attachmentPlacementMode"];
 
-export interface DocumentEditorFolderOption {
+interface DocumentEditorFolderOption {
   id: string;
   label: string;
 }
 
-export interface DocumentEditorSettingsWarning {
+interface DocumentEditorSettingsWarning {
   id: "default-note-folder-missing" | "attachment-folder-missing";
   title: string;
   description: string;

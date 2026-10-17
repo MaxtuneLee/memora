@@ -16,7 +16,7 @@ import { useAppStore } from "@/livestore/store";
 import { Link, useLocation, useNavigate } from "react-router";
 
 import { formatBytes } from "@/lib/format";
-import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileHref } from "@/lib/library/fileHref";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import { useSearchPalette } from "@/hooks/search/useSearchPalette";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
@@ -25,7 +25,6 @@ import { activeFilesQuery$ } from "@/lib/library/queries";
 import { withoutAppFiles } from "@/lib/library/appFiles";
 import { desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
-import type { FileMeta } from "@/types/library";
 import type { SearchNavigationState } from "@/types/search";
 import FileSyncBadge from "@/components/library/FileSyncBadge";
 import { ensureFileLocal, getFileSyncStatus } from "@/lib/sync/blobSync";
@@ -331,17 +330,7 @@ const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     : []),
 ] as const;
 
-export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {
-  if (file.type === "audio" || file.type === "video") {
-    return `/transcript/file/${file.id}`;
-  }
-
-  if (isEditableTextDocument(file)) {
-    return getDocumentEditorHref(file.id);
-  }
-
-  return "/desktop";
-};
+export { getFileHref } from "@/lib/library/fileHref";
 
 interface NavItemProps {
   icon: React.ElementType;

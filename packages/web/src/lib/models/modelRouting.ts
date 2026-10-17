@@ -94,7 +94,7 @@ export interface AiModelRouting {
   embedding: ModelTarget;
 }
 
-export const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
+const DEFAULT_AI_MODEL_ROUTING: AiModelRouting = {
   assistant: { source: "cloud", providerId: "", modelId: "" },
   transcription: { source: "local", modelId: nemotron35AsrStreamingManifest.id },
   sessionTitle: { source: "inherit", featureId: "assistant" },

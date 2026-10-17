@@ -1,4 +1,4 @@
-import { UploadGoneError, type BlobProvider, type UploadedPart } from "../blobProvider";
+import { UploadGoneError, type BlobProvider, type UploadedPart } from "../blobProviderTypes";
 
 /**
  * R2 behind Memora's WebDAV Worker (`packages/webdav-worker`). The Worker exposes R2's multipart

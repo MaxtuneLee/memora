@@ -7,7 +7,7 @@ import type { ChatWidget } from "@/lib/chat/showWidget";
 const CHAT_SESSION_ASSETS_DIR = "/chat/session-assets";
 
 export const MAX_CHAT_IMAGE_ATTACHMENTS = 4;
-export const MAX_CHAT_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_CHAT_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 export interface ChatImageAttachment {
   id: string;
@@ -62,7 +62,7 @@ const normalizeOptionalText = (value: unknown): string | undefined => {
   return trimmed || undefined;
 };
 
-export const validateChatImageFile = (file: { type: string; size: number }): string | null => {
+const validateChatImageFile = (file: { type: string; size: number }): string | null => {
   if (!isImageMimeType(file.type)) {
     return "Only image files can be attached.";
   }
@@ -78,7 +78,7 @@ export const validateChatImageFile = (file: { type: string; size: number }): str
   return null;
 };
 
-export const getChatSessionAssetsDir = (sessionId: string): string => {
+const getChatSessionAssetsDir = (sessionId: string): string => {
   const safeSessionId = sessionId.trim();
   if (!safeSessionId) {
     throw new Error("Session id is required");
@@ -146,7 +146,7 @@ export const createLibraryChatImageAttachment = (
   };
 };
 
-export const normalizeChatImageAttachment = (value: unknown): ChatImageAttachment | null => {
+const normalizeChatImageAttachment = (value: unknown): ChatImageAttachment | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }

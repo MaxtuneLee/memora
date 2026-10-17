@@ -225,7 +225,7 @@ export const parseProviderModels = (provider: Pick<ProviderRow, "models">): Mode
   }
 };
 
-export const flattenProviderModels = (providers: ProviderRow[]): ProviderModelOption[] => {
+const flattenProviderModels = (providers: ProviderRow[]): ProviderModelOption[] => {
   return providers.flatMap((provider) => {
     return parseProviderModels(provider).map((model) => ({
       providerId: provider.id,

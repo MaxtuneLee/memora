@@ -3,7 +3,7 @@ import type { TraceRecord } from "@memora/ai-core";
 import { appendTrace } from "@/lib/chat/traceStorage";
 import type { DeliveryMode, SessionSnapshot } from "./protocol";
 
-export const TRACE_FORMAT_VERSION = 1;
+const TRACE_FORMAT_VERSION = 1;
 const FLUSH_DELAY_MS = 1_000;
 
 /** One stored Trace line: the envelope plus the event's own fields. */

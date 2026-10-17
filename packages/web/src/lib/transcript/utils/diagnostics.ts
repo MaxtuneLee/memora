@@ -131,17 +131,6 @@ const getMostSevereDropReason = ({
   return null;
 };
 
-export const isUsableText = (text: string) => {
-  const trimmedText = trimRepeatedTailWords(text);
-  if (!trimmedText) {
-    return false;
-  }
-  if (trimmedText.length <= 1) {
-    return false;
-  }
-  return !/^(.)\1+$/.test(trimmedText);
-};
-
 export const evaluateTranscriptCandidate = ({
   audio,
   text,

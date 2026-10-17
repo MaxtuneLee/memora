@@ -101,45 +101,6 @@ export const subscribeToWhisperWorker = (
   };
 };
 
-export const loadWhisperModel = (worker: Worker): void => {
-  const localWorker = worker as LocalWhisperWorker;
-  if (localWorker.loaded) {
-    dispatchWhisperMessage(localWorker, { status: "ready" });
-    return;
-  }
-
-  localWorker.activeController?.abort();
-  const controller = new AbortController();
-  localWorker.activeController = controller;
-
-  void (async () => {
-    dispatchWhisperMessage(localWorker, { status: "loading", data: "Loading model..." });
-    try {
-      for await (const event of localModelClient.transcribeAudio(
-        {
-          modelId: "whisper-base-timestamped",
-          audio: new Float32Array(16_000),
-          language: "en",
-          returnTimestamps: "word",
-        },
-        { priority: "interactive", signal: controller.signal },
-      )) {
-        const progressMessage = toWhisperProgressMessage(event);
-        if (progressMessage) {
-          dispatchWhisperMessage(localWorker, progressMessage);
-        }
-      }
-      localWorker.loaded = true;
-      dispatchWhisperMessage(localWorker, { status: "ready" });
-    } catch (error) {
-      dispatchWhisperMessage(localWorker, {
-        status: "error",
-        data: error instanceof Error ? error.message : "Error loading model",
-      });
-    }
-  })();
-};
-
 export const loadTranscriptionModel = (worker: Worker, runtime: TranscriptionRuntime): void => {
   const localWorker = worker as LocalWhisperWorker;
   abortStreamingTranscription(localWorker);

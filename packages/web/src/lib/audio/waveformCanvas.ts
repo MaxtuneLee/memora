@@ -1,4 +1,4 @@
-export const smoothPeaksSpatially = (peaks: number[], passes: number = 2): number[] => {
+const smoothPeaksSpatially = (peaks: number[], passes: number = 2): number[] => {
   let result = [...peaks];
 
   for (let pass = 0; pass < passes; pass += 1) {
@@ -38,19 +38,6 @@ export const resamplePeaksToBars = (peaks: number[], barCount: number): number[]
   }
 
   return smoothPeaksSpatially(resampled, 2);
-};
-
-export const formatTimeMarker = (seconds: number): string => {
-  const clampedSeconds = Math.max(0, seconds);
-  const hours = Math.floor(clampedSeconds / 3600);
-  const minutes = Math.floor((clampedSeconds % 3600) / 60);
-  const secs = Math.floor(clampedSeconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${secs.toString().padStart(2, "0")}`;
 };
 
 export const drawRoundedRect = (

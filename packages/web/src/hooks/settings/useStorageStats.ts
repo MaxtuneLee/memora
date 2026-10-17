@@ -23,7 +23,7 @@ const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".qt", ".m4v", ".mkv", ".avi",
 const SKIP_DIRS = new Set(["/.opfs-tools-temp-dir", "/livestore-main@4", "/livestore-main@6"]);
 const SKIP_DIR_PREFIXES = ["/livestore-devtools_"];
 
-export const STORAGE_CONTENT_CATEGORY_CONFIG = [
+const STORAGE_CONTENT_CATEGORY_CONFIG = [
   { id: "recordings", label: "Recordings", color: "#b07a63" },
   { id: "transcripts", label: "Transcripts", color: "#c39a5b" },
   { id: "text", label: "Text files", color: "#6f7d63" },
@@ -47,22 +47,22 @@ const STORAGE_BREAKDOWN_SEGMENT_CONFIG = [
   },
 ] as const;
 
-export type StorageContentCategoryId = (typeof STORAGE_CONTENT_CATEGORY_CONFIG)[number]["id"];
+type StorageContentCategoryId = (typeof STORAGE_CONTENT_CATEGORY_CONFIG)[number]["id"];
 
-export type StorageBreakdownSegmentId = (typeof STORAGE_BREAKDOWN_SEGMENT_CONFIG)[number]["id"];
+type StorageBreakdownSegmentId = (typeof STORAGE_BREAKDOWN_SEGMENT_CONFIG)[number]["id"];
 
-export interface StorageMetricSegment {
+interface StorageMetricSegment {
   label: string;
   color: string;
   size: number;
   fraction: number;
 }
 
-export interface StorageContentCategory extends StorageMetricSegment {
+interface StorageContentCategory extends StorageMetricSegment {
   id: StorageContentCategoryId;
 }
 
-export interface StorageBreakdownSegment extends StorageMetricSegment {
+interface StorageBreakdownSegment extends StorageMetricSegment {
   id: StorageBreakdownSegmentId;
 }
 

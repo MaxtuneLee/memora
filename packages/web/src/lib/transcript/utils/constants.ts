@@ -1,7 +1,7 @@
 import type { RecordingWord, TranscriptDiagnostics } from "@/types/library";
 
 export const WHISPER_SAMPLE_RATE = 16_000;
-export const WHISPER_MAX_SECONDS = 30;
+const WHISPER_MAX_SECONDS = 30;
 export const WHISPER_MAX_SAMPLES = WHISPER_SAMPLE_RATE * WHISPER_MAX_SECONDS;
 
 export const WORD_PLAYBACK_SPEED = 0.6;

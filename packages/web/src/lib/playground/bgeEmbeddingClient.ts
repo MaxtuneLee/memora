@@ -51,6 +51,7 @@ export class BgeEmbeddingClient {
   }
 
   // One vector per image, in the same space as text. Only embeddinggemma-2 supports images.
+  // fallow-ignore-next-line unused-class-member -- Called by createEmbeddingRuntime in lib/models/embeddingRuntime.ts.
   embedImages(
     model: BgeEmbeddingModel,
     images: Blob[],

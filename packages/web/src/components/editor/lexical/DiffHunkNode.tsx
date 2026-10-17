@@ -90,6 +90,7 @@ export class DiffHunkNode extends DecoratorNode<JSX.Element> {
     return false;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read by the DiffHunkNode transformer in lib/editor/wysiwygMarkdownConfig.ts.
   getHunkIndex(): number {
     return this.getLatest().__hunkIndex;
   }

@@ -25,12 +25,6 @@ export const findWidgetManifestFile = (
   files.find((file) => file.parentId === folderId && file.name === WIDGET_MANIFEST_FILE_NAME) ??
   null;
 
-export const findWidgetSourceFile = (
-  files: readonly LiveStoreFile[],
-  folderId: string,
-): LiveStoreFile | null =>
-  files.find((file) => file.parentId === folderId && file.name === WIDGET_SOURCE_FILE_NAME) ?? null;
-
 export const commitFileCreated = (store: WidgetFileStoreLike, meta: FileMeta): void => {
   store.commit(
     fileEvents.fileCreated({

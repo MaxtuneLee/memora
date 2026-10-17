@@ -9,11 +9,6 @@ import type {
   StoredModelWorkerEvent,
 } from "@memora/local-model-runtime";
 
-export type {
-  LocalModelTaskSnapshot as ModelWorkerSnapshot,
-  StoredModelWorkerEvent,
-} from "@memora/local-model-runtime";
-
 interface PersistedSnapshotState {
   requestId: string;
   priority: LocalModelPriority;
@@ -114,7 +109,7 @@ export const writeModelWorkerSnapshotTask = async (
   await writeModelWorkerSnapshotState(pool, snapshot);
 };
 
-export const writeModelWorkerSnapshotState = async (
+const writeModelWorkerSnapshotState = async (
   pool: LocalModelPoolKey,
   snapshot: LocalModelTaskSnapshot,
 ): Promise<void> => {

@@ -1,11 +1,7 @@
-import type { PromptSegment } from "@memora/ai-core";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import type { ChatMessage as AgentChatMessage } from "@/hooks/chat/useAgent";
-import {
-  getChatMessagePreviewText,
-  type ChatImageAttachment,
-} from "@/lib/chat/chatImageAttachments";
+import { getChatMessagePreviewText } from "@/lib/chat/chatImageAttachments";
 import { EMPTY_REFERENCE_SCOPE, type ResolvedReferenceScope } from "@/lib/chat/tools";
 import {
   type ChatSessionMessage,
@@ -183,16 +179,6 @@ ${emptyScopeNote}
 Searches without file ids stay inside this scope. Reading or searching other files asks the user first, so only do it when the request needs files outside the references.`;
 };
 
-export const createReferenceScopePromptSegment = (
-  getScope: () => ResolvedReferenceScope,
-): PromptSegment => {
-  return {
-    id: "reference-scope",
-    priority: 90,
-    content: () => buildReferenceScopePrompt(getScope()),
-  };
-};
-
 export const buildSessionSignature = (
   messages: AgentChatMessage[],
   references: ChatSessionReference[],
@@ -273,7 +259,7 @@ export const resolveGreetingName = (value: string | null | undefined): string | 
   return normalized;
 };
 
-export const extractNameFromPersonalityMarkdown = (markdown: string): string | null => {
+const extractNameFromPersonalityMarkdown = (markdown: string): string | null => {
   const match = markdown.match(/^##\s+User\s+Identity\s*\n([\s\S]*?)(?=\n##\s+|$)/im);
   if (!match) {
     return null;
@@ -304,8 +290,4 @@ export const loadGreetingName = async (): Promise<string | null> => {
 
   const personalityDoc = await loadPersonalityDoc();
   return extractNameFromPersonalityMarkdown(personalityDoc ?? "");
-};
-
-export const hasAttachmentImages = (attachments: ChatImageAttachment[]): boolean => {
-  return attachments.length > 0;
 };

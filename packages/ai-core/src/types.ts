@@ -11,35 +11,35 @@ import type {
 
 export type MaybePromise<T> = T | Promise<T>;
 
-export const MessageRoleSchema = v.picklist(["user", "assistant", "system", "tool"]);
+const MessageRoleSchema = v.picklist(["user", "assistant", "system", "tool"]);
 export type MessageRole = v.InferOutput<typeof MessageRoleSchema>;
 
-export const TextContentSchema = v.object({
+const TextContentSchema = v.object({
   type: v.literal("text"),
   text: v.string(),
 });
 
-export const ImageContentSchema = v.object({
+const ImageContentSchema = v.object({
   type: v.literal("image"),
   mimeType: v.string(),
   data: v.string(),
 });
 
-export const FileContentSchema = v.object({
+const FileContentSchema = v.object({
   type: v.literal("file"),
   mimeType: v.string(),
   data: v.string(),
   name: v.string(),
 });
 
-export const ToolCallContentSchema = v.object({
+const ToolCallContentSchema = v.object({
   type: v.literal("tool_call"),
   id: v.string(),
   name: v.string(),
   arguments: v.record(v.string(), v.unknown()),
 });
 
-export const ToolResultContentSchema = v.object({
+const ToolResultContentSchema = v.object({
   type: v.literal("tool_result"),
   id: v.string(),
   name: v.string(),
@@ -48,7 +48,7 @@ export const ToolResultContentSchema = v.object({
   images: v.optional(v.array(ImageContentSchema)),
 });
 
-export const AgentMessageContentSchema = v.variant("type", [
+const AgentMessageContentSchema = v.variant("type", [
   TextContentSchema,
   ImageContentSchema,
   FileContentSchema,

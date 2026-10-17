@@ -7,8 +7,8 @@ import { fileEvents, fileTable, type file as LiveStoreFile } from "@/livestore/f
 
 import { formatLogEntry } from "./appLogFormat";
 
-export const APP_LOG_FILE_NAME = "memora-debug.log";
-export const APP_LOG_MAX_BYTES = 50 * 1024 * 1024;
+const APP_LOG_FILE_NAME = "memora-debug.log";
+const APP_LOG_MAX_BYTES = 50 * 1024 * 1024;
 const APP_LOG_MIME_TYPE = "text/plain";
 const FLUSH_INTERVAL_MS = 5000;
 const SIZE_SYNC_INTERVAL_MS = 60_000;
@@ -36,7 +36,7 @@ interface LogStore {
 export const isAppLogFile = (file: Pick<LiveStoreFile, "name" | "parentId">): boolean =>
   file.name === APP_LOG_FILE_NAME && !file.parentId;
 
-export const findAppLogFile = (store: LogStore): LiveStoreFile | null =>
+const findAppLogFile = (store: LogStore): LiveStoreFile | null =>
   store.query(appLogFileQuery$)[0] ?? null;
 
 // ponytail: OPFS has no append, so this rewrites from the end with keepExistingData. Past the

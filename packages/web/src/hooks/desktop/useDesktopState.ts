@@ -152,5 +152,3 @@ export function useDesktopState(options: UseDesktopStateOptions = {}) {
     setItems,
   };
 }
-
-export type DesktopStateReturn = ReturnType<typeof useDesktopState>;

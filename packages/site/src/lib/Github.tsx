@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 
 const GITHUB = "https://github.com/MaxtuneLee/memora";
 
-export function GithubIcon(): ReactElement {
+function GithubIcon(): ReactElement {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path

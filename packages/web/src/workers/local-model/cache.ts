@@ -2,14 +2,14 @@ import type { LocalModelAssetCache, LocalModelManifest } from "@memora/local-mod
 
 type OpfsApi = typeof import("@memora/fs");
 
-export const LOCAL_MODEL_CACHE_ROOT = "/transformers-cache";
+const LOCAL_MODEL_CACHE_ROOT = "/transformers-cache";
 
 export interface ModelResourceDownloadProgress {
   loaded: number;
   total?: number;
 }
 
-export interface CachedModelResource {
+interface CachedModelResource {
   file: File;
   path: string;
   cached: boolean;
@@ -26,11 +26,11 @@ export const getModelResourceCachePath = (request: string): string => {
   return `${LOCAL_MODEL_CACHE_ROOT}${url.pathname}`;
 };
 
-export const getTransformersModelCachePath = (manifest: Pick<LocalModelManifest, "modelId">) => {
+const getTransformersModelCachePath = (manifest: Pick<LocalModelManifest, "modelId">) => {
   return `${LOCAL_MODEL_CACHE_ROOT}/${manifest.modelId}`;
 };
 
-export const clearTransformersModelCache = async (
+const clearTransformersModelCache = async (
   manifest: Pick<LocalModelManifest, "modelId">,
 ): Promise<void> => {
   const { rm } = await import("@memora/fs");
@@ -40,7 +40,7 @@ export const clearTransformersModelCache = async (
   });
 };
 
-export const isTransformersExternalDataCacheError = (error: unknown): boolean => {
+const isTransformersExternalDataCacheError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return (
     message.includes("Deserialize tensor") &&
@@ -111,6 +111,7 @@ export class OPFSCache {
     }
   }
 
+  // fallow-ignore-next-line unused-class-member -- Transformers.js invokes this cache method through env.customCache = OPFSCache.
   static async put(request: string, response: Response): Promise<void> {
     try {
       if (await OPFSCache.has(request)) {
@@ -240,7 +241,7 @@ const downloadModelResource = async (
   return { file: await file(path).getOriginFile(), path, cached: false };
 };
 
-export const ensureOpfsModelResource = async (
+const ensureOpfsModelResource = async (
   request: string,
   onProgress?: (progress: ModelResourceDownloadProgress) => void,
 ): Promise<CachedModelResource> => {

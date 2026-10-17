@@ -49,7 +49,7 @@ interface TextEdit {
  * Applies exact-text edits, each matched against the original content, so the
  * model can change several places in one call without offsets shifting.
  */
-export const applyTextEdits = (
+const applyTextEdits = (
   content: string,
   edits: readonly TextEdit[],
 ): { content: string } | { error: string } => {

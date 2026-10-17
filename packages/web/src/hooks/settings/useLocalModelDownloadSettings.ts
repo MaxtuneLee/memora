@@ -16,10 +16,7 @@ import {
   type LocalModelDownloadState,
 } from "@/lib/local-model/downloadState";
 
-export type {
-  LocalModelDownloadFileState,
-  LocalModelDownloadState,
-} from "@/lib/local-model/downloadState";
+export type { LocalModelDownloadState } from "@/lib/local-model/downloadState";
 
 const DEFAULT_LOCAL_MODEL_OPTIONS = getAllLocalModelOptions();
 
@@ -79,10 +76,6 @@ const setLocalModelState = (modelId: string, state: LocalModelDownloadState): vo
   );
 };
 
-export const getLocalModelOptions = (): LocalModelOption[] => {
-  return DEFAULT_LOCAL_MODEL_OPTIONS;
-};
-
 interface UseLocalModelDownloadSettingsOptions {
   open: boolean;
   modelOptions?: LocalModelOption[];
@@ -96,21 +89,6 @@ export const useLocalModelDownloadState = (
     [modelId],
   );
   const getSnapshot = useCallback(() => sharedLocalModelStates[modelId], [modelId]);
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};
-
-export const useLocalModelsReady = (modelIds: readonly string[]): boolean => {
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      const unsubscribe = modelIds.map((modelId) => subscribeToLocalModelState(modelId, listener));
-      return () => unsubscribe.forEach((cleanup) => cleanup());
-    },
-    [modelIds],
-  );
-  const getSnapshot = useCallback(
-    () => modelIds.every((modelId) => sharedLocalModelStates[modelId]?.status === "cached"),
-    [modelIds],
-  );
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
 

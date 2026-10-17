@@ -43,7 +43,7 @@ const normalizeTextPart = (value: string): string => {
   return value.replace(/\n{3,}/g, "\n\n");
 };
 
-export const parseMediaJumpCard = (value: unknown): MediaJumpCardData | null => {
+const parseMediaJumpCard = (value: unknown): MediaJumpCardData | null => {
   if (!value || typeof value !== "object") {
     return null;
   }

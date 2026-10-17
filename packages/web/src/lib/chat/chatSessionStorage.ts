@@ -456,27 +456,6 @@ export const updateChatSession = async (
   });
 };
 
-export const updateChatSessionMessages = async (
-  sessionId: string,
-  messages: ChatSessionMessage[],
-  options?: { references?: ChatSessionReference[] },
-): Promise<ChatSessionRecord> => {
-  return updateChatSession(sessionId, (record) => {
-    const normalizedMessages = normalizeMessages(messages);
-    const autoTitle = getAutoTitleFromMessages(normalizedMessages);
-    const keepExistingTitle =
-      record.title !== DEFAULT_CHAT_SESSION_TITLE && record.title.trim().length > 0;
-    return {
-      ...record,
-      title: keepExistingTitle
-        ? record.title
-        : (autoTitle ?? record.title ?? DEFAULT_CHAT_SESSION_TITLE),
-      messages: normalizedMessages,
-      references: options?.references ?? record.references,
-    };
-  });
-};
-
 export const ensureChatSession = async (sessionId: string): Promise<ChatSessionRecord> => {
   const existing = await loadChatSession(sessionId);
   if (existing) return existing;

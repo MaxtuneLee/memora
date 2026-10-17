@@ -25,7 +25,7 @@ export const DEFAULT_WELCOME_COPY = {
   description: "Open a recent thread, add a note, or start a fresh capture.",
 } as const;
 
-export const WELCOME_COPY_LIBRARY: Record<WelcomeState, WelcomeCopyLibraryEntry> = {
+const WELCOME_COPY_LIBRARY: Record<WelcomeState, WelcomeCopyLibraryEntry> = {
   empty: {
     titles: ["Start with one idea.", "The desk is ready.", "A calm place to begin."],
     descriptions: {

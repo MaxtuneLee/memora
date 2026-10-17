@@ -52,7 +52,7 @@ export const readRun = (events: TraceEvent[]): TraceRun => {
 };
 
 /** The history as it stood right before `until`: the Run's starting history plus added messages. */
-export const historyBefore = (events: TraceEvent[], until: TraceEvent): AgentMessage[] => {
+const historyBefore = (events: TraceEvent[], until: TraceEvent): AgentMessage[] => {
   const byId = new Map<string, AgentMessage>();
   for (const event of events) {
     if (event.sequence >= until.sequence) break;
