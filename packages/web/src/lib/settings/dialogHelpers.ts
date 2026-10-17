@@ -1,3 +1,5 @@
+import type { ModelMetadata } from "../models/modelsDevCatalog";
+
 import type { provider as ProviderRow } from "@/livestore/provider";
 import type { ModelInfo, ProviderModelGroup, ProviderModelOption } from "@/types/settingsDialog";
 
@@ -97,17 +99,18 @@ const normalizeThinkingLevelMap = (value: unknown): ModelInfo["thinkingLevelMap"
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
-const normalizeModelCost = (value: unknown): ModelInfo["cost"] => {
+const normalizeModelCost = (value: unknown, fallback = ZERO_MODEL_COST): ModelInfo["cost"] => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ...ZERO_MODEL_COST };
+    return { ...fallback };
   }
 
   const record = value as Record<string, unknown>;
   return {
-    input: normalizePositiveNumber(record.input) ?? 0,
-    output: normalizePositiveNumber(record.output) ?? 0,
-    cacheRead: normalizePositiveNumber(record.cacheRead ?? record.cache_read) ?? 0,
-    cacheWrite: normalizePositiveNumber(record.cacheWrite ?? record.cache_write) ?? 0,
+    input: normalizePositiveNumber(record.input) ?? fallback.input,
+    output: normalizePositiveNumber(record.output) ?? fallback.output,
+    cacheRead: normalizePositiveNumber(record.cacheRead ?? record.cache_read) ?? fallback.cacheRead,
+    cacheWrite:
+      normalizePositiveNumber(record.cacheWrite ?? record.cache_write) ?? fallback.cacheWrite,
   };
 };
 
@@ -139,19 +142,13 @@ const readDiscoveryContextWindow = (record: Record<string, unknown>): number | u
       pickTopProviderValue(record, "context_length"),
   );
 
-export interface ModelTokenLimits {
-  contextWindow?: number;
-  maxTokens?: number;
-}
-
 /**
- * `lookupLimits` is consulted per field, and only where the provider's own listing is silent,
- * so discovery metadata always wins over a static catalog. Discovery callers pass pi's model
- * registry; a field neither source knows falls back to the DEFAULT_MODEL_* constants.
+ * Provider metadata wins per field. models.dev fills omissions; unknown models still use
+ * safe defaults when the catalog is unavailable.
  */
 export const parseProviderModel = (
   value: unknown,
-  lookupLimits?: (modelId: string) => ModelTokenLimits | undefined,
+  lookupMetadata?: (modelId: string) => ModelMetadata | undefined,
 ): ModelInfo | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -164,8 +161,8 @@ export const parseProviderModel = (
   }
 
   const name = typeof record.name === "string" ? record.name.trim() : "";
-  const registryLimits = lookupLimits?.(id);
-  const contextWindow = readDiscoveryContextWindow(record) ?? registryLimits?.contextWindow;
+  const metadata = lookupMetadata?.(id);
+  const contextWindow = readDiscoveryContextWindow(record) ?? metadata?.contextWindow;
   const maxTokens =
     normalizePositiveInteger(
       record.maxTokens ??
@@ -180,25 +177,25 @@ export const parseProviderModel = (
         pickTopProviderValue(record, "maxOutputTokens") ??
         pickTopProviderValue(record, "max_output_tokens") ??
         pickTopProviderValue(record, "max_completion_tokens"),
-    ) ?? registryLimits?.maxTokens;
+    ) ?? metadata?.maxTokens;
 
+  const thinkingLevelMap =
+    normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map) ??
+    metadata?.thinkingLevelMap;
   return {
     id,
-    name: name || id,
+    name: name || metadata?.name || id,
     reasoning:
       normalizeBoolean(record.reasoning ?? record.supportsReasoning ?? record.supports_reasoning) ??
+      metadata?.reasoning ??
       false,
-    input: normalizeModelInputs(record.input ?? record.inputs ?? getNestedInput(record.modalities)),
-    cost: normalizeModelCost(record.cost ?? record.pricing),
+    input: normalizeModelInputs(
+      record.input ?? record.inputs ?? getNestedInput(record.modalities) ?? metadata?.input,
+    ),
+    cost: normalizeModelCost(record.cost ?? record.pricing, metadata?.cost),
     contextWindow: contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW,
     maxTokens: maxTokens ?? DEFAULT_MODEL_MAX_TOKENS,
-    ...(normalizeThinkingLevelMap(record.thinkingLevelMap ?? record.thinking_level_map)
-      ? {
-          thinkingLevelMap: normalizeThinkingLevelMap(
-            record.thinkingLevelMap ?? record.thinking_level_map,
-          ),
-        }
-      : {}),
+    ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
     ...(normalizeUnknownRecord(record.samplingParams ?? record.sampling_params)
       ? { samplingParams: normalizeUnknownRecord(record.samplingParams ?? record.sampling_params) }
       : {}),

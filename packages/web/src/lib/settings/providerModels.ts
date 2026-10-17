@@ -1,4 +1,4 @@
-import { loadPiModelLimits, type PiModelLimits } from "@memora/ai-provider-pi";
+import { loadModelsDevMetadata } from "../models/modelsDev";
 
 import { parseProviderModel } from "./dialogHelpers";
 import { normalizeProviderEndpoint } from "./providerEndpoint";
@@ -6,18 +6,6 @@ import type { ModelInfo } from "@/types/settingsDialog";
 
 // Only in-flight requests are shared. Keys remain in memory and are never persisted.
 const pendingRequests = new Map<string, Promise<ModelInfo[]>>();
-
-// A model the provider does not describe still beats the DEFAULT_MODEL_* constants when pi's
-// catalog knows it. Discovery must not fail when that catalog cannot be loaded.
-const loadRegistryLimits = async (): Promise<
-  ((modelId: string) => PiModelLimits | undefined) | undefined
-> => {
-  try {
-    return await loadPiModelLimits();
-  } catch {
-    return undefined;
-  }
-};
 
 export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<ModelInfo[]> => {
   const requestKey = JSON.stringify([baseUrl, apiKey]);
@@ -29,6 +17,7 @@ export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<Mo
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
     try {
+      // fallow-ignore-next-line security-sink -- Browser request to the user's validated provider URL; redirects and ambient credentials are disabled.
       const response = await fetch(`${endpoint}/models`, {
         headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
         credentials: "omit",
@@ -49,10 +38,15 @@ export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<Mo
       if (!Array.isArray(rawModels)) {
         throw new Error("The provider returned an invalid model list.");
       }
-      const lookupLimits = await loadRegistryLimits();
+      const modelIds = rawModels.flatMap((raw: unknown) => {
+        if (!raw || typeof raw !== "object" || !("id" in raw) || typeof raw.id !== "string")
+          return [];
+        return raw.id.trim() ? [raw.id.trim()] : [];
+      });
+      const lookupMetadata = await loadModelsDevMetadata(endpoint, modelIds);
       const models = new Map<string, ModelInfo>();
       for (const raw of rawModels) {
-        const model = parseProviderModel(raw, lookupLimits);
+        const model = parseProviderModel(raw, lookupMetadata);
         if (model) models.set(model.id, model);
       }
       return [...models.values()];

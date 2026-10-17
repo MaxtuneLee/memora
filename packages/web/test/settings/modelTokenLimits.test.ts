@@ -1,7 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { loadPiModelLimits } from "@memora/ai-provider-pi";
-
 import { parseProviderModel } from "@/lib/settings/dialogHelpers";
 
 const lookup = (modelId: string) =>
@@ -36,12 +34,5 @@ describe("model token limit resolution", () => {
     expect(model?.contextWindow).toBe(131072);
     expect(model?.maxTokens).toBe(4096);
     expect(parseProviderModel({ id: "mystery-model" })?.contextWindow).toBe(131072);
-  });
-  test("pi's catalog reports real limits", async () => {
-    const piLookup = await loadPiModelLimits();
-    expect(piLookup("gpt-4-turbo")).toEqual({ contextWindow: 128_000, maxTokens: 4096 });
-    // DeepSeek's own listing carries neither limit, so both have to come from the catalog.
-    expect(piLookup("deepseek-flash")).toEqual({ contextWindow: 1_000_000, maxTokens: 384_000 });
-    expect(piLookup("not-a-real-model")).toBeUndefined();
   });
 });

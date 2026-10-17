@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import { fetchProviderModels } from "@/lib/settings/providerModels";
 
+vi.mock("@/lib/models/modelsDev", () => ({ loadModelsDevMetadata: async () => () => undefined }));
+
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   fetchMock.mockReset();
@@ -60,5 +62,15 @@ test("rejects endpoints containing credentials before making a request", async (
   await expect(fetchProviderModels("https://example.test/v1?api_key=secret", "")).rejects.toThrow(
     "credentials",
   );
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test.each([
+  "file:///etc/passwd",
+  "javascript:alert(1)",
+  "https://user:password@example.test/v1",
+  "https://example.test/v1#secret",
+])("rejects unsafe provider endpoint %s before making a request", async (endpoint) => {
+  await expect(fetchProviderModels(endpoint, "device-key")).rejects.toThrow();
   expect(fetchMock).not.toHaveBeenCalled();
 });
