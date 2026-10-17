@@ -130,7 +130,11 @@ export default function SettingsPermissionsSection() {
         <div {...stylex.props(styles.grants)}>
           {(
             [
-              ["webMcpEnabled", "Enable WebMCP", "Expose tools while Memora is open."],
+              [
+                "webMcpEnabled",
+                "Enable WebMCP",
+                "Expose tools and connect to your local relay while Memora is open.",
+              ],
               [
                 "webMcpReadEnabled",
                 "Allow reading",

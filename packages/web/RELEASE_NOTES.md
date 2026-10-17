@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-17.2
+
+- Enabling WebMCP now automatically connects Memora to your local relay. Turning it off disconnects the relay.
+
 ## 2026-10-17
 
 - Settings sections can now scroll on small screens and in shorter windows, so every section is reachable.

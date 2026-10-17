@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Memora WebMCP relay</title>
+  </head>
+  <body>
+    <script>
+      // The official embed and all its connections die when Memora removes this frame.
+      if (window.parent !== window) {
+        try {
+          const context = window.parent.document.modelContext;
+          if (context) {
+            Object.defineProperty(document, "modelContext", { value: context });
+            document.title = window.parent.document.title;
+            // Report the actual Memora page to the relay, rather than this bootstrap URL.
+            history.replaceState(null, "", window.parent.location.href);
+            window.addEventListener("message", (event) => {
+              const widget = document.querySelector("iframe[data-webmcp-relay]");
+              if (
+                event.origin === window.location.origin &&
+                event.source === widget?.contentWindow &&
+                event.data?.type === "webmcp.reload"
+              ) {
+                event.stopImmediatePropagation();
+                window.parent.location.reload();
+              }
+            });
+
+            const script = document.createElement("script");
+            script.src =
+              "https://cdn.jsdelivr.net/npm/@mcp-b/webmcp-local-relay@6.0.3/dist/browser/embed.js";
+            script.crossOrigin = "anonymous";
+            script.onerror = () => console.error("[WebMCP] Could not load the local relay embed.");
+            document.head.appendChild(script);
+          }
+        } catch (error) {
+          console.error("[WebMCP] Could not initialize the local relay embed.", error);
+        }
+      }
+    </script>
+  </body>
+</html>
