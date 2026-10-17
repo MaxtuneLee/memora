@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
-import {
-  findModelsDevMetadata,
-  MODELS_DEV_URL,
-  parseModelsDevCatalog,
-} from "@/lib/models/modelsDevCatalog";
+import { findModelsDevMetadata, parseModelsDevCatalog } from "@/lib/models/modelsDevCatalog";
 
+const MODELS_DEV_URL = "https://models.dev/api.json";
 const fetchMock = vi.fn<typeof fetch>();
 const rawModel = (output = 128_000) => ({
   name: "New model",

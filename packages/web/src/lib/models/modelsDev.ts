@@ -1,6 +1,5 @@
 import {
   findModelsDevMetadata,
-  MODELS_DEV_URL,
   parseModelsDevCatalog,
   type ModelMetadata,
   type ModelsDevCatalog,
@@ -17,7 +16,7 @@ const refreshCatalog = (): Promise<void> => {
   if (Date.now() < refreshAfter) return Promise.resolve();
   refreshing = (async () => {
     try {
-      const response = await fetch(MODELS_DEV_URL, {
+      const response = await fetch("https://models.dev/api.json", {
         credentials: "omit",
         redirect: "error",
         referrerPolicy: "no-referrer",

@@ -1,7 +1,5 @@
 import type { ModelInfo } from "../../types/settingsDialog";
 
-export const MODELS_DEV_URL = "https://models.dev/api.json";
-
 export interface ModelMetadata {
   name?: string;
   contextWindow?: number;

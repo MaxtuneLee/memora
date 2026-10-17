@@ -1,11 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { Plugin } from "vite";
 
-import {
-  MODELS_DEV_URL,
-  parseModelsDevCatalog,
-  type ModelsDevCatalog,
-} from "../src/lib/models/modelsDevCatalog";
+import { parseModelsDevCatalog, type ModelsDevCatalog } from "../src/lib/models/modelsDevCatalog";
 
 const MODULE_ID = "virtual:models-dev-catalog";
 const RESOLVED_ID = `\0${MODULE_ID}`;
@@ -27,7 +23,12 @@ export const modelsDevCatalogPlugin = (): Plugin => {
       catalog ??= (async () => {
         if (build) {
           try {
-            const response = await fetch(MODELS_DEV_URL, { signal: AbortSignal.timeout(30_000) });
+            const response = await fetch("https://models.dev/api.json", {
+              credentials: "omit",
+              redirect: "error",
+              referrerPolicy: "no-referrer",
+              signal: AbortSignal.timeout(30_000),
+            });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return parseModelsDevCatalog(await response.json());
           } catch (error) {

@@ -64,3 +64,13 @@ test("rejects endpoints containing credentials before making a request", async (
   );
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test.each([
+  "file:///etc/passwd",
+  "javascript:alert(1)",
+  "https://user:password@example.test/v1",
+  "https://example.test/v1#secret",
+])("rejects unsafe provider endpoint %s before making a request", async (endpoint) => {
+  await expect(fetchProviderModels(endpoint, "device-key")).rejects.toThrow();
+  expect(fetchMock).not.toHaveBeenCalled();
+});

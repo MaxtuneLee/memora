@@ -31,19 +31,25 @@ const buildCatalog = async (): Promise<ModelsDevCatalog> => {
 afterEach(() => vi.unstubAllGlobals());
 
 test("embeds the current models.dev catalog at build time", async () => {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue(
-      Response.json({
-        openai: { models: { "build-time-model": { limit: { context: 200_000, output: 64_000 } } } },
-      }),
-    );
+  const fetchMock = vi.fn().mockResolvedValue(
+    Response.json({
+      openai: { models: { "build-time-model": { limit: { context: 200_000, output: 64_000 } } } },
+    }),
+  );
   vi.stubGlobal("fetch", fetchMock);
   const catalog = await buildCatalog();
   expect(catalog).toEqual([
     { id: "openai", models: { "build-time-model": { contextWindow: 200_000, maxTokens: 64_000 } } },
   ]);
-  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+    "https://models.dev/api.json",
+    expect.objectContaining({
+      credentials: "omit",
+      redirect: "error",
+      referrerPolicy: "no-referrer",
+      signal: expect.any(AbortSignal),
+    }),
+  );
 });
 
 test("can still build offline using the saved snapshot", async () => {

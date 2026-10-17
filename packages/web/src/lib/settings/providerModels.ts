@@ -17,6 +17,7 @@ export const fetchProviderModels = (baseUrl: string, apiKey: string): Promise<Mo
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
     try {
+      // fallow-ignore-next-line security-sink -- Browser request to the user's validated provider URL; redirects and ambient credentials are disabled.
       const response = await fetch(`${endpoint}/models`, {
         headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
         credentials: "omit",
