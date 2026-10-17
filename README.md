@@ -2,6 +2,8 @@
 
 Memora is a local-first workspace for learning across documents, audio, images, and video. It is under rapid development, and both APIs and features may change significantly.
 
+[![Cloudflare pages](https://cloudflare-build-badge.xeffen25.com/MaxtuneLee/memora/main/status.svg?logo=cloudflare-pages&label=Cloudflare+pages)](https://cloudflare-build-badge.xeffen25.com/MaxtuneLee/memora/main/status.svg?logo=cloudflare-pages&label=Cloudflare+pages) ![fallow health](.github/badges/health.svg)
+
 ## Overview
 
 - Main app: `@memora/web`
