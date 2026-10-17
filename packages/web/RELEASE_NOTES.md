@@ -4,9 +4,13 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
-## 2026-10-17.3
+## 2026-10-17.4
 
 - New AI models now use an up-to-date model catalog for context size, output limits, and reasoning support. Models missing from the bundled catalog are looked up automatically.
+
+## 2026-10-17.3
+
+- For privacy, chat images are loaded only from your local attachments and library.
 
 ## 2026-10-17.2
 

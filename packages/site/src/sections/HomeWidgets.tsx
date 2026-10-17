@@ -6,7 +6,7 @@ import { prefersReducedMotion, sampleCat, sleep } from "../lib/dots";
 
 // Widgets for the personalized Home wall. Each one is small, self-contained, and actually works.
 
-export function Tile({
+function Tile({
   title,
   children,
   className = "",

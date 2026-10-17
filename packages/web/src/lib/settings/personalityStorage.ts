@@ -1,7 +1,7 @@
 import { dir as opfsDir, file as opfsFile, write as opfsWrite } from "@memora/fs";
 
 const PROFILE_DIR = "/chat/profile";
-export const PERSONALITY_DOC_PATH = `${PROFILE_DIR}/Personality.md`;
+const PERSONALITY_DOC_PATH = `${PROFILE_DIR}/Personality.md`;
 const GLOBAL_MEMORY_PATH = `${PROFILE_DIR}/memory.json`;
 
 export interface MemoryNotice {
@@ -134,10 +134,6 @@ export const normalizePersonalityText = (text: string | null | undefined): strin
   return text.trim();
 };
 
-export const hasPersonalityDoc = async (): Promise<boolean> => {
-  return opfsFile(PERSONALITY_DOC_PATH).exists();
-};
-
 export const loadPersonalityDoc = async (): Promise<string | null> => {
   try {
     const text = await opfsFile(PERSONALITY_DOC_PATH).text();
@@ -148,7 +144,7 @@ export const loadPersonalityDoc = async (): Promise<string | null> => {
   }
 };
 
-export const savePersonalityDoc = async (content: string): Promise<void> => {
+const savePersonalityDoc = async (content: string): Promise<void> => {
   await ensureProfileDir();
   await opfsWrite(PERSONALITY_DOC_PATH, content, { overwrite: true });
 };

@@ -58,7 +58,7 @@ export interface EvaluationDevApiHandlers {
   ) => Promise<LearningEvaluationResult>;
 }
 
-export interface MemoraEvalApi {
+interface MemoraEvalApi {
   /** Imports `<dataset>/<transcripts>/` and `<dataset>/<questions>` from the data folder. */
   import(options?: {
     dataset?: string;

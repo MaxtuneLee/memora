@@ -5,10 +5,10 @@ import type { ContentArtifact } from "./types";
 const CONTENT_FILE_SUFFIX = ".content.json";
 const CONTENT_MARKDOWN_SUFFIX = ".content.md";
 
-export const getArtifactDirectory = (fileId: string): string => `/files/${fileId}`;
-export const getArtifactPath = (fileId: string): string =>
+const getArtifactDirectory = (fileId: string): string => `/files/${fileId}`;
+const getArtifactPath = (fileId: string): string =>
   `${getArtifactDirectory(fileId)}/${fileId}${CONTENT_FILE_SUFFIX}`;
-export const getArtifactMarkdownPath = (fileId: string): string =>
+const getArtifactMarkdownPath = (fileId: string): string =>
   `${getArtifactDirectory(fileId)}/${fileId}${CONTENT_MARKDOWN_SUFFIX}`;
 
 export const writeContentArtifact = async (artifact: ContentArtifact): Promise<void> => {

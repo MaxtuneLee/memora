@@ -1,3 +1,4 @@
+import type { TranscriptWord } from "@/types/library";
 import { cat } from "@memora/fs";
 import * as v from "valibot";
 
@@ -12,7 +13,6 @@ import {
   type ChatToolDefinition,
   type CreateChatToolsOptions,
   type StoreQueryable,
-  type TranscriptWord,
   type TranscriptWordRange,
 } from "./shared";
 

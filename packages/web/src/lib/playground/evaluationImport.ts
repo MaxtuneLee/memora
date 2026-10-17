@@ -78,7 +78,7 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function evaluationFileId(transcriptSha256: string, lectureId: string): string {
+function evaluationFileId(transcriptSha256: string, lectureId: string): string {
   return `eval-${transcriptSha256.slice(0, 12)}-${lectureId}`;
 }
 

@@ -13,6 +13,7 @@ export class BeirRerankerClient {
     this.factory = factory;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Called through worker.reranker in BeirEmbeddingPool.scorePair.
   async score(
     query: string,
     document: string,

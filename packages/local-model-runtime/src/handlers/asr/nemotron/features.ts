@@ -1,5 +1,5 @@
 export const SAMPLE_RATE = 16_000;
-export const HOP_SIZE = 160;
+const HOP_SIZE = 160;
 export const MEL_BAND_COUNT = 128;
 
 const FFT_SIZE = 512;

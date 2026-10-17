@@ -2,12 +2,12 @@ import type { LocalFormulaEvent, LocalModelExecutionBackend } from "@memora/loca
 
 import { modelWorkerFactory, type ModelWorkerFactory } from "../model-worker";
 
-export interface TexoFormulaProgress {
+interface TexoFormulaProgress {
   label: string;
   progress?: number;
 }
 
-export class TexoFormulaClient {
+class TexoFormulaClient {
   private backend: LocalModelExecutionBackend | null = null;
   private readonly workerFactory: ModelWorkerFactory;
 

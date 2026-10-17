@@ -261,7 +261,7 @@ const isSafeHref = (value: string): boolean => {
 const isSafeImageSource = (value: string): boolean =>
   /^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(value.trim());
 
-export const sanitizeDocxHtml = (source: string): string => {
+const sanitizeDocxHtml = (source: string): string => {
   const document = new DOMParser().parseFromString(source, "text/html");
   for (const element of Array.from(document.body.querySelectorAll("*"))) {
     const tagName = element.tagName.toLowerCase();

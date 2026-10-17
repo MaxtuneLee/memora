@@ -7,7 +7,7 @@ import {
 import { setWorkerDebugReporter } from "../local-model/debug";
 import { opfsLocalModelTaskStore } from "./snapshotStore";
 
-export type { SharedModelTaskContext, SharedModelTaskRunner } from "@memora/local-model-runtime";
+export type { SharedModelTaskRunner } from "@memora/local-model-runtime";
 
 export const startSharedModelWorkerRuntime = (
   pool: LocalModelPoolKey,

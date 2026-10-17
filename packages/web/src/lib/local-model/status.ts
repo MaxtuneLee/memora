@@ -181,27 +181,12 @@ export const writeLocalModelCacheMarker = async (modelId: string): Promise<void>
   });
 };
 
-export const getLocalChatModelOptions = (): LocalModelOption[] => {
-  return builtInLocalModelManifests
-    .filter((manifest) => manifest.task === "chat")
-    .map((manifest) => ({
-      id: manifest.id,
-      name: manifest.displayName,
-      manifest,
-    }));
-};
-
 export const getLocalModelOptions = (): LocalModelOption[] => {
   return builtInLocalModelManifests.map((manifest) => ({
     id: manifest.id,
     name: manifest.displayName,
     manifest,
   }));
-};
-
-export const getRequiredOnboardingModelOptions = (): LocalModelOption[] => {
-  const requiredIds = new Set(["gemma-4-e2b-it-onnx", "whisper-base-timestamped"]);
-  return getLocalModelOptions().filter((model) => requiredIds.has(model.id));
 };
 
 export const getLocalModelCacheStatus = async (modelId: string): Promise<LocalModelCacheStatus> => {

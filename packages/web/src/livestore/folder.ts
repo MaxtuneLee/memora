@@ -1,7 +1,7 @@
 import { Events, Schema, State } from "@livestore/livestore";
 
-export const RESERVED_FOLDER_KINDS = ["widgets", "widgetDefinition"] as const;
-export type ReservedFolderKind = (typeof RESERVED_FOLDER_KINDS)[number];
+const RESERVED_FOLDER_KINDS = ["widgets", "widgetDefinition"] as const;
+type ReservedFolderKind = (typeof RESERVED_FOLDER_KINDS)[number];
 
 const ReservedFolderKindSchema = Schema.Literal(...RESERVED_FOLDER_KINDS);
 

@@ -169,10 +169,12 @@ export class RawMarkdownNode extends DecoratorNode<JSX.Element> {
     return false;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read after a RawMarkdownNode type guard in RawMarkdownPlugin.tsx.
   getText(): string {
     return this.getLatest().__text;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Called by RawMarkdownEditor in this module.
   setText(text: string): void {
     if (this.getLatest().__text !== text) {
       this.getWritable().__text = text;

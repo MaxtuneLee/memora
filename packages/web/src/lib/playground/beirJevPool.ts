@@ -34,9 +34,11 @@ export class BeirJevPool {
       backend: "remote-api",
     }));
   }
+  // fallow-ignore-next-line unused-class-member -- Called on the selected pool by beirRerankerEvaluation.js.
   setDataset(dataset: JevDataset): void {
     this.dataset = dataset;
   }
+  // fallow-ignore-next-line unused-class-member -- Called on the selected pool by beirRerankerEvaluation.js.
   progress(): Slot[] {
     return this.slots.map((s) => ({ ...s }));
   }
@@ -74,6 +76,7 @@ export class BeirJevPool {
       this.busy.delete(slot.workerId);
     }
   }
+  // fallow-ignore-next-line unused-class-member -- Called on the selected pool by beirRerankerEvaluation.js.
   warmReranker(device: string, signal: AbortSignal) {
     return Promise.all(
       this.slots.map(() =>
@@ -88,6 +91,7 @@ export class BeirJevPool {
       ),
     );
   }
+  // fallow-ignore-next-line unused-class-member -- Called on the selected pool by beirRerankerEvaluation.js.
   dispose(): void {
     this.controller.abort();
   }
