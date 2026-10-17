@@ -4,6 +4,7 @@ import type { LayoutDetection } from "@embedpdf/ai";
 
 import { texoFormulaClient } from "@/lib/local-model/texoFormulaClient";
 import { createOpfsModelResourceUrl } from "@/workers/local-model/cache";
+import type { PixelRect } from "@/lib/content/types";
 
 import {
   preparePaddleOcrV6TinyModelAssets,
@@ -23,13 +24,6 @@ export type ImageDocumentBlockKind =
   | "chart"
   | "ignored"
   | "unknown";
-
-export interface PixelRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
 
 export interface RecognizedTextLine {
   text: string;
@@ -125,9 +119,9 @@ const IGNORED_LABELS = new Set([
   "vision_footnote",
 ]);
 
-export const DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD = 0.4;
-export const DEFAULT_OCR_CONFIDENCE_THRESHOLD = 0.4;
-export const DEFAULT_FORMULA_CONFIDENCE_THRESHOLD = 0.4;
+const DEFAULT_LAYOUT_CONFIDENCE_THRESHOLD = 0.4;
+const DEFAULT_OCR_CONFIDENCE_THRESHOLD = 0.4;
+const DEFAULT_FORMULA_CONFIDENCE_THRESHOLD = 0.4;
 
 const now = (): number => performance.now();
 
@@ -194,7 +188,7 @@ const bboxToRect = ([x1, y1, x2, y2]: [number, number, number, number]): PixelRe
   height: Math.max(0, y2 - y1),
 });
 
-export const ocrItemToLine = (item: OcrResultItem): RecognizedTextLine => {
+const ocrItemToLine = (item: OcrResultItem): RecognizedTextLine => {
   const xs = item.poly.map((point) => point[0]);
   const ys = item.poly.map((point) => point[1]);
   const x = Math.min(...xs);

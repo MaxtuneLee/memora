@@ -143,6 +143,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
     return !this.__displayMode;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read after MathNode type guards in MathEditorPopover or imageMarkdownTransformer.
   getFormula(): string {
     return this.__formula;
   }
@@ -161,10 +162,12 @@ export class MathNode extends DecoratorNode<JSX.Element> {
     return this.__displayMode;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read after MathNode type guards in MathEditorPopover or imageMarkdownTransformer.
   getInlineDelimiter(): InlineMathDelimiter {
     return this.__inlineDelimiter;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read after MathNode type guards in MathEditorPopover or imageMarkdownTransformer.
   usesMultilineMarkdown(): boolean {
     return this.__multilineMarkdown;
   }

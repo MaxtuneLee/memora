@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "minimumVersion": "3.32.0",
+  "entry": [
+    "packages/*/tsdown.config.ts",
+    "packages/*/*/tsdown.config.ts",
+    "packages/*/test/browser/**/*.browser.{ts,tsx}",
+    "packages/site/src/stubs/livestoreStore.ts",
+    "packages/web/local-index-e2e.html",
+    "packages/web/src/devtools/livestoreDevtoolsSetup.tsx",
+    "packages/evaluation/scripts/ocw-vtt-to-transcript.mjs",
+    "packages/web/beir-dissertation.html",
+    "packages/web/src/lib/playground/beirRerankerEvaluation.js"
+  ],
+  "audit": {
+    "gate": "new-only"
+  },
+  "ignoreDependencies": [
+    "@livestore/peer-deps",
+    "@stylexjs/stylex",
+    "@types/audioworklet",
+    "@webgpu/types"
+  ],
+  "ignoreExports": [
+    {
+      "file": "packages/web/src/pages/**/*.tsx",
+      "exports": ["Component"]
+    },
+    {
+      "file": "packages/web/src/dev-pages/playground.tsx",
+      "exports": ["Component"]
+    },
+    {
+      "file": "packages/web/src/generated-routes.ts",
+      "exports": ["default"]
+    }
+  ],
+  "usedClassMembers": [
+    {
+      "extends": "ElementNode",
+      "members": ["afterCloneFrom", "insertNewAfter"]
+    },
+    {
+      "extends": "HeadingNode",
+      "members": [
+        "getType",
+        "clone",
+        "importJSON",
+        "afterCloneFrom",
+        "createDOM",
+        "updateDOM",
+        "exportJSON",
+        "setMarkdownSourcePrefix"
+      ]
+    },
+    {
+      "extends": "ListItemNode",
+      "members": [
+        "getType",
+        "clone",
+        "importJSON",
+        "afterCloneFrom",
+        "createDOM",
+        "updateDOM",
+        "exportJSON",
+        "setMarkdownSourcePrefix"
+      ]
+    },
+    {
+      "extends": "LinkNode",
+      "members": [
+        "getType",
+        "clone",
+        "importJSON",
+        "afterCloneFrom",
+        "createDOM",
+        "updateDOM",
+        "exportJSON",
+        "importDOM"
+      ]
+    }
+  ],
+  "rules": {
+    "require-suppression-reason": "warn"
+  }
+}

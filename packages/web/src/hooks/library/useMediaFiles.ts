@@ -18,5 +18,3 @@ export const useMediaFiles = () => {
     [fileState],
   );
 };
-
-export const useRecordings = useMediaFiles;

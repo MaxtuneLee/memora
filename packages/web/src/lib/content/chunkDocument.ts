@@ -1,10 +1,10 @@
 import type { ContentArtifact, ContentLocator, ContentSegment } from "./types";
 import { hashContent } from "./sourceRevision";
 
-export const CHUNKER_VERSION = "segment-window-v2";
+const CHUNKER_VERSION = "segment-window-v2";
 // Sizes are estimated tokens, not characters.
-export const DEFAULT_CHUNK_SIZE = 256;
-export const DEFAULT_CHUNK_OVERLAP = 40;
+const DEFAULT_CHUNK_SIZE = 256;
+const DEFAULT_CHUNK_OVERLAP = 40;
 
 const MAX_OVERLAP_UNITS = 2;
 const CHARS_PER_TOKEN_FOR_LONG_WORDS = 6;

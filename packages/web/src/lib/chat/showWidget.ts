@@ -5,10 +5,10 @@ import { DATA_SOURCE_NAMES, type DataSourceName } from "@/livestore/widget";
 
 export const SHOW_WIDGET_TOOL_NAME = "show_widget";
 export const SHOW_WIDGET_SKILL_NAME = "show-widget-skills";
-export const SHOW_WIDGET_README_PATH = "README.md";
+const SHOW_WIDGET_README_PATH = "README.md";
 const SHOW_WIDGET_TITLE_MAX_LENGTH = 80;
 
-export const MODULE_GUIDELINE_PATHS = {
+const MODULE_GUIDELINE_PATHS = {
   art: "guidelines/art.md",
   mockup: "guidelines/mockup.md",
   interactive: "guidelines/interactive.md",
@@ -18,7 +18,7 @@ export const MODULE_GUIDELINE_PATHS = {
 
 export type ShowWidgetModule = keyof typeof MODULE_GUIDELINE_PATHS;
 
-export const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
+const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
   art: ["sections/svg_setup.md", "sections/art_and_illustration.md"],
   mockup: ["sections/ui_components.md", "sections/color_palette.md"],
   interactive: ["sections/ui_components.md", "sections/color_palette.md", "sections/svg_setup.md"],
@@ -26,7 +26,7 @@ export const MODULE_SECTIONS: Record<ShowWidgetModule, string[]> = {
   diagram: ["sections/color_palette.md", "sections/svg_setup.md", "sections/diagram_types.md"],
 };
 
-export const OPTIONAL_MODULE_SUPPLEMENTS: Record<ShowWidgetModule, string[]> = {
+const OPTIONAL_MODULE_SUPPLEMENTS: Record<ShowWidgetModule, string[]> = {
   art: ["guidelines/art_interactive.md"],
   mockup: [],
   interactive: ["guidelines/lesson.md"],

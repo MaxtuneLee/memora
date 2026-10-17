@@ -175,6 +175,10 @@ GitHub issues use the canonical `needs-triage`, `needs-info`, `ready-for-agent`,
 
 This repository uses a single-context domain documentation layout. See `docs/agents/domain.md`.
 
+### Code analysis
+
+Before committing or opening a PR, run Fallow's changed-code audit. Before removing a reported unused symbol, file, or dependency, verify its consumers with a trace. See `docs/agents/code-analysis.md` for commands and project-specific entry points.
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web

@@ -47,17 +47,6 @@ export interface DesktopWidgetItem extends DesktopItemBase {
 
 export type DesktopItem = DesktopFileItem | DesktopFolderItem | DesktopWidgetItem;
 
-export interface DesktopState {
-  items: Map<string, DesktopItem>;
-  selectedIds: Set<string>;
-  contextMenu: {
-    isOpen: boolean;
-    position: Position;
-    targetId: string | null; // null = desktop background
-  };
-}
-
 export const GRID_SIZE = 110;
 export const ICON_SIZE = 64;
-export const ITEM_GAP = 16;
 export const DESKTOP_PADDING = 16;

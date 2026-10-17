@@ -182,7 +182,7 @@ export const settingsTable = State.SQLite.clientDocument({
 type StoredSettings = typeof settingsStoredValueSchema.Type;
 
 /** Fields that describe this device rather than the person. They never sync. */
-export const DEVICE_SETTING_KEYS: ReadonlySet<string> = new Set([
+const DEVICE_SETTING_KEYS: ReadonlySet<string> = new Set([
   "webMcpEnabled",
   "webMcpReadEnabled",
   "webMcpWriteEnabled",

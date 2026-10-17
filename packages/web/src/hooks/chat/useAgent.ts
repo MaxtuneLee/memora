@@ -9,13 +9,7 @@ import { command, getSnapshot, subscribe } from "@/lib/agent-runtime/client";
 import { EMPTY_REFERENCE_SCOPE } from "@/lib/chat/tools/shared";
 import { normalizeTurnInput, toAgentHistoryMessages, withQuoteForModel } from "./useAgent/input";
 import type { ChatMessage, UseAgentOptions, UseAgentReturn } from "./useAgent/types";
-export type {
-  AgentStatus,
-  ChatMessage,
-  ChatMessageQuote,
-  ChatTurnInput,
-  ThinkingStep,
-} from "./useAgent/types";
+export type { AgentStatus, ChatMessage, ChatMessageQuote, ThinkingStep } from "./useAgent/types";
 
 export const useAgent = (options: UseAgentOptions): UseAgentReturn => {
   const { sessionId } = options;

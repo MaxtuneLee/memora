@@ -8,13 +8,13 @@ import { mapLiveStoreFileToMeta } from "@/lib/library/fileMappers";
 import { findTodoDocument } from "@/components/dashboard/todoDocument";
 import { parseTodoMarkdown } from "@/components/dashboard/todoMarkdown";
 import { listChatSessions } from "@/lib/chat/chatSessionStorage";
-import { DATA_SOURCE_NAMES, type DataSourceName } from "@/livestore/widget";
+import type { DataSourceName } from "@/livestore/widget";
 import type { file as LiveStoreFile } from "@/livestore/file";
 import type { folder as LiveStoreFolder } from "@/livestore/folder";
 import { findWidgetDataFolder, widgetFoldersQuery$ } from "./widgetFolders";
 import type { WidgetQueryableStore } from "./widgetStore";
 
-export { DATA_SOURCE_NAMES, type DataSourceName };
+export { type DataSourceName };
 
 const DEFAULT_RECENT_FILES_LIMIT = 5;
 
@@ -139,23 +139,23 @@ export const DATA_SOURCE_LIVE_QUERIES: Partial<Record<DataSourceName, Queryable<
   widgetData: activeFilesQuery$,
 };
 
-export interface RecentFilesData {
+interface RecentFilesData {
   files: Array<{ id: string; name: string; type: string; updatedAt: number }>;
 }
 
-export interface TodoProgressData {
+interface TodoProgressData {
   total: number;
   completed: number;
 }
 
-export interface StorageStatsData {
+interface StorageStatsData {
   usedBytes: number;
   quotaBytes: number;
   isPersistent: boolean;
   isSupported: boolean;
 }
 
-export interface ChatSessionCountData {
+interface ChatSessionCountData {
   count: number;
 }
 

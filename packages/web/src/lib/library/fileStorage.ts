@@ -211,21 +211,6 @@ export const listLegacyRecordings = async (): Promise<LegacyRecording[]> => {
   return metas;
 };
 
-export const migrateLegacyRecording = async (
-  meta: RecordingMeta,
-  transcript?: RecordingTranscript | null,
-) => {
-  await opfsDir(buildFileDirPath(meta.id)).create();
-  if (!meta.transcriptPath || !transcript) {
-    await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
-    return;
-  }
-  await opfsWrite(meta.transcriptPath, JSON.stringify(transcript), {
-    overwrite: true,
-  });
-  await opfsWrite(meta.metaPath, JSON.stringify(meta), { overwrite: true });
-};
-
 export const resolveAudioBlob = async (meta: RecordingMeta): Promise<Blob | null> => {
   try {
     const audioFile = opfsFile(meta.storagePath);

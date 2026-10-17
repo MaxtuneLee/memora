@@ -135,7 +135,7 @@ const coversFolder = (
 };
 
 /** The part of a target no grant covers, or null when grants cover all of it. */
-export const uncoveredTarget = (
+const uncoveredTarget = (
   target: AccessTarget,
   access: "read" | "write",
   allGrants: readonly PermissionGrant[],
@@ -189,7 +189,7 @@ export const availableDecisions = (request: AccessRequest): AccessDecision[] => 
 };
 
 /** The grants an "always" choice saves; none for allow once or deny. */
-export const grantsForDecision = (
+const grantsForDecision = (
   request: AccessRequest,
   decision: AccessDecision,
   now = Date.now(),

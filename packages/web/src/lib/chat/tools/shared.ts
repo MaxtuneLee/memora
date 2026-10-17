@@ -2,6 +2,7 @@ import type { ChatSessionRecord, ChatSessionSummary } from "@/lib/chat/chatSessi
 import type { ShowWidgetSkillTracker } from "@/lib/chat/showWidget";
 import type { PiModelRuntime } from "@memora/ai-provider-pi";
 import type { ToolDefinition } from "@memora/ai-core";
+import type { TranscriptWord } from "@/types/library";
 
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import {
@@ -86,11 +87,6 @@ export interface ActiveFileRow {
   name: string;
   type: "audio" | "video" | "image" | "document";
   transcriptPath: string | null;
-}
-
-export interface TranscriptWord {
-  text: string;
-  timestamp: [number, number];
 }
 
 export interface TranscriptWordRange extends TranscriptWord {

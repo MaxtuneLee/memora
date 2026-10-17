@@ -191,7 +191,7 @@ const getToolbarPosition = (storedRange: Range | null = null): ToolbarPosition =
   };
 };
 
-export const isSafeFormattingLinkUrl = (value: string): boolean => {
+const isSafeFormattingLinkUrl = (value: string): boolean => {
   const url = value.trim();
   const hasCharacterReference = /&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]*);/iu.test(url);
   if (

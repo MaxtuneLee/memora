@@ -1,22 +1,22 @@
 import sqlite3InitModule from "sqlite-vec-wasm/dist/sqlite3-bundler-friendly.mjs";
-import {
-  getVectorDbIndexId,
-  type VectorDbChunkBatch,
-  type VectorDbChunkFingerprint,
-  type VectorDbIndexConfig,
-  type VectorDbIndexHealth,
-  type VectorDbIndexInspection,
-  type VectorDbIndexedChunkSummary,
-  type VectorDbIndexedDocumentSummary,
-  type VectorDbIndexedDocument,
-  type VectorDbIndexedChunk,
-  type VectorDbDocumentCheckpoint,
-  type VectorDbDocumentFingerprint,
-  type VectorDbDocumentIndexPlan,
-  type VectorDbDocumentStatus,
-  type VectorDbSearchHit,
-  type VectorDbSearchRequest,
+import type {
+  VectorDbChunkBatch,
+  VectorDbChunkFingerprint,
+  VectorDbIndexConfig,
+  VectorDbIndexHealth,
+  VectorDbIndexInspection,
+  VectorDbIndexedChunkSummary,
+  VectorDbIndexedDocumentSummary,
+  VectorDbIndexedDocument,
+  VectorDbIndexedChunk,
+  VectorDbDocumentCheckpoint,
+  VectorDbDocumentFingerprint,
+  VectorDbDocumentIndexPlan,
+  VectorDbDocumentStatus,
+  VectorDbSearchHit,
+  VectorDbSearchRequest,
 } from "../lib/vector-db/client";
+import { getVectorDbIndexId } from "../lib/vector-db/indexIdentity";
 import { getRrfContribution, normalizeRrfK } from "../lib/vector-db/reciprocalRankFusion";
 import { filterSearchTerms } from "../lib/vector-db/searchTerms";
 import type { ContentLocator } from "../lib/content/types";
@@ -64,7 +64,7 @@ interface SqliteModule {
 
 type SqliteInit = (options?: { locateFile?: (path: string) => string }) => Promise<SqliteModule>;
 
-export interface VectorDbWorkerRequest {
+interface VectorDbWorkerRequest {
   id: string;
   type:
     | "initialize"
@@ -83,7 +83,7 @@ export interface VectorDbWorkerRequest {
   indexConfig?: VectorDbIndexConfig;
 }
 
-export type VectorDbWorkerResponse =
+type VectorDbWorkerResponse =
   | {
       id: string;
       ok: true;
@@ -957,7 +957,7 @@ const reset = (): VectorDbIndexHealth => {
   return makeHealth();
 };
 
-export const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Promise<unknown> => {
+const handleVectorDbRequest = async (request: VectorDbWorkerRequest): Promise<unknown> => {
   if (request.indexConfig && request.type !== "initialize") {
     await initialize(request.indexConfig);
   }

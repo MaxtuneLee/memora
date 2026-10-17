@@ -140,14 +140,17 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     return false;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read through the ImageNode type guard by WysiwygDocumentEditor and imageMarkdownTransformer.
   getSrc(): string {
     return this.__src;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read through the ImageNode type guard by WysiwygDocumentEditor and imageMarkdownTransformer.
   getAltText(): string {
     return this.__altText;
   }
 
+  // fallow-ignore-next-line unused-class-member -- Read through the ImageNode type guard by WysiwygDocumentEditor and imageMarkdownTransformer.
   getHref(): string | null {
     return this.__href;
   }

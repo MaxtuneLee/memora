@@ -8,10 +8,10 @@ import { BeirRerankerClient } from "./beirRerankerClient";
 import { createModelWorkerFactory } from "../model-worker/factory";
 import { BgeEmbeddingClient, type BgeWorkerUpdate } from "./bgeEmbeddingClient";
 
-export const BEIR_EMBEDDING_MODEL = "bge-small-en" as const;
-export const BEIR_EMBEDDING_DIMENSIONS = 384;
+const BEIR_EMBEDDING_MODEL = "bge-small-en" as const;
+const BEIR_EMBEDDING_DIMENSIONS = 384;
 // BAAI's documented pooling for BGE v1.5 (1_Pooling/config.json), unlike the app default.
-export const BEIR_EMBEDDING_POOLING = "cls" as const;
+const BEIR_EMBEDDING_POOLING = "cls" as const;
 
 interface WorkerStats {
   workerId: number;
@@ -317,6 +317,7 @@ export class BeirEmbeddingPool {
     }
   }
 
+  // fallow-ignore-next-line unused-class-member -- Called on the selected pool by beirRerankerEvaluation.js.
   async warmReranker(device: LocalModelExecutionBackend, signal?: AbortSignal) {
     return Promise.all(
       this.workers.map(() =>

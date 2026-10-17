@@ -6,7 +6,7 @@ import {
   type AccessRequest,
 } from "@/lib/chat/permissions";
 
-export const AUTO_REVIEW_TIMEOUT_MS = 15_000;
+const AUTO_REVIEW_TIMEOUT_MS = 15_000;
 
 export interface AutoReviewInput {
   request: AccessRequest;
@@ -16,7 +16,7 @@ export interface AutoReviewInput {
   userMessages: readonly string[];
 }
 
-export interface AutoReviewVerdict {
+interface AutoReviewVerdict {
   verdict: "allow" | "deny" | "unsure";
   reason: string;
 }
@@ -69,7 +69,7 @@ const parseVerdict = (text: string): AutoReviewVerdict => {
 };
 
 /** Throws on a model error, malformed output, or no answer within the timeout. */
-export const reviewAccess = async (
+const reviewAccess = async (
   runtime: Pick<PiModelRuntime, "model" | "stream">,
   input: AutoReviewInput,
   timeoutMs = AUTO_REVIEW_TIMEOUT_MS,

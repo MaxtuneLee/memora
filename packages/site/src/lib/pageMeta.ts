@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 // Per-page title, description, and canonical URL for this single-page site. Search engines that
 // render JavaScript pick these up; link-preview scrapers see the defaults in index.html.
-export const SITE_URL = "https://memora.im";
+const SITE_URL = "https://memora.im";
 
 function setMeta(selector: string, attr: "content" | "href", value: string): void {
   document.head.querySelector(selector)?.setAttribute(attr, value);

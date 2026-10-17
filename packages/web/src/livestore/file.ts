@@ -214,7 +214,7 @@ type MaterializerContext = { event: { clientId: string } };
  * device computes the same key, and the device whose `clientId` appears in it is the one that has
  * those bytes and uploads them. A new version gets a new key, so stored objects never change.
  */
-export const contentKeyFor = (
+const contentKeyFor = (
   fileId: string,
   kind: "content" | "transcript",
   clientId: string,

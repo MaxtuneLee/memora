@@ -2,8 +2,8 @@ import { memo } from "react";
 
 import MemoraMascot, { type MascotStyle, type MemoraMascotState } from "./MemoraMascot";
 
-export type PersonaState = MemoraMascotState;
-export type PersonaVariant = "obsidian" | "mana" | "opal" | "halo" | "glint" | "command";
+type PersonaState = MemoraMascotState;
+type PersonaVariant = "obsidian" | "mana" | "opal" | "halo" | "glint" | "command";
 
 type PersonaProps = {
   state: PersonaState;

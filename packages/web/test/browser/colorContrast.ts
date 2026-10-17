@@ -1,7 +1,7 @@
 // WCAG contrast from computed styles. Chromium reports colors as rgb()/rgba() with 0-255
 // channels, or as color(srgb r g b) with 0-1 channels when a color-mix() is involved; resolved
 // custom properties keep their declared #rrggbb form.
-export const rgb = (color: string): number[] => {
+const rgb = (color: string): number[] => {
   const hex = color.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
   if (hex) return hex.slice(1).map((channel) => Number.parseInt(channel, 16));
   const channels = color

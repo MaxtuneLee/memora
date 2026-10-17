@@ -39,7 +39,7 @@ const batchName = (firstSeqNum: number): string => `${String(firstSeqNum).padSta
 // local log. The schema drops it when reading, but LiveStore pushes the stored JSON as it is.
 const LEGACY_CREDENTIAL_EVENTS = new Set(["v1.ProviderCreated", "v1.ProviderUpdated"]);
 
-export const withoutCredentials = (
+const withoutCredentials = (
   event: LiveStoreEvent.Global.Encoded,
 ): LiveStoreEvent.Global.Encoded => {
   if (!LEGACY_CREDENTIAL_EVENTS.has(event.name)) return event;
@@ -77,7 +77,7 @@ export const parseBatchListing = (xml: string): number[] =>
     .map(Number)
     .sort((a, b) => a - b);
 
-export const basicAuthHeaders = (config: WebdavSyncPayload): Record<string, string> =>
+const basicAuthHeaders = (config: WebdavSyncPayload): Record<string, string> =>
   config.username !== undefined
     ? { Authorization: `Basic ${btoa(`${config.username}:${config.password ?? ""}`)}` }
     : {};

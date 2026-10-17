@@ -6,7 +6,7 @@ import type {
   StoredBuiltInSkillMetadata,
 } from "./manifest";
 
-export const SKILLS_ROOT_PATH = "/skills";
+const SKILLS_ROOT_PATH = "/skills";
 const BUNDLED_SKILL_METADATA_FILE = ".memora-skill.json";
 
 export const normalizeSkillName = (value: string): string => {

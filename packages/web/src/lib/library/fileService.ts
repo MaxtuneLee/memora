@@ -14,7 +14,6 @@ import {
   listFilesFromOpfs,
   listLegacyRecordings,
   loadTranscript,
-  migrateLegacyRecording,
   resolveAudioBlob,
   saveFileToOpfs,
 } from "@/lib/library/fileStorage";
@@ -98,15 +97,6 @@ export const getRecordingAudioUrl = async (meta: RecordingMeta): Promise<string 
 export const getRecordingTranscript = async (meta: RecordingMeta) => {
   if (!meta.transcriptPath) return null;
   return loadTranscript(meta.transcriptPath);
-};
-
-export const migrateLegacyRecordings = async () => {
-  const legacyMetas = await listLegacyRecordings();
-  await Promise.all(
-    legacyMetas.map(async ({ meta, transcript }) => {
-      await migrateLegacyRecording(meta, transcript);
-    }),
-  );
 };
 
 export const getMediaDuration = (blob: Blob): Promise<number | null> => {

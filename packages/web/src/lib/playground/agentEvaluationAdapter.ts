@@ -377,7 +377,7 @@ export async function createWebMemoryAdapter(
 }
 
 /** Learning mode adds the skill tools that load the lesson guideline, and the widget tool. */
-export const LEARNING_EVALUATION_TOOL_NAMES = [
+const LEARNING_EVALUATION_TOOL_NAMES = [
   ...EVALUATION_TOOL_NAMES,
   "activate_skill",
   "read_skill_resource",

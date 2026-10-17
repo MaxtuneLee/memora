@@ -6,7 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import type { ComponentType } from "react";
 
-import { getDocumentEditorHref, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import { getFileHref } from "@/lib/library/fileHref";
 import { getFileIcon } from "@/lib/library/fileIcon";
 import { formatBytes, formatDuration } from "@/lib/format";
 import type { ChatSessionSummary } from "@/lib/chat/chatSessionStorage";
@@ -25,17 +25,7 @@ export interface RecentItem {
   tone: "recording" | "file" | "chat";
 }
 
-export const getFileHref = (file: Pick<FileMeta, "id" | "mimeType" | "name" | "type">): string => {
-  if (file.type === "audio" || file.type === "video") {
-    return `/transcript/file/${file.id}`;
-  }
-
-  if (isEditableTextDocument(file)) {
-    return getDocumentEditorHref(file.id);
-  }
-
-  return "/desktop";
-};
+export { getFileHref } from "@/lib/library/fileHref";
 
 const formatRelativeTimestamp = (timestamp: number): string => {
   if (!Number.isFinite(timestamp)) {

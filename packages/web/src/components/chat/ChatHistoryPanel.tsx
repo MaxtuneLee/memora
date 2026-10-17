@@ -265,7 +265,7 @@ const groupSessionsByDate = (sessions: ChatSessionSummary[]): SessionGroup[] => 
   return groups.filter((group) => group.sessions.length > 0);
 };
 
-export interface ChatHistoryPanelProps {
+interface ChatHistoryPanelProps {
   sessions: ChatSessionSummary[];
   activeSessionId: string;
   isStreaming: boolean;

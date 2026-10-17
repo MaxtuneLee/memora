@@ -35,7 +35,7 @@ export interface VaultConfig {
   lockApp: boolean;
 }
 
-export class CredentialVaultError extends Error {}
+class CredentialVaultError extends Error {}
 
 const PASSKEY_PREFIX = "mv1.";
 const DEVICE_PREFIX = "md1.";

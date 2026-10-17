@@ -56,7 +56,7 @@ const splitVisibleExtension = (name: string): { baseName: string; extension: str
   };
 };
 
-export const assertUniquePathAddressableSiblingFileName = <TFile extends WorkspaceFileLike>(
+const assertUniquePathAddressableSiblingFileName = <TFile extends WorkspaceFileLike>(
   files: readonly TFile[],
   target: PathAddressableTarget,
 ): void => {
@@ -71,7 +71,7 @@ export const assertUniquePathAddressableSiblingFileName = <TFile extends Workspa
   });
 };
 
-export const assertUniqueFolderSiblingName = <TFolder extends WorkspaceFolderLike>(
+const assertUniqueFolderSiblingName = <TFolder extends WorkspaceFolderLike>(
   folders: readonly TFolder[],
   target: FolderTarget,
 ): void => {
@@ -230,5 +230,3 @@ export const assertNoPathMutationConflicts = <
     });
   }
 };
-
-export { isPathAddressableFileType };

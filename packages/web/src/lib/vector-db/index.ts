@@ -4,23 +4,14 @@ export {
   getVectorDbIndexId,
   getVectorDbSnapshotPath,
   VectorDbClient,
-  type VectorDbChunkBatch,
-  type VectorDbChunkFingerprint,
-  type VectorDbDocumentCheckpoint,
-  type VectorDbDocumentFingerprint,
   type VectorDbDocumentIndexPlan,
-  type VectorDbDocumentStatus,
   type VectorDbIndexConfig,
   type VectorDbIndexClient,
   type VectorDbIndexHealth,
   type VectorDbIndexInspection,
   type VectorDbIndexedChunk,
-  type VectorDbIndexedChunkSummary,
   type VectorDbIndexedDocument,
-  type VectorDbIndexedDocumentSummary,
   type VectorDbSearchHit,
-  type VectorDbSearchRequest,
-  type VectorDbSearchScope,
 } from "./client";
 export * from "./reciprocalRankFusion";
 export * from "./searchTerms";

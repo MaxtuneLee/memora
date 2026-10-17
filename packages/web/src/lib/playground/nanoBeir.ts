@@ -1,4 +1,4 @@
-export const NANO_BEIR_DATASET_ID = "sentence-transformers/NanoBEIR-en";
+const NANO_BEIR_DATASET_ID = "sentence-transformers/NanoBEIR-en";
 export const NANO_BEIR_REVISION = "beb106fbcfaa599c508c667041bf8c85fd78736b";
 
 export type NanoBeirDatasetId =

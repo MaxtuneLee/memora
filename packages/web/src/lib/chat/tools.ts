@@ -14,7 +14,6 @@ import { createWidgetTools } from "@/lib/chat/tools/widgetTools";
 
 export {
   EMPTY_REFERENCE_SCOPE,
-  EVALUATION_PERMISSIONS,
   type CreateChatToolsOptions,
   type ResolvedReferenceScope,
   type StoreQueryable,
