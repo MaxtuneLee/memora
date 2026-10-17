@@ -238,24 +238,11 @@ export const resolveChatImageAttachmentBlob = async (
 ): Promise<Blob | null> => {
   const path = attachment.source === "local" ? attachment.assetPath : attachment.storagePath;
 
-  if (!path) {
+  if (!path?.startsWith("/")) {
     return null;
   }
 
-  if (path.startsWith("/")) {
-    return resolveOpfsBlob(path, attachment.mimeType);
-  }
-
-  try {
-    const response = await fetch(path);
-    if (!response.ok) {
-      return null;
-    }
-
-    return await response.blob();
-  } catch {
-    return null;
-  }
+  return resolveOpfsBlob(path, attachment.mimeType);
 };
 
 const blobToBase64 = async (blob: Blob): Promise<string> => {
