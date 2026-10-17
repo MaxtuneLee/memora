@@ -15,9 +15,29 @@ let queue: readonly Pending[] = [];
 const listeners = new Set<() => void>();
 const emit = (): void => listeners.forEach((listener) => listener());
 
-export const requestTabAccess = (request: AccessRequest): Promise<AccessDecision> =>
+export const requestTabAccess = (
+  request: AccessRequest,
+  signal?: AbortSignal,
+): Promise<AccessDecision> =>
   new Promise((resolve) => {
-    queue = [...queue, { request, resolve }];
+    if (signal?.aborted) {
+      resolve("deny");
+      return;
+    }
+    const pending: Pending = {
+      request,
+      resolve: (decision) => {
+        signal?.removeEventListener("abort", cancel);
+        resolve(decision);
+      },
+    };
+    const cancel = () => {
+      queue = queue.filter((item) => item !== pending);
+      pending.resolve("deny");
+      emit();
+    };
+    signal?.addEventListener("abort", cancel, { once: true });
+    queue = [...queue, pending];
     emit();
   });
 

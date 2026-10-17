@@ -1,99 +1,53 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { toPiTool } from "@memora/ai-core";
-import * as v from "valibot";
 
 import { useAppStore } from "@/livestore/store";
-import { createChatTools } from "@/lib/chat/tools";
+import { normalizeSettingsValue } from "@/livestore/setting";
+import { settingsDocumentQuery$ } from "@/lib/settings/queries";
+import { registerWebMcpTools } from "@/lib/webmcp/tools";
+import { startWebMcpRelay } from "@/lib/webmcp/relay";
 
-// WebMCP (https://webmachinelearning.github.io/webmcp/) is not in lib.dom yet.
-interface ModelContextTool {
-  name: string;
-  description: string;
-  inputSchema?: object;
-  execute: (input: Record<string, unknown>) => Promise<unknown>;
-  annotations?: { readOnlyHint?: boolean; untrustedContentHint?: boolean };
-}
-
-interface ModelContext {
-  // The spec returns a promise; Chrome's early builds return undefined.
-  registerTool: (
-    tool: ModelContextTool,
-    options?: { signal?: AbortSignal },
-  ) => Promise<void> | undefined;
-}
-
-// Read-only chat tools; the write tools need the in-app approval dialog, so they stay in chat.
-const EXPOSED_TOOLS = new Set([
-  "describe_table",
-  "query_db",
-  "search_files",
-  "read_extracted_content",
-  "search_transcript",
-  "read_transcript",
-  "read_file",
-  "grep_files",
-  "list_chat_sessions",
-  "read_chat_session",
-]);
-
-/** Exposes Memora's library tools to the browser's agent through WebMCP, when the browser has it. */
+/** Installs MCP-B only while this device allows external tool access. */
 export function useWebMcpTools(): void {
   const store = useAppStore();
   const navigate = useNavigate();
+  const settings = normalizeSettingsValue(store.useQuery(settingsDocumentQuery$));
+  const enabled = settings.webMcpEnabled === true;
+  const read = settings.webMcpReadEnabled === true;
+  const write = settings.webMcpWriteEnabled === true;
+
   useEffect(() => {
-    // Chrome 150+ moved the API to document.modelContext; Chrome 149 had it on navigator.
-    const modelContext =
-      (document as Document & { modelContext?: ModelContext }).modelContext ??
-      (navigator as Navigator & { modelContext?: ModelContext }).modelContext;
-    if (!modelContext) {
-      console.info("[WebMCP] document.modelContext is not available; no tools registered.");
-      return;
-    }
+    if (!enabled || (!read && !write)) return;
+
     const controller = new AbortController();
-    const register = (tool: ModelContextTool): void => {
-      // Promise.try also catches a synchronous throw from registerTool.
-      Promise.try(() => modelContext.registerTool(tool, { signal: controller.signal }))
-        .then(() => console.info(`[WebMCP] registered ${tool.name}`))
-        .catch((error: unknown) =>
-          console.error(`[WebMCP] failed to register ${tool.name}`, error),
-        );
-    };
-
-    for (const tool of createChatTools(store)) {
-      if (!EXPOSED_TOOLS.has(tool.name)) continue;
-      register({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: toPiTool(tool).parameters,
-        annotations: { readOnlyHint: true, untrustedContentHint: true },
-        execute: async (input) => tool.execute(v.parse(tool.parameters, input)),
+    let cleanupRuntime: (() => void) | undefined;
+    let cleanupRelay: (() => void) | undefined;
+    const start = async () => {
+      // The package auto-initializes on import unless explicitly disabled first.
+      window.__webModelContextOptions = { autoInitialize: false };
+      const runtime = await import("@mcp-b/global");
+      if (controller.signal.aborted) return;
+      runtime.initializeWebModelContext({
+        transport: { tabServer: { allowedOrigins: [window.location.origin] }, iframeServer: false },
       });
-    }
-
-    register({
-      name: "open_page",
-      description:
-        "Open a Memora page in this tab. Paths: /desktop (library), /chat, /chat?session=<sessionId>, /editor/file/<fileId> (documents), /transcript/file/<fileId>?seek=<seconds> (audio and video at a moment), /transcript/live (start a recording).",
-      inputSchema: {
-        type: "object",
-        properties: { path: { type: "string", description: "App path starting with /" } },
-        required: ["path"],
-      },
-      execute: async (input) => {
-        const path = input.path;
-        // Same-origin app paths only; "//host" would leave the site.
-        if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
-          return { error: "path must be an app path starting with a single /" };
-        }
-        await navigate(path);
-        return { opened: path };
-      },
+      cleanupRuntime = runtime.cleanupWebModelContext;
+      const context = document.modelContext;
+      if (!context) throw new Error("WebMCP is unavailable in this browser context.");
+      await registerWebMcpTools(context, store, navigate, controller.signal);
+      if (!controller.signal.aborted) cleanupRelay = startWebMcpRelay();
+    };
+    void start().catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      controller.abort();
+      cleanupRelay?.();
+      cleanupRuntime?.();
+      console.error("[WebMCP] Could not expose tools", error);
     });
 
     return () => {
-      console.info("[WebMCP] unregistering tools");
       controller.abort();
+      cleanupRelay?.();
+      cleanupRuntime?.();
     };
-  }, [store, navigate]);
+  }, [enabled, read, write, store, navigate]);
 }

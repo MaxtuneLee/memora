@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
 import {
   chatPathLabel,
   DEFAULT_PERMISSION_MODE,
@@ -28,6 +29,7 @@ import { tokens } from "../../styles/stylex.stylex";
 const styles = stylex.create({
   stack: { display: "flex", flexDirection: "column", gap: 16 },
   heading: { display: "flex", flexDirection: "column", gap: 8 },
+  titleRow: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8 },
   twoColumn: {
     display: "grid",
     gap: 16,
@@ -55,6 +57,7 @@ const styles = stylex.create({
   },
   icon: { height: 16, width: 16 },
   insetMargin: { marginTop: 20 },
+  switchRow: { alignItems: "center", display: "flex", gap: 16, justifyContent: "space-between" },
 });
 
 type TargetKind = "file" | "folder" | "library";
@@ -113,6 +116,64 @@ export default function SettingsPermissionsSection() {
 
   return (
     <div {...stylex.props(styles.stack)}>
+      <section className={SETTINGS_PANEL_CLASS_NAME}>
+        <div {...stylex.props(styles.heading)}>
+          <div {...stylex.props(styles.titleRow)}>
+            <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>WebMCP</h3>
+            <Badge variant="warning">Experimental</Badge>
+          </div>
+          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+            Let external assistants use Memora through WebMCP. These controls apply to this device
+            only.
+          </p>
+        </div>
+        <div {...stylex.props(styles.grants)}>
+          {(
+            [
+              [
+                "webMcpEnabled",
+                "Enable WebMCP",
+                "Expose tools and connect to your local relay while Memora is open.",
+              ],
+              [
+                "webMcpReadEnabled",
+                "Allow reading",
+                "Search and read library files, transcripts, and chat history. File permissions still apply.",
+              ],
+              [
+                "webMcpWriteEnabled",
+                "Allow changes",
+                "Create and edit documents, and open pages. File changes still need approval or a saved permission.",
+              ],
+            ] as const
+          ).map(([key, label, description]) => (
+            <div
+              key={key}
+              className={`${SETTINGS_ROW_CLASS_NAME} ${stylex.props(styles.switchRow).className}`}
+            >
+              <div {...stylex.props(styles.heading)}>
+                <label htmlFor={key} className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
+                  {label}
+                </label>
+                <p id={`${key}-description`} className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+                  {description}
+                </p>
+              </div>
+              <Switch
+                id={key}
+                aria-label={label}
+                checked={settings[key] === true}
+                disabled={key !== "webMcpEnabled" && settings.webMcpEnabled !== true}
+                aria-describedby={`${key}-description`}
+                onCheckedChange={(checked) =>
+                  store.commit(settingEvents.deviceSettingsSet({ [key]: checked }))
+                }
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className={SETTINGS_PANEL_CLASS_NAME}>
         <div {...stylex.props(styles.heading)}>
           <h3 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Default for new chats</h3>

@@ -142,6 +142,9 @@ const styles = stylex.create({
     backgroundColor: tokens.surfaceSoft,
     borderRight: `1px solid ${tokens.border}`,
     display: "none",
+    minHeight: 0,
+    overflowY: "auto",
+    overscrollBehaviorY: "contain",
     "@media (min-width: 768px)": { display: "block" },
   },
   asidePadding: { paddingBlock: 16, paddingInline: 12 },
@@ -154,6 +157,11 @@ const styles = stylex.create({
   },
   header: {
     borderBottom: `1px solid ${tokens.border}`,
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    maxHeight: "100%",
+    minHeight: 0,
     padding: 16,
     "@media (min-width: 640px)": { paddingInline: 24 },
     "@media (min-width: 768px)": { paddingInline: 28 },
@@ -161,6 +169,7 @@ const styles = stylex.create({
   headerRow: {
     alignItems: "flex-start",
     display: "flex",
+    flexShrink: 0,
     gap: 16,
     justifyContent: "space-between",
   },
@@ -185,6 +194,8 @@ const styles = stylex.create({
   rotated: { transform: "rotate(180deg)" },
   icon: { height: 16, width: 16 },
   mobileDirectory: {
+    maxHeight: "min(50dvh, 22rem)",
+    minHeight: 0,
     overflow: "hidden",
     transition:
       "grid-template-rows 300ms var(--ease-out-quart), opacity 300ms var(--ease-out-quart), margin 300ms var(--ease-out-quart)",
@@ -192,7 +203,7 @@ const styles = stylex.create({
   },
   directoryOpen: { display: "grid", gridTemplateRows: "1fr", marginTop: 16, opacity: 1 },
   directoryClosed: { display: "grid", gridTemplateRows: "0fr", opacity: 0 },
-  directoryInner: { minHeight: 0 },
+  directoryInner: { minHeight: 0, overflowY: "auto", overscrollBehaviorY: "contain" },
   directorySurface: {
     backgroundColor: tokens.surfaceSoft,
     borderRadius: 16,
@@ -490,6 +501,7 @@ export default function SettingsDialog({
 
               <div
                 id="settings-section-directory"
+                inert={!isMobileNavigationOpen}
                 {...stylex.props(
                   styles.mobileDirectory,
                   isMobileNavigationOpen ? styles.directoryOpen : styles.directoryClosed,

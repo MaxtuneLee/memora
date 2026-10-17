@@ -1,0 +1,46 @@
+name: Fallow audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Code audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Audit changed code
+        uses: fallow-rs/fallow@v3
+        with:
+          version: "3.32.0"
+          command: audit
+          format: json
+          # Pushes compare with the previous branch tip; manual runs audit the last commit.
+          changed-since: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          gate: new-only
+          fail-on-issues: true
+          branded-token: false
+
+      - name: Upload audit report
+        if: ${{ !cancelled() && hashFiles('fallow-results.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallow-audit
+          path: fallow-results.json
+          retention-days: 14

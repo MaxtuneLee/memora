@@ -1,0 +1,49 @@
+name: Fallow security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan for security risks
+        uses: fallow-rs/fallow@v3
+        with:
+          version: "3.32.0"
+          command: security
+          format: sarif
+          sarif: true
+          # PRs fail on new candidates; full scans report the existing backlog.
+          security-gate: ${{ github.event_name == 'pull_request' && 'new' || '' }}
+          fail-on-issues: false
+          branded-token: false
+
+      - name: Upload security reports
+        if: ${{ !cancelled() && hashFiles('fallow-results.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallow-security
+          path: |
+            fallow-results.json
+            fallow-results.sarif
+          retention-days: 14

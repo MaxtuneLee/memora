@@ -26,6 +26,25 @@ describe("settings sync", () => {
     expect(event.args.value).toEqual({ theme: "dark" });
   });
 
+  test("WebMCP access stays on this device, including migration and incoming sync", () => {
+    const local = {
+      ...defaultSettings,
+      webMcpEnabled: true,
+      webMcpReadEnabled: false,
+      webMcpWriteEnabled: true,
+    };
+    expect(settingEvents.settingsSet(local).args.value).not.toHaveProperty("webMcpEnabled");
+    expect(settingsToMigrate(local, new Set())).toEqual({});
+    const merged = mergeSettings(local, [
+      row("webMcpEnabled", false),
+      row("webMcpReadEnabled", true),
+      row("webMcpWriteEnabled", false),
+    ]);
+    expect(merged.webMcpEnabled).toBe(true);
+    expect(merged.webMcpReadEnabled).toBe(false);
+    expect(merged.webMcpWriteEnabled).toBe(true);
+  });
+
   test("each setting is stored as its own row, so different changes from two devices both stay", () => {
     const writes = settingMaterializers["v1.SettingsUpdated"]({
       value: {
