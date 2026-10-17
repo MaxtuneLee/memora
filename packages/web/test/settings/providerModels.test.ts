@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
 import { fetchProviderModels } from "@/lib/settings/providerModels";
 
+vi.mock("@/lib/models/modelsDev", () => ({ loadModelsDevMetadata: async () => () => undefined }));
+
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   fetchMock.mockReset();

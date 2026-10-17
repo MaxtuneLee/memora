@@ -14,6 +14,8 @@ import { configDefaults } from "vitest/config";
 import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
 import path from "node:path";
 
+import { modelsDevCatalogPlugin } from "./plugins/modelsDevCatalogPlugin";
+
 import { parseReleaseNotes } from "./src/lib/app/releaseNotes";
 
 const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -138,6 +140,7 @@ const config = {
     ),
   },
   plugins: [
+    modelsDevCatalogPlugin(),
     evaluationDataPlugin(),
     ...(isVitest
       ? []
