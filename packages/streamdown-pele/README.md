@@ -2,7 +2,7 @@
 
 A [Streamdown](https://streamdown.ai) plugin that renders `mermaid` code blocks with [Pele](https://pele.run).
 
-This package is a thin adapter. All parsing, layout, and SVG output come from [Pele](https://github.com/obsidianmd/pele) by [kepano](https://github.com/kepano), which is MIT licensed. Pele implements Mermaid 12.1.0 syntax with its own layout and visual style. This project is not affiliated with Pele, Mermaid, or Streamdown.
+This package is a thin adapter. All parsing, layout, and SVG output come from [Pele](https://github.com/obsidianmd/pele) by [kepano](https://github.com/kepano).
 
 ## Why use it
 
@@ -73,4 +73,4 @@ Charts also use `--pele-series-1` through `--pele-series-8`.
 
 ## License
 
-MIT. Pele is also MIT licensed.
+MIT.
