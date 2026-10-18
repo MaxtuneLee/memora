@@ -33,5 +33,5 @@ export function createPelePlugin({ options = {} }: PelePluginOptions = {}): Diag
 }
 
 export const pele: DiagramPlugin = createPelePlugin();
-export { PeleError } from "pele";
+export { PeleError } from "pele/lazy";
 export type { RenderOptions as PeleRenderOptions } from "pele/lazy";
