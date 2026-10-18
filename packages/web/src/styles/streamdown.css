@@ -20,6 +20,22 @@
   --color-foreground: var(--color-text-primary);
 }
 
+/* Colors for Pele diagrams (@memora/streamdown-pele); they follow the app theme without re-rendering. */
+.streamdown-rich {
+  --pele-bg: transparent;
+  --pele-fg: var(--color-text-primary);
+  --pele-muted: var(--color-text-secondary);
+  --pele-line: color-mix(in srgb, var(--color-text-primary) 45%, transparent);
+  --pele-surface: color-mix(in srgb, var(--color-memora-olive) 5%, var(--color-background-primary));
+  --pele-surface-alt: color-mix(
+    in srgb,
+    var(--color-memora-olive) 10%,
+    var(--color-background-primary)
+  );
+  --pele-border: color-mix(in srgb, var(--color-memora-olive) 10%, var(--color-border));
+  --pele-accent: var(--color-memora-olive);
+}
+
 .streamdown-rich [data-streamdown="inline-code"] {
   border: 1px solid color-mix(in srgb, var(--color-memora-olive) 10%, var(--color-border));
   background: color-mix(in srgb, var(--color-memora-olive) 4%, var(--color-background-primary));

@@ -1,0 +1,35 @@
+{
+  "name": "@memora/streamdown-pele",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "lint": "vp lint ."
+  },
+  "dependencies": {
+    "pele": "^1.6.0"
+  },
+  "peerDependencies": {
+    "streamdown": "^2.4.0"
+  },
+  "devDependencies": {
+    "streamdown": "^2.4.0",
+    "typescript": "~5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
