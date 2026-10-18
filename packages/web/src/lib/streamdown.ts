@@ -1,7 +1,7 @@
+import { pele } from "@maxtune/streamdown-pele";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
-import { pele } from "streamdown-pele";
 import type { ControlsConfig, PluginConfig, ThemeInput } from "streamdown";
 
 export const MEMORA_STREAMDOWN_CLASS_NAME = "streamdown-rich";

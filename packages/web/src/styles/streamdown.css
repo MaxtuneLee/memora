@@ -20,7 +20,7 @@
   --color-foreground: var(--color-text-primary);
 }
 
-/* Colors for Pele diagrams (streamdown-pele); they follow the app theme without re-rendering. */
+/* Colors for Pele diagrams (@maxtune/streamdown-pele); they follow the app theme without re-rendering. */
 .streamdown-rich {
   --pele-bg: transparent;
   --pele-fg: var(--color-text-primary);
