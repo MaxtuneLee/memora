@@ -8,6 +8,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 
 - Mermaid diagrams in chat now render faster and follow the app theme when you switch between light and dark.
 - The update dialog has a new look.
+- Mermaid diagrams in chat now sit in a framed box with download, copy, and fullscreen buttons, and the zoom controls no longer cover the diagram.
 
 ## 2026-10-17.4
 
