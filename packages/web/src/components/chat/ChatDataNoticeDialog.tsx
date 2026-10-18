@@ -3,6 +3,7 @@ import { useId } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import IllustratedCard, {
+  illustratedCardPanelStyle,
   illustratedCardSecondaryButtonClassName,
 } from "@/components/ui/IllustratedCard";
 import { NativeDialog } from "@/components/ui/NativeDialog";
@@ -34,13 +35,6 @@ const SENT_DATA = [
   { icon: FileTextIcon, text: "Text the assistant reads from your library" },
 ] as const;
 
-const PANEL_RESET = {
-  background: "transparent",
-  border: "none",
-  boxShadow: "none",
-  width: "auto",
-} as const;
-
 /** Shown before chat first sends to a cloud API, listing what leaves this device. */
 export default function ChatDataNoticeDialog() {
   const request = usePendingChatDataNotice();
@@ -54,7 +48,7 @@ export default function ChatDataNoticeDialog() {
       }}
       labelledBy={titleId}
       // The card brings its own surface; inline style wins over the dialog panel's CSS.
-      panelStyle={PANEL_RESET}
+      panelStyle={illustratedCardPanelStyle}
     >
       {request && (
         <IllustratedCard

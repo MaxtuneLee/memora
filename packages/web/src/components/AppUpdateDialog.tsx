@@ -2,6 +2,10 @@ import { useEffect, useId, useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
+import IllustratedCard, {
+  illustratedCardPanelStyle,
+  illustratedCardSecondaryButtonClassName,
+} from "@/components/ui/IllustratedCard";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { SHOW_APP_UPDATE_EVENT } from "@/lib/app/appUpdate";
 import {
@@ -15,26 +19,12 @@ import { tokens } from "../styles/stylex.stylex";
 // navigation, so also check on a timer.
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-// Same ring as ConfirmDialog: tokens.focusRing is too faint on the dialog surface in dark mode.
-const FOCUS_RING = `0 0 0 2px ${tokens.surface}, 0 0 0 4px ${tokens.textStrong}`;
-
 const styles = stylex.create({
-  panel: {
-    backgroundColor: tokens.surface,
-    border: `1px solid ${tokens.border}`,
-    borderRadius: 16,
-    boxShadow: tokens.shadowLarge,
-    padding: 24,
-    width: "min(460px, 92vw)",
-  },
-  content: { display: "flex", flexDirection: "column", gap: 16 },
-  title: { color: tokens.textStrong, fontSize: 18, fontWeight: 600, margin: 0 },
-  description: { color: tokens.textMuted, fontSize: 14, marginTop: 4 },
   notes: {
     display: "flex",
     flexDirection: "column",
     gap: 12,
-    maxHeight: "min(320px, 50vh)",
+    maxHeight: "min(240px, 40vh)",
     overflowY: "auto",
   },
   release: { display: "flex", flexDirection: "column", gap: 6 },
@@ -51,31 +41,6 @@ const styles = stylex.create({
     paddingInlineStart: 20,
   },
   version: { color: tokens.textSoft, fontSize: 12, margin: 0 },
-  actions: { alignItems: "center", display: "flex", gap: 8, justifyContent: "flex-end" },
-  later: {
-    border: `1px solid ${tokens.border}`,
-    borderRadius: 8,
-    color: tokens.text,
-    fontSize: 14,
-    paddingBlock: 6,
-    paddingInline: 12,
-    transition: "background-color 150ms",
-    ":hover": { backgroundColor: tokens.hoverStrong },
-    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
-  },
-  reload: {
-    backgroundColor: tokens.primaryBackground,
-    borderRadius: 8,
-    color: tokens.primaryText,
-    fontSize: 14,
-    paddingBlock: 6,
-    paddingInline: 12,
-    transition: "background-color 150ms",
-    ":hover": {
-      backgroundColor: `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`,
-    },
-    ":focus-visible": { boxShadow: FOCUS_RING, outline: "none" },
-  },
 });
 
 const fetchReleaseNotes = async (): Promise<ReleaseNotesManifest | null> => {
@@ -92,7 +57,7 @@ const fetchReleaseNotes = async (): Promise<ReleaseNotesManifest | null> => {
 
 export default function AppUpdateDialog() {
   const titleId = useId();
-  const descriptionId = useId();
+  const [reloading, setReloading] = useState(false);
   const [release, setRelease] = useState<ReleaseNotesManifest | null>(null);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -124,23 +89,41 @@ export default function AppUpdateDialog() {
 
   const notes = release ? releaseNotesSince(release.notes, __RELEASE_NOTE_ID__) : [];
 
+  const reload = async (): Promise<void> => {
+    setReloading(true);
+    try {
+      await updateServiceWorker();
+    } finally {
+      setReloading(false);
+    }
+  };
+
   return (
     <NativeDialog
       open={needRefresh}
       onOpenChange={setNeedRefresh}
       labelledBy={titleId}
-      describedBy={descriptionId}
-      panelClassName={stylex.props(styles.panel).className}
+      // The card brings its own surface; inline style wins over the dialog panel's CSS.
+      panelStyle={illustratedCardPanelStyle}
     >
-      <div {...stylex.props(styles.content)}>
-        <div>
-          <h2 id={titleId} {...stylex.props(styles.title)}>
-            A new version of Memora is ready
-          </h2>
-          <p id={descriptionId} {...stylex.props(styles.description)}>
-            Reload to start using it. Your files and chats stay on this device.
-          </p>
-        </div>
+      <IllustratedCard
+        imageSrc="/update.webp"
+        titleId={titleId}
+        title="A new version of Memora is ready"
+        description="Reload to start using it."
+        actionLabel={reloading ? "Reloading…" : "Reload"}
+        busy={reloading}
+        onAction={() => void reload()}
+        secondary={
+          <button
+            type="button"
+            className={illustratedCardSecondaryButtonClassName}
+            onClick={() => setNeedRefresh(false)}
+          >
+            Later
+          </button>
+        }
+      >
         {notes.length > 0 && (
           <div {...stylex.props(styles.notes)}>
             {notes.map((note) => (
@@ -156,23 +139,7 @@ export default function AppUpdateDialog() {
           </div>
         )}
         {release && <p {...stylex.props(styles.version)}>Version {release.version}</p>}
-        <div {...stylex.props(styles.actions)}>
-          <button
-            type="button"
-            onClick={() => setNeedRefresh(false)}
-            {...stylex.props(styles.later)}
-          >
-            Later
-          </button>
-          <button
-            type="button"
-            onClick={() => void updateServiceWorker()}
-            {...stylex.props(styles.reload)}
-          >
-            Reload
-          </button>
-        </div>
-      </div>
+      </IllustratedCard>
     </NativeDialog>
   );
 }

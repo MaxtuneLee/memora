@@ -109,4 +109,12 @@ export default function IllustratedCard({
   );
 }
 
+/** For the NativeDialog that hosts the card: the card brings its own surface and width. */
+export const illustratedCardPanelStyle = {
+  background: "transparent",
+  border: "none",
+  boxShadow: "none",
+  width: "auto",
+} as const;
+
 export const illustratedCardSecondaryButtonClassName = stylex.props(styles.secondary).className;
