@@ -1,9 +1,31 @@
 {
-  "name": "@memora/streamdown-pele",
-  "version": "0.0.0",
-  "private": true,
+  "name": "streamdown-pele",
+  "version": "0.1.0",
+  "description": "Render Mermaid diagrams in Streamdown with Pele, a small and fast Mermaid renderer.",
+  "keywords": [
+    "streamdown",
+    "pele",
+    "mermaid",
+    "diagram",
+    "markdown",
+    "svg"
+  ],
+  "license": "MIT",
+  "author": "MaxtuneLee",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MaxtuneLee/memora.git",
+    "directory": "packages/streamdown-pele"
+  },
+  "homepage": "https://github.com/MaxtuneLee/memora/tree/main/packages/streamdown-pele#readme",
+  "bugs": {
+    "url": "https://github.com/MaxtuneLee/memora/issues"
+  },
+  "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -15,10 +37,14 @@
       "import": "./dist/index.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "lint": "vp lint ."
+    "lint": "vp lint .",
+    "prepublishOnly": "vp pack"
   },
   "dependencies": {
     "pele": "^1.6.0"

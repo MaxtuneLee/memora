@@ -43,7 +43,7 @@
     "@memora/fs": "workspace:*",
     "@memora/livestore-devtool": "workspace:*",
     "@memora/local-model-runtime": "workspace:*",
-    "@memora/streamdown-pele": "workspace:*",
+    "streamdown-pele": "workspace:*",
     "@paddleocr/paddleocr-js": "^0.4.2",
     "@phosphor-icons/react": "^2.1.10",
     "@ricky0123/vad-web": "^0.0.30",
