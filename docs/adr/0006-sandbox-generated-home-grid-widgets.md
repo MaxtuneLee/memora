@@ -1,3 +1,7 @@
+> Superseded in part by [ADR 0011](0011-run-generated-widgets-in-a-separate-runner-page.md): Chat
+> widgets are now sandboxed too, and both run in the same runner page. The sandbox attribute and
+> the message-only data channel below still hold.
+
 # Sandbox generated Home Grid widgets; keep Chat's widget bridge unsandboxed
 
 Chat's `show_widget` iframe has no `sandbox` attribute — it's same-origin, isolated only for DOM/CSS/global scope, and the host hands widget scripts a live JS object (`WIDGET_BRIDGE_KEY`) with full same-origin power. That's an acceptable risk for a widget that exists only while the user is actively watching it stream in a chat message.

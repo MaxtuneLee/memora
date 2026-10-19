@@ -15,6 +15,7 @@ import { livestoreDevtoolsPlugin } from "../livestore-devtool/src/vite";
 import path from "node:path";
 
 import { modelsDevCatalogPlugin } from "./plugins/modelsDevCatalogPlugin";
+import { widgetRunnerPlugin } from "./plugins/widgetRunnerPlugin";
 
 import { parseReleaseNotes } from "./src/lib/app/releaseNotes";
 
@@ -141,6 +142,7 @@ const config = {
   },
   plugins: [
     modelsDevCatalogPlugin(),
+    widgetRunnerPlugin(),
     evaluationDataPlugin(),
     ...(isVitest
       ? []

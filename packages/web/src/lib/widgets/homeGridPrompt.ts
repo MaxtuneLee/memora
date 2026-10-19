@@ -1,5 +1,5 @@
 // A Home Grid widget's sendPrompt() can only reach the sandboxed iframe's postMessage channel
-// (see generatedWidgetRuntime.ts); getting that text into a chat turn means leaving the
+// (see widgetRunner/runner.ts); getting that text into a chat turn means leaving the
 // Dashboard route entirely. sessionStorage survives the navigate to /chat without needing a
 // query param or global store wired through the router.
 const PENDING_HOME_GRID_PROMPT_KEY = "memora:pending-home-grid-prompt";

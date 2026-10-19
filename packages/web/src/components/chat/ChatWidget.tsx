@@ -15,13 +15,7 @@ import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { WidgetDebugPanel } from "@/components/chat/chatWidget/WidgetDebugPanel";
 import { WidgetPlaceholder } from "@/components/chat/chatWidget/WidgetPlaceholder";
 import { SaveWidgetDefinitionDialog } from "@/components/chat/chatWidget/SaveWidgetDefinitionDialog";
-import {
-  IS_DEV,
-  buildWidgetIframeSrcDoc,
-  getPlaceholderCopy,
-  getWidgetLabel,
-} from "@/components/chat/chatWidget/constants";
-import { useWidgetIframe } from "@/components/chat/chatWidget/useWidgetIframe";
+import { IS_DEV, getPlaceholderCopy, getWidgetLabel } from "@/components/chat/chatWidget/constants";
 import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
@@ -30,7 +24,7 @@ import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
 import { useDataSourceValue, type DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import { usePreviewWidgetData } from "@/hooks/widgets/usePreviewWidgetData";
-import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { WIDGET_FAILURE_COPY } from "@/hooks/widgets/useWidgetSandbox";
 import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
@@ -106,17 +100,15 @@ interface ChatWidgetProps {
   onSendPrompt?: (text: string) => Promise<void> | void;
 }
 
-function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
-  const store = useAppStore();
-  const parsedCode = useMemo(() => {
-    return parseShowWidgetCode(widget.widgetCode);
-  }, [widget.widgetCode]);
-  const [loadingIndex, setLoadingIndex] = useState(0);
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
-  const { add: addToast } = Toast.useToastManager();
-  // "widgetData" has no Definition/folder yet in preview (the widget hasn't been saved) — it
-  // reads back the in-memory writes from usePreviewWidgetData instead of the catalog (ADR 0008).
+// The widget's bound data: the in-memory writes of an unsaved widget when it reads "widgetData"
+// (it has no Definition or folder yet, see ADR 0008), the catalog entry otherwise.
+function useChatWidgetData(
+  store: ReturnType<typeof useAppStore>,
+  widget: ChatWidgetData,
+): {
+  dataState: DataSourceValueState | null;
+  write: ReturnType<typeof usePreviewWidgetData>["write"];
+} {
   const isWidgetDataBound = widget.dataSourceName === "widgetData";
   const previewWidgetData = usePreviewWidgetData(widget.dataFiles);
   const catalogDataState = useDataSourceValue(
@@ -127,40 +119,12 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const dataState: DataSourceValueState | null = isWidgetDataBound
     ? { status: "ready", value: previewWidgetData.value }
     : catalogDataState;
-  const resolvedTheme = useResolvedTheme();
-  // Only the first theme goes into the srcDoc, matching Home Grid's sandboxed widgets — later
-  // changes reach the same-origin frame directly through useWidgetIframe's effect, never a reload.
-  const [initialTheme] = useState(resolvedTheme);
-  const iframeSrcDoc = useMemo(() => buildWidgetIframeSrcDoc(initialTheme), [initialTheme]);
-  const {
-    iframeRef,
-    iframeDocumentRef,
-    userStyleRef,
-    contentRef,
-    iframeReady,
-    iframeHeight,
-    hasRuntimeDom,
-    bindIframeDocument,
-    syncIframeHeight,
-  } = useWidgetIframe();
-  const { runtimeError } = useWidgetRuntime({
-    widget,
-    parsedCode,
-    iframeReady,
-    iframeDocumentRef,
-    userStyleRef,
-    contentRef,
-    hasRuntimeDom,
-    onSendPrompt,
-    syncIframeHeight,
-    dataState,
-    onWriteData: previewWidgetData.write,
-  });
-  const debugState = useSyncExternalStore(
-    subscribeShowWidgetDebug,
-    () => getShowWidgetDebugState(widget.toolCallId),
-    () => getShowWidgetDebugState(widget.toolCallId),
-  );
+  return { dataState, write: previewWidgetData.write };
+}
+
+// Cycles through the model's loading messages until the widget is ready.
+function useLoadingMessage(widget: ChatWidgetData): string {
+  const [loadingIndex, setLoadingIndex] = useState(0);
 
   useEffect(() => {
     if (widget.loadingMessages.length <= 1 || widget.phase === "ready") {
@@ -176,26 +140,19 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     };
   }, [widget.loadingMessages, widget.phase]);
 
-  const activeLoadingMessage =
-    widget.loadingMessages.length > 0
-      ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
-      : "Rendering widget...";
-  const visibleError = widget.errorMessage ?? runtimeError?.message ?? null;
-  const hasRenderableHtml = parsedCode.htmlRenderable.trim().length > 0;
-  const hasVisibleWidgetDom = hasRenderableHtml || hasRuntimeDom;
-  const placeholderCopy = getPlaceholderCopy({
-    widgetCode: widget.widgetCode,
-    hasStyle: parsedCode.hasStyle,
-    styleReady: parsedCode.styleReady,
-    htmlText: parsedCode.htmlText,
-    hasScript: parsedCode.hasScript,
-    scriptReady: parsedCode.scriptReady,
-    loadingMessage: activeLoadingMessage,
-  });
-  const showLoadingState = widget.phase !== "ready" && hasVisibleWidgetDom;
-  const canSave =
-    widget.phase === "ready" && hasVisibleWidgetDom && widget.widgetCode.trim().length > 0;
-  const handleSaveDefinition = useCallback(
+  return widget.loadingMessages.length > 0
+    ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
+    : "Rendering widget...";
+}
+
+// handleSave resolves asynchronously (it writes widget.html/widget.json to OPFS before committing
+// the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same preview
+// (savedDefinitionId already set) updates that Definition instead of creating a duplicate — see
+// saveChatWidgetDefinition's existingDefinitionId.
+function useSaveWidgetDefinition(store: ReturnType<typeof useAppStore>) {
+  const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
+  const { add: addToast } = Toast.useToastManager();
+  const handleSave = useCallback(
     async (input: Parameters<typeof saveChatWidgetDefinition>[0]["input"]) => {
       const result = await saveChatWidgetDefinition({
         store,
@@ -210,11 +167,48 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     },
     [addToast, savedDefinitionId, store],
   );
-  // handleSaveDefinition resolves asynchronously (it writes widget.html/widget.json to OPFS
-  // before committing the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same
-  // preview (savedDefinitionId already set) updates that Definition instead of creating a
-  // duplicate — see saveChatWidgetDefinition's existingDefinitionId.
+  return { savedDefinitionId, handleSave };
+}
 
+function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
+  const store = useAppStore();
+  const parsedCode = useMemo(() => {
+    return parseShowWidgetCode(widget.widgetCode);
+  }, [widget.widgetCode]);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const { savedDefinitionId, handleSave: handleSaveDefinition } = useSaveWidgetDefinition(store);
+  const { dataState, write } = useChatWidgetData(store, widget);
+  const activeLoadingMessage = useLoadingMessage(widget);
+  const { sandbox, runtimeError } = useWidgetRuntime({
+    widget,
+    parsedCode,
+    onSendPrompt,
+    dataState,
+    onWriteData: write,
+  });
+  const hasRuntimeDom = sandbox.hasContent;
+  const debugState = useSyncExternalStore(
+    subscribeShowWidgetDebug,
+    () => getShowWidgetDebugState(widget.toolCallId),
+    () => getShowWidgetDebugState(widget.toolCallId),
+  );
+
+  const failureMessage = sandbox.failure ? WIDGET_FAILURE_COPY[sandbox.failure] : null;
+  const visibleError = widget.errorMessage ?? runtimeError?.message ?? failureMessage;
+  const hasRenderableHtml = parsedCode.htmlRenderable.trim().length > 0;
+  const hasVisibleWidgetDom = hasRenderableHtml || hasRuntimeDom;
+  const placeholderCopy = getPlaceholderCopy({
+    widgetCode: widget.widgetCode,
+    hasStyle: parsedCode.hasStyle,
+    styleReady: parsedCode.styleReady,
+    htmlText: parsedCode.htmlText,
+    hasScript: parsedCode.hasScript,
+    scriptReady: parsedCode.scriptReady,
+    loadingMessage: activeLoadingMessage,
+  });
+  const showLoadingState = widget.phase !== "ready" && hasVisibleWidgetDom;
+  const canSave =
+    widget.phase === "ready" && hasVisibleWidgetDom && widget.widgetCode.trim().length > 0;
   return (
     <>
       <div {...stylex.props(styles.root)}>
@@ -239,15 +233,23 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
           />
         )}
         <div {...stylex.props(styles.iframeWrap, !hasVisibleWidgetDom && styles.hidden)}>
-          <iframe
-            ref={iframeRef}
-            title={getWidgetLabel(widget)}
-            srcDoc={iframeSrcDoc}
-            {...stylex.props(styles.iframe)}
-            style={{ height: `${iframeHeight}px` }}
-            scrolling="no"
-            onLoad={bindIframeDocument}
-          />
+          {sandbox.failure ? (
+            <button type="button" onClick={sandbox.restart} {...stylex.props(styles.saveButton)}>
+              Reload widget
+            </button>
+          ) : (
+            <iframe
+              key={sandbox.frameKey}
+              ref={sandbox.iframeRef}
+              title={getWidgetLabel(widget)}
+              src={sandbox.src}
+              sandbox={sandbox.sandbox}
+              referrerPolicy="no-referrer"
+              {...stylex.props(styles.iframe)}
+              style={{ height: `${sandbox.height}px` }}
+              scrolling="no"
+            />
+          )}
         </div>
         {showLoadingState && <div {...stylex.props(styles.loading)}>{activeLoadingMessage}</div>}
         {visibleError && <div {...stylex.props(styles.error)}>{visibleError}</div>}

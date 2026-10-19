@@ -6,6 +6,8 @@ import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import stylex from "@stylexjs/unplugin";
 
+import { widgetRunnerPlugin } from "./plugins/widgetRunnerPlugin";
+
 const localChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 // Emulates operating system media features, so System theme tests can flip the color scheme at
@@ -18,7 +20,7 @@ const emulateMedia: BrowserCommand<
 };
 
 export default defineConfig({
-  plugins: [stylex.vite({ dev: false, runtimeInjection: true }), react()],
+  plugins: [widgetRunnerPlugin(), stylex.vite({ dev: false, runtimeInjection: true }), react()],
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {

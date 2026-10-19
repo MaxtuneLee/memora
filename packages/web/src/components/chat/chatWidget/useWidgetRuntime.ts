@@ -1,183 +1,137 @@
-import Chart from "chart.js/auto";
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createLessonQuiz } from "@/lib/chat/lessonQuiz";
+import { useWidgetSandbox, type WidgetSandbox } from "@/hooks/widgets/useWidgetSandbox";
+import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
-import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
+import { normalizeWidgetLink } from "@/lib/widgets/sandbox/limits";
+import { buildRunSignature, buildWidgetScripts } from "@/lib/widgets/sandbox/payload";
+import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
-import {
-  WIDGET_BRIDGE_KEY,
-  WIDGET_CLEANUP_KEY,
-  WIDGET_ERROR_KEY,
-  WIDGET_SCRIPT_ATTR,
-  type WidgetIframeWindow,
-} from "./constants";
+// The sandbox host already filters links; this keeps the check next to the call that opens one.
+const openLink = (url: string): void => {
+  const safeUrl = normalizeWidgetLink(url);
+  if (safeUrl) {
+    // fallow-ignore-next-line security-sink -- safeUrl is an http(s) URL from normalizeWidgetLink, never a javascript: or data: URL.
+    window.open(safeUrl, "_blank", "noopener,noreferrer");
+  }
+};
 
+// Streams a Chat widget into the sandboxed runner (ADR 0011): style and markup go over as they
+// arrive, and the script runs once, when its closing tag has streamed and its code changes.
 export const useWidgetRuntime = ({
   widget,
   parsedCode,
-  iframeReady,
-  iframeDocumentRef,
-  userStyleRef,
-  contentRef,
-  hasRuntimeDom,
   onSendPrompt,
-  syncIframeHeight,
   dataState,
   onWriteData,
 }: {
   widget: ChatWidgetData;
   parsedCode: ParsedShowWidgetCode;
-  iframeReady: boolean;
-  iframeDocumentRef: MutableRefObject<Document | null>;
-  userStyleRef: MutableRefObject<HTMLStyleElement | null>;
-  contentRef: MutableRefObject<HTMLDivElement | null>;
-  hasRuntimeDom: boolean;
   onSendPrompt?: (text: string) => Promise<void> | void;
-  syncIframeHeight: () => void;
   // The widget's bound catalog data (from show_widget's data_source/data_source_params), or null
-  // when it has no binding. Kept in refs (not the bridge object literal) so a data update never
-  // forces the widget script to re-run — only the bridge's onData listeners are notified.
+  // when it has no binding. It reaches the runner as a message, so an update never re-runs the
+  // widget script — only its onData listeners are notified.
   dataState?: DataSourceValueState | null;
   // Host-mediated write channel (ADR 0008); preview keeps writes in memory (see
   // usePreviewWidgetData). Omitting this refuses every write.
   onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
-}) => {
-  const scriptElementsRef = useRef<HTMLScriptElement[]>([]);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const executedSignatureRef = useRef("");
-  // Read through refs so a new callback identity from the parent never re-runs the script.
-  const onSendPromptRef = useRef(onSendPrompt);
-  const onWriteDataRef = useRef(onWriteData);
-  const latestDataRef = useRef<unknown>(undefined);
-  const hasDataRef = useRef(false);
-  const dataListenersRef = useRef<Array<(data: unknown) => void>>([]);
+}): {
+  sandbox: WidgetSandbox;
+  runtimeError: { signature: string; message: string } | null;
+} => {
   const [runtimeError, setRuntimeError] = useState<{
     signature: string;
     message: string;
   } | null>(null);
-  const executionSignature = [
-    parsedCode.styleText,
-    parsedCode.htmlText,
-    parsedCode.scriptText,
-  ].join("\u0000");
-  const visibleError =
-    widget.errorMessage ??
-    (runtimeError?.signature === executionSignature ? runtimeError.message : null);
+  const executedSignatureRef = useRef("");
+  const signature = buildRunSignature(parsedCode);
+  const toolCallId = widget.toolCallId;
+  const phase = widget.phase;
 
-  const teardownWidgetScript = useCallback(() => {
-    const iframeWindow = iframeDocumentRef.current?.defaultView as WidgetIframeWindow | null;
-
-    cleanupRef.current?.();
-    cleanupRef.current = null;
-    scriptElementsRef.current.forEach((element) => {
-      element.remove();
-    });
-    scriptElementsRef.current = [];
-    if (iframeWindow) {
-      delete iframeWindow[WIDGET_BRIDGE_KEY];
-      delete iframeWindow[WIDGET_CLEANUP_KEY];
-      delete iframeWindow[WIDGET_ERROR_KEY];
-    }
-    executedSignatureRef.current = "";
-    // Subscribers belong to the script instance that registered them; the last resolved value
-    // survives so a freshly re-run script's onData(callback) still fires immediately (matching
-    // the Home Grid shim's onData semantics).
-    dataListenersRef.current = [];
-  }, [iframeDocumentRef]);
-
-  useEffect(() => {
-    onSendPromptRef.current = onSendPrompt;
-    onWriteDataRef.current = onWriteData;
-  }, [onSendPrompt, onWriteData]);
-
-  useEffect(() => {
-    if (dataState?.status !== "ready") {
-      return;
-    }
-    latestDataRef.current = dataState.value;
-    hasDataRef.current = true;
-    dataListenersRef.current.forEach((listener) => {
-      try {
-        listener(dataState.value);
-      } catch (error) {
-        console.error("Widget data listener failed:", error);
+  const handleRunnerError = useCallback(
+    (message: { kind: "script" | "listener"; signature: string | null; message: string }) => {
+      if (message.kind === "listener") {
+        return;
       }
-    });
-  }, [dataState]);
-
-  useEffect(() => {
-    if (!iframeReady || !userStyleRef.current || !contentRef.current) {
-      return;
-    }
-
-    userStyleRef.current.textContent = parsedCode.styleText;
-    contentRef.current.innerHTML = parsedCode.htmlRenderable;
-    syncIframeHeight();
-  }, [
-    contentRef,
-    iframeReady,
-    parsedCode.htmlRenderable,
-    parsedCode.styleText,
-    syncIframeHeight,
-    userStyleRef,
-  ]);
-
-  useEffect(() => {
-    updateShowWidgetDebug(
-      widget.toolCallId,
-      {
-        widgetCode: widget.widgetCode,
-        phase: widget.phase,
-      },
-      {
-        type: "widget-parse-state",
-        summary: "Widget parse state updated",
-        details: {
-          phase: widget.phase,
-          widgetCodeLength: widget.widgetCode.length,
-          styleLength: parsedCode.styleText.length,
-          hasStyle: parsedCode.hasStyle,
-          styleReady: parsedCode.styleReady,
-          htmlLength: parsedCode.htmlText.length,
-          htmlRenderableLength: parsedCode.htmlRenderable.length,
-          hasScript: parsedCode.hasScript,
-          scriptLength: parsedCode.scriptText.length,
-          scriptReady: parsedCode.scriptReady,
-          hasRuntimeDom,
-          visibleError,
+      const errorSignature = message.signature ?? "";
+      updateShowWidgetDebug(
+        toolCallId,
+        { phase: "error" },
+        {
+          type: "widget-script-error",
+          summary: "Widget script threw during execution",
+          details: { message: message.message },
         },
-      },
-    );
-  }, [hasRuntimeDom, parsedCode, visibleError, widget.phase, widget.toolCallId, widget.widgetCode]);
+      );
+      setRuntimeError({ signature: errorSignature, message: message.message });
+    },
+    [toolCallId],
+  );
+
+  const handleRunResult = useCallback(
+    (message: { scriptCount: number; hasCleanup: boolean }) => {
+      updateShowWidgetDebug(
+        toolCallId,
+        { phase },
+        {
+          type: "widget-script-success",
+          summary: "Widget script executed",
+          details: { returnedCleanup: message.hasCleanup, scriptCount: message.scriptCount },
+        },
+      );
+    },
+    [phase, toolCallId],
+  );
+
+  const sandbox = useWidgetSandbox({
+    onSendPrompt,
+    onOpenLink: openLink,
+    onWriteData,
+    onRunnerError: handleRunnerError,
+    onRunResult: handleRunResult,
+  });
+  const { booted, post } = sandbox;
 
   useEffect(() => {
-    if (!iframeReady || !iframeDocumentRef.current || !contentRef.current) {
-      teardownWidgetScript();
+    if (!booted) {
+      // A restarted frame starts empty, so the script has to run again.
+      executedSignatureRef.current = "";
       return;
     }
-    if (widget.phase === "error") {
-      teardownWidgetScript();
-      return;
-    }
-    if (!parsedCode.hasScript || !parsedCode.scriptReady || !parsedCode.scriptText.trim()) {
-      teardownWidgetScript();
-      return;
-    }
+    post({
+      type: HOST_MESSAGE.render,
+      style: parsedCode.styleText,
+      html: parsedCode.htmlRenderable,
+    });
+  }, [booted, parsedCode.htmlRenderable, parsedCode.styleText, post]);
 
-    const signature = executionSignature;
+  useEffect(() => {
+    if (!booted) {
+      return;
+    }
+    const canRun =
+      phase !== "error" &&
+      parsedCode.hasScript &&
+      parsedCode.scriptReady &&
+      parsedCode.scriptText.trim().length > 0;
+    if (!canRun) {
+      if (executedSignatureRef.current) {
+        executedSignatureRef.current = "";
+        post({ type: HOST_MESSAGE.teardown });
+      }
+      return;
+    }
     if (executedSignatureRef.current === signature) {
       return;
     }
 
-    teardownWidgetScript();
     executedSignatureRef.current = signature;
     updateShowWidgetDebug(
-      widget.toolCallId,
-      { phase: widget.phase },
+      toolCallId,
+      { phase },
       {
         type: "widget-script-start",
         summary: "Executing widget script",
@@ -187,213 +141,18 @@ export const useWidgetRuntime = ({
         },
       },
     );
-    setRuntimeError((currentError) => {
-      return currentError?.signature === signature ? null : currentError;
-    });
-
-    const sendPrompt = (text: string) => {
-      const send = onSendPromptRef.current;
-      if (!send) {
-        return Promise.resolve();
-      }
-      return Promise.resolve(send(text));
-    };
-
-    const openLink = (url: string) => {
-      if (typeof url !== "string" || !url.trim()) {
-        return;
-      }
-      window.open(url.trim(), "_blank", "noopener,noreferrer");
-    };
-
-    const handleRuntimeError = (error: unknown) => {
-      updateShowWidgetDebug(
-        widget.toolCallId,
-        { phase: "error" },
-        {
-          type: "widget-script-error",
-          summary: "Widget script threw during execution",
-          details: {
-            message: error instanceof Error ? error.message : "Widget script failed to execute.",
-          },
-        },
-      );
-      queueMicrotask(() => {
-        setRuntimeError({
-          signature,
-          message: error instanceof Error ? error.message : "Widget script failed to execute.",
-        });
-      });
-    };
-
-    try {
-      const iframeDocument = iframeDocumentRef.current;
-      const iframeWindow = iframeDocument.defaultView as WidgetIframeWindow | null;
-      if (!iframeWindow || !contentRef.current) {
-        throw new Error("Widget iframe window is unavailable.");
-      }
-      // Every run starts from the widget's own HTML, so a script that appends (a grid of
-      // cells, an event listener on an element) builds once instead of stacking on the last run.
-      contentRef.current.innerHTML = parsedCode.htmlRenderable;
-
-      iframeWindow[WIDGET_BRIDGE_KEY] = {
-        Chart,
-        container: contentRef.current,
-        openLink,
-        sendPrompt,
-        getData: () => latestDataRef.current,
-        onData: (callback) => {
-          dataListenersRef.current.push(callback);
-          if (hasDataRef.current) {
-            callback(latestDataRef.current);
-          }
-        },
-        lesson: {
-          quiz: (mount, options) => createLessonQuiz(mount, options, sendPrompt),
-        },
-        writeData: async (name, content) => {
-          const write = onWriteDataRef.current;
-          if (!write) {
-            throw new Error("This widget cannot write data.");
-          }
-          const result = await write(String(name ?? ""), String(content ?? ""));
-          if (!result.ok) {
-            throw new Error(result.error);
-          }
-        },
-      };
-      iframeWindow[WIDGET_CLEANUP_KEY] = null;
-      iframeWindow[WIDGET_ERROR_KEY] = null;
-
-      const appendScriptElement = (scriptElement: HTMLScriptElement): Promise<void> => {
-        scriptElementsRef.current.push(scriptElement);
-        return new Promise((resolve, reject) => {
-          scriptElement.addEventListener("load", () => resolve(), { once: true });
-          scriptElement.addEventListener(
-            "error",
-            () => {
-              reject(
-                new Error(iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute."),
-              );
-            },
-            { once: true },
-          );
-          iframeDocument.body.append(scriptElement);
-          if (!scriptElement.src) {
-            resolve();
-          }
-        });
-      };
-
-      const runScripts = async () => {
-        for (const script of parsedCode.scripts) {
-          const scriptElement = iframeDocument.createElement("script");
-          scriptElement.type = "text/javascript";
-          scriptElement.setAttribute(WIDGET_SCRIPT_ATTR, signature);
-          if (script.src) {
-            scriptElement.src = script.src;
-            await appendScriptElement(scriptElement);
-            continue;
-          }
-
-          scriptElement.textContent = `"use strict";
-(() => {
-  const bridge = window.${WIDGET_BRIDGE_KEY};
-  if (!bridge) {
-    throw new Error("Widget bridge is unavailable.");
-  }
-
-  const shadowRoot = document;
-  const container = bridge.container;
-  const root = container;
-  const Chart = window.Chart ?? bridge.Chart;
-  const sendPrompt = bridge.sendPrompt;
-  const openLink = bridge.openLink;
-  const getData = bridge.getData;
-  const onData = bridge.onData;
-  const writeData = bridge.writeData;
-  const lesson = bridge.lesson;
-
-  try {
-    const cleanup = (() => {
-${script.content}
-    })();
-    if (typeof cleanup === "function") {
-      window.${WIDGET_CLEANUP_KEY} = cleanup;
-    }
-    window.${WIDGET_ERROR_KEY} = null;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Widget script failed to execute.";
-    window.${WIDGET_ERROR_KEY} = message;
-    throw error;
-  }
-})();`;
-          await appendScriptElement(scriptElement);
-        }
-      };
-
-      void runScripts()
-        .then(() => {
-          const cleanup = iframeWindow[WIDGET_CLEANUP_KEY];
-          if (typeof cleanup === "function") {
-            cleanupRef.current = cleanup;
-          }
-          if (iframeWindow[WIDGET_ERROR_KEY]) {
-            throw new Error(iframeWindow[WIDGET_ERROR_KEY] ?? "Widget script failed to execute.");
-          }
-          syncIframeHeight();
-          updateShowWidgetDebug(
-            widget.toolCallId,
-            { phase: widget.phase },
-            {
-              type: "widget-script-success",
-              summary: "Widget script executed",
-              details: {
-                returnedCleanup: typeof cleanup === "function",
-                scriptCount: parsedCode.scripts.length,
-              },
-            },
-          );
-        })
-        .catch(handleRuntimeError);
-
-      updateShowWidgetDebug(
-        widget.toolCallId,
-        { phase: widget.phase },
-        {
-          type: "widget-script-success",
-          summary: "Widget scripts scheduled",
-          details: {
-            scriptCount: parsedCode.scripts.length,
-          },
-        },
-      );
-    } catch (error) {
-      handleRuntimeError(error);
-    }
-
-    // No teardown here: a phase or prop change must not re-run the script. A code change
-    // tears down above before running the new code, and unmount tears down below.
-  }, [
-    contentRef,
-    executionSignature,
-    iframeDocumentRef,
-    iframeReady,
-    parsedCode,
-    syncIframeHeight,
-    teardownWidgetScript,
-    widget.phase,
-    widget.toolCallId,
-  ]);
+    setRuntimeError((current) => (current?.signature === signature ? null : current));
+    // No teardown on a phase or prop change: it must not re-run the script. A code change posts
+    // a new run, which tears the previous one down inside the runner.
+    post({ type: HOST_MESSAGE.run, signature, scripts: buildWidgetScripts(parsedCode) });
+  }, [booted, parsedCode, phase, post, signature, toolCallId]);
 
   useEffect(() => {
-    return () => {
-      teardownWidgetScript();
-    };
-  }, [teardownWidgetScript]);
+    if (!booted || dataState?.status !== "ready") {
+      return;
+    }
+    post({ type: HOST_MESSAGE.data, payload: dataState.value });
+  }, [booted, dataState, post]);
 
-  return {
-    runtimeError,
-  };
+  return { sandbox, runtimeError };
 };

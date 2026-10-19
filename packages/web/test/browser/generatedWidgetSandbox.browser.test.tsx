@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { GeneratedWidgetFrame } from "@/components/dashboard/homeGrid/GeneratedWidgetFrame";
-import { GENERATED_WIDGET_ERROR_MESSAGE } from "@/lib/widgets/generatedWidgetRuntime";
+import { RUNNER_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 
 const PROBE_MESSAGE_TYPE = "memora-test:sandbox-probe";
 
@@ -136,7 +136,7 @@ describe("Generated Home Grid widget sandbox", () => {
     }
     window.dispatchEvent(
       new MessageEvent("message", {
-        data: { type: GENERATED_WIDGET_ERROR_MESSAGE },
+        data: { type: RUNNER_MESSAGE.error, kind: "script", message: "boom" },
         source: iframeWindow,
       }),
     );
