@@ -67,8 +67,10 @@ export type RunnerMessage =
   | { type: typeof RUNNER_MESSAGE.openLink; url: string }
   | { type: typeof RUNNER_MESSAGE.writeData; requestId: string; name: string; content: string };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+type Fields = Record<string, unknown>;
+type Parser<Message> = (fields: Fields) => Message | null;
+
+const isRecord = (value: unknown): value is Fields => typeof value === "object" && value !== null;
 
 const isScriptSpec = (value: unknown): value is WidgetScriptSpec => {
   if (!isRecord(value)) {
@@ -77,99 +79,110 @@ const isScriptSpec = (value: unknown): value is WidgetScriptSpec => {
   return typeof value.src === "string" || typeof value.content === "string";
 };
 
-// The frame is untrusted: anything it posts is checked field by field before the host acts on it.
-export const parseRunnerMessage = (data: unknown): RunnerMessage | null => {
-  if (!isRecord(data)) {
-    return null;
-  }
+const isString = (value: unknown): value is string => typeof value === "string";
+const isNumber = (value: unknown): value is number => typeof value === "number";
 
-  switch (data.type) {
-    case RUNNER_MESSAGE.boot:
-      return { type: RUNNER_MESSAGE.boot };
-    case RUNNER_MESSAGE.ready:
-      return { type: RUNNER_MESSAGE.ready };
-    case RUNNER_MESSAGE.pong:
-      return typeof data.seq === "number" ? { type: RUNNER_MESSAGE.pong, seq: data.seq } : null;
-    case RUNNER_MESSAGE.resize:
-      return typeof data.height === "number" && typeof data.hasContent === "boolean"
-        ? { type: RUNNER_MESSAGE.resize, height: data.height, hasContent: data.hasContent }
-        : null;
-    case RUNNER_MESSAGE.error:
-      return typeof data.message === "string"
+// Each parser checks the fields of one message type and returns the typed message, or null.
+// The frame is untrusted: anything it posts is checked field by field before the host acts on it.
+const RUNNER_PARSERS = new Map<string, Parser<RunnerMessage>>([
+  [RUNNER_MESSAGE.boot, () => ({ type: RUNNER_MESSAGE.boot })],
+  [RUNNER_MESSAGE.ready, () => ({ type: RUNNER_MESSAGE.ready })],
+  [RUNNER_MESSAGE.pong, ({ seq }) => (isNumber(seq) ? { type: RUNNER_MESSAGE.pong, seq } : null)],
+  [
+    RUNNER_MESSAGE.resize,
+    ({ height, hasContent }) =>
+      isNumber(height) && typeof hasContent === "boolean"
+        ? { type: RUNNER_MESSAGE.resize, height, hasContent }
+        : null,
+  ],
+  [
+    RUNNER_MESSAGE.error,
+    ({ kind, signature, message }) =>
+      isString(message)
         ? {
             type: RUNNER_MESSAGE.error,
-            kind: data.kind === "listener" ? "listener" : "script",
-            signature: typeof data.signature === "string" ? data.signature : null,
-            message: data.message,
+            kind: kind === "listener" ? "listener" : "script",
+            signature: isString(signature) ? signature : null,
+            message,
           }
-        : null;
-    case RUNNER_MESSAGE.runResult:
-      return typeof data.signature === "string"
+        : null,
+  ],
+  [
+    RUNNER_MESSAGE.runResult,
+    ({ signature, scriptCount, hasCleanup }) =>
+      isString(signature)
         ? {
             type: RUNNER_MESSAGE.runResult,
-            signature: data.signature,
-            scriptCount: typeof data.scriptCount === "number" ? data.scriptCount : 0,
-            hasCleanup: data.hasCleanup === true,
+            signature,
+            scriptCount: isNumber(scriptCount) ? scriptCount : 0,
+            hasCleanup: hasCleanup === true,
           }
-        : null;
-    case RUNNER_MESSAGE.sendPrompt:
-      return typeof data.text === "string"
-        ? { type: RUNNER_MESSAGE.sendPrompt, text: data.text }
-        : null;
-    case RUNNER_MESSAGE.openLink:
-      return typeof data.url === "string" ? { type: RUNNER_MESSAGE.openLink, url: data.url } : null;
-    case RUNNER_MESSAGE.writeData:
-      return typeof data.requestId === "string" &&
-        typeof data.name === "string" &&
-        typeof data.content === "string"
-        ? {
-            type: RUNNER_MESSAGE.writeData,
-            requestId: data.requestId,
-            name: data.name,
-            content: data.content,
-          }
-        : null;
-    default:
-      return null;
-  }
-};
+        : null,
+  ],
+  [
+    RUNNER_MESSAGE.sendPrompt,
+    ({ text }) => (isString(text) ? { type: RUNNER_MESSAGE.sendPrompt, text } : null),
+  ],
+  [
+    RUNNER_MESSAGE.openLink,
+    ({ url }) => (isString(url) ? { type: RUNNER_MESSAGE.openLink, url } : null),
+  ],
+  [
+    RUNNER_MESSAGE.writeData,
+    ({ requestId, name, content }) =>
+      isString(requestId) && isString(name) && isString(content)
+        ? { type: RUNNER_MESSAGE.writeData, requestId, name, content }
+        : null,
+  ],
+]);
 
-export const parseHostMessage = (data: unknown): HostMessage | null => {
-  if (!isRecord(data)) {
-    return null;
-  }
-
-  switch (data.type) {
-    case HOST_MESSAGE.render:
-      return typeof data.style === "string" && typeof data.html === "string"
-        ? { type: HOST_MESSAGE.render, style: data.style, html: data.html }
-        : null;
-    case HOST_MESSAGE.run:
-      return typeof data.signature === "string" &&
-        Array.isArray(data.scripts) &&
-        data.scripts.every(isScriptSpec)
-        ? { type: HOST_MESSAGE.run, signature: data.signature, scripts: data.scripts }
-        : null;
-    case HOST_MESSAGE.teardown:
-      return { type: HOST_MESSAGE.teardown };
-    case HOST_MESSAGE.data:
-      return { type: HOST_MESSAGE.data, payload: data.payload };
-    case HOST_MESSAGE.theme:
-      return data.theme === "light" || data.theme === "dark"
-        ? { type: HOST_MESSAGE.theme, theme: data.theme }
-        : null;
-    case HOST_MESSAGE.ping:
-      return typeof data.seq === "number" ? { type: HOST_MESSAGE.ping, seq: data.seq } : null;
-    case HOST_MESSAGE.writeDataResult:
-      return typeof data.requestId === "string" && typeof data.ok === "boolean"
+const HOST_PARSERS = new Map<string, Parser<HostMessage>>([
+  [
+    HOST_MESSAGE.render,
+    ({ style, html }) =>
+      isString(style) && isString(html) ? { type: HOST_MESSAGE.render, style, html } : null,
+  ],
+  [
+    HOST_MESSAGE.run,
+    ({ signature, scripts }) =>
+      isString(signature) && Array.isArray(scripts) && scripts.every(isScriptSpec)
+        ? { type: HOST_MESSAGE.run, signature, scripts }
+        : null,
+  ],
+  [HOST_MESSAGE.teardown, () => ({ type: HOST_MESSAGE.teardown })],
+  [HOST_MESSAGE.data, ({ payload }) => ({ type: HOST_MESSAGE.data, payload })],
+  [
+    HOST_MESSAGE.theme,
+    ({ theme }) =>
+      theme === "light" || theme === "dark" ? { type: HOST_MESSAGE.theme, theme } : null,
+  ],
+  [HOST_MESSAGE.ping, ({ seq }) => (isNumber(seq) ? { type: HOST_MESSAGE.ping, seq } : null)],
+  [
+    HOST_MESSAGE.writeDataResult,
+    ({ requestId, ok, error }) =>
+      isString(requestId) && typeof ok === "boolean"
         ? {
             type: HOST_MESSAGE.writeDataResult,
-            requestId: data.requestId,
-            ok: data.ok,
-            error: typeof data.error === "string" ? data.error : undefined,
+            requestId,
+            ok,
+            error: isString(error) ? error : undefined,
           }
-        : null;
-    default:
-      return null;
+        : null,
+  ],
+]);
+
+const parseWith = <Message>(
+  parsers: Map<string, Parser<Message>>,
+  data: unknown,
+): Message | null => {
+  if (!isRecord(data) || !isString(data.type)) {
+    return null;
   }
+  return parsers.get(data.type)?.(data) ?? null;
 };
+
+export const parseRunnerMessage = (data: unknown): RunnerMessage | null =>
+  parseWith(RUNNER_PARSERS, data);
+
+export const parseHostMessage = (data: unknown): HostMessage | null =>
+  parseWith(HOST_PARSERS, data);

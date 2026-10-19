@@ -100,17 +100,15 @@ interface ChatWidgetProps {
   onSendPrompt?: (text: string) => Promise<void> | void;
 }
 
-function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
-  const store = useAppStore();
-  const parsedCode = useMemo(() => {
-    return parseShowWidgetCode(widget.widgetCode);
-  }, [widget.widgetCode]);
-  const [loadingIndex, setLoadingIndex] = useState(0);
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
-  const { add: addToast } = Toast.useToastManager();
-  // "widgetData" has no Definition/folder yet in preview (the widget hasn't been saved) — it
-  // reads back the in-memory writes from usePreviewWidgetData instead of the catalog (ADR 0008).
+// The widget's bound data: the in-memory writes of an unsaved widget when it reads "widgetData"
+// (it has no Definition or folder yet, see ADR 0008), the catalog entry otherwise.
+function useChatWidgetData(
+  store: ReturnType<typeof useAppStore>,
+  widget: ChatWidgetData,
+): {
+  dataState: DataSourceValueState | null;
+  write: ReturnType<typeof usePreviewWidgetData>["write"];
+} {
   const isWidgetDataBound = widget.dataSourceName === "widgetData";
   const previewWidgetData = usePreviewWidgetData(widget.dataFiles);
   const catalogDataState = useDataSourceValue(
@@ -121,19 +119,12 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const dataState: DataSourceValueState | null = isWidgetDataBound
     ? { status: "ready", value: previewWidgetData.value }
     : catalogDataState;
-  const { sandbox, runtimeError } = useWidgetRuntime({
-    widget,
-    parsedCode,
-    onSendPrompt,
-    dataState,
-    onWriteData: previewWidgetData.write,
-  });
-  const hasRuntimeDom = sandbox.hasContent;
-  const debugState = useSyncExternalStore(
-    subscribeShowWidgetDebug,
-    () => getShowWidgetDebugState(widget.toolCallId),
-    () => getShowWidgetDebugState(widget.toolCallId),
-  );
+  return { dataState, write: previewWidgetData.write };
+}
+
+// Cycles through the model's loading messages until the widget is ready.
+function useLoadingMessage(widget: ChatWidgetData): string {
+  const [loadingIndex, setLoadingIndex] = useState(0);
 
   useEffect(() => {
     if (widget.loadingMessages.length <= 1 || widget.phase === "ready") {
@@ -149,10 +140,59 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     };
   }, [widget.loadingMessages, widget.phase]);
 
-  const activeLoadingMessage =
-    widget.loadingMessages.length > 0
-      ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
-      : "Rendering widget...";
+  return widget.loadingMessages.length > 0
+    ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
+    : "Rendering widget...";
+}
+
+// handleSave resolves asynchronously (it writes widget.html/widget.json to OPFS before committing
+// the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same preview
+// (savedDefinitionId already set) updates that Definition instead of creating a duplicate — see
+// saveChatWidgetDefinition's existingDefinitionId.
+function useSaveWidgetDefinition(store: ReturnType<typeof useAppStore>) {
+  const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
+  const { add: addToast } = Toast.useToastManager();
+  const handleSave = useCallback(
+    async (input: Parameters<typeof saveChatWidgetDefinition>[0]["input"]) => {
+      const result = await saveChatWidgetDefinition({
+        store,
+        input: { ...input, existingDefinitionId: savedDefinitionId ?? undefined },
+      });
+      if (result.ok) {
+        const wasUpdate = savedDefinitionId !== null;
+        setSavedDefinitionId(result.id);
+        addToast({ title: wasUpdate ? "Widget updated" : "Widget saved to your definitions" });
+      }
+      return result;
+    },
+    [addToast, savedDefinitionId, store],
+  );
+  return { savedDefinitionId, handleSave };
+}
+
+function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
+  const store = useAppStore();
+  const parsedCode = useMemo(() => {
+    return parseShowWidgetCode(widget.widgetCode);
+  }, [widget.widgetCode]);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const { savedDefinitionId, handleSave: handleSaveDefinition } = useSaveWidgetDefinition(store);
+  const { dataState, write } = useChatWidgetData(store, widget);
+  const activeLoadingMessage = useLoadingMessage(widget);
+  const { sandbox, runtimeError } = useWidgetRuntime({
+    widget,
+    parsedCode,
+    onSendPrompt,
+    dataState,
+    onWriteData: write,
+  });
+  const hasRuntimeDom = sandbox.hasContent;
+  const debugState = useSyncExternalStore(
+    subscribeShowWidgetDebug,
+    () => getShowWidgetDebugState(widget.toolCallId),
+    () => getShowWidgetDebugState(widget.toolCallId),
+  );
+
   const failureMessage = sandbox.failure ? WIDGET_FAILURE_COPY[sandbox.failure] : null;
   const visibleError = widget.errorMessage ?? runtimeError?.message ?? failureMessage;
   const hasRenderableHtml = parsedCode.htmlRenderable.trim().length > 0;
@@ -169,26 +209,6 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const showLoadingState = widget.phase !== "ready" && hasVisibleWidgetDom;
   const canSave =
     widget.phase === "ready" && hasVisibleWidgetDom && widget.widgetCode.trim().length > 0;
-  const handleSaveDefinition = useCallback(
-    async (input: Parameters<typeof saveChatWidgetDefinition>[0]["input"]) => {
-      const result = await saveChatWidgetDefinition({
-        store,
-        input: { ...input, existingDefinitionId: savedDefinitionId ?? undefined },
-      });
-      if (result.ok) {
-        const wasUpdate = savedDefinitionId !== null;
-        setSavedDefinitionId(result.id);
-        addToast({ title: wasUpdate ? "Widget updated" : "Widget saved to your definitions" });
-      }
-      return result;
-    },
-    [addToast, savedDefinitionId, store],
-  );
-  // handleSaveDefinition resolves asynchronously (it writes widget.html/widget.json to OPFS
-  // before committing the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same
-  // preview (savedDefinitionId already set) updates that Definition instead of creating a
-  // duplicate — see saveChatWidgetDefinition's existingDefinitionId.
-
   return (
     <>
       <div {...stylex.props(styles.root)}>

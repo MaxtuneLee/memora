@@ -23,13 +23,16 @@ const findTagEnd = (source: string, fromIndex: number): number => {
   return source.indexOf(">", fromIndex);
 };
 
+// attributeName is always the literal "src" at the call sites below, never widget content.
 const getTagAttribute = (source: string, attributeName: string): string | null => {
+  // fallow-ignore-next-line security-sink -- attributeName is a literal at every call site.
   const quotedMatch = source.match(new RegExp(`${attributeName}\\s*=\\s*(['"])(.*?)\\1`, "i"));
   if (quotedMatch) {
     return quotedMatch[2] ?? null;
   }
 
   const unquotedMatch = source.match(
+    // fallow-ignore-next-line security-sink -- attributeName is a literal at every call site.
     new RegExp(`${attributeName}\\s*=\\s*([^\\s"'=<>` + "`" + `]+)`, "i"),
   );
   return unquotedMatch?.[1] ?? null;

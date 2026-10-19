@@ -13,8 +13,21 @@ const STYLES = [
 ];
 
 // Inside an inline <script> or <style>, a literal closing tag would end the element early.
-const escapeForInlineTag = (source: string, tag: "script" | "style"): string =>
-  source.replace(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`);
+const escapeScriptEnd = (source: string): string => source.replace(/<\/script/gi, "<\\/script");
+const escapeStyleEnd = (source: string): string => source.replace(/<\/style/gi, "<\\/style");
+
+type BuildResult = Awaited<ReturnType<typeof build>>;
+
+const entryCode = (result: BuildResult): string => {
+  const outputs = (Array.isArray(result) ? result : [result]).flatMap((output) =>
+    "output" in output ? output.output : [],
+  );
+  const entry = outputs.find((chunk) => chunk.type === "chunk" && chunk.isEntry);
+  if (entry?.type !== "chunk") {
+    throw new Error("The widget runner bundle produced no entry chunk.");
+  }
+  return entry.code;
+};
 
 const bundleRunnerScript = async (minify: boolean): Promise<string> => {
   const result = await build({
@@ -34,17 +47,10 @@ const bundleRunnerScript = async (minify: boolean): Promise<string> => {
       },
     },
   });
-  const outputs = Array.isArray(result) ? result : [result];
-  for (const output of outputs) {
-    if (!("output" in output)) continue;
-    for (const chunk of output.output) {
-      if (chunk.type === "chunk" && chunk.isEntry) return chunk.code;
-    }
-  }
-  throw new Error("The widget runner bundle produced no entry chunk.");
+  return entryCode(result);
 };
 
-const buildRunnerHtml = async (minify: boolean): Promise<string> => {
+export const buildRunnerHtml = async (minify: boolean): Promise<string> => {
   const [template, script, ...styles] = await Promise.all([
     readFile(TEMPLATE, "utf8"),
     bundleRunnerScript(minify),
@@ -52,12 +58,9 @@ const buildRunnerHtml = async (minify: boolean): Promise<string> => {
   ]);
   return template
     .replace("<!--widget-runner-styles-->", () =>
-      styles.map((css) => `<style>${escapeForInlineTag(css, "style")}</style>`).join("\n"),
+      styles.map((css) => `<style>${escapeStyleEnd(css)}</style>`).join("\n"),
     )
-    .replace(
-      "<!--widget-runner-script-->",
-      () => `<script>${escapeForInlineTag(script, "script")}</script>`,
-    );
+    .replace("<!--widget-runner-script-->", () => `<script>${escapeScriptEnd(script)}</script>`);
 };
 
 // Builds widget-runner.html: the static page generated widgets run in (ADR 0011). The page is one

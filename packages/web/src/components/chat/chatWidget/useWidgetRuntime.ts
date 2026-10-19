@@ -5,12 +5,18 @@ import type { DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { updateShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import type { ParsedShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import { normalizeWidgetLink } from "@/lib/widgets/sandbox/limits";
 import { buildRunSignature, buildWidgetScripts } from "@/lib/widgets/sandbox/payload";
 import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
+// The sandbox host already filters links; this keeps the check next to the call that opens one.
 const openLink = (url: string): void => {
-  window.open(url, "_blank", "noopener,noreferrer");
+  const safeUrl = normalizeWidgetLink(url);
+  if (safeUrl) {
+    // fallow-ignore-next-line security-sink -- safeUrl is an http(s) URL from normalizeWidgetLink, never a javascript: or data: URL.
+    window.open(safeUrl, "_blank", "noopener,noreferrer");
+  }
 };
 
 // Streams a Chat widget into the sandboxed runner (ADR 0011): style and markup go over as they

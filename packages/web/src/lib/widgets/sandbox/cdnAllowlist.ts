@@ -1,7 +1,7 @@
 // The hosts a widget may load scripts from, matching the "CDN allowlist" line in the
 // show-widget-skills docs. The runner page enforces the same list in its Content-Security-Policy
 // (widget-runner.html), and both the host and the runner filter script tags against it.
-export const WIDGET_CDN_HOSTS = [
+const WIDGET_CDN_HOSTS = [
   "cdnjs.cloudflare.com",
   "esm.sh",
   "cdn.jsdelivr.net",

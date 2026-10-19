@@ -1,33 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
-import { startHeartbeat } from "@/lib/widgets/sandbox/heartbeat";
+import { INITIAL_FRAME_STATE, frameReducer } from "@/lib/widgets/sandbox/frameState";
+import { HOST_MESSAGE, type HostMessage } from "@/lib/widgets/sandbox/protocol";
 import {
-  MAX_PROMPT_LENGTH,
-  clampWidgetHeight,
-  createActionLimiters,
-  normalizeWidgetLink,
-} from "@/lib/widgets/sandbox/limits";
-import {
-  HOST_MESSAGE,
-  RUNNER_MESSAGE,
-  parseRunnerMessage,
-  type HostMessage,
-  type RunnerMessage,
-} from "@/lib/widgets/sandbox/protocol";
+  connectRunnerChannel,
+  type WidgetSandboxFailure,
+} from "@/lib/widgets/sandbox/runnerChannel";
+import type { RunnerMessageHandlers } from "@/lib/widgets/sandbox/runnerRouter";
 import {
   WIDGET_SANDBOX_ATTRIBUTE,
   buildRunnerSrc,
   resolveWidgetSandboxTarget,
 } from "@/lib/widgets/sandbox/sandboxTarget";
-import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
 
-const HEARTBEAT_INTERVAL_MS = 2000;
-const HEARTBEAT_MAX_MISSED = 3;
-const LOAD_TIMEOUT_MS = 15_000;
-
-export type WidgetSandboxFailure = "unresponsive" | "load-timeout" | "flooding";
+export type { WidgetSandboxFailure };
 
 export const WIDGET_FAILURE_COPY: Record<WidgetSandboxFailure, string> = {
   unresponsive: "This widget stopped responding.",
@@ -35,18 +23,10 @@ export const WIDGET_FAILURE_COPY: Record<WidgetSandboxFailure, string> = {
   flooding: "This widget was stopped for sending too many requests.",
 };
 
-export interface WidgetSandboxOptions {
-  // The sandboxed widget can only reach these through postMessage (ADR 0006); the host decides
-  // what "send to chat" and "open this link" actually do.
-  onSendPrompt?: (text: string) => void;
-  onOpenLink?: (url: string) => void;
-  // Host-mediated write channel (ADR 0008). Omitting this refuses every write.
-  onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
-  onRunResult?: (
-    message: Extract<RunnerMessage, { type: typeof RUNNER_MESSAGE.runResult }>,
-  ) => void;
-  onRunnerError?: (message: Extract<RunnerMessage, { type: typeof RUNNER_MESSAGE.error }>) => void;
-}
+// The sandboxed widget can only reach these through postMessage (ADR 0006); the host decides what
+// "send to chat" and "open this link" actually do. Omitting onWriteData refuses every write
+// (ADR 0008).
+export type WidgetSandboxOptions = RunnerMessageHandlers;
 
 export interface WidgetSandbox {
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -78,12 +58,8 @@ export const useWidgetSandbox = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const theme = useResolvedTheme();
   const [initialTheme] = useState(theme);
-  const [frameKey, setFrameKey] = useState(0);
-  const [booted, setBooted] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [height, setHeight] = useState(1);
-  const [hasContent, setHasContent] = useState(false);
-  const [failure, setFailure] = useState<WidgetSandboxFailure | null>(null);
+  const [frame, dispatch] = useReducer(frameReducer, INITIAL_FRAME_STATE);
+  const { frameKey, booted, failure } = frame;
   const handlersRef = useRef({ onSendPrompt, onOpenLink, onWriteData, onRunResult, onRunnerError });
 
   useEffect(() => {
@@ -96,139 +72,30 @@ export const useWidgetSandbox = ({
   // The frame's origin is opaque (see WIDGET_SANDBOX_ATTRIBUTE), so there is no origin to target.
   // Messages carry only data the widget is already entitled to.
   const post = useCallback((message: HostMessage) => {
+    // fallow-ignore-next-line security-sink -- The frame has an opaque origin, so no target origin can match; the target is the frame this hook created, and messages carry only data that widget may already read.
     iframeRef.current?.contentWindow?.postMessage(message, "*");
   }, []);
 
   const restart = useCallback(() => {
-    setBooted(false);
-    setReady(false);
-    setHeight(1);
-    setHasContent(false);
-    setFailure(null);
+    dispatch({ type: "restart" });
     // Resolved again so coming back online switches an offline fallback to the isolated runner.
     setTarget(resolveWidgetSandboxTarget());
-    setFrameKey((key) => key + 1);
   }, []);
 
   useEffect(() => {
     if (failure) {
       return;
     }
-
-    const limiters = createActionLimiters();
-    let heartbeat: ReturnType<typeof startHeartbeat> | null = null;
-    let pendingHeight = 1;
-    let heightFrame: number | null = null;
-
-    const fail = (reason: WidgetSandboxFailure) => {
-      heartbeat?.stop();
-      setFailure(reason);
-    };
-    const loadTimeoutId = window.setTimeout(() => fail("load-timeout"), LOAD_TIMEOUT_MS);
-
-    const handleMessage = (event: MessageEvent) => {
-      const frameWindow = iframeRef.current?.contentWindow;
-      if (!frameWindow || event.source !== frameWindow) {
-        return;
-      }
-
-      if (!limiters.anyMessage.take()) {
-        window.clearTimeout(loadTimeoutId);
-        fail("flooding");
-        return;
-      }
-
-      const message = parseRunnerMessage(event.data);
-      if (!message) {
-        return;
-      }
-      const handlers = handlersRef.current;
-
-      switch (message.type) {
-        case RUNNER_MESSAGE.boot:
-          if (heartbeat) {
-            return;
-          }
-          window.clearTimeout(loadTimeoutId);
-          setBooted(true);
-          heartbeat = startHeartbeat({
-            intervalMs: HEARTBEAT_INTERVAL_MS,
-            maxMissed: HEARTBEAT_MAX_MISSED,
-            ping: (seq) => post({ type: HOST_MESSAGE.ping, seq }),
-            onUnresponsive: () => fail("unresponsive"),
-          });
-          return;
-        case RUNNER_MESSAGE.pong:
-          heartbeat?.pong(message.seq);
-          return;
-        case RUNNER_MESSAGE.ready:
-          setReady(true);
-          return;
-        case RUNNER_MESSAGE.resize:
-          pendingHeight = clampWidgetHeight(message.height);
-          setHasContent(message.hasContent);
-          if (heightFrame === null) {
-            heightFrame = window.requestAnimationFrame(() => {
-              heightFrame = null;
-              setHeight(pendingHeight);
-            });
-          }
-          return;
-        case RUNNER_MESSAGE.error:
-          handlers.onRunnerError?.(message);
-          return;
-        case RUNNER_MESSAGE.runResult:
-          handlers.onRunResult?.(message);
-          return;
-        case RUNNER_MESSAGE.sendPrompt: {
-          const text = message.text.slice(0, MAX_PROMPT_LENGTH);
-          if (text.trim() && limiters.sendPrompt.take()) {
-            handlers.onSendPrompt?.(text);
-          }
-          return;
-        }
-        case RUNNER_MESSAGE.openLink: {
-          const url = normalizeWidgetLink(message.url);
-          if (url && limiters.openLink.take()) {
-            handlers.onOpenLink?.(url);
-          }
-          return;
-        }
-        case RUNNER_MESSAGE.writeData: {
-          const { requestId, name, content } = message;
-          const respond = (result: WriteWidgetDataResult) => {
-            post({
-              type: HOST_MESSAGE.writeDataResult,
-              requestId,
-              ok: result.ok,
-              error: result.ok ? undefined : result.error,
-            });
-          };
-          if (!limiters.writeData.take()) {
-            respond({ ok: false, error: "Too many writes. Try again in a moment." });
-            return;
-          }
-          if (!handlers.onWriteData) {
-            respond({ ok: false, error: "This widget cannot write data." });
-            return;
-          }
-          handlers.onWriteData(name, content).then(respond, (error: unknown) => {
-            respond({ ok: false, error: error instanceof Error ? error.message : "Write failed." });
-          });
-          return;
-        }
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => {
-      window.removeEventListener("message", handleMessage);
-      window.clearTimeout(loadTimeoutId);
-      heartbeat?.stop();
-      if (heightFrame !== null) {
-        window.cancelAnimationFrame(heightFrame);
-      }
-    };
+    return connectRunnerChannel({
+      getFrameWindow: () => iframeRef.current?.contentWindow ?? null,
+      post,
+      getHandlers: () => handlersRef.current,
+      onBooted: () => dispatch({ type: "booted" }),
+      onReady: () => dispatch({ type: "ready" }),
+      onContent: (hasContent) => dispatch({ type: "content", hasContent }),
+      onResize: (height) => dispatch({ type: "resize", height }),
+      onFailure: (reason) => dispatch({ type: "failed", reason }),
+    });
   }, [failure, frameKey, post]);
 
   useEffect(() => {
@@ -243,9 +110,9 @@ export const useWidgetSandbox = ({
     src,
     sandbox: WIDGET_SANDBOX_ATTRIBUTE,
     booted,
-    ready,
-    height,
-    hasContent,
+    ready: frame.ready,
+    height: frame.height,
+    hasContent: frame.hasContent,
     failure,
     post,
     restart,

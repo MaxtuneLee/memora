@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
-import { WIDGET_FAILURE_COPY, useWidgetSandbox } from "@/hooks/widgets/useWidgetSandbox";
+import {
+  WIDGET_FAILURE_COPY,
+  useWidgetSandbox,
+  type WidgetSandbox,
+} from "@/hooks/widgets/useWidgetSandbox";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
 import { buildRunSignature, buildWidgetScripts } from "@/lib/widgets/sandbox/payload";
 import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
@@ -52,6 +56,47 @@ const styles = stylex.create({
   },
 });
 
+// Sends the widget's code, data and run signature to the runner once it has booted, and again
+// whenever they change.
+function useWidgetCodeSync({
+  sandbox,
+  widgetCode,
+  data,
+  dataReady,
+  onCodeChange,
+}: {
+  sandbox: WidgetSandbox;
+  widgetCode: string;
+  data: unknown;
+  dataReady: boolean;
+  onCodeChange: () => void;
+}): void {
+  const { booted, post } = sandbox;
+  const parsed = useMemo(() => parseShowWidgetCode(widgetCode), [widgetCode]);
+  const scripts = useMemo(() => buildWidgetScripts(parsed), [parsed]);
+  const signature = useMemo(() => buildRunSignature(parsed), [parsed]);
+
+  // A runner error belongs to the code that produced it; new code gets a fresh chance.
+  useEffect(() => {
+    onCodeChange();
+  }, [onCodeChange, signature]);
+
+  useEffect(() => {
+    if (!booted) {
+      return;
+    }
+    post({ type: HOST_MESSAGE.render, style: parsed.styleText, html: parsed.htmlRenderable });
+    post({ type: HOST_MESSAGE.run, signature, scripts });
+  }, [booted, post, parsed, scripts, signature]);
+
+  useEffect(() => {
+    if (!booted || !dataReady) {
+      return;
+    }
+    post({ type: HOST_MESSAGE.data, payload: data });
+  }, [booted, dataReady, data, post]);
+}
+
 export function GeneratedWidgetFrame({
   widgetCode,
   data,
@@ -82,36 +127,14 @@ export function GeneratedWidgetFrame({
     onWriteData,
     onRunnerError: () => setHasRuntimeError(true),
   });
-  const { booted, post, ready, failure } = sandbox;
-  const parsed = useMemo(() => parseShowWidgetCode(widgetCode), [widgetCode]);
-  const scripts = useMemo(() => buildWidgetScripts(parsed), [parsed]);
-  const signature = useMemo(() => buildRunSignature(parsed), [parsed]);
-  const isVisible = ready && dataReady;
+  const clearRuntimeError = useCallback(() => setHasRuntimeError(false), []);
+  useWidgetCodeSync({ sandbox, widgetCode, data, dataReady, onCodeChange: clearRuntimeError });
+  const isVisible = sandbox.ready && dataReady;
 
-  // A runner error belongs to the code that produced it; new code gets a fresh chance.
-  useEffect(() => {
-    setHasRuntimeError(false);
-  }, [signature]);
-
-  useEffect(() => {
-    if (!booted) {
-      return;
-    }
-    post({ type: HOST_MESSAGE.render, style: parsed.styleText, html: parsed.htmlRenderable });
-    post({ type: HOST_MESSAGE.run, signature, scripts });
-  }, [booted, post, parsed, scripts, signature]);
-
-  useEffect(() => {
-    if (!booted || !dataReady) {
-      return;
-    }
-    post({ type: HOST_MESSAGE.data, payload: data });
-  }, [booted, dataReady, data, post]);
-
-  if (failure) {
+  if (sandbox.failure) {
     return (
       <div role="alert" {...stylex.props(styles.error)}>
-        {WIDGET_FAILURE_COPY[failure]}
+        {WIDGET_FAILURE_COPY[sandbox.failure]}
         <button type="button" onClick={sandbox.restart} {...stylex.props(styles.retryButton)}>
           Reload widget
         </button>
