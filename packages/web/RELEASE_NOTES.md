@@ -4,6 +4,12 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-19
+
+- A widget that gets stuck no longer freezes Memora. When Chat or the Home Grid widget stops responding, it is replaced with a message and a Reload widget button.
+- Chat widgets now run in the same isolated frame as Home Grid widgets, so they can no longer read your files or notes directly.
+- Widgets can only load scripts, styles, images, and fonts from cdnjs, esm.sh, jsDelivr, and unpkg, and can only open http and https links.
+
 ## 2026-10-18
 
 - Mermaid diagrams in chat now render faster and follow the app theme when you switch between light and dark.

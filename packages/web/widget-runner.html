@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- A template, not a page: plugins/widgetRunnerPlugin.ts fills in the styles and bundles
+     src/widgetRunner/runner.ts into one self-contained file. It needs no other files, so it can
+     be served from any host, including a different site (ADR 0011). -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Enforces the CDN allowlist the show-widget-skills docs promise: scripts, styles, images,
+         fonts and network requests are limited to this page's inline code and these hosts.
+         Inline script and style stay allowed because generated widgets are inline by nature.
+         The font hosts serve the Google Fonts import in widgetBase.css. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://esm.sh https://cdn.jsdelivr.net https://unpkg.com; style-src 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; font-src data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; img-src data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://esm.sh; connect-src https://cdnjs.cloudflare.com https://esm.sh https://cdn.jsdelivr.net https://unpkg.com; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>Widget</title>
+    <!--widget-runner-styles-->
+    <script>
+      // Sets the theme before the first paint. The host puts it in the URL fragment.
+      (function () {
+        var dark = /(^|[#&])theme=dark($|&)/.test(location.hash);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="widget-root" data-widget-content></div>
+    <!--widget-runner-script-->
+  </body>
+</html>

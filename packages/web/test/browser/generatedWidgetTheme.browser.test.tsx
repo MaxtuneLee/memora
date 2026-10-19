@@ -3,10 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { GeneratedWidgetFrame } from "@/components/dashboard/homeGrid/GeneratedWidgetFrame";
-import {
-  GENERATED_WIDGET_DATA_MESSAGE,
-  GENERATED_WIDGET_THEME_MESSAGE,
-} from "@/lib/widgets/generatedWidgetRuntime";
+import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 
 import { expectScreenshot, loadAppFonts } from "./visual";
 
@@ -50,7 +47,7 @@ var report = function () {
 window.addEventListener("message", function (event) {
   if (event.data === "memora-test:click") { clicks += 1; report(); }
   if (event.data === "memora-test:self-theme") {
-    window.postMessage({ type: "${GENERATED_WIDGET_THEME_MESSAGE}", theme: "dark" }, "*");
+    window.postMessage({ type: "${HOST_MESSAGE.theme}", theme: "dark" }, "*");
     window.setTimeout(function () { selfThemeChecked = true; report(); }, 50);
   }
 });
@@ -138,16 +135,10 @@ describe("Generated Home Grid widget theme", () => {
     }
     const { runId } = reports.at(-1) as ThemeReport;
 
-    iframeWindow.postMessage({ type: GENERATED_WIDGET_THEME_MESSAGE, theme: "purple" }, "*");
-    iframeWindow.postMessage({ type: GENERATED_WIDGET_THEME_MESSAGE }, "*");
-    iframeWindow.postMessage(
-      { type: GENERATED_WIDGET_THEME_MESSAGE, theme: "light", payload: 99 },
-      "*",
-    );
-    iframeWindow.postMessage(
-      { type: GENERATED_WIDGET_DATA_MESSAGE.toUpperCase(), payload: 7 },
-      "*",
-    );
+    iframeWindow.postMessage({ type: HOST_MESSAGE.theme, theme: "purple" }, "*");
+    iframeWindow.postMessage({ type: HOST_MESSAGE.theme }, "*");
+    iframeWindow.postMessage({ type: HOST_MESSAGE.theme, theme: "light", payload: 99 }, "*");
+    iframeWindow.postMessage({ type: HOST_MESSAGE.data.toUpperCase(), payload: 7 }, "*");
     // The widget posts a well-formed dark update to itself: it must be dropped because only the
     // host (window.parent) may change the theme.
     iframeWindow.postMessage("memora-test:self-theme", "*");

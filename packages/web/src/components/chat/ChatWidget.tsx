@@ -15,13 +15,7 @@ import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { WidgetDebugPanel } from "@/components/chat/chatWidget/WidgetDebugPanel";
 import { WidgetPlaceholder } from "@/components/chat/chatWidget/WidgetPlaceholder";
 import { SaveWidgetDefinitionDialog } from "@/components/chat/chatWidget/SaveWidgetDefinitionDialog";
-import {
-  IS_DEV,
-  buildWidgetIframeSrcDoc,
-  getPlaceholderCopy,
-  getWidgetLabel,
-} from "@/components/chat/chatWidget/constants";
-import { useWidgetIframe } from "@/components/chat/chatWidget/useWidgetIframe";
+import { IS_DEV, getPlaceholderCopy, getWidgetLabel } from "@/components/chat/chatWidget/constants";
 import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
@@ -30,7 +24,7 @@ import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
 import { useDataSourceValue, type DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
 import { usePreviewWidgetData } from "@/hooks/widgets/usePreviewWidgetData";
-import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { WIDGET_FAILURE_COPY } from "@/hooks/widgets/useWidgetSandbox";
 import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
@@ -127,35 +121,14 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
   const dataState: DataSourceValueState | null = isWidgetDataBound
     ? { status: "ready", value: previewWidgetData.value }
     : catalogDataState;
-  const resolvedTheme = useResolvedTheme();
-  // Only the first theme goes into the srcDoc, matching Home Grid's sandboxed widgets — later
-  // changes reach the same-origin frame directly through useWidgetIframe's effect, never a reload.
-  const [initialTheme] = useState(resolvedTheme);
-  const iframeSrcDoc = useMemo(() => buildWidgetIframeSrcDoc(initialTheme), [initialTheme]);
-  const {
-    iframeRef,
-    iframeDocumentRef,
-    userStyleRef,
-    contentRef,
-    iframeReady,
-    iframeHeight,
-    hasRuntimeDom,
-    bindIframeDocument,
-    syncIframeHeight,
-  } = useWidgetIframe();
-  const { runtimeError } = useWidgetRuntime({
+  const { sandbox, runtimeError } = useWidgetRuntime({
     widget,
     parsedCode,
-    iframeReady,
-    iframeDocumentRef,
-    userStyleRef,
-    contentRef,
-    hasRuntimeDom,
     onSendPrompt,
-    syncIframeHeight,
     dataState,
     onWriteData: previewWidgetData.write,
   });
+  const hasRuntimeDom = sandbox.hasContent;
   const debugState = useSyncExternalStore(
     subscribeShowWidgetDebug,
     () => getShowWidgetDebugState(widget.toolCallId),
@@ -180,7 +153,8 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     widget.loadingMessages.length > 0
       ? widget.loadingMessages[loadingIndex % widget.loadingMessages.length]
       : "Rendering widget...";
-  const visibleError = widget.errorMessage ?? runtimeError?.message ?? null;
+  const failureMessage = sandbox.failure ? WIDGET_FAILURE_COPY[sandbox.failure] : null;
+  const visibleError = widget.errorMessage ?? runtimeError?.message ?? failureMessage;
   const hasRenderableHtml = parsedCode.htmlRenderable.trim().length > 0;
   const hasVisibleWidgetDom = hasRenderableHtml || hasRuntimeDom;
   const placeholderCopy = getPlaceholderCopy({
@@ -239,15 +213,23 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
           />
         )}
         <div {...stylex.props(styles.iframeWrap, !hasVisibleWidgetDom && styles.hidden)}>
-          <iframe
-            ref={iframeRef}
-            title={getWidgetLabel(widget)}
-            srcDoc={iframeSrcDoc}
-            {...stylex.props(styles.iframe)}
-            style={{ height: `${iframeHeight}px` }}
-            scrolling="no"
-            onLoad={bindIframeDocument}
-          />
+          {sandbox.failure ? (
+            <button type="button" onClick={sandbox.restart} {...stylex.props(styles.saveButton)}>
+              Reload widget
+            </button>
+          ) : (
+            <iframe
+              key={sandbox.frameKey}
+              ref={sandbox.iframeRef}
+              title={getWidgetLabel(widget)}
+              src={sandbox.src}
+              sandbox={sandbox.sandbox}
+              referrerPolicy="no-referrer"
+              {...stylex.props(styles.iframe)}
+              style={{ height: `${sandbox.height}px` }}
+              scrolling="no"
+            />
+          )}
         </div>
         {showLoadingState && <div {...stylex.props(styles.loading)}>{activeLoadingMessage}</div>}
         {visibleError && <div {...stylex.props(styles.error)}>{visibleError}</div>}

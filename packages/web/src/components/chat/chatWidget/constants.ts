@@ -1,35 +1,6 @@
-import widgetBaseCss from "@/styles/widgetBase.css?raw";
-import svgCss from "@/styles/svg.css?raw";
-import type { LessonQuiz, LessonQuizOptions } from "@/lib/chat/lessonQuiz";
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
-import type { ResolvedTheme } from "@/lib/theme/documentTheme";
 
 export const IS_DEV = import.meta.env.DEV;
-export const WIDGET_BRIDGE_KEY = "__MEMORA_WIDGET_BRIDGE__";
-export const WIDGET_CLEANUP_KEY = "__MEMORA_WIDGET_CLEANUP__";
-export const WIDGET_ERROR_KEY = "__MEMORA_WIDGET_ERROR__";
-export const WIDGET_SCRIPT_ATTR = "data-widget-runtime-script";
-
-// The initial theme is baked into the markup so the frame's first paint already matches the
-// app — bindIframeDocument (useWidgetIframe) only needs to keep it in sync afterward. Mirrors
-// buildGeneratedWidgetSrcDoc's data-theme + color-scheme attributes for the sandboxed widgets.
-export const buildWidgetIframeSrcDoc = (theme: ResolvedTheme): string =>
-  `<!doctype html><html data-theme="${theme}" style="color-scheme: ${theme}"><head><meta charset="utf-8" /><style>${widgetBaseCss}</style><style>${svgCss}</style><style data-widget-user-style></style></head><body><div data-widget-content></div></body></html>`;
-
-export interface WidgetIframeWindow extends Window {
-  [WIDGET_BRIDGE_KEY]?: {
-    Chart: typeof import("chart.js/auto").default;
-    container: HTMLDivElement;
-    openLink: (url: string) => void;
-    sendPrompt: (text: string) => Promise<void>;
-    getData: () => unknown;
-    onData: (callback: (data: unknown) => void) => void;
-    writeData: (name: string, content: string) => Promise<void>;
-    lesson: { quiz: (mount: HTMLElement, options: LessonQuizOptions) => LessonQuiz };
-  };
-  [WIDGET_CLEANUP_KEY]?: (() => void) | null;
-  [WIDGET_ERROR_KEY]?: string | null;
-}
 
 export const getWidgetLabel = (widget: ChatWidgetData): string => {
   return widget.title || "interactive_widget";

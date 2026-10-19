@@ -1,21 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import * as stylex from "@stylexjs/stylex";
 
-import {
-  GENERATED_WIDGET_DATA_MESSAGE,
-  GENERATED_WIDGET_ERROR_MESSAGE,
-  GENERATED_WIDGET_OPEN_LINK_MESSAGE,
-  GENERATED_WIDGET_READY_MESSAGE,
-  GENERATED_WIDGET_RESIZE_MESSAGE,
-  GENERATED_WIDGET_SEND_PROMPT_MESSAGE,
-  GENERATED_WIDGET_THEME_MESSAGE,
-  GENERATED_WIDGET_WRITE_DATA_MESSAGE,
-  GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE,
-  buildGeneratedWidgetSrcDoc,
-} from "@/lib/widgets/generatedWidgetRuntime";
+import { WIDGET_FAILURE_COPY, useWidgetSandbox } from "@/hooks/widgets/useWidgetSandbox";
+import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import { buildRunSignature, buildWidgetScripts } from "@/lib/widgets/sandbox/payload";
+import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
-import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
 
 import { GeneratedWidgetLoadingState } from "./GeneratedWidgetLoadingState";
 import { tokens } from "../../../styles/stylex.stylex";
@@ -33,6 +24,17 @@ const styles = stylex.create({
   },
   iframeReady: { opacity: 1 },
   iframeLoading: { pointerEvents: "none" },
+  retryButton: {
+    backgroundColor: "transparent",
+    border: `1px solid ${tokens.warningBorder}`,
+    borderRadius: 8,
+    color: "inherit",
+    cursor: "pointer",
+    font: "inherit",
+    marginTop: 8,
+    paddingBlock: 4,
+    paddingInline: 12,
+  },
   error: {
     alignItems: "center",
     backgroundColor: tokens.warningSurface,
@@ -40,6 +42,7 @@ const styles = stylex.create({
     borderRadius: 16,
     color: tokens.warningText,
     display: "flex",
+    flexDirection: "column",
     fontSize: 14,
     justifyContent: "center",
     lineHeight: 1.5,
@@ -72,96 +75,49 @@ export function GeneratedWidgetFrame({
   // (if any) this widget instance may write into. Omitting this prop refuses every write.
   onWriteData?: (name: string, content: string) => Promise<WriteWidgetDataResult>;
 }): JSX.Element {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
-  const [height, setHeight] = useState(1);
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
-  const theme = useResolvedTheme();
-  // Only the first theme goes into the srcDoc: later changes arrive as messages, so switching
-  // themes never reloads the frame or reruns the widget script.
-  const [initialTheme] = useState(theme);
-  const srcDoc = useMemo(
-    () => buildGeneratedWidgetSrcDoc(widgetCode, initialTheme),
-    [widgetCode, initialTheme],
-  );
+  const sandbox = useWidgetSandbox({
+    onSendPrompt,
+    onOpenLink,
+    onWriteData,
+    onRunnerError: () => setHasRuntimeError(true),
+  });
+  const { booted, post, ready, failure } = sandbox;
+  const parsed = useMemo(() => parseShowWidgetCode(widgetCode), [widgetCode]);
+  const scripts = useMemo(() => buildWidgetScripts(parsed), [parsed]);
+  const signature = useMemo(() => buildRunSignature(parsed), [parsed]);
   const isVisible = ready && dataReady;
 
+  // A runner error belongs to the code that produced it; new code gets a fresh chance.
   useEffect(() => {
-    setReady(false);
     setHasRuntimeError(false);
-  }, [srcDoc]);
+  }, [signature]);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.source !== iframeRef.current?.contentWindow) {
-        return;
-      }
-
-      if (event.data?.type === GENERATED_WIDGET_READY_MESSAGE) {
-        setReady(true);
-      } else if (event.data?.type === GENERATED_WIDGET_ERROR_MESSAGE) {
-        setHasRuntimeError(true);
-      } else if (event.data?.type === GENERATED_WIDGET_RESIZE_MESSAGE) {
-        const nextHeight = Number(event.data.height);
-        setHeight(Number.isFinite(nextHeight) && nextHeight > 0 ? nextHeight : 1);
-      } else if (event.data?.type === GENERATED_WIDGET_SEND_PROMPT_MESSAGE) {
-        const text = event.data.text;
-        if (typeof text === "string" && text.trim()) {
-          onSendPrompt?.(text);
-        }
-      } else if (event.data?.type === GENERATED_WIDGET_OPEN_LINK_MESSAGE) {
-        const url = event.data.url;
-        if (typeof url === "string" && url.trim()) {
-          onOpenLink?.(url);
-        }
-      } else if (event.data?.type === GENERATED_WIDGET_WRITE_DATA_MESSAGE) {
-        const { requestId, name, content } = event.data;
-        if (typeof requestId !== "string") {
-          return;
-        }
-        const respond = (result: WriteWidgetDataResult) => {
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: GENERATED_WIDGET_WRITE_DATA_RESULT_MESSAGE, requestId, ...result },
-            "*",
-          );
-        };
-        if (!onWriteData) {
-          respond({ ok: false, error: "This widget cannot write data." });
-          return;
-        }
-        onWriteData(String(name ?? ""), String(content ?? ""))
-          .then(respond)
-          .catch((error: unknown) => {
-            respond({ ok: false, error: error instanceof Error ? error.message : "Write failed." });
-          });
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [onSendPrompt, onOpenLink, onWriteData]);
-
-  useEffect(() => {
-    if (!ready || !dataReady) {
+    if (!booted) {
       return;
     }
-
-    iframeRef.current?.contentWindow?.postMessage(
-      { type: GENERATED_WIDGET_DATA_MESSAGE, payload: data },
-      "*",
-    );
-  }, [ready, dataReady, data]);
+    post({ type: HOST_MESSAGE.render, style: parsed.styleText, html: parsed.htmlRenderable });
+    post({ type: HOST_MESSAGE.run, signature, scripts });
+  }, [booted, post, parsed, scripts, signature]);
 
   useEffect(() => {
-    if (!ready) {
+    if (!booted || !dataReady) {
       return;
     }
+    post({ type: HOST_MESSAGE.data, payload: data });
+  }, [booted, dataReady, data, post]);
 
-    iframeRef.current?.contentWindow?.postMessage(
-      { type: GENERATED_WIDGET_THEME_MESSAGE, theme },
-      "*",
+  if (failure) {
+    return (
+      <div role="alert" {...stylex.props(styles.error)}>
+        {WIDGET_FAILURE_COPY[failure]}
+        <button type="button" onClick={sandbox.restart} {...stylex.props(styles.retryButton)}>
+          Reload widget
+        </button>
+      </div>
     );
-  }, [ready, theme]);
+  }
 
   if (hasRuntimeError) {
     return (
@@ -179,13 +135,15 @@ export function GeneratedWidgetFrame({
         </div>
       )}
       <iframe
-        ref={iframeRef}
+        key={sandbox.frameKey}
+        ref={sandbox.iframeRef}
         title={title}
-        srcDoc={srcDoc}
-        sandbox="allow-scripts allow-forms"
+        src={sandbox.src}
+        sandbox={sandbox.sandbox}
+        referrerPolicy="no-referrer"
         aria-hidden={!isVisible}
         {...stylex.props(styles.iframe, isVisible ? styles.iframeReady : styles.iframeLoading)}
-        style={{ height }}
+        style={{ height: sandbox.height }}
       />
     </div>
   );

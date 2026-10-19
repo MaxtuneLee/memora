@@ -133,6 +133,7 @@
 - Vite uses React Compiler via `babel-plugin-react-compiler`.
 - Static assets (VAD worklets, ONNX, WASM) are copied via `vite-plugin-static-copy`.
 - Build targets `esnext` with sourcemaps enabled.
+- Generated widgets run in `widget-runner.html`, a single self-contained file that `packages/web/plugins/widgetRunnerPlugin.ts` builds from `widget-runner.html` and `src/widgetRunner/runner.ts` (served by the dev server, emitted into `dist`). Set `VITE_WIDGET_SANDBOX_URL` at build time to serve it from another site; see `docs/adr/0011-run-generated-widgets-in-a-separate-runner-page.md`.
 
 ## Workspace instructions (from .github/instructions)
 
