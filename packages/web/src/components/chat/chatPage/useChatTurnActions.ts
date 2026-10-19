@@ -18,6 +18,7 @@ import {
   attachmentToChatInputImage,
   type ChatImageAttachment,
 } from "@/lib/chat/chatImageAttachments";
+import { requestReplyNotificationPermission } from "@/lib/app/replyNotifications";
 import { findMessageIndexById, findRetrySourceMessage } from "./helpers";
 import type { ComposerNotice } from "./types";
 
@@ -248,6 +249,7 @@ export const useChatTurnActions = ({
       return;
     }
 
+    requestReplyNotificationPermission();
     prepareReferenceScopeForTurn();
 
     let turnInput: string | ChatTurnInput = trimmed;
