@@ -3,6 +3,7 @@ import { Toast } from "@base-ui/react/toast";
 import { useNavigate } from "react-router";
 
 import { onSessionFinished } from "@/lib/agent-runtime/client";
+import { notifyReplyReady } from "@/lib/app/replyNotifications";
 
 export default function ChatFinishedToasts(): null {
   const { add } = Toast.useToastManager();
@@ -11,6 +12,7 @@ export default function ChatFinishedToasts(): null {
   useEffect(
     () =>
       onSessionFinished((sessionId, title) => {
+        void notifyReplyReady(sessionId, title);
         add({
           title: "Reply ready",
           description: title,

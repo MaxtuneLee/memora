@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppStore } from "@/livestore/store";
 import { settingEvents } from "@/livestore/setting";
 import { WarningCircleIcon } from "@phosphor-icons/react";
@@ -15,6 +16,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
+import {
+  enableReplyNotifications,
+  getReplyNotificationPermission,
+  readReplyNotificationsEnabled,
+  writeReplyNotificationsEnabled,
+} from "@/lib/app/replyNotifications";
 import { tokens } from "../../styles/stylex.stylex";
 
 const styles = stylex.create({
@@ -94,6 +101,21 @@ export default function SettingsGeneralSection() {
     handleEditorFontSizePxChange,
   } = useDocumentEditorSettings();
 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(readReplyNotificationsEnabled);
+  const [notificationPermission, setNotificationPermission] = useState(
+    getReplyNotificationPermission,
+  );
+
+  const handleNotificationsChange = async (): Promise<void> => {
+    if (notificationsEnabled) {
+      writeReplyNotificationsEnabled(false);
+      setNotificationsEnabled(false);
+      return;
+    }
+    setNotificationsEnabled(await enableReplyNotifications());
+    setNotificationPermission(getReplyNotificationPermission());
+  };
+
   return (
     <section
       className={`${SETTINGS_PANEL_CLASS_NAME} ${stylex.props(styles.panelStack).className}`}
@@ -145,6 +167,36 @@ export default function SettingsGeneralSection() {
             { value: "steer", label: "Steer" },
           ]}
         />
+      </div>
+
+      <div className={SETTINGS_INSET_PANEL_CLASS_NAME}>
+        <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Reply notifications</h4>
+        <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
+          Show a system notification when a reply finishes while Memora is not in the foreground.
+        </p>
+        <div {...stylex.props(styles.inputRow)}>
+          <Button
+            variant="segment"
+            active={notificationsEnabled}
+            type="button"
+            aria-pressed={notificationsEnabled}
+            disabled={
+              !notificationsEnabled &&
+              (notificationPermission === "unsupported" || notificationPermission === "denied")
+            }
+            onClick={() => void handleNotificationsChange()}
+          >
+            {notificationsEnabled ? "On" : "Off"}
+          </Button>
+        </div>
+        {notificationPermission === "unsupported" ? (
+          <p {...stylex.props(styles.softHelp)}>This browser does not support notifications.</p>
+        ) : null}
+        {notificationPermission === "denied" ? (
+          <p {...stylex.props(styles.softHelp)}>
+            Notifications are blocked. Allow them in your browser's site settings to turn this on.
+          </p>
+        ) : null}
       </div>
 
       <div

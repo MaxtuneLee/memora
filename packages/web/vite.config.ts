@@ -264,6 +264,8 @@ const config = {
       },
       workbox: {
         cleanupOutdatedCaches: true,
+        // Handles clicks on reply notifications; the generated worker has no code of its own.
+        importScripts: ["notification-sw.js"],
         // The local image OCR pipeline ships a lazily-loaded worker just over 10 MB.
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
