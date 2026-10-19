@@ -6,7 +6,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 
 ## 2026-10-19
 
-- Memora can now send a system notification when a chat reply finishes while you are in another window. Turn it on in Settings > General.
+- Memora can now send a system notification when a chat reply finishes while you are in another window. Memora asks for permission the first time you send a message.
 
 ## 2026-10-18
 
