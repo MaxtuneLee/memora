@@ -20,6 +20,24 @@
   --color-foreground: var(--color-text-primary);
 }
 
+/* Colors for Pele diagrams (@maxtune/streamdown-pele); they follow the app theme without re-rendering.
+   The fullscreen view is portaled to <body>, so it needs them too. */
+.streamdown-rich,
+body > div[role="button"]:has([data-streamdown="mermaid"]) {
+  --pele-bg: transparent;
+  --pele-fg: var(--color-text-primary);
+  --pele-muted: var(--color-text-secondary);
+  --pele-line: color-mix(in srgb, var(--color-text-primary) 45%, transparent);
+  --pele-surface: color-mix(in srgb, var(--color-memora-olive) 5%, var(--color-background-primary));
+  --pele-surface-alt: color-mix(
+    in srgb,
+    var(--color-memora-olive) 10%,
+    var(--color-background-primary)
+  );
+  --pele-border: color-mix(in srgb, var(--color-memora-olive) 10%, var(--color-border));
+  --pele-accent: var(--color-memora-olive);
+}
+
 .streamdown-rich [data-streamdown="inline-code"] {
   border: 1px solid color-mix(in srgb, var(--color-memora-olive) 10%, var(--color-border));
   background: color-mix(in srgb, var(--color-memora-olive) 4%, var(--color-background-primary));
@@ -466,4 +484,234 @@
   height: 100%;
   object-fit: cover;
   object-position: top left;
+}
+
+/* Mermaid diagrams. Streamdown lays them out with Tailwind classes, which this project doesn't
+   build. Structure: block > [label row] [actions row] [box > diagram > pan and zoom area]. The
+   fullscreen view is portaled to <body>, outside .streamdown-rich, and has no data attributes. */
+.streamdown-rich [data-streamdown="mermaid-block"] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-memora-olive) 8%, var(--color-border));
+  margin-block: 1rem;
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--color-background-primary) 98%, var(--color-sidebar));
+  padding: 0.5rem;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block"] > div:first-child {
+  display: flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding-inline: 0.25rem;
+  color: color-mix(in srgb, var(--color-text-secondary) 90%, var(--color-memora-olive) 10%);
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* The row that holds the actions takes no space; the actions sit over the label row. */
+.streamdown-rich [data-streamdown="mermaid-block"] > div:nth-child(2):not(:last-child) {
+  display: contents;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--color-background-primary) 92%, var(--color-sidebar));
+  padding: 0.1rem;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] > div {
+  position: relative;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] > div > div {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  margin-top: 0.25rem;
+  min-width: 7.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  background: var(--color-background-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] > div > div button {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 0.8rem;
+  border-radius: 0;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block"] > div:last-child {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-memora-olive) 8%, var(--color-border));
+  border-radius: 0.7rem;
+  background: var(--color-background-primary);
+}
+
+[data-streamdown="mermaid"] {
+  width: 100%;
+}
+
+[data-streamdown="mermaid"] > div {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 7rem;
+  overflow: hidden;
+}
+
+[data-streamdown="mermaid"] [role="application"] {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms ease-out;
+}
+
+[data-streamdown="mermaid"] [role="img"] {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  padding: 1rem;
+}
+
+/* Zoom controls: the only child of the pan and zoom area that is not the diagram itself. They sit
+   in a row in the corner and appear on hover so they don't cover a short diagram. */
+[data-streamdown="mermaid"] > div > div:not([role="application"]) {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 10;
+  display: flex;
+  gap: 0.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--color-background-primary) 88%, transparent);
+  opacity: 0;
+  padding: 0.1rem;
+  transition: opacity 160ms ease;
+}
+
+@media (hover: none) {
+  [data-streamdown="mermaid"] > div > div:not([role="application"]) {
+    opacity: 0.7;
+  }
+}
+
+[data-streamdown="mermaid"] > div:hover > div:not([role="application"]),
+[data-streamdown="mermaid"] > div > div:not([role="application"]):focus-within {
+  opacity: 1;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] button,
+[data-streamdown="mermaid"] button,
+body > div[role="button"]:has([data-streamdown="mermaid"]) > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] button:hover:not(:disabled),
+[data-streamdown="mermaid"] button:hover:not(:disabled),
+body > div[role="button"]:has([data-streamdown="mermaid"]) > button:hover {
+  background: color-mix(in srgb, var(--color-memora-olive) 7%, var(--color-background-primary));
+  color: var(--color-text-primary);
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] button:disabled,
+[data-streamdown="mermaid"] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.streamdown-rich [data-streamdown="mermaid-block-actions"] button:focus-visible,
+[data-streamdown="mermaid"] button:focus-visible,
+body > div[role="button"]:has([data-streamdown="mermaid"]) > button:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 1px;
+}
+
+body > div[role="button"]:has([data-streamdown="mermaid"]) {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-background-primary) 98%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+body > div[role="button"]:has([data-streamdown="mermaid"]) > button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  padding: 0.5rem;
+}
+
+body > div[role="button"]:has([data-streamdown="mermaid"]) > div[role="presentation"] {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+body > div[role="button"]:has([data-streamdown="mermaid"]) [data-streamdown="mermaid"],
+body > div[role="button"]:has([data-streamdown="mermaid"]) [data-streamdown="mermaid"] > div {
+  height: 100%;
+}
+
+/* Fit the diagram to the screen instead of its natural size. */
+body > div[role="button"]:has([data-streamdown="mermaid"]) [role="application"],
+body > div[role="button"]:has([data-streamdown="mermaid"]) [role="img"] {
+  width: 100%;
+  height: 100%;
+}
+
+body > div[role="button"]:has([data-streamdown="mermaid"]) [role="img"] svg {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+body
+  > div[role="button"]:has([data-streamdown="mermaid"])
+  [data-streamdown="mermaid"]
+  > div
+  > div:not([role="application"]) {
+  right: 1rem;
+  bottom: 1rem;
 }
