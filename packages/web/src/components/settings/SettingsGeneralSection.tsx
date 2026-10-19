@@ -11,6 +11,7 @@ import {
   SETTINGS_SECTION_BODY_CLASS_NAME,
   SETTINGS_SECTION_TITLE_CLASS_NAME,
 } from "@/components/settings/settingsClassNames";
+import ReplyNotificationsSetting from "@/components/settings/ReplyNotificationsSetting";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -146,6 +147,8 @@ export default function SettingsGeneralSection() {
           ]}
         />
       </div>
+
+      <ReplyNotificationsSetting />
 
       <div
         className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
