@@ -10,6 +10,7 @@
     "packages/web/src/devtools/livestoreDevtoolsSetup.tsx",
     "packages/evaluation/scripts/ocw-vtt-to-transcript.mjs",
     "packages/web/beir-dissertation.html",
+    "packages/web/public/notification-sw.js",
     "packages/web/src/lib/playground/beirRerankerEvaluation.js"
   ],
   "audit": {
