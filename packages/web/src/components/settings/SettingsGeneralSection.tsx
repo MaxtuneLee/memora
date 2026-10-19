@@ -1,6 +1,7 @@
 import { useAppStore } from "@/livestore/store";
 import { settingEvents } from "@/livestore/setting";
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 import * as stylex from "@stylexjs/stylex";
 
 import {
@@ -80,6 +81,103 @@ const ATTACHMENT_PLACEMENT_OPTIONS = [
   { id: "current-subfolder", label: "Current subfolder" },
 ] as const;
 
+interface SettingsInsetPanelProps {
+  title: string;
+  description: string;
+  children: ReactNode;
+}
+
+function SettingsInsetPanel({ title, description, children }: SettingsInsetPanelProps) {
+  return (
+    <div
+      className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+    >
+      <div {...stylex.props(styles.heading)}>
+        <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>{title}</h4>
+        <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>{description}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+interface FolderFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  folderOptions: readonly { id: string; label: string }[];
+  onChange: (id: string) => void;
+  fallbackHelp: string;
+  emptyHelp: string;
+}
+
+function FolderField({
+  id,
+  label,
+  value,
+  folderOptions,
+  onChange,
+  fallbackHelp,
+  emptyHelp,
+}: FolderFieldProps) {
+  return (
+    <div>
+      <label htmlFor={id} className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
+        {label}
+      </label>
+      <Select
+        id={id}
+        value={value}
+        onValueChange={(next) => onChange(next ?? "")}
+        placeholder="Choose a folder"
+        triggerClassName={stylex.props(styles.inputMargin).className}
+        options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
+      />
+      <p {...stylex.props(styles.softHelp)}>
+        {folderOptions.length > 0 ? fallbackHelp : emptyHelp}
+      </p>
+    </div>
+  );
+}
+
+interface SegmentOptionGroupProps<TId extends string> {
+  label: string;
+  options: readonly { id: TId; label: string }[];
+  value: string;
+  onChange: (id: TId) => void;
+}
+
+function SegmentOptionGroup<TId extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: SegmentOptionGroupProps<TId>) {
+  return (
+    <div>
+      <p
+        className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.fieldLabelMargin).className}`}
+      >
+        {label}
+      </p>
+      <div {...stylex.props(styles.optionRow)}>
+        {options.map((option) => (
+          <Button
+            variant="segment"
+            active={value === option.id}
+            key={option.id}
+            type="button"
+            aria-pressed={value === option.id}
+            onClick={() => onChange(option.id)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsGeneralSection() {
   const store = useAppStore();
   const {
@@ -147,117 +245,51 @@ export default function SettingsGeneralSection() {
         />
       </div>
 
-      <div
-        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      <SettingsInsetPanel
+        title="New notes"
+        description="Choose where dashboard note creation should place new Markdown files by default."
       >
-        <div {...stylex.props(styles.heading)}>
-          <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>New notes</h4>
-          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-            Choose where dashboard note creation should place new Markdown files by default.
-          </p>
-        </div>
-
-        <div>
-          <p
-            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.fieldLabelMargin).className}`}
-          >
-            Default location
-          </p>
-          <div {...stylex.props(styles.optionRow)}>
-            {DEFAULT_NOTE_LOCATION_OPTIONS.map((option) => (
-              <Button
-                variant="segment"
-                active={settings.defaultNoteLocationMode === option.id}
-                key={option.id}
-                type="button"
-                aria-pressed={settings.defaultNoteLocationMode === option.id}
-                onClick={() => handleDefaultNoteLocationModeChange(option.id)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <SegmentOptionGroup
+          label="Default location"
+          options={DEFAULT_NOTE_LOCATION_OPTIONS}
+          value={settings.defaultNoteLocationMode}
+          onChange={handleDefaultNoteLocationModeChange}
+        />
 
         {settings.defaultNoteLocationMode === "folder" ? (
-          <div>
-            <label
-              htmlFor="document-editor-default-folder"
-              className={SETTINGS_FIELD_LABEL_CLASS_NAME}
-            >
-              Default note folder
-            </label>
-            <Select
-              id="document-editor-default-folder"
-              value={settings.defaultNoteFolderId}
-              onValueChange={(value) => handleDefaultNoteFolderIdChange(value ?? "")}
-              placeholder="Choose a folder"
-              triggerClassName={stylex.props(styles.inputMargin).className}
-              options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
-            />
-            <p {...stylex.props(styles.softHelp)}>
-              {folderOptions.length > 0
-                ? "If this folder becomes unavailable later, note creation falls back to Desktop root."
-                : "No folders are available yet. New notes will fall back to Desktop root until you create one."}
-            </p>
-          </div>
+          <FolderField
+            id="document-editor-default-folder"
+            label="Default note folder"
+            value={settings.defaultNoteFolderId}
+            folderOptions={folderOptions}
+            onChange={handleDefaultNoteFolderIdChange}
+            fallbackHelp="If this folder becomes unavailable later, note creation falls back to Desktop root."
+            emptyHelp="No folders are available yet. New notes will fall back to Desktop root until you create one."
+          />
         ) : null}
-      </div>
+      </SettingsInsetPanel>
 
-      <div
-        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      <SettingsInsetPanel
+        title="Attachments"
+        description="Decide where the editor stores local images when you insert them into a document."
       >
-        <div {...stylex.props(styles.heading)}>
-          <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Attachments</h4>
-          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-            Decide where the editor stores local images when you insert them into a document.
-          </p>
-        </div>
-
-        <div>
-          <p
-            className={`${SETTINGS_FIELD_LABEL_CLASS_NAME} ${stylex.props(styles.fieldLabelMargin).className}`}
-          >
-            Placement strategy
-          </p>
-          <div {...stylex.props(styles.optionRow)}>
-            {ATTACHMENT_PLACEMENT_OPTIONS.map((option) => (
-              <Button
-                variant="segment"
-                active={settings.attachmentPlacementMode === option.id}
-                key={option.id}
-                type="button"
-                aria-pressed={settings.attachmentPlacementMode === option.id}
-                onClick={() => handleAttachmentPlacementModeChange(option.id)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <SegmentOptionGroup
+          label="Placement strategy"
+          options={ATTACHMENT_PLACEMENT_OPTIONS}
+          value={settings.attachmentPlacementMode}
+          onChange={handleAttachmentPlacementModeChange}
+        />
 
         {settings.attachmentPlacementMode === "fixed-folder" ? (
-          <div>
-            <label
-              htmlFor="document-editor-attachment-folder"
-              className={SETTINGS_FIELD_LABEL_CLASS_NAME}
-            >
-              Attachment folder
-            </label>
-            <Select
-              id="document-editor-attachment-folder"
-              value={settings.attachmentFolderId}
-              onValueChange={(value) => handleAttachmentFolderIdChange(value ?? "")}
-              placeholder="Choose a folder"
-              triggerClassName={stylex.props(styles.inputMargin).className}
-              options={folderOptions.map((option) => ({ value: option.id, label: option.label }))}
-            />
-            <p {...stylex.props(styles.softHelp)}>
-              {folderOptions.length > 0
-                ? "If this folder becomes unavailable later, attachments fall back to Desktop root."
-                : "No folders are available yet. Attachments will fall back to Desktop root until you create one."}
-            </p>
-          </div>
+          <FolderField
+            id="document-editor-attachment-folder"
+            label="Attachment folder"
+            value={settings.attachmentFolderId}
+            folderOptions={folderOptions}
+            onChange={handleAttachmentFolderIdChange}
+            fallbackHelp="If this folder becomes unavailable later, attachments fall back to Desktop root."
+            emptyHelp="No folders are available yet. Attachments will fall back to Desktop root until you create one."
+          />
         ) : null}
 
         {settings.attachmentPlacementMode === "current-subfolder" ? (
@@ -281,18 +313,12 @@ export default function SettingsGeneralSection() {
             </p>
           </div>
         ) : null}
-      </div>
+      </SettingsInsetPanel>
 
-      <div
-        className={`${SETTINGS_INSET_PANEL_CLASS_NAME} ${stylex.props(styles.insetStack).className}`}
+      <SettingsInsetPanel
+        title="Editor appearance"
+        description="Use one shared text size for both source mode and WYSIWYG mode."
       >
-        <div {...stylex.props(styles.heading)}>
-          <h4 className={SETTINGS_SECTION_TITLE_CLASS_NAME}>Editor appearance</h4>
-          <p className={SETTINGS_SECTION_BODY_CLASS_NAME}>
-            Use one shared text size for both source mode and WYSIWYG mode.
-          </p>
-        </div>
-
         <div {...stylex.props(styles.previewGrid)}>
           <div>
             <label htmlFor="document-editor-font-size" className={SETTINGS_FIELD_LABEL_CLASS_NAME}>
@@ -321,7 +347,7 @@ export default function SettingsGeneralSection() {
             </p>
           </div>
         </div>
-      </div>
+      </SettingsInsetPanel>
     </section>
   );
 }
