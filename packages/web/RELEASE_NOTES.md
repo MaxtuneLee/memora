@@ -9,6 +9,7 @@ the release id (use the release date, and add `.2` for a second release on the s
 - A widget that gets stuck no longer freezes Memora. When Chat or the Home Grid widget stops responding, it is replaced with a message and a Reload widget button.
 - Chat widgets now run in the same isolated frame as Home Grid widgets, so they can no longer read your files or notes directly.
 - Widgets can only load scripts, styles, images, and fonts from cdnjs, esm.sh, jsDelivr, and unpkg, and can only open http and https links.
+- Memora can now send a system notification when a chat reply finishes while you are in another window. Memora asks for permission the first time you send a message. You can turn it off in Settings > General.
 
 ## 2026-10-18
 
