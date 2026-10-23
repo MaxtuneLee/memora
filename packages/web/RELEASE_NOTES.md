@@ -4,6 +4,10 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-23
+
+- Add `?demo` to the address to try Memora in demo mode. Live transcription plays a short lecture on Bayes' theorem instead of using your microphone, and chat answers from a prepared lesson, so you need no transcription model or provider account. Add `?demo=0` to turn it off.
+
 ## 2026-10-19
 
 - Memora can now send a system notification when a chat reply finishes while you are in another window. Memora asks for permission the first time you send a message. You can turn it off in Settings > General.

@@ -26,6 +26,8 @@ import type { SettingsSectionId } from "@/types/settings";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
 import { useSettingsDialog } from "@/hooks/settings/useSettingsDialog";
 import { useTranscript } from "@/hooks/transcript/useTranscript";
+import { useDemoTranscript } from "@/hooks/transcript/useDemoTranscript";
+import { isDemoMode } from "@/lib/demo/demoMode";
 import { tokens } from "../../styles/stylex.stylex";
 
 const LOAD_BUTTON_HOVER_BG = `color-mix(in srgb, ${tokens.primaryBackground} 86%, ${tokens.surface})`;
@@ -198,6 +200,10 @@ const styles = stylex.create({
   },
 });
 
+// Demo mode plays the prepared lecture, so it needs no microphone, WebGPU, or model download.
+// The mode is fixed for the page load, so the same hook runs on every render.
+const useTranscriptSession = isDemoMode() ? useDemoTranscript : useTranscript;
+
 export const Component = () => {
   const { routing } = useModelRouting();
   const isNemotronSelected =
@@ -226,7 +232,7 @@ export const Component = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleFinalizeRecording,
-  } = useTranscript();
+  } = useTranscriptSession();
 
   const navigate = useNavigate();
   const { openSettings } = useSettingsDialog();

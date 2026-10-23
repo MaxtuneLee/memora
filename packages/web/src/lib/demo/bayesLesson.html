@@ -1,0 +1,256 @@
+<style>
+  .bx-steps {
+    display: flex;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+    margin: 4px 0 14px;
+  }
+  .bx-steps .on {
+    color: var(--color-text-primary);
+  }
+  .bx-grid {
+    display: grid;
+    grid-template-columns: repeat(50, 1fr);
+    gap: 2px;
+    margin: 0 0 12px;
+  }
+  .bx-grid i {
+    display: block;
+    aspect-ratio: 1;
+    border-radius: 2px;
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border-tertiary);
+  }
+  .bx-grid i.tp {
+    background: var(--color-text-danger);
+    border-color: var(--color-text-danger);
+  }
+  .bx-grid i.fp {
+    background: var(--color-text-warning);
+    border-color: var(--color-text-warning);
+    opacity: 0.55;
+  }
+  .bx-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 6px 0;
+    font-size: 14px;
+  }
+  .bx-row label {
+    width: 150px;
+    color: var(--color-text-secondary);
+  }
+  .bx-row input {
+    flex: 1;
+  }
+  .bx-row output {
+    width: 52px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .bx-key {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin: 0 0 10px;
+  }
+  .bx-key span::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: -1px;
+    background: var(--sw);
+  }
+  .bx-card {
+    border: 1px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+</style>
+<div class="bx-steps">
+  <span id="st1" class="on">1 Explore</span><span>·</span><span id="st2">2 Check</span><span>·</span
+  ><span id="st3">3 Result</span>
+</div>
+<div class="bx-key">
+  <span style="--sw: var(--color-text-danger)">Sick, tests positive</span
+  ><span style="--sw: var(--color-text-warning)">Healthy, tests positive</span>
+</div>
+<div id="grid" class="bx-grid"></div>
+<div class="bx-row">
+  <label for="base">Base rate</label
+  ><input id="base" type="range" min="0.5" max="30" step="0.5" value="1" /><output id="baseOut"
+    >1%</output
+  >
+</div>
+<div class="bx-row">
+  <label for="fpr">False positive rate</label
+  ><input id="fpr" type="range" min="1" max="20" step="1" value="9" /><output id="fprOut"
+    >9%</output
+  >
+</div>
+<div class="bx-row" style="margin-top: 12px">
+  <label>Sick if positive</label>
+  <div style="flex: 1; font-size: 22px; font-weight: 500" id="post">9%</div>
+  <output
+    id="counts"
+    style="width: auto; color: var(--color-text-secondary); font-size: 13px"
+  ></output>
+</div>
+<div id="explore" class="bx-card"></div>
+<div id="quiz"></div>
+<script>
+  const el = (id) => document.getElementById(id);
+  const SENS = 0.9;
+  const state = { stage: "explore", task: 0, base: 1, fpr: 9 };
+  const cells = [];
+  for (let i = 0; i < 1000; i++) {
+    const c = document.createElement("i");
+    el("grid").appendChild(c);
+    cells.push(c);
+  }
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  const order = cells.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const model = () => {
+    const sick = Math.round(state.base * 10);
+    const tp = Math.round(sick * SENS);
+    const fp = Math.round(((1000 - sick) * state.fpr) / 100);
+    return { sick, tp, fp, post: tp / Math.max(1, tp + fp) };
+  };
+  const tasks = [
+    {
+      text: "Drag the base rate up to 10% and watch the chance of being sick if positive.",
+      done: () => state.base >= 10,
+      why: "More sick people means more true positives next to the same false alarms, so the posterior climbs to about half.",
+    },
+    {
+      text: "Set the base rate back to 1%, then lower the false positive rate to 1%.",
+      done: () => state.base <= 1 && state.fpr <= 1,
+      why: "Cutting false alarms works too: with a rare disease, the healthy majority is where most positives come from.",
+    },
+  ];
+  const render = () => {
+    const m = model();
+    let tpLeft = m.tp,
+      fpLeft = m.fp;
+    cells.forEach((c) => {
+      c.className = "";
+    });
+    order.forEach((idx) => {
+      if (tpLeft > 0) {
+        cells[idx].className = "tp";
+        tpLeft--;
+      } else if (fpLeft > 0) {
+        cells[idx].className = "fp";
+        fpLeft--;
+      }
+    });
+    el("baseOut").textContent = `${state.base}%`;
+    el("fprOut").textContent = `${state.fpr}%`;
+    el("post").textContent = `${Math.round(m.post * 100)}%`;
+    el("counts").textContent = `${m.tp} of ${m.tp + m.fp} positives are sick`;
+    const ex = el("explore");
+    if (state.stage !== "explore") {
+      ex.style.display = "none";
+      return;
+    }
+    const t = tasks[state.task];
+    if (!t) {
+      ex.innerHTML = "";
+      const b = document.createElement("button");
+      b.textContent = "Check my understanding";
+      b.onclick = () => {
+        state.stage = "check";
+        el("st1").className = "";
+        el("st2").className = "on";
+        render();
+        quiz.start();
+      };
+      ex.appendChild(b);
+      return;
+    }
+    if (t.done()) {
+      ex.innerHTML = `<div style="color:var(--color-text-success)">${t.why}</div>`;
+      const b = document.createElement("button");
+      b.textContent = "Next";
+      b.style.marginTop = "10px";
+      b.onclick = () => {
+        state.task++;
+        render();
+      };
+      ex.appendChild(b);
+      return;
+    }
+    ex.innerHTML = `<div>Task ${state.task + 1} of ${tasks.length}: ${t.text}</div>`;
+    const s = document.createElement("button");
+    s.textContent = "Skip";
+    s.style.cssText =
+      "margin-top:8px;border:none;background:none;padding:0;color:var(--color-text-secondary)";
+    s.onclick = () => {
+      state.task++;
+      render();
+    };
+    ex.appendChild(s);
+  };
+  el("base").oninput = (e) => {
+    state.base = Number(e.target.value);
+    render();
+  };
+  el("fpr").oninput = (e) => {
+    state.fpr = Number(e.target.value);
+    render();
+  };
+  const quiz = lesson.quiz(el("quiz"), {
+    title: "Bayes' theorem",
+    onResult: () => {
+      el("st2").className = "";
+      el("st3").className = "on";
+    },
+  });
+  quiz.task({
+    concept: "Posterior from prior and false alarms",
+    prompt: "Set the sliders so that a positive test means at least a 75% chance of being sick.",
+    check: () => model().post >= 0.75,
+    answer: () => `${Math.round(model().post * 100)}%`,
+    expected: "75% or more",
+    hint: "Raise the base rate or cut the false positive rate, and watch the amber squares shrink next to the red ones.",
+    why: "The posterior is the share of positives that are real, so it grows when true positives outnumber false alarms.",
+  });
+  quiz.choice({
+    concept: "Why the posterior is low",
+    prompt: "In the lecture's example, why is a positive test only about 9% likely to be right?",
+    answer: "Healthy people far outnumber sick ones, so false alarms win",
+    wrong: [
+      {
+        text: "The test misses one in ten sick people, so it is unreliable",
+        why: "Missing cases lowers sensitivity, but barely changes how many positives are real.",
+      },
+      {
+        text: "Nine percent of healthy people test positive, so 9% is the error",
+        why: "The false positive rate and the posterior are different numbers that happen to look alike.",
+      },
+      {
+        text: "The likelihood is divided by the prior, which shrinks the result",
+        why: "Bayes multiplies the prior by the likelihood, then divides by the overall evidence.",
+      },
+    ],
+    why: "With a 1% base rate, 89 healthy people test positive for every 9 sick ones.",
+  });
+  render();
+</script>

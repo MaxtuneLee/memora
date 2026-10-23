@@ -33,13 +33,14 @@ import {
   resolveGreetingName,
   resolveTimeGreeting,
 } from "@/components/chat/chatPage/helpers";
-import { useChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
+import { useActiveChatModelConfig } from "@/components/chat/chatPage/useChatModelConfig";
 import { useChatComposerImages } from "@/components/chat/chatPage/useChatComposerImages";
 import { useChatReferences } from "@/components/chat/chatPage/useChatReferences";
 import { useChatSessions } from "@/components/chat/chatPage/useChatSessions";
 import { useChatTurnActions } from "@/components/chat/chatPage/useChatTurnActions";
 import type { ChatPageView } from "@/components/chat/chatPage/ChatPageView";
 import { useFeatureModels } from "@/hooks/settings/useFeatureModels";
+import { isDemoProvider } from "@/lib/demo/demoMode";
 
 // While streaming, the chat follows new output unless the user scrolled away from the bottom;
 // it then waits this long before following again, or resumes as soon as they return to it.
@@ -175,7 +176,7 @@ export const useChatController = ({
   }, [activeSessionId]);
 
   const { agentConfig, providerConfig, compactionProviderConfig, isConfigured, selectedModelInfo } =
-    useChatModelConfig({
+    useActiveChatModelConfig({
       providers,
       settings,
       activeSessionId,
@@ -261,7 +262,8 @@ export const useChatController = ({
       // New messages carry the caller's quote (such as selected note text); edits and retries
       // keep the quote already on the message.
       const quote = options?.existingUserMessage ? undefined : (getTurnQuote?.() ?? undefined);
-      if (providerConfig) {
+      // The demo provider runs on this device, so there is nothing to disclose.
+      if (providerConfig && !isDemoProvider(providerConfig)) {
         await ensureChatDataNoticeAcknowledged({
           providerName: providerConfig.name,
           host: hostOf(providerConfig.baseUrl),

@@ -15,6 +15,8 @@ vi.mock("@/hooks/settings/useModelRouting", () => ({
     setFeatureModel: vi.fn(),
   }),
 }));
+vi.mock("@/hooks/transcript/useDemoTranscript", () => ({ useDemoTranscript: vi.fn() }));
+
 vi.mock("@/hooks/transcript/useTranscript", () => ({
   useTranscript: () => ({
     isWebGpuAvailable: true,

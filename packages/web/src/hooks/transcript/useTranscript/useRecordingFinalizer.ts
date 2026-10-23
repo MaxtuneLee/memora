@@ -7,7 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 
-import { saveRecording } from "@/lib/library/fileService";
+import { saveRecording, type SaveRecordingResult } from "@/lib/library/fileService";
 import {
   DEFAULT_AUDIO_MIME,
   type RecordingWord,
@@ -15,6 +15,42 @@ import {
 } from "@/types/library";
 import { fileEvents } from "@/livestore/file";
 import { summarizeTranscriptDiagnostics } from "@/lib/transcript/transcriptUtils";
+
+/** LiveStore events that add a saved recording and its transcript to the library. */
+export const buildSavedRecordingEvents = (result: SaveRecordingResult) => {
+  const createdAtDate = new Date(result.meta.createdAt);
+  const events = [
+    fileEvents.fileCreated({
+      id: result.id,
+      name: result.meta.name,
+      type: result.meta.type,
+      mimeType: result.meta.mimeType,
+      sizeBytes: result.meta.sizeBytes,
+      storageType: result.meta.storageType,
+      storagePath: result.meta.storagePath,
+      parentId: result.meta.parentId ?? null,
+      positionX: result.meta.positionX ?? null,
+      positionY: result.meta.positionY ?? null,
+      durationSec: result.meta.durationSec ?? undefined,
+      createdAt: createdAtDate,
+    }),
+    fileEvents.fileTranscribed({
+      id: result.id,
+      transcriptPath: result.meta.transcriptPath ?? "",
+      updatedAt: createdAtDate,
+    }),
+  ];
+  if (result.meta.transcriptPath) {
+    events.push(
+      fileEvents.fileTranscribed({
+        id: result.id,
+        transcriptPath: result.meta.transcriptPath,
+        updatedAt: createdAtDate,
+      }),
+    );
+  }
+  return events;
+};
 
 type StoreLike = {
   commit: (...events: unknown[]) => void;
@@ -92,37 +128,7 @@ export const useRecordingFinalizer = ({
           createdAt,
         });
 
-        const createdAtDate = new Date(result.meta.createdAt);
-        const events = [
-          fileEvents.fileCreated({
-            id: result.id,
-            name: result.meta.name,
-            type: result.meta.type,
-            mimeType: result.meta.mimeType,
-            sizeBytes: result.meta.sizeBytes,
-            storageType: result.meta.storageType,
-            storagePath: result.meta.storagePath,
-            parentId: result.meta.parentId ?? null,
-            positionX: result.meta.positionX ?? null,
-            positionY: result.meta.positionY ?? null,
-            durationSec: result.meta.durationSec ?? undefined,
-            createdAt: createdAtDate,
-          }),
-          fileEvents.fileTranscribed({
-            id: result.id,
-            transcriptPath: result.meta.transcriptPath ?? "",
-            updatedAt: createdAtDate,
-          }),
-        ];
-        if (result.meta.transcriptPath) {
-          events.push(
-            fileEvents.fileTranscribed({
-              id: result.id,
-              transcriptPath: result.meta.transcriptPath,
-              updatedAt: createdAtDate,
-            }),
-          );
-        }
+        const events = buildSavedRecordingEvents(result);
         store.commit(...events);
 
         pendingSaveRef.current = false;

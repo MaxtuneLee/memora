@@ -6,6 +6,8 @@ import {
 import { getLocalModelManifest } from "@memora/local-model-runtime";
 
 import { localModelClient } from "@/lib/local-model";
+import { createDemoPiRuntime } from "@/lib/demo/demoChat";
+import { isDemoMode } from "@/lib/demo/demoMode";
 import { trackLocalTokenUsage, type LocalTokenUsage } from "./localTokenUsage";
 import { DEFAULT_MODEL_CONTEXT_WINDOW, parseProviderModels } from "@/lib/settings/dialogHelpers";
 import type { provider } from "@/livestore/provider";
@@ -29,6 +31,8 @@ export const createFeatureChatRuntime = (
   context: FeatureRuntimeContext,
   priority: "interactive" | "background" = "interactive",
 ): PiModelRuntime => {
+  // Demo mode answers every feature that would call a provider from the demo script.
+  if (isDemoMode() && context.routing[feature].source !== "local") return createDemoPiRuntime();
   const target = resolveFeatureModelTarget(feature, context.routing);
   if (target.source === "local") {
     const manifest = getLocalModelManifest(target.modelId);

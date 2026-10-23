@@ -4,6 +4,7 @@ import type { provider as ProviderRow } from "@/livestore/provider";
 import { DEFAULT_MODEL_CONTEXT_WINDOW, parseProviderModels } from "@/lib/settings/dialogHelpers";
 import { useProviderCredentials } from "@/hooks/settings/useProviderCredentials";
 import { useModelRouting } from "@/hooks/settings/useModelRouting";
+import { DEMO_PROVIDER_CONFIG, isDemoMode } from "@/lib/demo/demoMode";
 import { IS_DEV } from "./helpers";
 
 const fallbackModelInfo = (id: string) => ({
@@ -140,3 +141,27 @@ export const useChatModelConfig = ({
     selectedModelInfo,
   };
 };
+
+const [DEMO_MODEL_INFO] = DEMO_PROVIDER_CONFIG.models;
+
+// Demo mode chats with the demo script, whatever providers are set up.
+const useDemoChatModelConfig = ({
+  activeSessionId,
+}: Parameters<typeof useChatModelConfig>[0]): ReturnType<typeof useChatModelConfig> => ({
+  agentConfig: {
+    id: activeSessionId ? `memora-chat:${activeSessionId}` : "memora-chat:bootstrap",
+    maxIterations: 20,
+    compaction: true,
+  },
+  compactionProviderConfig: undefined,
+  providerConfig: { ...DEMO_PROVIDER_CONFIG, apiKey: undefined },
+  isConfigured: true,
+  selectedApiFormat: DEMO_PROVIDER_CONFIG.apiFormat,
+  selectedApiKey: "",
+  selectedBaseUrl: DEMO_PROVIDER_CONFIG.baseUrl,
+  selectedModel: DEMO_MODEL_INFO.id,
+  selectedModelInfo: DEMO_MODEL_INFO,
+});
+
+// The mode is fixed for the page load, so the same hook runs on every render.
+export const useActiveChatModelConfig = isDemoMode() ? useDemoChatModelConfig : useChatModelConfig;

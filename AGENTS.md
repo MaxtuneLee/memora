@@ -31,6 +31,7 @@
 
 - Dev server with workspace dependencies: `vp run -t @memora/web#dev`
   - Vite runs on port `9003` (see `packages/web/vite.config.ts`).
+- Demo mode: open the app with `?demo` (`?demo=0` turns it off; the choice is kept in `localStorage`). Live transcription replays `public/demo/bayes-lecture.mp3` with its transcript, and chat answers from the script in `src/lib/demo/demoChat.ts`; no microphone, WebGPU, model download, or provider is needed. Tools still run for real.
 - Preview build: `vp --filter @memora/web preview`
 
 ### Build

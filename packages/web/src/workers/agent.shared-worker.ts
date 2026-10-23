@@ -25,6 +25,8 @@ import {
   readTraceText,
 } from "@/lib/chat/traceStorage";
 import { historyBeforeReplay } from "@/lib/agent-runtime/replayHistory";
+import { createDemoPiRuntime } from "@/lib/demo/demoChat";
+import { isDemoProvider } from "@/lib/demo/demoMode";
 import { SessionRuntime, emptySessionSnapshot } from "@/lib/agent-runtime/sessionRuntime";
 import { TraceRecorder, parseTrace, type AcceptedInput } from "@/lib/agent-runtime/traceRecorder";
 import type {
@@ -263,7 +265,9 @@ const getSession = (sessionId: string, storage?: "memory"): Promise<SessionRunti
         load: async <T>(agentId: string, key: string): Promise<T | null> =>
           key === "memory" ? (structuredClone(memory) as T | null) : adapter.load<T>(agentId, key),
       };
-      const model = createRemotePiRuntime(submission.provider);
+      const model = isDemoProvider(submission.provider)
+        ? createDemoPiRuntime()
+        : createRemotePiRuntime(submission.provider);
       const agent = createAgent({
         config: submission.config,
         ...model,
