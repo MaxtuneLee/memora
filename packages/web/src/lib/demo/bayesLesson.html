@@ -4,58 +4,42 @@
     gap: 14px;
     font-size: 13px;
     color: var(--color-text-tertiary);
-    margin: 4px 0 14px;
+    margin: 4px 0 12px;
   }
   .bx-steps .on {
     color: var(--color-text-primary);
   }
+  .bx-model {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+    gap: 24px;
+    align-items: center;
+  }
   .bx-grid {
     display: grid;
-    grid-template-columns: repeat(50, 1fr);
-    gap: 2px;
-    margin: 0 0 12px;
+    grid-template-columns: repeat(40, 1fr);
+    gap: 1.5px;
   }
   .bx-grid i {
     display: block;
     aspect-ratio: 1;
-    border-radius: 2px;
-    background: var(--color-background-secondary);
-    border: 1px solid var(--color-border-tertiary);
+    border-radius: 1.5px;
+    background: var(--color-border-tertiary);
   }
   .bx-grid i.tp {
     background: var(--color-text-danger);
-    border-color: var(--color-text-danger);
   }
   .bx-grid i.fp {
     background: var(--color-text-warning);
-    border-color: var(--color-text-warning);
-    opacity: 0.55;
-  }
-  .bx-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 6px 0;
-    font-size: 14px;
-  }
-  .bx-row label {
-    width: 150px;
-    color: var(--color-text-secondary);
-  }
-  .bx-row input {
-    flex: 1;
-  }
-  .bx-row output {
-    width: 52px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
   }
   .bx-key {
     display: flex;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 4px 14px;
     font-size: 13px;
     color: var(--color-text-secondary);
-    margin: 0 0 10px;
+    margin: 0 0 14px;
   }
   .bx-key span::before {
     content: "";
@@ -67,11 +51,42 @@
     vertical-align: -1px;
     background: var(--sw);
   }
+  .bx-control {
+    display: block;
+    margin: 0 0 12px;
+    font-size: 14px;
+  }
+  .bx-control div {
+    display: flex;
+    justify-content: space-between;
+    color: var(--color-text-secondary);
+  }
+  .bx-control output {
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .bx-control input {
+    width: 100%;
+  }
+  .bx-result {
+    border-top: 1px solid var(--color-border-tertiary);
+    padding-top: 12px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+  }
+  .bx-result strong {
+    display: block;
+    font-size: 34px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
   .bx-card {
     border: 1px solid var(--color-border-tertiary);
     border-radius: var(--border-radius-lg);
     padding: 12px 14px;
-    margin-top: 12px;
+    margin-top: 14px;
     font-size: 14px;
     line-height: 1.6;
   }
@@ -80,30 +95,27 @@
   <span id="st1" class="on">1 Explore</span><span>·</span><span id="st2">2 Check</span><span>·</span
   ><span id="st3">3 Result</span>
 </div>
-<div class="bx-key">
-  <span style="--sw: var(--color-text-danger)">Sick, tests positive</span
-  ><span style="--sw: var(--color-text-warning)">Healthy, tests positive</span>
-</div>
-<div id="grid" class="bx-grid"></div>
-<div class="bx-row">
-  <label for="base">Base rate</label
-  ><input id="base" type="range" min="0.5" max="30" step="0.5" value="1" /><output id="baseOut"
-    >1%</output
-  >
-</div>
-<div class="bx-row">
-  <label for="fpr">False positive rate</label
-  ><input id="fpr" type="range" min="1" max="20" step="1" value="9" /><output id="fprOut"
-    >9%</output
-  >
-</div>
-<div class="bx-row" style="margin-top: 12px">
-  <label>Sick if positive</label>
-  <div style="flex: 1; font-size: 22px; font-weight: 500" id="post">9%</div>
-  <output
-    id="counts"
-    style="width: auto; color: var(--color-text-secondary); font-size: 13px"
-  ></output>
+<div class="bx-model">
+  <div id="grid" class="bx-grid"></div>
+  <div>
+    <div class="bx-key">
+      <span style="--sw: var(--color-text-danger)">Sick, tests positive</span
+      ><span style="--sw: var(--color-text-warning)">Healthy, tests positive</span>
+    </div>
+    <label class="bx-control" for="base">
+      <div>Base rate <output id="baseOut">1%</output></div>
+      <input id="base" type="range" min="0.5" max="30" step="0.5" value="1" />
+    </label>
+    <label class="bx-control" for="fpr">
+      <div>False positive rate <output id="fprOut">9%</output></div>
+      <input id="fpr" type="range" min="1" max="20" step="1" value="9" />
+    </label>
+    <div class="bx-result">
+      Sick if positive
+      <strong id="post">9%</strong>
+      <span id="counts"></span>
+    </div>
+  </div>
 </div>
 <div id="explore" class="bx-card"></div>
 <div id="quiz"></div>
