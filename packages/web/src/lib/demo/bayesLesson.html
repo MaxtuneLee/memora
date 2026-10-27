@@ -234,40 +234,97 @@
     render();
   };
   const quiz = lesson.quiz(el("quiz"), {
-    title: "Bayes' theorem",
+    title: "Bayes' theorem · Lesson check",
     onResult: () => {
       el("st2").className = "";
       el("st3").className = "on";
     },
   });
-  quiz.task({
-    concept: "Posterior from prior and false alarms",
-    prompt: "Set the sliders so that a positive test means at least a 75% chance of being sick.",
-    check: () => model().post >= 0.75,
-    answer: () => `${Math.round(model().post * 100)}%`,
-    expected: "75% or more",
-    hint: "Raise the base rate or cut the false positive rate, and watch the amber squares shrink next to the red ones.",
-    why: "The posterior is the share of positives that are real, so it grows when true positives outnumber false alarms.",
-  });
   quiz.choice({
-    concept: "Why the posterior is low",
-    prompt: "In the lecture's example, why is a positive test only about 9% likely to be right?",
-    answer: "Healthy people far outnumber sick ones, so false alarms win",
+    concept: "Predictive value at a low base rate",
+    prompt:
+      "1% of people have the disease, the test catches 90% of cases, and 9% of healthy people test positive. If you test 1,000 people at random, about what share of those who test positive are actually sick?",
+    answer: "About 9%",
     wrong: [
       {
-        text: "The test misses one in ten sick people, so it is unreliable",
-        why: "Missing cases lowers sensitivity, but barely changes how many positives are real.",
+        text: "About 90%",
+        why: "That is the sensitivity: how many sick people test positive, not how many positives are sick.",
       },
       {
-        text: "Nine percent of healthy people test positive, so 9% is the error",
-        why: "The false positive rate and the posterior are different numbers that happen to look alike.",
+        text: "About 1%",
+        why: "That is the base rate before testing. A positive result raises it.",
       },
       {
-        text: "The likelihood is divided by the prior, which shrinks the result",
-        why: "Bayes multiplies the prior by the likelihood, then divides by the overall evidence.",
+        text: "About 50%",
+        why: "The false alarms from 990 healthy people far outnumber the 9 real cases.",
       },
     ],
-    why: "With a 1% base rate, 89 healthy people test positive for every 9 sick ones.",
+    why: "9 true positives against about 89 false alarms: 9 of 98, about 9%.",
+  });
+  quiz.choice({
+    concept: "Base rate drives predictive value",
+    prompt:
+      "Keep sensitivity at 90% and the false positive rate at 9%. With the base rate at 10%, how likely is a positive test to be right?",
+    setup: {
+      prompt: "First, set Base rate to 10% and False positive rate to 9% on the model above.",
+      check: () => Math.abs(state.base - 10) <= 0.5 && state.fpr === 9,
+    },
+    answer: "About 53%",
+    wrong: [
+      { text: "About 33%", why: "Read it off the model: 90 of 171 positives are sick." },
+      {
+        text: "About 10%",
+        why: "That is the base rate itself, not the share of positives that are real.",
+      },
+      {
+        text: "About 90%",
+        why: "That is the sensitivity. Positives still include about 81 false alarms.",
+      },
+    ],
+    why: "90 true positives and 81 false alarms: 90 of 171, about 53%.",
+  });
+  quiz.choice({
+    concept: "Fewer false alarms",
+    prompt:
+      "True or false: with a 1% base rate and 90% sensitivity, lowering the false positive rate from 9% to 1% raises the chance that a positive test is right.",
+    answer: "True",
+    wrong: [
+      {
+        text: "False",
+        why: "Fewer false alarms means a bigger share of the positives are real cases.",
+      },
+    ],
+    why: "False alarms drop from about 89 to about 10, so about half of the positives become real.",
+  });
+  quiz.multi({
+    concept: "Sensitivity versus predictive value",
+    prompt:
+      "A test has 90% sensitivity and a 9% false positive rate, and the base rate is 1%. Which statements are true?",
+    answers: [
+      "About 90% of people who are sick test positive",
+      "Among people who test positive, more are sick than in the population",
+      "About 9% of healthy people test positive",
+    ],
+    wrong: [
+      {
+        text: "About 90% of people who test positive are sick",
+        why: "That swaps sensitivity for predictive value. Only about 9% of positives are sick.",
+      },
+    ],
+    why: "Sensitivity and the false positive rate describe the test. The share of positives that are sick (9%) is still well above the 1% base rate.",
+  });
+  quiz.choice({
+    concept: "Limits of a low base rate",
+    prompt:
+      "True or false: even at a 1% base rate, with 90% sensitivity and a low enough false positive rate, a positive test can be right more than 90% of the time.",
+    answer: "True",
+    wrong: [
+      {
+        text: "False",
+        why: "A low base rate only holds the result down while false alarms outnumber real cases. Make them rare enough and it passes 90%.",
+      },
+    ],
+    why: "Below about a 0.1% false positive rate, fewer than 1 healthy person in 1,000 tests positive, so the 9 real cases dominate.",
   });
   render();
 </script>

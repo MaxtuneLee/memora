@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 
 import { buildContentSearchItems } from "@/lib/search/searchItems";
+import { getDocumentEditorHref } from "@/lib/editor/editableTextDocument";
 import {
   filterSemanticHits,
   searchContent,
@@ -66,6 +67,23 @@ describe("content search presentation", () => {
         desktopIntent: { type: "openPreview", fileId: "file-1", locator: result.locator },
       },
     });
+  });
+});
+
+describe("note matches", () => {
+  test("open the note in the editor instead of its preview", () => {
+    const [item] = buildContentSearchItems([
+      {
+        fileId: "note-1",
+        fileName: "Week 3 lecture notes.md",
+        fileMimeType: "text/markdown",
+        fileType: "document",
+        content: "Why so low?",
+        score: 0.7,
+        chunkId: "note-1:0",
+      },
+    ]);
+    expect(item?.intent).toEqual({ type: "navigate", to: getDocumentEditorHref("note-1") });
   });
 });
 

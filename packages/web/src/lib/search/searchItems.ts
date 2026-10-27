@@ -201,13 +201,20 @@ export const buildContentSearchItems = (
       mimeType: result.fileMimeType,
       type: result.fileType,
     },
-    intent: {
-      type: "desktop-intent",
-      to: "/desktop",
-      desktopIntent: {
-        type: "openPreview",
-        fileId: result.fileId,
-        locator: result.locator,
-      },
-    },
+    // Notes open in the editor, like a match on their name; other files open their preview.
+    intent: isEditableTextDocument({
+      name: result.fileName,
+      mimeType: result.fileMimeType,
+      type: result.fileType,
+    })
+      ? { type: "navigate", to: getDocumentEditorHref(result.fileId) }
+      : {
+          type: "desktop-intent",
+          to: "/desktop",
+          desktopIntent: {
+            type: "openPreview",
+            fileId: result.fileId,
+            locator: result.locator,
+          },
+        },
   }));

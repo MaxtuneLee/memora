@@ -116,6 +116,11 @@ test("a lesson must use lesson.quiz and include a hands-on question", () => {
   expect(call("<script>sendPrompt('Lesson result: X — 1/1')</script>")).toContain("lesson.quiz");
   expect(call("<script>lesson.quiz(m, {}).choice({}).start()</script>")).toContain(".task(");
   expect(call("<script>lesson.quiz(m, {}).task({}).choice({}).start()</script>")).toBeNull();
+  expect(
+    call(
+      "<script>lesson.quiz(m, {}).choice({ setup: { prompt: 'Drag', check } }).start()</script>",
+    ),
+  ).toBeNull();
 });
 
 test("validateShowWidgetCall refuses a choice whose answer is longer than every wrong option", () => {

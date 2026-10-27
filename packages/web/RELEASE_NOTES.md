@@ -4,6 +4,11 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-27
+
+- Opening a note from search now opens it in the editor, also when the match is in its text.
+- Lessons can ask select-all-that-apply questions, and questions that first ask you to set up the lesson's model before you answer.
+
 ## 2026-10-23
 
 - Add `?demo` to the address to try Memora in demo mode. Live transcription plays a short lecture on Bayes' theorem instead of using your microphone, your library gets a page of lecture notes to search, and chat answers from a prepared lesson, so you need no transcription model or provider account. Add `?demo=0` to turn it off.

@@ -305,8 +305,9 @@ export const validateShowWidgetCall = (params: ShowWidgetArguments): string | nu
   if (!usesQuiz && code.includes("Lesson result:")) {
     return "Build the Check and Result stages with lesson.quiz(...) as guidelines/lesson.md shows; do not write the grading or the result report yourself.";
   }
-  if (usesQuiz && !/\.task\(/.test(code)) {
-    return "A lesson needs at least one hands-on question: add a .task({...}) the learner answers by changing the model, as guidelines/lesson.md shows.";
+  // A hands-on question is a task, or a question whose options wait for a setup step.
+  if (usesQuiz && !/\.task\(|\bsetup\s*:/.test(code)) {
+    return "A lesson needs at least one hands-on question: add a .task({...}) the learner answers by changing the model, or give a question a setup step, as guidelines/lesson.md shows.";
   }
   const giveaway = usesQuiz ? longestAnswerChoice(code) : undefined;
   if (giveaway) {

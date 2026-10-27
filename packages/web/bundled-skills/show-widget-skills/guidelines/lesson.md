@@ -80,11 +80,13 @@ el("go-check").onclick = () => {
 - `title` is the report title. Set `nextPart` when the lesson is one part of a roadmap; after the last part it is `"final review"`. Pass `labels` in the conversation's language.
 - `task` is a question answered by changing the model. `check` reads the model's current state when the learner submits; `answer` describes that state for the report; `expected` is what a correct state looks like, in words.
 - `choice` takes the correct `answer` and 3 `wrong` options, each with the misconception it reveals. The helper shuffles them.
+- `multi` is a select-all-that-apply question: `answers` lists every true option and `wrong` the false ones, each with its misconception. Only the exact set counts as correct.
+- `choice` and `multi` take an optional `setup: { prompt, check }`: a step on the model the learner must do first, such as "Drag the base rate to 10%". The options stay locked until `check` passes, so the learner reads the answer off the model. A question with a `setup` counts as hands-on.
 - Add `part` to a question in a final review so the report says which part it tests.
 
 Which questions to ask:
 
-- 2–3 questions. At least one `task`; at most one `choice`, except in a final review.
+- 2–3 questions. At least one hands-on question (a `task`, or a question with a `setup`); at most one `choice` or `multi`, except in a final review.
 - A `task` can be "reach the target" (set the parameters so the curve passes the marked point) or "predict, then check" (set the model to where you think X happens).
 - Write `check` first, then phrase the prompt from it. If the prompt says "at least 8 filters below 1000 Hz", check exactly that.
 - Never invent a target number. Every expected value either appears in your explanation or can be read off the model while answering.

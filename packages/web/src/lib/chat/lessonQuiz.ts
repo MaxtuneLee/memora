@@ -16,6 +16,13 @@ export interface LessonTaskQuestion {
   why: string;
 }
 
+// A hands-on step a choice question waits for: its options unlock once `check` passes on the
+// widget's model, so the learner reads the answer off the model instead of guessing.
+export interface LessonSetup {
+  prompt: string;
+  check: () => boolean;
+}
+
 export interface LessonChoiceQuestion {
   concept: string;
   part?: string;
@@ -23,6 +30,18 @@ export interface LessonChoiceQuestion {
   answer: string;
   wrong: Array<{ text: string; why: string }>;
   why: string;
+  setup?: LessonSetup;
+}
+
+// Every option in `answers` is true and must be picked; none in `wrong` may be.
+export interface LessonMultiQuestion {
+  concept: string;
+  part?: string;
+  prompt: string;
+  answers: string[];
+  wrong: Array<{ text: string; why: string }>;
+  why: string;
+  setup?: LessonSetup;
 }
 
 const DEFAULT_LABELS = {
@@ -36,6 +55,9 @@ const DEFAULT_LABELS = {
   continue: "Continue",
   nextPart: "Next:",
   pickFirst: "Pick one option first.",
+  selectAll: "Select all that apply.",
+  missing: "Some true statements are not selected yet.",
+  setupDone: "Done.",
 };
 
 export interface LessonQuizOptions {
@@ -47,7 +69,7 @@ export interface LessonQuizOptions {
 }
 
 interface LessonQuestion {
-  kind: "task" | "choice";
+  kind: "task" | "choice" | "multi";
   concept: string;
   part?: string;
 }
@@ -62,6 +84,7 @@ interface LessonRecord {
 export interface LessonQuiz {
   task: (question: LessonTaskQuestion) => LessonQuiz;
   choice: (question: LessonChoiceQuestion) => LessonQuiz;
+  multi: (question: LessonMultiQuestion) => LessonQuiz;
   start: () => void;
 }
 
@@ -129,6 +152,46 @@ export const createLessonQuiz = (
     return line;
   };
 
+  // Shows the setup step and keeps the options locked until it passes on the model.
+  const waitForSetup = (
+    setup: LessonSetup,
+    input: HTMLElement | null,
+    submit: HTMLButtonElement,
+  ): HTMLElement => {
+    const line = el(
+      "p",
+      "margin:0 0 12px;padding:8px 12px;font-size:14px;line-height:1.6;border-radius:var(--border-radius-md);background:var(--color-background-secondary);",
+      setup.prompt,
+    );
+    const lock = (locked: boolean) => {
+      submit.disabled = locked;
+      if (input) {
+        input.style.opacity = locked ? "0.45" : "";
+        input.style.pointerEvents = locked ? "none" : "";
+      }
+    };
+    lock(true);
+    const timer = setInterval(() => {
+      if (!mount.contains(line)) {
+        clearInterval(timer);
+        return;
+      }
+      let ok = false;
+      try {
+        ok = setup.check() === true;
+      } catch {
+        ok = false;
+      }
+      if (!ok) return;
+      clearInterval(timer);
+      lock(false);
+      line.append(
+        el("span", "margin-left:8px;font-weight:500;color:var(--color-text-success);", t.setupDone),
+      );
+    }, 200);
+    return line;
+  };
+
   // One question card: the prompt, the learner's input, Submit, then feedback and Next.
   const card = (
     question: LessonQuestion,
@@ -139,6 +202,7 @@ export const createLessonQuiz = (
     hint: (answer: string) => string,
     expected: string,
     why: string,
+    extra: { note?: string; setup?: LessonSetup } = {},
   ): Step => {
     return (done) => {
       const index = records.length + 1;
@@ -151,9 +215,20 @@ export const createLessonQuiz = (
         ),
         el("p", "margin:0 0 12px;font-size:15px;line-height:1.7;", prompt),
       );
-      if (input) mount.append(input);
+      if (extra.note) {
+        mount.append(
+          el(
+            "p",
+            "margin:-6px 0 12px;font-size:13px;color:var(--color-text-secondary);",
+            extra.note,
+          ),
+        );
+      }
       const feedback = el("div", "");
       const submit = el("button", "margin-top:12px;", t.submit);
+      const unlock = extra.setup ? waitForSetup(extra.setup, input, submit) : null;
+      if (unlock) mount.append(unlock);
+      if (input) mount.append(input);
       mount.append(submit, feedback);
       let first: LessonRecord | null = null;
       submit.addEventListener("click", () => {
@@ -290,6 +365,54 @@ export const createLessonQuiz = (
           () => picked?.why ?? t.pickFirst,
           question.answer,
           question.why,
+          { setup: question.setup },
+        ),
+      );
+      return quiz;
+    },
+    multi: (question) => {
+      const options = shuffle([
+        ...question.answers.map((text) => ({ text, why: "", correct: true })),
+        ...question.wrong.map((option) => ({ ...option, correct: false })),
+      ]);
+      const list = el("div", "display:flex;flex-direction:column;gap:8px;");
+      const picked = new Set<(typeof options)[number]>();
+      for (const option of options) {
+        const button = el(
+          "button",
+          "text-align:left;white-space:normal;justify-content:flex-start;height:auto;padding:8px 12px;",
+          option.text,
+        );
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+          if (picked.has(option)) picked.delete(option);
+          else picked.add(option);
+          const selected = picked.has(option);
+          button.setAttribute("aria-pressed", String(selected));
+          button.style.borderColor = selected ? "var(--color-border-info)" : "";
+        });
+        list.append(button);
+      }
+      const chosen = () => options.filter((option) => picked.has(option));
+      steps.push(
+        card(
+          { kind: "multi", concept: question.concept, part: question.part },
+          question.prompt,
+          list,
+          () => {
+            if (picked.size === 0) return null;
+            const ok = options.every((option) => option.correct === picked.has(option));
+            return {
+              ok,
+              answer: chosen()
+                .map((option) => option.text)
+                .join("; "),
+            };
+          },
+          () => chosen().find((option) => !option.correct)?.why ?? t.missing,
+          question.answers.join("; "),
+          question.why,
+          { note: t.selectAll, setup: question.setup },
         ),
       );
       return quiz;
