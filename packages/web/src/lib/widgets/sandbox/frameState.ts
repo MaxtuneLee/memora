@@ -30,6 +30,11 @@ export const INITIAL_FRAME_STATE: FrameState = {
   failure: null,
 };
 
+export const createFrameState = (height: number | null): FrameState => ({
+  ...INITIAL_FRAME_STATE,
+  height: height ?? INITIAL_FRAME_STATE.height,
+});
+
 export const frameReducer = (state: FrameState, action: FrameAction): FrameState => {
   switch (action.type) {
     case "booted":
@@ -43,6 +48,7 @@ export const frameReducer = (state: FrameState, action: FrameAction): FrameState
     case "failed":
       return { ...state, failure: action.reason };
     case "restart":
-      return { ...INITIAL_FRAME_STATE, frameKey: state.frameKey + 1 };
+      // The height stays so the reloaded widget does not collapse and push the page around.
+      return { ...INITIAL_FRAME_STATE, frameKey: state.frameKey + 1, height: state.height };
   }
 };

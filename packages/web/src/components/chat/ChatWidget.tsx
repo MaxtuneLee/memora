@@ -20,6 +20,7 @@ import { useWidgetRuntime } from "@/components/chat/chatWidget/useWidgetRuntime"
 import type { ChatWidget as ChatWidgetData } from "@/lib/chat/showWidget";
 import { getShowWidgetDebugState, subscribeShowWidgetDebug } from "@/lib/chat/showWidgetDebug";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import { homeHeightKey, writeCachedHeight } from "@/lib/widgets/sandbox/heightCache";
 import { useAppStore } from "@/livestore/store";
 import { saveChatWidgetDefinition } from "@/lib/widgets/saveChatWidgetDefinition";
 import { useDataSourceValue, type DataSourceValueState } from "@/hooks/widgets/useDataSourceValue";
@@ -149,7 +150,7 @@ function useLoadingMessage(widget: ChatWidgetData): string {
 // the Definition); SaveWidgetDefinitionDialog awaits it. Re-saving the same preview
 // (savedDefinitionId already set) updates that Definition instead of creating a duplicate — see
 // saveChatWidgetDefinition's existingDefinitionId.
-function useSaveWidgetDefinition(store: ReturnType<typeof useAppStore>) {
+function useSaveWidgetDefinition(store: ReturnType<typeof useAppStore>, frameHeight: number) {
   const [savedDefinitionId, setSavedDefinitionId] = useState<string | null>(null);
   const { add: addToast } = Toast.useToastManager();
   const handleSave = useCallback(
@@ -161,11 +162,13 @@ function useSaveWidgetDefinition(store: ReturnType<typeof useAppStore>) {
       if (result.ok) {
         const wasUpdate = savedDefinitionId !== null;
         setSavedDefinitionId(result.id);
+        // The Home Grid tile will be laid out at this height before it has measured itself.
+        writeCachedHeight(homeHeightKey(input.widgetCode), frameHeight);
         addToast({ title: wasUpdate ? "Widget updated" : "Widget saved to your definitions" });
       }
       return result;
     },
-    [addToast, savedDefinitionId, store],
+    [addToast, frameHeight, savedDefinitionId, store],
   );
   return { savedDefinitionId, handleSave };
 }
@@ -176,7 +179,6 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     return parseShowWidgetCode(widget.widgetCode);
   }, [widget.widgetCode]);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const { savedDefinitionId, handleSave: handleSaveDefinition } = useSaveWidgetDefinition(store);
   const { dataState, write } = useChatWidgetData(store, widget);
   const activeLoadingMessage = useLoadingMessage(widget);
   const { sandbox, runtimeError } = useWidgetRuntime({
@@ -186,6 +188,10 @@ function ChatWidgetComponent({ widget, onSendPrompt }: ChatWidgetProps) {
     dataState,
     onWriteData: write,
   });
+  const { savedDefinitionId, handleSave: handleSaveDefinition } = useSaveWidgetDefinition(
+    store,
+    sandbox.height,
+  );
   const hasRuntimeDom = sandbox.hasContent;
   const debugState = useSyncExternalStore(
     subscribeShowWidgetDebug,

@@ -8,6 +8,7 @@ import {
   type WidgetSandbox,
 } from "@/hooks/widgets/useWidgetSandbox";
 import { parseShowWidgetCode } from "@/lib/chat/showWidgetRuntime";
+import { homeHeightKey } from "@/lib/widgets/sandbox/heightCache";
 import { buildRunSignature, buildWidgetScripts } from "@/lib/widgets/sandbox/payload";
 import { HOST_MESSAGE } from "@/lib/widgets/sandbox/protocol";
 import type { WriteWidgetDataResult } from "@/lib/widgets/widgetDataFile";
@@ -22,9 +23,11 @@ const styles = stylex.create({
     border: "none",
     display: "block",
     opacity: 0,
-    transition: "opacity 180ms cubic-bezier(0.23, 1, 0.32, 1)",
+    // Height eases too, so a widget that grows after it loads does not snap the tiles below it.
+    transition:
+      "opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), height 200ms cubic-bezier(0.23, 1, 0.32, 1)",
     width: "100%",
-    "@media (prefers-reduced-motion: reduce)": { transitionDuration: "120ms" },
+    "@media (prefers-reduced-motion: reduce)": { transitionDuration: "0ms, 0ms" },
   },
   iframeReady: { opacity: 1 },
   iframeLoading: { pointerEvents: "none" },
@@ -126,6 +129,7 @@ export function GeneratedWidgetFrame({
     onOpenLink,
     onWriteData,
     onRunnerError: () => setHasRuntimeError(true),
+    heightKey: homeHeightKey(widgetCode),
   });
   const clearRuntimeError = useCallback(() => setHasRuntimeError(false), []);
   useWidgetCodeSync({ sandbox, widgetCode, data, dataReady, onCodeChange: clearRuntimeError });

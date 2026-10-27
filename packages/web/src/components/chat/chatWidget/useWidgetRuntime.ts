@@ -92,6 +92,7 @@ export const useWidgetRuntime = ({
     onWriteData,
     onRunnerError: handleRunnerError,
     onRunResult: handleRunResult,
+    heightKey: `chat:${toolCallId}`,
   });
   const { booted, post } = sandbox;
 

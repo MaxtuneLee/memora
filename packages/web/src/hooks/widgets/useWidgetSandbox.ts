@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import type { RefObject } from "react";
 
 import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
-import { INITIAL_FRAME_STATE, frameReducer } from "@/lib/widgets/sandbox/frameState";
+import { createFrameState, frameReducer } from "@/lib/widgets/sandbox/frameState";
+import { readCachedHeight, writeCachedHeight } from "@/lib/widgets/sandbox/heightCache";
 import { HOST_MESSAGE, type HostMessage } from "@/lib/widgets/sandbox/protocol";
 import {
   connectRunnerChannel,
@@ -26,7 +27,11 @@ export const WIDGET_FAILURE_COPY: Record<WidgetSandboxFailure, string> = {
 // The sandboxed widget can only reach these through postMessage (ADR 0006); the host decides what
 // "send to chat" and "open this link" actually do. Omitting onWriteData refuses every write
 // (ADR 0008).
-export type WidgetSandboxOptions = RunnerMessageHandlers;
+export interface WidgetSandboxOptions extends RunnerMessageHandlers {
+  // Names this widget in the height cache, so its frame reserves the height it had last time
+  // instead of starting at one pixel and pushing the content below it down when it loads.
+  heightKey?: string;
+}
 
 export interface WidgetSandbox {
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -54,17 +59,27 @@ export const useWidgetSandbox = ({
   onWriteData,
   onRunResult,
   onRunnerError,
+  heightKey,
 }: WidgetSandboxOptions = {}): WidgetSandbox => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const theme = useResolvedTheme();
   const [initialTheme] = useState(theme);
-  const [frame, dispatch] = useReducer(frameReducer, INITIAL_FRAME_STATE);
+  const [frame, dispatch] = useReducer(frameReducer, heightKey, (key) =>
+    createFrameState(readCachedHeight(key)),
+  );
   const { frameKey, booted, failure } = frame;
   const handlersRef = useRef({ onSendPrompt, onOpenLink, onWriteData, onRunResult, onRunnerError });
 
   useEffect(() => {
     handlersRef.current = { onSendPrompt, onOpenLink, onWriteData, onRunResult, onRunnerError };
   }, [onSendPrompt, onOpenLink, onWriteData, onRunResult, onRunnerError]);
+
+  const { ready, height } = frame;
+  useEffect(() => {
+    if (ready) {
+      writeCachedHeight(heightKey, height);
+    }
+  }, [heightKey, ready, height]);
 
   const [target, setTarget] = useState(() => resolveWidgetSandboxTarget());
   const src = useMemo(() => buildRunnerSrc(target, initialTheme), [target, initialTheme]);

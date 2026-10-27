@@ -53,6 +53,10 @@ talks to it only through `postMessage`.
 
 ## Consequences
 
+- **Widgets on one page share a process.** Browsers isolate by site, and every widget loads the
+  same runner site, so a stuck widget also stalls the other widgets on the page until the watchdog
+  removes it (about 8 seconds). The app itself stays responsive. Separate processes per widget
+  would need a separate site per widget.
 - **Safari still freezes the app.** It does not give cross-site iframes their own process in all
   cases, so the watchdog cannot fire there while the widget holds the shared thread. The
   fallback mode has the same limit.
