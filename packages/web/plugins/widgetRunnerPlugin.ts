@@ -16,6 +16,20 @@ const STYLES = [
 const escapeScriptEnd = (source: string): string => source.replace(/<\/script/gi, "<\\/script");
 const escapeStyleEnd = (source: string): string => source.replace(/<\/style/gi, "<\\/style");
 
+// widgetBase.css starts with an @import of the web fonts. Inside the page that import holds back
+// the inline runner script until Google Fonts answers, which can take seconds on a slow or blocked
+// network, so it is taken out and loaded as a link that does not block anything.
+const FONT_IMPORT = /^@import url\("([^"]+)"\);\s*/;
+
+const splitFontImport = (css: string): { css: string; href: string | null } => {
+  const match = FONT_IMPORT.exec(css);
+  return { css: match ? css.slice(match[0].length) : css, href: match?.[1] ?? null };
+};
+
+// media="print" does not block rendering or scripts; the load handler switches it on for screens.
+const fontLink = (href: string): string =>
+  `<link rel="stylesheet" href="${href}" media="print" onload="this.media='all'" />`;
+
 type BuildResult = Awaited<ReturnType<typeof build>>;
 
 const entryCode = (result: BuildResult): string => {
@@ -56,9 +70,13 @@ export const buildRunnerHtml = async (minify: boolean): Promise<string> => {
     bundleRunnerScript(minify),
     ...STYLES.map((style) => readFile(style, "utf8")),
   ]);
+  const fonts = styles.map(splitFontImport);
   return template
     .replace("<!--widget-runner-styles-->", () =>
-      styles.map((css) => `<style>${escapeStyleEnd(css)}</style>`).join("\n"),
+      [
+        ...fonts.map(({ css }) => `<style>${escapeStyleEnd(css)}</style>`),
+        ...fonts.flatMap(({ href }) => (href ? [fontLink(href)] : [])),
+      ].join("\n"),
     )
     .replace("<!--widget-runner-script-->", () => `<script>${escapeScriptEnd(script)}</script>`);
 };

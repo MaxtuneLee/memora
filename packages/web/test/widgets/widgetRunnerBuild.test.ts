@@ -10,7 +10,12 @@ test("builds the runner into one self-contained page with its policy and styles"
   expect(html).toContain("Content-Security-Policy");
   expect(html).toContain("[data-widget-content]");
   expect(html).not.toMatch(/<script[^>]+src=/);
-  expect(html).not.toMatch(/<link[^>]+rel="stylesheet"/);
+  expect(html.match(/<link[^>]+rel="stylesheet"/g)).toHaveLength(1);
+  // The web fonts load without holding back the runner script.
+  expect(html).not.toContain("@import");
+  expect(html).toMatch(
+    /<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*media="print"/,
+  );
   // The bundled script sits inside one inline <script>: only the theme script and the runner.
   expect(html.match(/<\/script>/g)).toHaveLength(2);
 }, 60_000);
