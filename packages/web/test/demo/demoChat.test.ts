@@ -81,7 +81,7 @@ test("without a saved lecture the lesson skips reading it and cites nothing", ()
 
 test("lesson results, titles and other questions get their own replies", () => {
   expect(scriptDemoReply(request([user("Lesson result: Bayes' theorem — 2/2")])).text).toMatch(
-    /^2 out of 2/,
+    /^Nice\./,
   );
   expect(
     scriptDemoReply(request([user("Create a concise title for this conversation")], [])).text,
@@ -99,4 +99,14 @@ test("lecture segments are in order and keep every word timed", () => {
   expect(DEMO_LECTURE_SEGMENTS.map((segment) => segment.text).join(" ")).toContain(
     "The prior matters far more than most people expect.",
   );
+});
+
+test("questions after the lesson get a short scripted answer", () => {
+  const messages = [
+    user("Teach me Bayes' theorem from my lecture"),
+    user("Lesson result: Bayes' theorem — 2/2"),
+    { role: "assistant", content: [{ type: "text", text: "Nice." }] } satisfies LocalChatMessage,
+    user("Why does cutting false alarms help so much?"),
+  ];
+  expect(scriptDemoReply(request(messages)).text).toMatch(/^Because the disease is rare/);
 });

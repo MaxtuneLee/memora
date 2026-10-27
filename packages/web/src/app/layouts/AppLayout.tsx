@@ -29,6 +29,8 @@ import { createBlobProvider } from "@/lib/sync/blobProvider";
 import { startBlobSync } from "@/lib/sync/blobSync";
 import { migrateSettingsToSync } from "@/livestore/setting";
 import { watchSeededWidgetDuplicates } from "@/lib/widgets/dedupeSeededWidgets";
+import { seedDemoLibrary } from "@/lib/demo/demoLibrary";
+import { isDemoMode } from "@/lib/demo/demoMode";
 import { verifyBackendId } from "@/livestore/webdavSync";
 import { settingsDocumentQuery$ } from "@/lib/settings/queries";
 import { useDocumentTheme } from "@/hooks/theme/useDocumentTheme";
@@ -50,6 +52,12 @@ export default function AppLayout() {
   }, [settings.logCollectionEnabled, store]);
   useEffect(() => migrateSettingsToSync(store), [store]);
   useEffect(() => watchSeededWidgetDuplicates(store), [store]);
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    seedDemoLibrary(store).catch((error: unknown) => {
+      console.error("[demo] could not add the demo notes", error);
+    });
+  }, [store]);
   useEffect(() => {
     // Another tab changed the sync config and restarted LiveStore.
     const channel = new BroadcastChannel(SYNC_CONFIG_CHANNEL);

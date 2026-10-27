@@ -67,7 +67,11 @@ const lessonText = (fileId: string | null): string => {
 };
 
 const REVIEW_TEXT =
-  "2 out of 2, nicely done. You moved the model until most positives were real, and you could say why the lecture's 9% is so low: the healthy majority produces most of the positive tests.\n\nWant a harder one? Try two tests in a row: what happens to the chance of being sick after a second positive result?";
+  "Nice. You've got how the base rate changes the result, and why the lecture's 9% is so low.\n\nNext, let's add a second test and see what two positive results mean. Ask me anything along the way.";
+
+// A short answer to a question asked once the lesson is done.
+const FOLLOW_UP_TEXT =
+  "Because the disease is rare, almost everyone tested is healthy. At a 9% false positive rate, the 990 healthy people produce about 89 false alarms, far more than the 9 real cases. Cut the rate to 1% and they produce about 10, so a positive result is suddenly about half real.";
 
 const FALLBACK_TEXT =
   "This is demo mode, so I answer from a prepared lesson about Bayes' theorem. Record the demo lecture under Transcription, then turn on learning mode and ask me to teach you Bayes' theorem from your lecture.";
@@ -94,6 +98,10 @@ export const scriptDemoReply = (request: LocalChatRequest): ScriptedReply => {
     return { delayMs: 0, text: /title/i.test(userText) ? "Bayes' theorem from the lecture" : "" };
   }
   if (userText.startsWith("Lesson result:")) return { delayMs: 800, text: REVIEW_TEXT };
+  const lessonDone = request.messages.some((message) =>
+    textOf(message).startsWith("Lesson result:"),
+  );
+  if (lessonDone) return { delayMs: 700, text: FOLLOW_UP_TEXT };
   if (!/bayes|teach|lecture|learn/i.test(userText)) return { delayMs: 600, text: FALLBACK_TEXT };
 
   const turn = request.messages.slice(lastUserIndex + 1);
