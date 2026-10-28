@@ -15,129 +15,132 @@
   --duration-slow: 620ms;
 }
 
-/* Unlayered on purpose: StyleX also emits unlayered class selectors (see
-   `useCSSLayers: false` in vite.config.ts), and its 0,1,0 class selectors
-   beat this reset's 0,0,1 element selectors on plain specificity - a
-   guarantee that doesn't depend on which stylesheet loads first. */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  border: 0 solid;
-  margin: 0;
-  padding: 0;
-}
-html {
-  line-height: 1.5;
-  font-family: var(--font-sans);
-  -webkit-text-size-adjust: 100%;
-  tab-size: 4;
-}
-body {
-  position: relative;
-  min-height: 100vh;
-  background: var(--color-memora-bg, #fcfaf6);
-  color: var(--color-memora-text, #1d1c1a);
-}
-/* First frame: index.html sets data-theme before main.tsx adds the StyleX theme classes that
+/* The reset sits in the lowest layer, so every unlayered rule (StyleX emits unlayered CSS, see
+   `useCSSLayers: false` in vite.config.ts) and the markdown editor's `mde` layer win over it,
+   whatever order the stylesheets load in. */
+@layer reset, mde;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border: 0 solid;
+    margin: 0;
+    padding: 0;
+  }
+  html {
+    line-height: 1.5;
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+  }
+  body {
+    position: relative;
+    min-height: 100vh;
+    background: var(--color-memora-bg, #fcfaf6);
+    color: var(--color-memora-text, #1d1c1a);
+  }
+  /* First frame: index.html sets data-theme before main.tsx adds the StyleX theme classes that
    define the variables above, so these fallbacks repeat the light and dark background tokens. */
-:root[data-theme="dark"] body {
-  background: #1b1a17;
-  color: #ece8df;
-}
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-size: inherit;
-  font-weight: inherit;
-}
-a {
-  color: inherit;
-  text-decoration: inherit;
-}
-b,
-strong {
-  font-weight: bolder;
-}
-code,
-kbd,
-samp,
-pre {
-  font-family: var(--font-mono);
-  font-size: 1em;
-}
-small {
-  font-size: 80%;
-}
-sub,
-sup {
-  position: relative;
-  vertical-align: baseline;
-  font-size: 75%;
-  line-height: 0;
-}
-sub {
-  bottom: -0.25em;
-}
-sup {
-  top: -0.5em;
-}
-table {
-  border-color: inherit;
-  border-collapse: collapse;
-  text-indent: 0;
-}
-button,
-input,
-optgroup,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-  letter-spacing: inherit;
-  background: transparent;
-}
-button,
-select {
-  text-transform: none;
-}
-button,
-input:is([type="button"], [type="reset"], [type="submit"]) {
-  appearance: button;
-}
-button:not(:disabled),
-[role="button"]:not(:disabled) {
-  cursor: pointer;
-}
-textarea {
-  resize: vertical;
-}
-ol,
-ul,
-menu {
-  list-style: none;
-}
-img,
-svg,
-video,
-canvas,
-audio,
-iframe,
-embed,
-object {
-  display: block;
-  vertical-align: middle;
-}
-img,
-video {
-  max-width: 100%;
-  height: auto;
-}
-[hidden] {
-  display: none !important;
+  :root[data-theme="dark"] body {
+    background: #1b1a17;
+    color: #ece8df;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+  b,
+  strong {
+    font-weight: bolder;
+  }
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub,
+  sup {
+    position: relative;
+    vertical-align: baseline;
+    font-size: 75%;
+    line-height: 0;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    border-color: inherit;
+    border-collapse: collapse;
+    text-indent: 0;
+  }
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    background: transparent;
+  }
+  button,
+  select {
+    text-transform: none;
+  }
+  button,
+  input:is([type="button"], [type="reset"], [type="submit"]) {
+    appearance: button;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  textarea {
+    resize: vertical;
+  }
+  ol,
+  ul,
+  menu {
+    list-style: none;
+  }
+  img,
+  svg,
+  video,
+  canvas,
+  audio,
+  iframe,
+  embed,
+  object {
+    display: block;
+    vertical-align: middle;
+  }
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+  [hidden] {
+    display: none !important;
+  }
 }
 
 @keyframes shimmer {

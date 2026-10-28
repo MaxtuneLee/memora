@@ -1,38 +1,33 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import { WysiwygDocumentEditor } from "@/components/editor/WysiwygDocumentEditor";
 
-const BASE = "# Title\n\nHello **bold** text\n\nOld line\n\nTail $a+b$ end\n";
-const PROPOSED = "# Title\n\nHello **bold** text\n\nNew line\n\nTail $a+b$ end\n";
+const BASE = "# Title\n\nOld line\n";
+const PROPOSED = "# Title\n\nNew line\n";
 
-it("renders unchanged blocks as usual and only the changed one as a change", async () => {
+it("shows chat changes as a diff and reports accepted and rejected changes", async () => {
   const onTextChange = vi.fn();
-  const onAcceptHunk = vi.fn();
+  const onAcceptText = vi.fn();
+  const onProposalChange = vi.fn();
   const { container, rerender } = render(
     <WysiwygDocumentEditor text={BASE} onTextChange={onTextChange} />,
   );
-  await waitFor(() => expect(container.querySelector("strong")).not.toBeNull());
+  await waitFor(() => expect(container.querySelector(".cm-content")).not.toBeNull());
 
-  rerender(
-    <WysiwygDocumentEditor
-      text={BASE}
-      review={{ proposedText: PROPOSED, onAcceptHunk, onRejectHunk: vi.fn() }}
-      onTextChange={onTextChange}
-    />,
-  );
-  await waitFor(() => expect(screen.getByTestId("document-change")).not.toBeNull());
+  const review = { proposedText: PROPOSED, onAcceptText, onProposalChange };
+  rerender(<WysiwygDocumentEditor text={BASE} review={review} onTextChange={onTextChange} />);
+  await waitFor(() => expect(container.querySelector(".cm-md-diff-accept")).not.toBeNull());
+  expect(container.textContent).toContain("New line");
 
-  expect(container.querySelector("strong")?.textContent).toBe("bold");
-  expect(container.querySelector(".katex")).not.toBeNull();
-  expect(container.querySelector("h1")?.textContent).toBe("Title");
-  expect(screen.getByTestId("document-change").textContent).toContain("New");
-  screen.getByLabelText("Accept change 1").click();
-  expect(onAcceptHunk).toHaveBeenCalledTimes(1);
+  fireEvent.mouseDown(container.querySelector(".cm-md-diff-accept") as HTMLElement);
+  await waitFor(() => expect(onAcceptText).toHaveBeenCalledWith(PROPOSED));
   expect(onTextChange).not.toHaveBeenCalled();
 
-  rerender(<WysiwygDocumentEditor text={PROPOSED} onTextChange={onTextChange} />);
-  await waitFor(() => expect(screen.queryByTestId("document-change")).toBeNull());
-  expect(container.textContent).toContain("New line");
+  rerender(<WysiwygDocumentEditor text={BASE} onTextChange={onTextChange} />);
+  rerender(<WysiwygDocumentEditor text={BASE} review={review} onTextChange={onTextChange} />);
+  await waitFor(() => expect(container.querySelector(".cm-md-diff-reject")).not.toBeNull());
+  fireEvent.mouseDown(container.querySelector(".cm-md-diff-reject") as HTMLElement);
+  await waitFor(() => expect(onProposalChange).toHaveBeenCalledWith(BASE));
 });

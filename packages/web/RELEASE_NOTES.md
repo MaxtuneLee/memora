@@ -4,6 +4,11 @@ Add a `## ` section at the top for each release that changes what people see or 
 `- ` line is shown in the update dialog, so write it for the people using Memora. The heading is
 the release id (use the release date, and add `.2` for a second release on the same day).
 
+## 2026-10-28
+
+- Preview mode uses a new editor. Markdown renders as you type, and the raw syntax shows only on the line you are editing. Notes are saved exactly as written, so Preview now opens every Markdown note.
+- Tables edit like a spreadsheet, code blocks are highlighted, and Mermaid diagrams render in Preview.
+
 ## 2026-10-19
 
 - Memora can now send a system notification when a chat reply finishes while you are in another window. Memora asks for permission the first time you send a message. You can turn it off in Settings > General.

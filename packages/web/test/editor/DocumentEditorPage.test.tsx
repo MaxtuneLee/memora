@@ -5,7 +5,6 @@ import { MemoryRouter } from "react-router";
 import { EditorView } from "@codemirror/view";
 
 import { DocumentEditorPage } from "@/components/editor/DocumentEditorPage";
-import type { MarkdownPreflightResult } from "@/lib/editor/markdownRoundTripGuard";
 import type { FileMeta } from "@/types/library";
 
 interface Deferred<T> {
@@ -33,13 +32,6 @@ const persistenceState = vi.hoisted(() => {
   };
 });
 
-const preflightState = vi.hoisted(() => {
-  return {
-    productionPreflight: null as null | ((markdown: string) => MarkdownPreflightResult),
-    preflightMarkdownForWysiwyg: vi.fn<(markdown: string) => MarkdownPreflightResult>(),
-  };
-});
-
 const attachmentState = vi.hoisted(() => {
   return {
     saveImageAttachment: vi.fn(),
@@ -51,16 +43,6 @@ vi.mock("@/lib/editor/documentPersistence", () => ({
   saveTextDocument: persistenceState.saveTextDocument,
   upgradeTextFileToMarkdown: persistenceState.upgradeTextFileToMarkdown,
 }));
-
-vi.mock("@/lib/editor/markdownRoundTripGuard", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/editor/markdownRoundTripGuard")>();
-  preflightState.productionPreflight = actual.preflightMarkdownForWysiwyg;
-
-  return {
-    ...actual,
-    preflightMarkdownForWysiwyg: preflightState.preflightMarkdownForWysiwyg,
-  };
-});
 
 vi.mock("@/lib/editor/imageAttachments", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/editor/imageAttachments")>();
@@ -190,15 +172,7 @@ beforeEach(() => {
   persistenceState.readTextDocumentBytes.mockReset();
   persistenceState.saveTextDocument.mockReset();
   persistenceState.upgradeTextFileToMarkdown.mockReset();
-  preflightState.preflightMarkdownForWysiwyg.mockReset();
   attachmentState.saveImageAttachment.mockReset();
-  preflightState.preflightMarkdownForWysiwyg.mockImplementation((markdown) => {
-    if (!preflightState.productionPreflight) {
-      throw new Error("Production Markdown preflight was not initialized.");
-    }
-
-    return preflightState.productionPreflight(markdown);
-  });
 });
 
 test("loads a markdown document into the dedicated editor shell", async () => {
@@ -280,240 +254,6 @@ test("opens safe markdown in preview from the source editor", async () => {
     expect(view.getByRole("button", { name: "Preview" }).getAttribute("aria-pressed")).toBe("true");
   });
   expect(view.getByTestId("wysiwyg-document-editor")).not.toBeNull();
-});
-
-test("opens unsafe raw HTML in code mode and explains why preview is unavailable", async () => {
-  const unsafeMarkdown = '<a href="https://example.com">link</a>';
-  persistenceState.readTextDocumentBytes.mockResolvedValue(
-    new TextEncoder().encode(unsafeMarkdown),
-  );
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId="document-1"
-        files={[createFile()]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-
-  await waitFor(() => {
-    expect(getSourceText(view.getByRole("textbox", { name: "Document source" }))).toBe(
-      unsafeMarkdown,
-    );
-  });
-  expect(view.getByText(/converting this document would change its Markdown/i)).not.toBeNull();
-
-  fireEvent.click(view.getByRole("button", { name: "Preview" }));
-
-  await waitFor(() => {
-    expect(view.getByRole("button", { name: "Code" }).getAttribute("aria-pressed")).toBe("true");
-  });
-  expect(view.getByText(/converting this document would change its Markdown/i)).not.toBeNull();
-  expect(view.queryByTestId("wysiwyg-document-editor")).toBeNull();
-});
-
-test("marks the exact checklist source that blocks preview and clears it after editing", async () => {
-  persistenceState.readTextDocumentBytes.mockResolvedValue(new TextEncoder().encode("- [] item"));
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId="document-1"
-        files={[createFile()]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-
-  const sourceEditor = await waitFor(() => {
-    return view.getByRole("textbox", { name: "Document source" });
-  });
-  const issueMessage = 'Line 1: "[]" would become "[ ]".';
-  await waitFor(() => {
-    expect(view.getByRole("button", { name: issueMessage })).not.toBeNull();
-  });
-  expect(view.container.querySelector(".cm-markdown-safety-diagnostic")).not.toBeNull();
-  expect(getSourceEditorView(sourceEditor).state.selection.main.from).toBe(2);
-  expect(getSourceEditorView(sourceEditor).state.selection.main.to).toBe(4);
-
-  await act(async () => {
-    updateSourceText(sourceEditor, "- [ ] item");
-    await Promise.resolve();
-  });
-
-  expect(view.queryByRole("button", { name: issueMessage })).toBeNull();
-  expect(view.container.querySelector(".cm-markdown-safety-diagnostic")).toBeNull();
-});
-
-test("clears safety diagnostics before an attachment changes the canonical text", async () => {
-  const initialText = "- [] item";
-  const nextText = `${initialText}\n\n![diagram.png](diagram.png)\n`;
-  const file = createFile();
-  persistenceState.readTextDocumentBytes.mockResolvedValue(new TextEncoder().encode(initialText));
-  persistenceState.saveTextDocument.mockResolvedValue({
-    file,
-    text: nextText,
-    textBytes: new TextEncoder().encode(nextText),
-    updatedEvent: {
-      id: file.id,
-      name: file.name,
-      mimeType: file.mimeType,
-      sizeBytes: nextText.length,
-      storageType: file.storageType,
-      storagePath: file.storagePath,
-      updatedAt: new Date("2026-07-16T00:00:00.000Z"),
-    },
-  });
-  attachmentState.saveImageAttachment.mockResolvedValue({
-    createdFileEvent: undefined,
-    createdFolderEvent: null,
-    markdownPath: "diagram.png",
-    meta: { name: "diagram.png" },
-  });
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId={file.id}
-        files={[file]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-  const issueMessage = 'Line 1: "[]" would become "[ ]".';
-  await waitFor(() => {
-    expect(view.getByRole("button", { name: issueMessage })).not.toBeNull();
-  });
-
-  const input = view.container.querySelector<HTMLInputElement>('input[type="file"]');
-  if (!input) {
-    throw new Error("Expected the attachment file input.");
-  }
-  fireEvent.change(input, {
-    target: { files: [new window.File(["image"], "diagram.png", { type: "image/png" })] },
-  });
-
-  await waitFor(() => {
-    expect(view.queryByRole("button", { name: issueMessage })).toBeNull();
-  });
-});
-
-test("clears safety diagnostics when the same file id starts a new storage session", async () => {
-  const originalFile = createFile();
-  const relocatedFile = createFile({
-    storagePath: "/relocated/document-1.md",
-  });
-  persistenceState.readTextDocumentBytes.mockImplementation(async (file: FileMeta) => {
-    const text = file.storagePath === relocatedFile.storagePath ? "# Safe document\n" : "- [] item";
-    return new TextEncoder().encode(text);
-  });
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId={originalFile.id}
-        files={[originalFile]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-  const issueMessage = 'Line 1: "[]" would become "[ ]".';
-  await waitFor(() => {
-    expect(view.getByRole("button", { name: issueMessage })).not.toBeNull();
-  });
-
-  view.rerender(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId={relocatedFile.id}
-        files={[relocatedFile]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-
-  await waitFor(() => {
-    expect(persistenceState.readTextDocumentBytes).toHaveBeenCalledTimes(2);
-    expect(view.queryByRole("button", { name: issueMessage })).toBeNull();
-    expect(view.getByRole("button", { name: "Preview" }).getAttribute("aria-pressed")).toBe("true");
-  });
-});
-
-test("keeps conversion failures in code mode with a safety explanation", async () => {
-  persistenceState.readTextDocumentBytes.mockResolvedValue(new TextEncoder().encode("# Draft\n"));
-  preflightState.preflightMarkdownForWysiwyg.mockImplementationOnce(() => {
-    throw new Error("conversion failed");
-  });
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId="document-1"
-        files={[createFile()]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-      />
-    </MemoryRouter>,
-  );
-
-  await waitFor(() => {
-    expect(view.getByRole("button", { name: "Code" }).getAttribute("aria-pressed")).toBe("true");
-  });
-  expect(view.getByText(/could not be converted safely/i)).not.toBeNull();
-  expect(view.queryByTestId("wysiwyg-document-editor")).toBeNull();
-});
-
-test("refuses a safe preflight result when canonical text changes during conversion", async () => {
-  persistenceState.readTextDocumentBytes.mockResolvedValue(new TextEncoder().encode("# Draft\n"));
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId="document-1"
-        files={[createFile()]}
-        folders={[]}
-        editorFontSizePx={18}
-        attachmentSettings={attachmentSettings}
-        initialMode="source"
-      />
-    </MemoryRouter>,
-  );
-
-  const textarea = await waitFor(() => {
-    return view.getByRole("textbox", { name: "Document source" });
-  });
-  textarea.focus();
-  preflightState.preflightMarkdownForWysiwyg.mockImplementationOnce(() => {
-    updateSourceText(textarea, "# Newer edit\n");
-    return {
-      roundTrippedText: "# Draft",
-      safe: true,
-    };
-  });
-
-  fireEvent.click(view.getByRole("button", { name: "Preview" }));
-
-  await waitFor(() => {
-    expect(getSourceText(view.getByRole("textbox", { name: "Document source" }))).toBe(
-      "# Newer edit\n",
-    );
-  });
-  expect(view.getByRole("button", { name: "Code" }).getAttribute("aria-pressed")).toBe("true");
-  expect(view.queryByText(/converting this document would change its Markdown/i)).toBeNull();
-  expect(view.queryByText(/could not be converted safely/i)).toBeNull();
 });
 
 test("does not let the save button steal source editor focus on mouse down", async () => {
@@ -910,77 +650,6 @@ test("switches txt files into wysiwyg mode after confirming the markdown upgrade
   });
 
   expect(view.getByTestId("wysiwyg-document-editor")).not.toBeNull();
-});
-
-test("upgrades unsafe txt metadata but keeps its content in code mode", async () => {
-  const handleFileUpdated = vi.fn();
-  const unsafeMarkdown = '<a href="https://example.com">link</a>';
-  const txtFile = createFile({
-    id: "document-unsafe-txt",
-    name: "Unsafe.txt",
-    mimeType: "text/plain",
-    storagePath: "/files/document-unsafe-txt/document-unsafe-txt.txt",
-  });
-  const markdownFile = {
-    ...txtFile,
-    name: "Unsafe.md",
-    mimeType: "text/markdown",
-  };
-
-  persistenceState.readTextDocumentBytes.mockResolvedValue(
-    new TextEncoder().encode(unsafeMarkdown),
-  );
-  persistenceState.upgradeTextFileToMarkdown.mockResolvedValue({
-    file: markdownFile,
-    text: unsafeMarkdown,
-    textBytes: new TextEncoder().encode(unsafeMarkdown),
-    updatedEvent: {
-      id: txtFile.id,
-      name: markdownFile.name,
-      mimeType: markdownFile.mimeType,
-      sizeBytes: unsafeMarkdown.length,
-      storageType: txtFile.storageType,
-      storagePath: txtFile.storagePath,
-      updatedAt: new Date("2026-07-15T11:00:00.000Z"),
-    },
-  });
-
-  const view = render(
-    <MemoryRouter>
-      <DocumentEditorPage
-        fileId={txtFile.id}
-        files={[txtFile]}
-        folders={[]}
-        editorFontSizePx={16}
-        attachmentSettings={attachmentSettings}
-        onFileUpdated={handleFileUpdated}
-      />
-    </MemoryRouter>,
-  );
-
-  await waitFor(() => {
-    expect(getSourceText(view.getByRole("textbox", { name: "Document source" }))).toBe(
-      unsafeMarkdown,
-    );
-  });
-  fireEvent.click(view.getByRole("button", { name: "Preview" }));
-  await waitFor(() => {
-    expect(view.getByText("Upgrade Unsafe.txt to Markdown?")).not.toBeNull();
-  });
-  fireEvent.click(view.getByText("Upgrade").closest("button")!);
-
-  await waitFor(() => {
-    expect(handleFileUpdated).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: txtFile.id,
-        name: "Unsafe.md",
-        mimeType: "text/markdown",
-      }),
-    );
-  });
-  expect(view.getByRole("button", { name: "Code" }).getAttribute("aria-pressed")).toBe("true");
-  expect(view.getByText(/converting this document would change its Markdown/i)).not.toBeNull();
-  expect(view.queryByTestId("wysiwyg-document-editor")).toBeNull();
 });
 
 test("shows the attachment action in the source-mode editor shell", async () => {

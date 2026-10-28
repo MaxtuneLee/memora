@@ -5,6 +5,7 @@ import {
   buildLogicalWorkspacePath,
   buildRelativeWorkspacePath,
   resolveRelativeWorkspacePath,
+  resolveWikiLinkTarget,
   type WorkspaceFolderLike,
 } from "@/lib/editor/logicalPaths";
 import type { FileMeta } from "@/types/library";
@@ -156,4 +157,21 @@ test("rejects ambiguous path resolution when duplicate sibling folders exist", (
       files,
     }),
   ).toThrow(/ambiguous/i);
+});
+
+test("resolves wiki link targets by path or by a unique name", () => {
+  const folders: WorkspaceFolderLike[] = [{ id: "folder-notes", name: "notes", parentId: null }];
+  const current = createFile({ id: "current", name: "Current.md" });
+  const parser = createFile({ id: "parser", name: "Parser notes.md", parentId: "folder-notes" });
+  const twinA = createFile({ id: "twin-a", name: "Twin.md" });
+  const twinB = createFile({ id: "twin-b", name: "Twin.md", parentId: "folder-notes" });
+  const scope = { currentFile: current, files: [current, parser, twinA, twinB], folders };
+
+  expect(resolveWikiLinkTarget("notes/Parser notes", scope)?.id).toBe("parser");
+  expect(resolveWikiLinkTarget("parser notes#Usage", scope)?.id).toBe("parser");
+  expect(resolveWikiLinkTarget("Current.md", scope)?.id).toBe("current");
+  expect(resolveWikiLinkTarget("Missing", scope)).toBeNull();
+  // Two files share the name; the one next to the current note wins by relative path.
+  expect(resolveWikiLinkTarget("Twin", scope)?.id).toBe("twin-a");
+  expect(resolveWikiLinkTarget("notes/../nowhere/Twin", scope)).toBeNull();
 });

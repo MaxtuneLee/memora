@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import * as stylex from "@stylexjs/stylex";
+import type { WikiLinkOptions } from "memora-markdown-editor";
 import { AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAppStore } from "@/livestore/store";
@@ -21,17 +22,15 @@ import {
   type TextDocumentFileLike,
 } from "@/lib/editor/documentPersistence";
 import {
-  normalizeMarkdownRoundTripText,
-  preflightMarkdownForWysiwyg,
-  type MarkdownPreflightResult,
-  type MarkdownSafetyDiagnostic,
-} from "@/lib/editor/markdownRoundTripGuard";
-import {
   type FileCreatedEventInput as AttachmentFileCreatedEventInput,
   type FolderCreatedEventInput,
 } from "@/lib/editor/imageAttachments";
-import { isEditableTextDocument } from "@/lib/editor/editableTextDocument";
-import { resolveRelativeWorkspacePath, type WorkspaceFolderLike } from "@/lib/editor/logicalPaths";
+import { getFileExtension, isEditableTextDocument } from "@/lib/editor/editableTextDocument";
+import {
+  resolveRelativeWorkspacePath,
+  resolveWikiLinkTarget,
+  type WorkspaceFolderLike,
+} from "@/lib/editor/logicalPaths";
 import { parseLineAnchor, parseReferenceLink } from "@/lib/editor/referenceLinks";
 import { desktopFilesQuery$, desktopFoldersQuery$ } from "@/lib/desktop/queries";
 import { useDocumentEditorSettings } from "@/hooks/settings/useDocumentEditorSettings";
@@ -187,30 +186,6 @@ const styles = stylex.create({
 type HighlightRange = {
   startLine: number;
   endLine: number;
-};
-
-interface EditorCanonicalSnapshot {
-  fileId: string | null;
-  revision: number;
-  sessionId: number;
-  text: string;
-}
-
-const WYSIWYG_CONTENT_CHANGED_NOTICE =
-  "Preview is unavailable because converting this document would change its Markdown. Continue in Code mode.";
-const WYSIWYG_CONVERSION_ERROR_NOTICE =
-  "Preview is unavailable because this document could not be converted safely. Continue in Code mode.";
-
-const canonicalSnapshotsMatch = (
-  before: EditorCanonicalSnapshot,
-  after: EditorCanonicalSnapshot,
-): boolean => {
-  return (
-    before.sessionId === after.sessionId &&
-    before.fileId === after.fileId &&
-    before.revision === after.revision &&
-    before.text === after.text
-  );
 };
 
 interface DocumentEditorPageProps {
@@ -372,14 +347,16 @@ const normalizeRequestedAnchor = (
 
 const buildReferenceHref = (fileId: string, range: HighlightRange | null): string => {
   const searchParams = new URLSearchParams();
-  searchParams.set("mode", "source");
 
+  // A line range opens in Code mode, where the lines can be selected; a plain link opens as usual.
   if (range) {
+    searchParams.set("mode", "source");
     searchParams.set("lineStart", String(range.startLine));
     searchParams.set("lineEnd", String(range.endLine));
   }
 
-  return `/editor/file/${fileId}?${searchParams.toString()}`;
+  const query = searchParams.toString();
+  return query ? `/editor/file/${fileId}?${query}` : `/editor/file/${fileId}`;
 };
 
 export function DocumentEditorPage({
@@ -471,10 +448,6 @@ function DocumentEditorSession({
   onAttachmentFolderCreated,
 }: DocumentEditorSessionProps) {
   const [referenceNotice, setReferenceNotice] = useState<string | null>(null);
-  const [wysiwygSafetyNotice, setWysiwygSafetyNotice] = useState<string | null>(null);
-  const [wysiwygSafetyDiagnostics, setWysiwygSafetyDiagnostics] = useState<
-    readonly MarkdownSafetyDiagnostic[]
-  >([]);
   const [focusedLineRange, setFocusedLineRange] = useState<HighlightRange | null>(null);
   const [editorMode, setEditorMode] = useState<"source" | "wysiwyg">("source");
   const handledInitialReference = useRef(false);
@@ -492,56 +465,8 @@ function DocumentEditorSession({
   const activeFile = editorFile.file;
   const text = editorFile.text;
 
-  const guardWysiwygEntry = useCallback((): boolean => {
-    const before = editorFile.getCanonicalSnapshot();
-    let result: MarkdownPreflightResult;
-    try {
-      result = preflightMarkdownForWysiwyg(before.text);
-    } catch {
-      result = {
-        reason: "conversion-error",
-        safe: false,
-      };
-    }
-    const after = editorFile.getCanonicalSnapshot();
-
-    if (!canonicalSnapshotsMatch(before, after)) {
-      return false;
-    }
-
-    if (!result.safe) {
-      setEditorMode("source");
-      setWysiwygSafetyDiagnostics(
-        result.reason === "content-changed" ? (result.diagnostics ?? []) : [],
-      );
-      setWysiwygSafetyNotice(
-        result.reason === "content-changed"
-          ? WYSIWYG_CONTENT_CHANGED_NOTICE
-          : WYSIWYG_CONVERSION_ERROR_NOTICE,
-      );
-      return false;
-    }
-
-    // Safe differences are only blank lines, so save the note in the editor's layout right away.
-    if (
-      normalizeMarkdownRoundTripText(result.roundTrippedText) !==
-      normalizeMarkdownRoundTripText(before.text)
-    ) {
-      editorFile.updateText(
-        before.text.endsWith("\n") ? `${result.roundTrippedText}\n` : result.roundTrippedText,
-      );
-    }
-    // Blocks Preview keeps as source still have diagnostics, for Code mode and the chat.
-    setWysiwygSafetyDiagnostics(result.diagnostics ?? []);
-    setWysiwygSafetyNotice(null);
-    setEditorMode("wysiwyg");
-    return true;
-  }, [editorFile]);
-
   const handleTextChange = useCallback(
     (nextText: string): void => {
-      setWysiwygSafetyDiagnostics([]);
-      setWysiwygSafetyNotice(null);
       editorFile.updateText(nextText);
     },
     [editorFile],
@@ -558,18 +483,12 @@ function DocumentEditorSession({
   const chatProposalRef = useRef<string | null>(null);
   const chatTargetRef = useRef({
     editorFile,
-    editorMode,
-    guardWysiwygEntry,
     handleTextChange,
-    wysiwygSafetyDiagnostics,
   });
   useLayoutEffect(() => {
     chatTargetRef.current = {
       editorFile,
-      editorMode,
-      guardWysiwygEntry,
       handleTextChange,
-      wysiwygSafetyDiagnostics,
     };
   });
 
@@ -591,10 +510,6 @@ function DocumentEditorSession({
   const writeAcceptedText = useCallback((nextText: string): void => {
     const latest = chatTargetRef.current;
     latest.handleTextChange(nextText);
-    // Leave Preview when the new Markdown would not convert cleanly, as when opening the note.
-    if (latest.editorMode === "wysiwyg") {
-      latest.guardWysiwygEntry();
-    }
   }, []);
 
   const chatFileName = activeFile?.name ?? file.name;
@@ -608,8 +523,6 @@ function DocumentEditorSession({
       getText: () =>
         chatProposalRef.current ?? chatTargetRef.current.editorFile.getCanonicalSnapshot().text,
       applyText: setChatProposal,
-      getPreviewIssues: () =>
-        chatTargetRef.current.wysiwygSafetyDiagnostics.map((diagnostic) => diagnostic.message),
     });
   }, [chatFileName, chatSessionId, file.id, setChatProposal]);
 
@@ -623,6 +536,15 @@ function DocumentEditorSession({
       setChatProposal(proposal);
     },
     [setChatProposal, text, writeAcceptedText],
+  );
+
+  const handleAcceptText = useCallback(
+    (nextText: string): void => {
+      const proposal = chatProposalRef.current;
+      writeAcceptedText(nextText);
+      setChatProposal(proposal);
+    },
+    [setChatProposal, writeAcceptedText],
   );
 
   const handleRejectChange = useCallback(
@@ -671,17 +593,10 @@ function DocumentEditorSession({
     if (mustUseSourceMode) {
       setEditorMode("source");
     } else {
-      guardWysiwygEntry();
+      setEditorMode("wysiwyg");
     }
     initializedModeForFile.current = true;
-  }, [
-    activeFile,
-    editorFile.isLoading,
-    guardWysiwygEntry,
-    initialLineStart,
-    initialMode,
-    initialReferenceTarget,
-  ]);
+  }, [activeFile, editorFile.isLoading, initialLineStart, initialMode, initialReferenceTarget]);
 
   const applySourceFocus = useCallback(
     (startLine: number | null, endLine: number | null): { invalid: boolean } => {
@@ -736,6 +651,39 @@ function DocumentEditorSession({
     },
     [activeFile, files, folders, onNavigateToHref],
   );
+
+  const wikiLinks = useMemo<WikiLinkOptions | undefined>(() => {
+    if (!activeFile) {
+      return undefined;
+    }
+    const scope = { currentFile: activeFile, files, folders };
+    return {
+      resolve: (target) => resolveWikiLinkTarget(target, scope) !== null,
+      suggest: (query) => {
+        const needle = query.trim().toLowerCase();
+        return files
+          .filter(
+            (candidate) => candidate.id !== activeFile.id && isEditableTextDocument(candidate),
+          )
+          .filter((candidate) => candidate.name.toLowerCase().includes(needle))
+          .slice(0, 20)
+          .map((candidate) => {
+            const extension = getFileExtension(candidate.name);
+            return {
+              target: extension ? candidate.name.slice(0, -extension.length) : candidate.name,
+            };
+          });
+      },
+      onOpen: (target) => {
+        const resolved = resolveWikiLinkTarget(target, scope);
+        if (!resolved) {
+          setReferenceNotice(`No note named "${target}" was found.`);
+          return;
+        }
+        onNavigateToHref?.(buildReferenceHref(resolved.id, null));
+      },
+    };
+  }, [activeFile, files, folders, onNavigateToHref]);
 
   useEffect(() => {
     if (
@@ -801,20 +749,20 @@ function DocumentEditorSession({
         return;
       }
 
-      guardWysiwygEntry();
+      setEditorMode("wysiwyg");
     } catch {
       // Save errors are already surfaced by the hook state.
     }
-  }, [editorFile, guardWysiwygEntry]);
+  }, [editorFile]);
 
   const handleConfirmTxtUpgrade = useCallback(async () => {
     try {
       await editorFile.confirmTxtUpgrade();
-      guardWysiwygEntry();
+      setEditorMode("wysiwyg");
     } catch {
       // Save errors are already surfaced by the hook state.
     }
-  }, [editorFile, guardWysiwygEntry]);
+  }, [editorFile]);
 
   return (
     <>
@@ -864,8 +812,6 @@ function DocumentEditorSession({
               saveState={editorFile.saveState}
               saveError={editorFile.saveError}
               referenceNotice={referenceNotice}
-              wysiwygSafetyNotice={wysiwygSafetyNotice}
-              wysiwygSafetyDiagnostics={wysiwygSafetyDiagnostics}
               focusedLineStart={focusedLineRange?.startLine ?? null}
               focusedLineEnd={focusedLineRange?.endLine ?? null}
               txtUpgradeDialogOpen={editorFile.txtUpgradeDialogOpen}
@@ -876,12 +822,14 @@ function DocumentEditorSession({
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen((open) => !open)}
               onSelectionTextChange={setSelectionText}
+              onOpenReference={handleReferenceOpen}
+              wikiLinks={wikiLinks}
               wysiwygReview={
                 chatProposal !== null
                   ? {
                       proposedText: chatProposal,
-                      onAcceptHunk: handleAcceptChange,
-                      onRejectHunk: handleRejectChange,
+                      onAcceptText: handleAcceptText,
+                      onProposalChange: setChatProposal,
                     }
                   : null
               }

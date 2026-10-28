@@ -1,0 +1,58 @@
+/* Memora's look for parts of the markdown editor that have no variable. Unlayered, so these rules
+   win over the editor's own, which sit in the `mde` layer. The colors come from variables set on
+   `.mde` in WysiwygDocumentEditor. */
+
+.mde .cm-md-link {
+  text-decoration-color: color-mix(in srgb, var(--mde-link) 58%, transparent);
+  text-underline-offset: 2px;
+}
+
+.mde .cm-md-task {
+  margin-right: 0.5em;
+}
+
+.mde .cm-md-task input {
+  appearance: none;
+  position: relative;
+  width: 1.125em;
+  height: 1.125em;
+  border: 1px solid var(--memora-task-border);
+  border-radius: 0.3em;
+  background: var(--memora-task-surface);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.mde .cm-md-task input:checked {
+  border-color: var(--memora-task-checked);
+  background: var(--memora-task-checked);
+}
+
+/* Positioned, so the glyph doesn't give the box a text baseline and shift it down when checked. */
+.mde .cm-md-task input:checked::before {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  color: var(--memora-task-check);
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+.mde .cm-md-task input:focus-visible {
+  outline: 2px solid var(--mde-accent);
+  outline-offset: 2px;
+}
+
+.mde .cm-md-task-done {
+  text-decoration: line-through;
+}
+
+/* The editor is pulled out by its inline padding so text lines up with the title. Quotes draw
+   their bar at the line's edge, so start the line at the text column instead. */
+.mde .cm-content .cm-line.cm-md-quote {
+  margin-left: var(--mde-padding-inline);
+  padding-left: 0.9em;
+}

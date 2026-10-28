@@ -36,51 +36,6 @@
       "exports": ["default"]
     }
   ],
-  "usedClassMembers": [
-    {
-      "extends": "ElementNode",
-      "members": ["afterCloneFrom", "insertNewAfter"]
-    },
-    {
-      "extends": "HeadingNode",
-      "members": [
-        "getType",
-        "clone",
-        "importJSON",
-        "afterCloneFrom",
-        "createDOM",
-        "updateDOM",
-        "exportJSON",
-        "setMarkdownSourcePrefix"
-      ]
-    },
-    {
-      "extends": "ListItemNode",
-      "members": [
-        "getType",
-        "clone",
-        "importJSON",
-        "afterCloneFrom",
-        "createDOM",
-        "updateDOM",
-        "exportJSON",
-        "setMarkdownSourcePrefix"
-      ]
-    },
-    {
-      "extends": "LinkNode",
-      "members": [
-        "getType",
-        "clone",
-        "importJSON",
-        "afterCloneFrom",
-        "createDOM",
-        "updateDOM",
-        "exportJSON",
-        "importDOM"
-      ]
-    }
-  ],
   "rules": {
     "require-suppression-reason": "warn"
   }

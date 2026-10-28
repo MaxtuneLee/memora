@@ -1,2304 +1,264 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  type MutableRefObject,
-} from "react";
-import * as stylex from "@stylexjs/stylex";
-import "katex/dist/katex.min.css";
-import {
-  $getSelection,
-  $getRoot,
-  $getNodeByKey,
-  $createParagraphNode,
-  $createTextNode,
-  $isElementNode,
-  $isNodeSelection,
-  $isRangeSelection,
-  $isTextNode,
-  HISTORIC_TAG,
-  IS_BOLD,
-  IS_CODE,
-  IS_ITALIC,
-  IS_STRIKETHROUGH,
-  COMMAND_PRIORITY_CRITICAL,
-  HISTORY_MERGE_TAG,
-  SKIP_SCROLL_INTO_VIEW_TAG,
-  KEY_BACKSPACE_COMMAND,
-  KEY_DOWN_COMMAND,
-  SELECTION_CHANGE_COMMAND,
-  mergeRegister,
-  type LexicalEditor,
-  type LexicalNode,
-  type NodeKey,
-} from "lexical";
-import { ListItemNode } from "@lexical/list";
-import { $isCodeNode, registerCodeHighlighting } from "@lexical/code";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-go";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-yaml";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { EditorRefPlugin } from "@lexical/react/LexicalEditorRefPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
-import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
-import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin";
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { CodeNode } from "@lexical/code";
-import {
-  $createQuoteNode,
-  $isQuoteNode,
-  HeadingNode,
-  QuoteNode,
-  type HeadingTagType,
-} from "@lexical/rich-text";
-import { INSERT_TABLE_COMMAND } from "@lexical/table";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 
+import { getOriginalDoc } from "@codemirror/merge";
+import { EditorView, type ViewUpdate } from "@codemirror/view";
+import * as stylex from "@stylexjs/stylex";
 import {
-  ImageNode,
-  $isImageNode,
-  getImageNodeSourceText,
-} from "@/components/editor/lexical/ImageNode";
-import { MathNode, $isMathNode } from "@/components/editor/lexical/MathNode";
-import {
-  $isMarkdownLinkNode,
-  MarkdownLinkNode,
-} from "@/components/editor/lexical/MarkdownLinkNode";
-import {
-  $isMarkdownHeadingNode,
-  $isMarkdownListItemNode,
-  MarkdownHeadingNode,
-  MarkdownListItemNode,
-  getMarkdownHeadingPrefix,
-  getMarkdownListItemPrefix,
-} from "@/components/editor/lexical/MarkdownSourceNodes";
-import {
-  $createCodeFenceNode,
-  $isCodeFenceNode,
-  CodeFenceNode,
-} from "@/components/editor/lexical/CodeFenceNode";
-import {
-  parseInlineMath,
-  parseMarkdownImage,
-  parseMarkdownLink,
-  parseMarkdownLinkedImage,
-  parseMathBlock,
-} from "@/components/editor/lexical/imageMarkdownTransformer";
-import { DiffReviewContext, type DiffReviewValue } from "@/components/editor/lexical/DiffHunkNode";
-import { WysiwygFormattingToolbar } from "@/components/editor/WysiwygFormattingToolbar";
-import { MathEditorPopover } from "@/components/editor/MathEditorPopover";
-import { MarkdownKeyboardPlugin } from "@/components/editor/MarkdownKeyboardPlugin";
-import { MarkdownPastePlugin } from "@/components/editor/MarkdownPastePlugin";
-import { RawMarkdownPlugin } from "@/components/editor/RawMarkdownPlugin";
-import { SlashCommandPlugin } from "@/components/editor/SlashCommandPlugin";
-import { TableActionsPlugin } from "@/components/editor/TableActionsPlugin";
-import {
-  normalizeMarkdownRoundTripText,
-  prepareMarkdownForWysiwyg,
-} from "@/lib/editor/markdownRoundTripGuard";
-import { computeDiffHunks, type DiffHunk } from "@/lib/editor/textDiff";
-import {
-  DIFF_HUNK_END,
-  DIFF_HUNK_START,
-  WYSIWYG_NODES,
-  WYSIWYG_TRANSFORMERS,
-  exportWysiwygMarkdown,
-  importWysiwygMarkdown,
-} from "@/lib/editor/wysiwygMarkdownConfig";
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+  type WikiLinkOptions,
+} from "memora-markdown-editor";
+import { markdownDiff } from "memora-markdown-editor/diff";
+import "memora-markdown-editor/styles.css";
+
+import { parseMarkdownHeadings } from "@/components/editor/DocumentOutlineIndicator";
+import { useResolvedTheme } from "@/hooks/theme/useResolvedTheme";
+import { parseLineAnchor } from "@/lib/editor/referenceLinks";
 import { tokens } from "../../styles/stylex.stylex";
+import "./markdownEditor.css";
 
 export interface WysiwygDocumentEditorHandle {
-  insertTable: () => void;
-  revealHeading: (headingIndex: number) => void;
+  revealLine: (lineNumber: number) => void;
 }
 
-/** Chat changes waiting for review: shown in the note as the Markdown that would change. */
+/** Chat changes waiting for review, shown in the note as a diff against the saved text. */
 export interface WysiwygDocumentReview {
   proposedText: string;
-  onAcceptHunk: (hunk: DiffHunk) => void;
-  onRejectHunk: (hunk: DiffHunk) => void;
+  // Called with the note after one change was accepted into it.
+  onAcceptText: (text: string) => void;
+  // Called with the proposal after a change was rejected or edited.
+  onProposalChange: (proposal: string) => void;
 }
 
 interface WysiwygDocumentEditorProps {
   text: string;
   review?: WysiwygDocumentReview | null;
-  onActiveHeadingChange?: (headingIndex: number) => void;
+  onVisibleLineChange?: (lineNumber: number) => void;
   // Selected text while the editor has a range selection, or null once it collapses.
   onSelectionTextChange?: (text: string | null) => void;
   onTextChange: (text: string) => void;
+  // Opens a link to another file in the workspace, such as `../notes/parser.md#L12`.
+  onOpenReference?: (href: string) => void;
+  wikiLinks?: WikiLinkOptions;
 }
 
-const PLACEHOLDER = "Start writing...";
-const MARKDOWN_TABLE_HEADERS = { columns: false, rows: true } as const;
-const CODE_BLOCK_WITH_FENCES_STYLE =
-  "margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0.25rem; padding-bottom: 0.25rem;";
+const OUTLINE_SCROLL_TOP_MARGIN_PX = 16;
 
-const EDITABLE_LINK_LABEL_SOURCE_STYLE = `color: ${tokens.oliveText}; text-decoration-line: underline; text-decoration-color: color-mix(in srgb, ${tokens.oliveText} 58%, transparent); text-underline-offset: 2px;`;
-const EDITABLE_LINK_MARKER_SOURCE_STYLE = `color: ${tokens.textMuted};`;
+// A scheme (`https:`, `mailto:`) or a protocol-relative URL; anything else is a workspace path.
+const EXTERNAL_LINK_PATTERN = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i;
 
-const editorStyles = stylex.create({
-  codeBlock: {
-    backgroundColor: tokens.surfaceMuted,
-    borderRadius: "0.75rem",
-    color: tokens.text,
-    display: "block",
-    fontFamily: "monospace",
-    fontSize: "0.875rem",
-    lineHeight: "1.5rem",
-    marginBlock: "1rem",
-    overflowX: "auto",
-    paddingBlock: "0.75rem",
-    paddingInline: "1rem",
-  },
-  h1: {
-    color: tokens.textStrong,
-    fontSize: "2.25rem",
-    fontWeight: 600,
-    letterSpacing: "-0.03em",
-    lineHeight: "2.5rem",
-    marginBottom: "1rem",
-    scrollMarginTop: "1rem",
-  },
-  h2: {
-    color: tokens.textStrong,
-    fontSize: "1.5rem",
-    fontWeight: 600,
-    letterSpacing: "-0.02em",
-    lineHeight: "2rem",
-    marginBottom: "0.75rem",
-    marginTop: "2rem",
-    scrollMarginTop: "1rem",
-  },
-  h3: {
-    color: tokens.textStrong,
-    fontSize: "1.25rem",
-    fontWeight: 600,
-    lineHeight: "1.75rem",
-    marginBottom: "0.75rem",
-    marginTop: "1.5rem",
-    scrollMarginTop: "1rem",
-  },
-  h4: {
-    color: tokens.textStrong,
-    fontSize: "1.125rem",
-    fontWeight: 600,
-    lineHeight: "1.75rem",
-    marginBottom: "0.5rem",
-    marginTop: "1.25rem",
-    scrollMarginTop: "1rem",
-  },
-  h5: {
-    color: tokens.textStrong,
-    fontSize: "1rem",
-    fontWeight: 600,
-    lineHeight: "1.5rem",
-    marginBottom: "0.5rem",
-    marginTop: "1rem",
-    scrollMarginTop: "1rem",
-  },
-  h6: {
-    color: tokens.textMuted,
-    fontSize: "0.875rem",
-    fontWeight: 600,
-    letterSpacing: "0.14em",
-    lineHeight: "1.25rem",
-    marginBottom: "0.5rem",
-    marginTop: "1rem",
-    scrollMarginTop: "1rem",
-    textTransform: "uppercase",
-  },
-  image: { marginBlock: "1rem" },
-  horizontalRule: {
-    borderBottomWidth: 0,
-    borderInlineWidth: 0,
-    borderTopColor: tokens.borderSoft,
-    borderTopStyle: "solid",
-    borderTopWidth: 1,
-    marginBlock: "1.5rem",
-  },
-  link: {
-    color: tokens.oliveText,
-    textDecorationColor: `color-mix(in srgb, ${tokens.oliveText} 58%, transparent)`,
-    textDecorationLine: "underline",
-    textUnderlineOffset: 2,
-  },
-  list: { marginBlock: "1rem", marginLeft: "1.5rem" },
-  checklist: { listStyleType: "none" },
-  listItem: { color: tokens.text, lineHeight: "1.75rem", marginBlock: "0.25rem" },
-  checkedItem: {
-    color: tokens.textMuted,
-    listStyleType: "none",
-    paddingLeft: "1.75rem",
-    position: "relative",
-    textDecorationLine: "line-through",
-    "::before": {
-      alignItems: "center",
-      backgroundColor: tokens.primaryBackground,
-      borderColor: tokens.borderSoft,
-      borderRadius: "0.375rem",
-      borderStyle: "solid",
-      borderWidth: 1,
-      color: tokens.primaryText,
-      content: '"✓"',
-      display: "flex",
-      fontSize: "0.6875rem",
-      height: "1.25rem",
-      justifyContent: "center",
-      left: 0,
-      position: "absolute",
-      top: "0.375rem",
-      width: "1.25rem",
-    },
-  },
-  uncheckedItem: {
-    color: tokens.text,
-    listStyleType: "none",
-    paddingLeft: "1.75rem",
-    position: "relative",
-    "::before": {
-      backgroundColor: tokens.surface,
-      borderColor: tokens.borderSoft,
-      borderRadius: "0.375rem",
-      borderStyle: "solid",
-      borderWidth: 1,
-      content: '""',
-      height: "1.25rem",
-      left: 0,
-      position: "absolute",
-      top: "0.375rem",
-      width: "1.25rem",
-    },
-  },
-  nestedList: { marginTop: "0.5rem" },
-  orderedList: {
-    listStyleType: "decimal",
-    "::marker": { color: tokens.textSoft },
-  },
-  unorderedList: {
-    listStyleType: "disc",
-    "::marker": { color: tokens.textSoft },
-  },
-  paragraph: {
-    color: tokens.text,
-    lineHeight: "1.75rem",
-    // The last paragraph in a table cell should not add space under the cell text.
-    marginBottom: { default: "0.75rem", ":last-child": 0 },
-  },
-  quote: {
-    borderLeftColor: tokens.borderSoft,
-    borderLeftStyle: "solid",
-    borderLeftWidth: 2,
-    color: tokens.textMuted,
-    fontStyle: "italic",
-    paddingLeft: "1rem",
-  },
-  editorRoot: { minHeight: 420, padding: 0, position: "relative" },
-  table: {
-    borderCollapse: "collapse",
-    fontSize: "0.875rem",
-    lineHeight: "1.25rem",
-    marginBlock: "1rem",
-    width: "100%",
-  },
-  tableCell: {
-    borderColor: tokens.borderSoft,
-    borderStyle: "solid",
-    borderWidth: 1,
-    paddingBlock: "0.5rem",
-    paddingInline: "0.75rem",
-    verticalAlign: "top",
-  },
-  tableHeader: {
-    backgroundColor: tokens.surfaceMuted,
-    color: tokens.text,
-    fontWeight: 600,
-    textAlign: "start",
-  },
-  alignTop: { verticalAlign: "top" },
-  horizontalScroll: { overflowX: "auto" },
-  bold: { fontWeight: 600 },
-  inlineCode: {
-    backgroundColor: tokens.surfaceMuted,
-    borderRadius: "0.25rem",
-    fontFamily: "monospace",
-    fontSize: "0.92em",
-    paddingBlock: "0.125rem",
-    paddingInline: "0.375rem",
-  },
-  italic: { fontStyle: "italic" },
-  strikethrough: { textDecorationLine: "line-through" },
-  underline: { textDecorationLine: "underline" },
-  fullWidth: { width: "100%" },
-  editorContainer: { position: "relative" },
-  contentEditable: {
-    color: tokens.text,
-    lineHeight: "1.75rem",
-    minHeight: 420,
-    outline: "none",
-  },
-  placeholder: {
-    color: tokens.textSoft,
-    left: 0,
-    lineHeight: "1.75rem",
-    pointerEvents: "none",
-    position: "absolute",
-    top: 0,
-  },
-});
+// GitHub's heading anchors: lowercase, punctuation dropped, spaces as hyphens.
+const headingSlug = (title: string): string =>
+  title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+    .replace(/\s/g, "-");
 
-const classNameFor = (...values: ReadonlyArray<stylex.StyleXStyles>): string =>
-  stylex.props(values).className ?? "";
-
-const codeTokenStyles = stylex.create({
-  comment: { color: tokens.textMuted },
-  keyword: { color: tokens.oliveText },
-  string: { color: tokens.successText },
-  number: { color: tokens.infoText },
-  function: { color: tokens.warningText },
-  deleted: { color: tokens.dangerText },
-});
-
-const CODE_HIGHLIGHT_THEME: Record<string, string> = {};
-for (const [style, types] of [
-  [codeTokenStyles.comment, ["comment", "prolog", "doctype", "cdata", "punctuation"]],
-  [codeTokenStyles.keyword, ["keyword", "atrule", "selector", "tag", "important", "builtin"]],
-  [codeTokenStyles.string, ["string", "char", "attr", "inserted", "regex", "url"]],
-  [
-    codeTokenStyles.number,
-    ["number", "boolean", "constant", "symbol", "property", "variable", "operator", "entity"],
-  ],
-  [codeTokenStyles.function, ["function", "class-name", "namespace"]],
-  [codeTokenStyles.deleted, ["deleted"]],
-] as const) {
-  for (const type of types) {
-    CODE_HIGHLIGHT_THEME[type] = classNameFor(style);
+const safeDecodeURIComponent = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
-}
-
-const theme = {
-  code: classNameFor(editorStyles.codeBlock),
-  codeHighlight: CODE_HIGHLIGHT_THEME,
-  heading: {
-    h1: classNameFor(editorStyles.h1),
-    h2: classNameFor(editorStyles.h2),
-    h3: classNameFor(editorStyles.h3),
-    h4: classNameFor(editorStyles.h4),
-    h5: classNameFor(editorStyles.h5),
-    h6: classNameFor(editorStyles.h6),
-  },
-  image: classNameFor(editorStyles.image),
-  hr: classNameFor(editorStyles.horizontalRule),
-  link: classNameFor(editorStyles.link),
-  list: {
-    checklist: classNameFor(editorStyles.list, editorStyles.checklist),
-    listitem: classNameFor(editorStyles.listItem),
-    listitemChecked: classNameFor(editorStyles.listItem, editorStyles.checkedItem),
-    listitemUnchecked: classNameFor(editorStyles.listItem, editorStyles.uncheckedItem),
-    nested: {
-      list: classNameFor(editorStyles.nestedList),
-      listitem: classNameFor(editorStyles.listItem),
-    },
-    ol: classNameFor(editorStyles.list, editorStyles.orderedList),
-    ul: classNameFor(editorStyles.list, editorStyles.unorderedList),
-  },
-  paragraph: classNameFor(editorStyles.paragraph),
-  quote: classNameFor(editorStyles.quote),
-  root: classNameFor(editorStyles.editorRoot),
-  table: classNameFor(editorStyles.table),
-  tableCell: classNameFor(editorStyles.tableCell),
-  tableCellHeader: classNameFor(editorStyles.tableCell, editorStyles.tableHeader),
-  tableRow: classNameFor(editorStyles.alignTop),
-  tableScrollableWrapper: classNameFor(editorStyles.horizontalScroll),
-  text: {
-    bold: classNameFor(editorStyles.bold),
-    code: classNameFor(editorStyles.inlineCode),
-    italic: classNameFor(editorStyles.italic),
-    strikethrough: classNameFor(editorStyles.strikethrough),
-    underline: classNameFor(editorStyles.underline),
-  },
 };
 
-const escapeMarkdownLinkText = (text: string): string => {
-  return text.replace(/([\\[\]])/g, "\\$1");
-};
-
-const escapeMarkdownLinkTitle = (text: string): string => {
-  return text.replace(/([\\"])/g, "\\$1");
-};
-
-export const getEscapedMarkdownLinkTextOffset = (text: string, offset: number): number => {
-  return escapeMarkdownLinkText(text.slice(0, offset)).length;
-};
-
-export const getMarkdownLinkLabelOffsetFromSourceOffset = (
-  sourceText: string,
-  sourceOffset: number,
-): number => {
-  if (!sourceText.startsWith("[")) {
-    return 0;
-  }
-
-  let labelOffset = 0;
-  for (let index = 1; index < sourceText.length; index += 1) {
-    if (index >= sourceOffset) {
-      return labelOffset;
-    }
-
-    const currentChar = sourceText[index];
-    if (currentChar === "\\") {
-      if (index + 1 >= sourceText.length) {
-        return labelOffset;
-      }
-      if (index + 1 >= sourceOffset) {
-        return labelOffset;
-      }
-      labelOffset += 1;
-      index += 1;
-      continue;
-    }
-
-    if (currentChar === "]") {
-      return labelOffset;
-    }
-
-    labelOffset += 1;
-  }
-
-  return labelOffset;
-};
-
-type EditableFormattedTextKind = "bold" | "bold-italic" | "code" | "italic" | "strikethrough";
-
-interface ParsedFormattedTextSource {
-  markerLength: number;
-  prefix: string;
-  suffix: string;
-  text: string;
-}
-
-const getInlineCodeFence = (text: string): string => {
-  const backtickRuns = text.match(/`+/g) ?? [];
-  const fenceLength = Math.max(1, ...backtickRuns.map((run) => run.length + 1));
-  return "`".repeat(fenceLength);
-};
-
-export const getFormattedTextSourceText = (
-  kind: EditableFormattedTextKind,
-  text: string,
-): string => {
-  if (kind === "code") {
-    const fence = getInlineCodeFence(text);
-    return `${fence}${text}${fence}`;
-  }
-
-  if (kind === "bold") {
-    return `**${text}**`;
-  }
-
-  if (kind === "bold-italic") {
-    return `***${text}***`;
-  }
-
-  if (kind === "italic") {
-    return `*${text}*`;
-  }
-
-  return `~~${text}~~`;
-};
-
-const getFormattedTextMarkerLength = (kind: EditableFormattedTextKind, text: string): number => {
-  if (kind === "code") {
-    return getInlineCodeFence(text).length;
-  }
-
-  if (kind === "bold-italic") {
-    return 3;
-  }
-
-  return kind === "bold" || kind === "strikethrough" ? 2 : 1;
-};
-
-export const getFormattedTextLabelOffsetFromSourceOffset = (
-  sourceText: string,
-  sourceOffset: number,
-  kind: EditableFormattedTextKind,
-): number => {
-  const parsedSource = parseFormattedTextSourceText(kind, sourceText);
-  if (parsedSource) {
-    const contentOffset = sourceOffset - parsedSource.prefix.length - parsedSource.markerLength;
-    return Math.min(Math.max(contentOffset, 0), parsedSource.text.length);
-  }
-
-  const markerLength = getFormattedTextMarkerLength(kind, sourceText);
-  const contentLength = Math.max(sourceText.length - markerLength * 2, 0);
-  return Math.min(Math.max(sourceOffset - markerLength, 0), contentLength);
-};
-
-const getFormattedTextSourceOffsetFromLabelOffset = (
-  kind: EditableFormattedTextKind,
-  text: string,
-  labelOffset: number | null,
-): number => {
-  const markerLength = getFormattedTextMarkerLength(kind, text);
-  return markerLength + Math.min(Math.max(labelOffset ?? 0, 0), text.length);
-};
-
-const parseFormattedTextSourceText = (
-  kind: EditableFormattedTextKind,
-  sourceText: string,
-): ParsedFormattedTextSource | null => {
-  if (kind === "code") {
-    const match = sourceText.match(/^(\s*)(`+)([\s\S]*)\2(\s*)$/);
-    return match
-      ? {
-          markerLength: match[2]?.length ?? 1,
-          prefix: match[1] ?? "",
-          suffix: match[4] ?? "",
-          text: match[3] ?? "",
-        }
-      : null;
-  }
-
-  if (kind === "bold-italic") {
-    const match = sourceText.match(/^(\s*)\*\*\*([\s\S]*)\*\*\*(\s*)$/);
-    return match
-      ? {
-          markerLength: 3,
-          prefix: match[1] ?? "",
-          suffix: match[3] ?? "",
-          text: match[2] ?? "",
-        }
-      : null;
-  }
-
-  if (kind === "italic") {
-    const match = sourceText.match(/^(\s*)\*([\s\S]*)\*(\s*)$/);
-    return match
-      ? {
-          markerLength: 1,
-          prefix: match[1] ?? "",
-          suffix: match[3] ?? "",
-          text: match[2] ?? "",
-        }
-      : null;
-  }
-
-  if (kind === "bold") {
-    const match = sourceText.match(/^(\s*)\*\*([\s\S]*)\*\*(\s*)$/);
-    return match
-      ? {
-          markerLength: 2,
-          prefix: match[1] ?? "",
-          suffix: match[3] ?? "",
-          text: match[2] ?? "",
-        }
-      : null;
-  }
-
-  const match = sourceText.match(/^(\s*)~~([\s\S]*)~~(\s*)$/);
-  return match
-    ? {
-        markerLength: 2,
-        prefix: match[1] ?? "",
-        suffix: match[3] ?? "",
-        text: match[2] ?? "",
-      }
-    : null;
-};
-
-const getFormattedTextKind = (node: LexicalNode): EditableFormattedTextKind | null => {
-  if (!$isTextNode(node)) {
-    return null;
-  }
-
-  if (node.hasFormat("code")) {
-    return "code";
-  }
-  if (node.hasFormat("bold") && node.hasFormat("italic")) {
-    return "bold-italic";
-  }
-  if (node.hasFormat("bold")) {
-    return "bold";
-  }
-  if (node.hasFormat("strikethrough")) {
-    return "strikethrough";
-  }
-  if (node.hasFormat("italic")) {
-    return "italic";
-  }
-
-  return null;
-};
-
-const getFormattedTextFormat = (kind: EditableFormattedTextKind): number => {
-  if (kind === "code") {
-    return IS_CODE;
-  }
-
-  if (kind === "bold-italic") {
-    return IS_BOLD | IS_ITALIC;
-  }
-
-  if (kind === "bold") {
-    return IS_BOLD;
-  }
-
-  if (kind === "italic") {
-    return IS_ITALIC;
-  }
-
-  return IS_STRIKETHROUGH;
-};
-
-export const getImageMarkdownSourceText = (
-  altText: string,
-  src: string,
-  href: string | null,
-): string => {
-  return getImageNodeSourceText(altText, src, href);
-};
-
-const getQuoteMarkdownSourceText = (node: QuoteNode): string => {
-  return node
-    .getTextContent()
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-};
-
-const parseQuoteMarkdownSourceText = (sourceText: string): string | null => {
-  const lines = sourceText.split("\n");
-  if (!lines.every((line) => /^>\s?/.test(line))) {
-    return null;
-  }
-
-  return lines.map((line) => line.replace(/^>\s?/, "")).join("\n");
-};
-
-const getQuoteSourceOffsetFromContentOffset = (content: string, contentOffset: number): number => {
-  let sourceOffset = 0;
-  let consumedContent = 0;
-  const lines = content.split("\n");
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? "";
-    const lineEnd = consumedContent + line.length;
-    if (contentOffset <= lineEnd) {
-      return sourceOffset + 2 + (contentOffset - consumedContent);
-    }
-
-    sourceOffset += 2 + line.length + 1;
-    consumedContent = lineEnd + 1;
-  }
-
-  return sourceOffset;
-};
-
-const getQuoteContentOffsetFromSourceOffset = (
-  sourceText: string,
-  sourceOffset: number,
-): number => {
-  let contentOffset = 0;
-  let consumedSource = 0;
-  const lines = sourceText.split("\n");
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? "";
-    const contentLine = line.replace(/^>\s?/, "");
-    const markerLength = line.length - contentLine.length;
-    const lineSourceEnd = consumedSource + line.length;
-    if (sourceOffset <= lineSourceEnd) {
-      return (
-        contentOffset +
-        Math.min(Math.max(sourceOffset - consumedSource - markerLength, 0), contentLine.length)
-      );
-    }
-
-    consumedSource = lineSourceEnd + 1;
-    contentOffset += contentLine.length + 1;
-  }
-
-  return contentOffset;
-};
-
-const getSelectionAnchorNode = (): LexicalNode | null => {
-  const selection = $getSelection();
-  if ($isRangeSelection(selection)) {
-    return selection.anchor.getNode();
-  }
-
-  return null;
-};
-
-const findListItemNode = (node: LexicalNode): MarkdownListItemNode | null => {
-  let currentNode: LexicalNode | null = node;
-  while (currentNode) {
-    if ($isMarkdownListItemNode(currentNode)) {
-      return currentNode;
-    }
-    currentNode = currentNode.getParent();
-  }
-
-  return null;
-};
-
-const getActiveMarkdownSource = (): {
-  node: MarkdownHeadingNode | MarkdownListItemNode;
-  prefix: string;
-} | null => {
-  const anchorNode = getSelectionAnchorNode();
-  if (!anchorNode) {
-    return null;
-  }
-
-  const listItemNode = findListItemNode(anchorNode);
-  if (listItemNode) {
-    return {
-      node: listItemNode,
-      prefix: getMarkdownListItemPrefix(listItemNode),
-    };
-  }
-
-  const topLevelElement = anchorNode.getTopLevelElement();
-  if (!$isMarkdownHeadingNode(topLevelElement)) {
-    return null;
-  }
-
-  return {
-    node: topLevelElement,
-    prefix: getMarkdownHeadingPrefix(topLevelElement),
-  };
-};
-
-const getActiveMarkdownHeading = (): MarkdownHeadingNode | null => {
-  const anchorNode = getSelectionAnchorNode();
-  const topLevelElement = anchorNode?.getTopLevelElement() ?? null;
-
-  return $isMarkdownHeadingNode(topLevelElement) ? topLevelElement : null;
-};
-
-type EditableMarkdownSourceTarget =
-  | ImageNode
-  | MathNode
-  | MarkdownLinkNode
-  | QuoteNode
-  | LexicalNode;
-
-const findActiveMarkdownSourceNode = (node: LexicalNode): EditableMarkdownSourceTarget | null => {
-  let currentNode: LexicalNode | null = node;
-  while (currentNode) {
-    if (
-      $isMathNode(currentNode) ||
-      $isMarkdownLinkNode(currentNode) ||
-      $isImageNode(currentNode) ||
-      $isQuoteNode(currentNode)
-    ) {
-      return currentNode;
-    }
-    currentNode = currentNode.getParent();
-  }
-
-  return null;
-};
-
-const getActiveMarkdownSourceNode = (): EditableMarkdownSourceTarget | null => {
-  const selection = $getSelection();
-  if ($isNodeSelection(selection)) {
-    for (const node of selection.getNodes()) {
-      const markdownSourceNode = findActiveMarkdownSourceNode(node);
-      if (markdownSourceNode) {
-        return markdownSourceNode;
-      }
-    }
-  }
-
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return null;
-  }
-
-  const anchorNode = selection.anchor.getNode();
-  const markdownSourceNode = findActiveMarkdownSourceNode(anchorNode);
-  if (markdownSourceNode) {
-    return markdownSourceNode;
-  }
-
-  return getFormattedTextKind(anchorNode) ? anchorNode : null;
-};
-
-type EditableMarkdownSourceKind =
-  | "bold"
-  | "bold-italic"
-  | "block-quote"
-  | "block-math"
-  | "image"
-  | "inline-code"
-  | "inline-math"
-  | "italic"
-  | "link"
-  | "strikethrough";
-
-interface EditableMarkdownSourceState {
-  kind: EditableMarkdownSourceKind;
-  nodeKey: NodeKey;
-  previewNodeKey?: NodeKey;
-  sourceWasUnmergeable?: boolean;
-  sourceNodeKeys?: NodeKey[];
-}
-
-interface EditableMarkdownSourceDeactivationResult {
-  restoredNodeKey: NodeKey | null;
-  success: boolean;
-}
-
-interface EditableMarkdownBlockSourceState {
-  kind: "heading" | "list-item";
-  nodeKey: NodeKey;
-}
-
-interface CurrentBlockSourcePluginProps {
-  editableMarkdownSourceRef: MutableRefObject<EditableMarkdownSourceState | null>;
-  onEditableMarkdownSourceCommit: (markdown: string) => void;
-}
-
-const isSelectionInsideNode = (node: LexicalNode): boolean => {
-  const selection = $getSelection();
-  if ($isNodeSelection(selection)) {
-    return selection.getNodes().some((selectedNode) => {
-      return selectedNode.is(node) || ($isElementNode(node) && node.isParentOf(selectedNode));
-    });
-  }
-
-  if (!$isRangeSelection(selection)) {
-    return false;
-  }
-
-  const anchorNode = selection.anchor.getNode();
-  const focusNode = selection.focus.getNode();
-  return (
-    anchorNode.is(node) ||
-    focusNode.is(node) ||
-    ($isElementNode(node) && (node.isParentOf(anchorNode) || node.isParentOf(focusNode)))
-  );
-};
-
-const getEditableMarkdownSourceNode = (
-  state: EditableMarkdownSourceState | null,
-): LexicalNode | null => {
-  if (!state) {
-    return null;
-  }
-
-  return (
-    $getNodeByKey(state.nodeKey) ??
-    state.sourceNodeKeys
-      ?.map((nodeKey) => $getNodeByKey(nodeKey))
-      .find((node): node is LexicalNode => node !== null) ??
-    null
-  );
-};
-
-const isSelectionInsideEditableMarkdownSource = (
-  state: EditableMarkdownSourceState | null,
-): boolean => {
-  if (state?.sourceNodeKeys) {
-    return state.sourceNodeKeys.some((nodeKey) => {
-      const node = $getNodeByKey(nodeKey);
-      return node ? isSelectionInsideNode(node) : false;
-    });
-  }
-
-  const node = getEditableMarkdownSourceNode(state);
-  return node ? isSelectionInsideNode(node) : false;
-};
-
-const getMarkdownLinkSourceParts = (
-  node: MarkdownLinkNode,
-): { label: string; prefix: string; suffix: string } => {
-  const title = node.getTitle();
-  return {
-    label: escapeMarkdownLinkText(node.getTextContent()),
-    prefix: "[",
-    suffix: `](${node.getURL()}${title ? ` "${escapeMarkdownLinkTitle(title)}"` : ""})`,
-  };
-};
-
-const getEditableMarkdownSourceText = (state: EditableMarkdownSourceState): string => {
-  if (!state.sourceNodeKeys) {
-    return getEditableMarkdownSourceNode(state)?.getTextContent() ?? "";
-  }
-
-  return state.sourceNodeKeys
-    .map((nodeKey) => $getNodeByKey(nodeKey)?.getTextContent() ?? "")
-    .join("");
-};
-
-const getCollapsedSelectionTextOffsetInSourceNodes = (
-  state: EditableMarkdownSourceState,
-): number | null => {
-  if (!state.sourceNodeKeys) {
-    const node = getEditableMarkdownSourceNode(state);
-    return node ? getCollapsedSelectionTextOffsetInNode(node) : null;
-  }
-
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return null;
-  }
-
-  const anchorNode = selection.anchor.getNode();
-  let sourceOffset = 0;
-  for (const nodeKey of state.sourceNodeKeys) {
-    const node = $getNodeByKey(nodeKey);
-    if (!node) {
-      continue;
-    }
-
-    if (anchorNode.is(node)) {
-      return sourceOffset + Math.min(selection.anchor.offset, node.getTextContentSize());
-    }
-
-    sourceOffset += node.getTextContentSize();
-  }
-
-  return null;
-};
-
-const getElementTextOffsetBeforeChildIndex = (node: LexicalNode, childIndex: number): number => {
-  if (!$isElementNode(node)) {
-    return 0;
-  }
-
-  return node
-    .getChildren()
-    .slice(0, childIndex)
-    .reduce((offset, childNode) => {
-      return offset + childNode.getTextContentSize();
-    }, 0);
-};
-
-const getCollapsedSelectionTextOffsetInNode = (node: LexicalNode): number | null => {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return null;
-  }
-
-  const anchorNode = selection.anchor.getNode();
-  const anchorOffset = selection.anchor.offset;
-
-  if (anchorNode.is(node)) {
-    if ($isTextNode(node)) {
-      return Math.min(anchorOffset, node.getTextContentSize());
-    }
-
-    return getElementTextOffsetBeforeChildIndex(node, anchorOffset);
-  }
-
-  if (!$isElementNode(node)) {
-    return null;
-  }
-
-  let textOffset = 0;
-  const visitNode = (currentNode: LexicalNode): boolean => {
-    if (currentNode.is(anchorNode)) {
-      if ($isTextNode(currentNode)) {
-        textOffset += Math.min(anchorOffset, currentNode.getTextContentSize());
-        return true;
-      }
-
-      textOffset += getElementTextOffsetBeforeChildIndex(currentNode, anchorOffset);
-      return true;
-    }
-
-    if ($isElementNode(currentNode)) {
-      for (const childNode of currentNode.getChildren()) {
-        if (visitNode(childNode)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    textOffset += currentNode.getTextContentSize();
-    return false;
-  };
-
-  return visitNode(node) ? textOffset : null;
-};
-
-const selectTextNodeOffset = (node: LexicalNode, offset: number): void => {
-  if (!$isTextNode(node)) {
-    if ($isElementNode(node)) {
-      node.selectStart();
-    }
+const reportSelectionText = (
+  update: ViewUpdate,
+  onSelectionTextChange: ((text: string | null) => void) | undefined,
+): void => {
+  if (!onSelectionTextChange || !update.selectionSet || !update.view.hasFocus) {
     return;
   }
-
-  const textContentSize = node.getTextContentSize();
-  const normalizedOffset = Math.min(Math.max(offset, 0), textContentSize);
-  node.select(normalizedOffset, normalizedOffset);
+  const { from, to } = update.state.selection.main;
+  onSelectionTextChange(from === to ? null : update.state.sliceDoc(from, to));
 };
 
-const logEditableMarkdownSourceExpansion = (
-  state: EditableMarkdownSourceState,
-  sourceText: string,
-): EditableMarkdownSourceState => {
-  console.log("[DocumentEditor] markdown source expand", {
-    kind: state.kind,
-    nodeKey: state.nodeKey,
-    sourceNodeKeys: state.sourceNodeKeys ?? null,
-    sourceText,
-  });
-  return state;
+const reportVisibleLine = (
+  update: ViewUpdate,
+  onVisibleLineChange: ((lineNumber: number) => void) | undefined,
+): void => {
+  if (onVisibleLineChange && (update.viewportChanged || update.docChanged)) {
+    onVisibleLineChange(update.state.doc.lineAt(update.view.viewport.from).number);
+  }
 };
 
-const logEditableMarkdownSourceRestoreSuccess = (
-  state: EditableMarkdownSourceState,
-  restoredNodeKey: NodeKey,
-  sourceText: string,
-): EditableMarkdownSourceDeactivationResult => {
-  console.log("[DocumentEditor] markdown source restore", {
-    kind: state.kind,
-    nodeKey: state.nodeKey,
-    restoredNodeKey,
-    sourceText,
-    success: true,
-  });
-  return {
-    restoredNodeKey,
-    success: true,
-  };
-};
-
-const logEditableMarkdownSourceRestoreFailure = (
-  state: EditableMarkdownSourceState | null,
-  reason: string,
-  sourceText: string | null = null,
-): EditableMarkdownSourceDeactivationResult => {
-  console.log("[DocumentEditor] markdown source restore failed", {
-    kind: state?.kind ?? null,
-    nodeKey: state?.nodeKey ?? null,
-    reason,
-    sourceText,
-    success: false,
-  });
-  return {
-    restoredNodeKey: null,
-    success: false,
-  };
-};
-
-const activateEditableMarkdownSource = (node: LexicalNode): EditableMarkdownSourceState | null => {
-  if ($isMarkdownLinkNode(node)) {
-    const linkText = node.getTextContent();
-    const labelOffset = getCollapsedSelectionTextOffsetInNode(node);
-    const labelSourceOffset =
-      labelOffset === null ? 0 : getEscapedMarkdownLinkTextOffset(linkText, labelOffset);
-    const sourceParts = getMarkdownLinkSourceParts(node);
-    const prefixNode = $createTextNode(sourceParts.prefix);
-    const labelNode = $createTextNode(sourceParts.label);
-    const suffixNode = $createTextNode(sourceParts.suffix);
-    prefixNode.setStyle(EDITABLE_LINK_MARKER_SOURCE_STYLE);
-    labelNode.setStyle(EDITABLE_LINK_LABEL_SOURCE_STYLE);
-    suffixNode.setStyle(EDITABLE_LINK_MARKER_SOURCE_STYLE);
-    node.replace(labelNode);
-    labelNode.insertBefore(prefixNode);
-    labelNode.insertAfter(suffixNode);
-    selectTextNodeOffset(labelNode, labelSourceOffset);
-    return logEditableMarkdownSourceExpansion(
-      {
-        kind: "link",
-        nodeKey: prefixNode.getKey(),
-        sourceNodeKeys: [prefixNode.getKey(), labelNode.getKey(), suffixNode.getKey()],
-      },
-      `${sourceParts.prefix}${sourceParts.label}${sourceParts.suffix}`,
-    );
-  }
-
-  if ($isImageNode(node)) {
-    const sourceText = getImageMarkdownSourceText(node.getAltText(), node.getSrc(), node.getHref());
-    const sourceTextNode = $createTextNode(sourceText);
-    sourceTextNode.setFormat(IS_CODE);
-    sourceTextNode.setStyle(`color: ${tokens.text};`);
-    const paragraphNode = $createParagraphNode();
-    paragraphNode.append(sourceTextNode);
-    node.insertBefore(paragraphNode);
-    selectTextNodeOffset(sourceTextNode, sourceText.length);
-    return logEditableMarkdownSourceExpansion(
-      {
-        kind: "image",
-        nodeKey: paragraphNode.getKey(),
-        previewNodeKey: node.getKey(),
-        sourceNodeKeys: [sourceTextNode.getKey()],
-      },
-      sourceText,
-    );
-  }
-
-  if ($isQuoteNode(node)) {
-    const quoteText = node.getTextContent();
-    const sourceText = getQuoteMarkdownSourceText(node);
-    const quoteOffset = getCollapsedSelectionTextOffsetInNode(node);
-    const sourceTextNode = $createTextNode(sourceText);
-    const paragraphNode = $createParagraphNode();
-    paragraphNode.append(sourceTextNode);
-    node.replace(paragraphNode);
-    selectTextNodeOffset(
-      sourceTextNode,
-      getQuoteSourceOffsetFromContentOffset(quoteText, quoteOffset ?? 0),
-    );
-    return logEditableMarkdownSourceExpansion(
-      {
-        kind: "block-quote",
-        nodeKey: paragraphNode.getKey(),
-      },
-      sourceText,
-    );
-  }
-
-  const formattedTextKind = getFormattedTextKind(node);
-  if (formattedTextKind && $isTextNode(node)) {
-    const text = node.getTextContent();
-    const labelOffset = getCollapsedSelectionTextOffsetInNode(node);
-    const sourceText = getFormattedTextSourceText(formattedTextKind, text);
-    const sourceWasUnmergeable = node.isUnmergeable();
-    node.setTextContent(sourceText);
-    if (!sourceWasUnmergeable) {
-      node.toggleUnmergeable();
-    }
-    selectTextNodeOffset(
-      node,
-      getFormattedTextSourceOffsetFromLabelOffset(formattedTextKind, text, labelOffset),
-    );
-    return logEditableMarkdownSourceExpansion(
-      {
-        kind: formattedTextKind === "code" ? "inline-code" : formattedTextKind,
-        nodeKey: node.getKey(),
-        sourceNodeKeys: [node.getKey()],
-        sourceWasUnmergeable,
-      },
-      sourceText,
-    );
-  }
-
-  if ($isMathNode(node)) {
-    const sourceText = `$$${node.getFormula()}$$`;
-    const sourceOffset = 2;
-    if (node.getDisplayMode()) {
-      const sourceTextNode = $createTextNode(sourceText);
-      sourceTextNode.setFormat(IS_CODE);
-      sourceTextNode.setStyle(`color: ${tokens.text};`);
-      const paragraphNode = $createParagraphNode();
-      paragraphNode.append(sourceTextNode);
-      node.insertBefore(paragraphNode);
-      selectTextNodeOffset(sourceTextNode, sourceOffset);
-      return logEditableMarkdownSourceExpansion(
-        {
-          kind: "block-math",
-          nodeKey: paragraphNode.getKey(),
-          previewNodeKey: node.getKey(),
-          sourceNodeKeys: [sourceTextNode.getKey()],
-        },
-        sourceText,
-      );
-    }
-
-    const sourceTextNode = $createTextNode(sourceText);
-    sourceTextNode.setFormat(IS_CODE);
-    node.replace(sourceTextNode);
-    selectTextNodeOffset(sourceTextNode, sourceOffset);
-    return logEditableMarkdownSourceExpansion(
-      {
-        kind: "inline-math",
-        nodeKey: sourceTextNode.getKey(),
-        sourceNodeKeys: [sourceTextNode.getKey()],
-      },
-      sourceText,
-    );
-  }
-
-  return null;
-};
-
-const deactivateEditableMarkdownSource = (
-  state: EditableMarkdownSourceState | null,
-): EditableMarkdownSourceDeactivationResult => {
-  const node = getEditableMarkdownSourceNode(state);
-  if (!state || !node) {
-    return logEditableMarkdownSourceRestoreFailure(state, "missing source node");
-  }
-
-  const sourceText = getEditableMarkdownSourceText(state);
-  if (state.kind === "link") {
-    const parsedLink = parseMarkdownLink(sourceText);
-    const sourceNodes = state.sourceNodeKeys
-      ?.map((nodeKey) => $getNodeByKey(nodeKey))
-      .filter((sourceNode): sourceNode is LexicalNode => sourceNode !== null) ?? [node];
-    const firstSourceNode = sourceNodes[0] ?? null;
-    if (!firstSourceNode || !sourceNodes.every($isTextNode) || !parsedLink) {
-      return logEditableMarkdownSourceRestoreFailure(state, "invalid link source", sourceText);
-    }
-
-    const sourceSelectionOffset = getCollapsedSelectionTextOffsetInSourceNodes(state);
-    const linkNode = new MarkdownLinkNode(parsedLink.href, {
-      title: parsedLink.title ?? null,
-    });
-    linkNode.append($createTextNode(parsedLink.text));
-    for (const sourceNode of sourceNodes.slice(1)) {
-      sourceNode.remove();
-    }
-    firstSourceNode.replace(linkNode);
-    if (sourceSelectionOffset !== null) {
-      const labelOffset = getMarkdownLinkLabelOffsetFromSourceOffset(
-        sourceText,
-        sourceSelectionOffset,
-      );
-      const linkTextNode = linkNode.getFirstChild();
-      if ($isTextNode(linkTextNode)) {
-        linkTextNode.select(
-          Math.min(labelOffset, linkTextNode.getTextContentSize()),
-          Math.min(labelOffset, linkTextNode.getTextContentSize()),
-        );
-      }
-    }
-    return logEditableMarkdownSourceRestoreSuccess(state, linkNode.getKey(), sourceText);
-  }
-
-  if (state.kind === "image") {
-    const previewNode = state.previewNodeKey ? $getNodeByKey(state.previewNodeKey) : null;
-    if (!$isElementNode(node) || !$isImageNode(previewNode)) {
-      return logEditableMarkdownSourceRestoreFailure(state, "invalid image source", sourceText);
-    }
-
-    const parsedLinkedImage = parseMarkdownLinkedImage(sourceText.trim());
-    const parsedImage = parsedLinkedImage ?? parseMarkdownImage(sourceText.trim());
-    if (!parsedImage) {
-      return logEditableMarkdownSourceRestoreFailure(state, "invalid image source", sourceText);
-    }
-
-    const imageNode = new ImageNode(
-      parsedImage.src,
-      parsedImage.altText,
-      parsedLinkedImage?.href ?? null,
-    );
-    previewNode.replace(imageNode);
-    node.remove();
-    return logEditableMarkdownSourceRestoreSuccess(state, imageNode.getKey(), sourceText);
-  }
-
-  if (
-    state.kind === "inline-code" ||
-    state.kind === "bold" ||
-    state.kind === "bold-italic" ||
-    state.kind === "italic" ||
-    state.kind === "strikethrough"
-  ) {
-    if (!$isTextNode(node)) {
-      return logEditableMarkdownSourceRestoreFailure(state, "source node is not text", sourceText);
-    }
-
-    const formattedTextKind: EditableFormattedTextKind =
-      state.kind === "inline-code" ? "code" : state.kind;
-    const parsedSource = parseFormattedTextSourceText(formattedTextKind, sourceText);
-    if (parsedSource === null) {
-      return logEditableMarkdownSourceRestoreFailure(
-        state,
-        "invalid formatted text source",
-        sourceText,
-      );
-    }
-
-    const sourceSelectionOffset = getCollapsedSelectionTextOffsetInNode(node);
-    node.setTextContent(parsedSource.text);
-    node.setFormat(getFormattedTextFormat(formattedTextKind));
-    if (!state.sourceWasUnmergeable && node.isUnmergeable()) {
-      node.toggleUnmergeable();
-    }
-    if (parsedSource.prefix) {
-      const prefixNode = $createTextNode(parsedSource.prefix);
-      node.insertBefore(prefixNode);
-    }
-    if (parsedSource.suffix) {
-      node.insertAfter($createTextNode(parsedSource.suffix));
-    }
-    if (sourceSelectionOffset !== null) {
-      const labelOffset = getFormattedTextLabelOffsetFromSourceOffset(
-        sourceText,
-        sourceSelectionOffset,
-        formattedTextKind,
-      );
-      selectTextNodeOffset(node, labelOffset);
-    }
-    return logEditableMarkdownSourceRestoreSuccess(state, node.getKey(), sourceText);
-  }
-
-  if (state.kind === "inline-math") {
-    const parsedMath = parseInlineMath(sourceText);
-    if (!$isTextNode(node) || !parsedMath) {
-      return logEditableMarkdownSourceRestoreFailure(
-        state,
-        "invalid inline math source",
-        sourceText,
-      );
-    }
-
-    const mathNode = new MathNode(
-      parsedMath.formula,
-      false,
-      undefined,
-      false,
-      parsedMath.delimiter,
-    );
-    node.replace(mathNode);
-    return logEditableMarkdownSourceRestoreSuccess(state, mathNode.getKey(), sourceText);
-  }
-
-  if (state.kind === "block-quote") {
-    const parsedQuote = parseQuoteMarkdownSourceText(sourceText);
-    if (!$isElementNode(node) || parsedQuote === null) {
-      return logEditableMarkdownSourceRestoreFailure(
-        state,
-        "invalid block quote source",
-        sourceText,
-      );
-    }
-
-    const sourceSelectionOffset = getCollapsedSelectionTextOffsetInNode(node);
-    const quoteNode = $createQuoteNode();
-    const quoteTextNode = $createTextNode(parsedQuote);
-    quoteNode.append(quoteTextNode);
-    node.replace(quoteNode);
-    if (sourceSelectionOffset !== null) {
-      selectTextNodeOffset(
-        quoteTextNode,
-        getQuoteContentOffsetFromSourceOffset(sourceText, sourceSelectionOffset),
-      );
-    }
-    return logEditableMarkdownSourceRestoreSuccess(state, quoteNode.getKey(), sourceText);
-  }
-
-  if (state.kind === "block-math") {
-    const previewNode = state.previewNodeKey ? $getNodeByKey(state.previewNodeKey) : null;
-    const parsedMath = parseMathBlock(sourceText);
-    if (!$isElementNode(node) || !$isMathNode(previewNode) || !parsedMath) {
-      return logEditableMarkdownSourceRestoreFailure(
-        state,
-        "invalid block math source",
-        sourceText,
-      );
-    }
-
-    const mathNode = new MathNode(parsedMath.formula, true);
-    previewNode.replace(mathNode);
-    node.remove();
-    return logEditableMarkdownSourceRestoreSuccess(state, mathNode.getKey(), sourceText);
-  }
-
-  if (!$isMathNode(node)) {
-    return logEditableMarkdownSourceRestoreFailure(state, "invalid block math source", sourceText);
-  }
-
-  node.setMarkdownSourceActive(false);
-  return logEditableMarkdownSourceRestoreSuccess(state, node.getKey(), sourceText);
-};
-
-const isSelectionAtStartOfNode = (node: LexicalNode): boolean => {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return false;
-  }
-
-  let anchorNode: LexicalNode = selection.anchor.getNode();
-  if (anchorNode.is(node)) {
-    return selection.anchor.offset === 0;
-  }
-
-  if (!$isTextNode(anchorNode) || selection.anchor.offset !== 0) {
-    return false;
-  }
-
-  while (!anchorNode.is(node)) {
-    if (anchorNode.getPreviousSibling() !== null) {
-      return false;
-    }
-
-    const parentNode: LexicalNode | null = anchorNode.getParent();
-    if (!parentNode) {
-      return false;
-    }
-
-    anchorNode = parentNode;
-  }
-
-  return true;
-};
-
-const getHeadingLevel = (headingNode: MarkdownHeadingNode): number => {
-  return Number(headingNode.getTag().slice(1));
-};
-
-const toHeadingTag = (level: number): HeadingTagType => {
-  return `h${Math.min(Math.max(level, 1), 6)}` as HeadingTagType;
-};
-
-export const deleteMarkdownHeadingPrefixCharacter = (headingNode: MarkdownHeadingNode): boolean => {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return false;
-  }
-
-  const firstChild = headingNode.getFirstChild();
-  if (!$isTextNode(firstChild) || !selection.anchor.getNode().is(firstChild)) {
-    return false;
-  }
-
-  const prefix = getMarkdownHeadingPrefix(headingNode);
-  const offset = selection.anchor.offset;
-  const text = firstChild.getTextContent();
-  if (offset < 1 || offset > prefix.length || !text.startsWith(prefix)) {
-    return false;
-  }
-
-  firstChild.setTextContent(`${text.slice(0, offset - 1)}${text.slice(offset)}`);
-  selectTextNodeOffset(firstChild, offset - 1);
-  return true;
-};
-
-const clearMarkdownSourceNode = (nodeKey: NodeKey | null): void => {
-  if (!nodeKey) {
+// Accept moves a change into the original, which the merge view keeps in its own field.
+const reportAcceptedChange = (update: ViewUpdate, review: WysiwygDocumentReview | null): void => {
+  if (!review) {
     return;
   }
-
-  const node = $getNodeByKey(nodeKey);
-  if ($isMarkdownHeadingNode(node) || $isMarkdownListItemNode(node)) {
-    node.setMarkdownSourcePrefix(null);
+  let before;
+  let after;
+  try {
+    before = getOriginalDoc(update.startState);
+    after = getOriginalDoc(update.state);
+  } catch {
+    // The diff field is missing while the editor switches into or out of review.
+    return;
+  }
+  if (before !== after) {
+    review.onAcceptText(after.toString());
   }
 };
 
-export const prependMarkdownSourcePrefix = (
-  node: MarkdownHeadingNode | MarkdownListItemNode,
-): void => {
-  const prefix = $isMarkdownHeadingNode(node)
-    ? getMarkdownHeadingPrefix(node)
-    : getMarkdownListItemPrefix(node);
-  const prefixNode = $createTextNode(prefix);
-  prefixNode.setStyle(`color: ${tokens.textMuted};`);
-  const shouldSelectAfterPrefix =
-    node.getTextContentSize() === 0 && getCollapsedSelectionTextOffsetInNode(node) === 0;
-  const firstChild = node.getFirstChild();
-  if (firstChild) {
-    firstChild.insertBefore(prefixNode);
-  } else {
-    node.append(prefixNode);
+const findScrollParent = (element: HTMLElement): HTMLElement | null => {
+  let parent = element.parentElement;
+  while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) {
+    parent = parent.parentElement;
   }
-  node.setMarkdownSourcePrefix(prefix);
-  if (shouldSelectAfterPrefix) {
-    selectTextNodeOffset(prefixNode, prefix.length);
-  }
+  return parent;
 };
 
-const removeMarkdownSourcePrefix = (
-  node: MarkdownHeadingNode | MarkdownListItemNode,
-  kind: "heading" | "list-item",
-): string | null => {
-  const firstChild = node.getFirstChild();
-  if (!$isTextNode(firstChild)) {
-    node.setMarkdownSourcePrefix(null);
-    return null;
-  }
-
-  const prefixText = firstChild.getTextContent();
-  if (kind === "heading") {
-    const parsedPrefix = prefixText.match(/^(#{1,6})([ \t]*)([\s\S]*)$/);
-    const headingContent = parsedPrefix?.[3] ?? "";
-    if (headingContent) {
-      firstChild.insertAfter($createTextNode(headingContent));
-    }
-  } else {
-    const parsedPrefix = prefixText.match(/^(\s*)(?:[-+*]|\d+\.)\s*(?:\[(?:x| )\]\s*)?([\s\S]*)$/i);
-    const listContent = parsedPrefix?.[2] ?? "";
-    if (listContent) {
-      firstChild.insertAfter($createTextNode(listContent));
-    }
-  }
-
-  firstChild.remove();
-  node.setMarkdownSourcePrefix(null);
-  if ($isMarkdownHeadingNode(node)) {
-    const headingPrefix = prefixText.match(/^(#{1,6})([ \t]*)([\s\S]*)$/)?.[1] ?? "";
-    if (headingPrefix.length > 0) {
-      node.setTag(toHeadingTag(headingPrefix.length));
-    } else {
-      const paragraphNode = $createParagraphNode();
-      paragraphNode.append(...node.getChildren());
-      node.replace(paragraphNode, true);
-    }
-  }
-  return prefixText;
-};
-
-const getCodeNodeForFence = (fenceNode: CodeFenceNode): CodeNode | null => {
-  const sibling =
-    fenceNode.getRole() === "open" ? fenceNode.getNextSibling() : fenceNode.getPreviousSibling();
-  return $isCodeNode(sibling) ? sibling : null;
-};
-
-const findCodeFenceNode = (node: LexicalNode): CodeFenceNode | null => {
-  let currentNode: LexicalNode | null = node;
-  while (currentNode) {
-    if ($isCodeFenceNode(currentNode)) {
-      return currentNode;
-    }
-    currentNode = currentNode.getParent();
-  }
-
-  return null;
-};
-
-const findCodeNode = (node: LexicalNode): CodeNode | null => {
-  let currentNode: LexicalNode | null = node;
-  while (currentNode) {
-    if ($isCodeNode(currentNode)) {
-      return currentNode;
-    }
-    currentNode = currentNode.getParent();
-  }
-
-  const fenceNode = findCodeFenceNode(node);
-  return fenceNode ? getCodeNodeForFence(fenceNode) : null;
-};
-
-const getActiveCodeNode = (): CodeNode | null => {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection)) {
-    return null;
-  }
-
-  return findCodeNode(selection.anchor.getNode()) ?? findCodeNode(selection.focus.getNode());
-};
-
-const parseCodeFenceLanguage = (fenceText: string): string | null => {
-  const match = fenceText.match(/^`{3,}([A-Za-z0-9_-]+)?/);
-  return match?.[1] || null;
-};
-
-const ensureCodeFences = (
-  codeNode: CodeNode,
-): {
-  closeFence: CodeFenceNode;
-  openFence: CodeFenceNode;
-} => {
-  const language = codeNode.getLanguage() ?? "";
-  const previousSibling = codeNode.getPreviousSibling();
-  const nextSibling = codeNode.getNextSibling();
-  let openFence: CodeFenceNode;
-  if ($isCodeFenceNode(previousSibling) && previousSibling.getRole() === "open") {
-    openFence = previousSibling;
-  } else {
-    openFence = $createCodeFenceNode("open", `\`\`\`${language}`);
-    codeNode.insertBefore(openFence);
-  }
-
-  let closeFence: CodeFenceNode;
-  if ($isCodeFenceNode(nextSibling) && nextSibling.getRole() === "close") {
-    closeFence = nextSibling;
-  } else {
-    closeFence = $createCodeFenceNode("close", "```");
-    codeNode.insertAfter(closeFence);
-  }
-
-  return {
-    closeFence,
-    openFence,
-  };
-};
-
-// A block whose fence lines were edited so they no longer read as fences goes back to plain text.
-const unwrapCodeNode = (
-  codeNode: CodeNode,
-  openFence: CodeFenceNode,
-  closeFence: CodeFenceNode,
-): void => {
-  for (const line of codeNode.getTextContent().split("\n")) {
-    const paragraph = $createParagraphNode();
-    if (line) {
-      paragraph.append($createTextNode(line));
-    }
-    codeNode.insertBefore(paragraph);
-  }
-  codeNode.remove();
-  openFence.replace($createParagraphNode(), true);
-  closeFence.replace($createParagraphNode(), true);
-};
-
-function SelectionTextPlugin({
-  onSelectionTextChange,
-}: {
-  onSelectionTextChange: (text: string | null) => void;
-}) {
-  const [editor] = useLexicalComposerContext();
-  const onChangeRef = useRef(onSelectionTextChange);
-
-  useEffect(() => {
-    onChangeRef.current = onSelectionTextChange;
-  }, [onSelectionTextChange]);
-
-  useEffect(() => {
-    let lastText: string | null = null;
-    return editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        const selection = $getSelection();
-        // No selection means the editor lost focus; keep what was selected for the chat.
-        if (!$isRangeSelection(selection)) {
-          return;
-        }
-        const text = selection.isCollapsed() ? null : selection.getTextContent() || null;
-        if (text !== lastText) {
-          lastText = text;
-          onChangeRef.current(text);
-        }
-      });
-    });
-  }, [editor]);
-
-  return null;
-}
-
-function CodeShikiPlugin() {
-  const [editor] = useLexicalComposerContext();
-
-  useEffect(() => {
-    // Highlighting puts the caret back by text offset inside the code, so a caret in a fence line
-    // (such as while editing the language) would jump into the code. Restore it afterwards.
-    let fenceCaret: { key: NodeKey; offset: number; type: "element" | "text" } | null = null;
-    return mergeRegister(
-      editor.registerNodeTransform(CodeNode, () => {
-        const selection = $getSelection();
-        fenceCaret =
-          $isRangeSelection(selection) &&
-          selection.isCollapsed() &&
-          findCodeFenceNode(selection.anchor.getNode())
-            ? {
-                key: selection.anchor.key,
-                offset: selection.anchor.offset,
-                type: selection.anchor.type,
-              }
-            : null;
-      }),
-      registerCodeHighlighting(editor),
-      editor.registerNodeTransform(CodeNode, () => {
-        const selection = $getSelection();
-        if (fenceCaret && $isRangeSelection(selection) && $getNodeByKey(fenceCaret.key)) {
-          selection.anchor.set(fenceCaret.key, fenceCaret.offset, fenceCaret.type);
-          selection.focus.set(fenceCaret.key, fenceCaret.offset, fenceCaret.type);
-        }
-        fenceCaret = null;
-      }),
-    );
-  }, [editor]);
-
-  return null;
-}
-
-function CodeFencePlugin() {
-  const [editor] = useLexicalComposerContext();
-
-  useEffect(() => {
-    const syncCodeFencesInUpdate = (): void => {
-      const root = $getRoot();
-      const activeCodeNode = getActiveCodeNode();
-      const activeCodeNodeKey = activeCodeNode?.getKey() ?? null;
-
-      for (const child of root.getChildren()) {
-        if (!child.isAttached()) {
-          continue;
-        }
-        if ($isCodeNode(child)) {
-          const { closeFence, openFence } = ensureCodeFences(child);
-          if (
-            !/^`{3,}/.test(openFence.getTextContent()) ||
-            !/^`{3,}\s*$/.test(closeFence.getTextContent())
-          ) {
-            unwrapCodeNode(child, openFence, closeFence);
-            continue;
-          }
-          const language = parseCodeFenceLanguage(openFence.getTextContent());
-          if (language && child.getLanguage() !== language) {
-            child.setLanguage(language);
-          }
-          const nextStyle =
-            child.getKey() === activeCodeNodeKey ? CODE_BLOCK_WITH_FENCES_STYLE : "";
-          if (child.getStyle() !== nextStyle) {
-            child.setStyle(nextStyle);
-          }
-          continue;
-        }
-
-        if ($isCodeFenceNode(child) && !getCodeNodeForFence(child)) {
-          child.remove();
-        }
-      }
-
-      for (const child of root.getChildren()) {
-        if (!$isCodeFenceNode(child)) {
-          continue;
-        }
-
-        const codeNode = getCodeNodeForFence(child);
-        child.setActive(codeNode?.getKey() === activeCodeNodeKey);
-      }
-    };
-
-    const syncCodeFences = (): void => {
-      editor.update(
-        () => {
-          syncCodeFencesInUpdate();
-        },
-        {
-          tag: [HISTORY_MERGE_TAG, HISTORIC_TAG],
-        },
-      );
-    };
-
-    syncCodeFences();
-    return mergeRegister(
-      editor.registerNodeTransform(CodeNode, () => {
-        syncCodeFencesInUpdate();
-      }),
-      editor.registerNodeTransform(CodeFenceNode, () => {
-        syncCodeFencesInUpdate();
-      }),
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        () => {
-          syncCodeFencesInUpdate();
-          return false;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-    );
-  }, [editor]);
-
-  return null;
-}
-
-function CurrentBlockSourcePlugin({
-  editableMarkdownSourceRef,
-  onEditableMarkdownSourceCommit,
-}: CurrentBlockSourcePluginProps) {
-  const [editor] = useLexicalComposerContext();
-  const activeNodeKeyRef = useRef<NodeKey | null>(null);
-  const activeMarkdownBlockSourceRef = useRef<EditableMarkdownBlockSourceState | null>(null);
-  const onEditableMarkdownSourceCommitRef = useRef(onEditableMarkdownSourceCommit);
-
-  useEffect(() => {
-    onEditableMarkdownSourceCommitRef.current = onEditableMarkdownSourceCommit;
-  }, [onEditableMarkdownSourceCommit]);
-
-  useEffect(() => {
-    const syncCurrentEditorState = (): void => {
-      let shouldCommitEditableMarkdownSource = false;
-
-      editor.update(
-        () => {
-          let restoredEditableMarkdownSourceNodeKey: NodeKey | null = null;
-          const activeSource = getActiveMarkdownSource();
-          const nextNodeKey = activeSource?.node.getKey() ?? null;
-          const activeMarkdownBlockSource = activeMarkdownBlockSourceRef.current;
-          const editableMarkdownSource = editableMarkdownSourceRef.current;
-
-          if (activeMarkdownBlockSource && activeMarkdownBlockSource.nodeKey !== nextNodeKey) {
-            const previousMarkdownSourceNode = $getNodeByKey(activeMarkdownBlockSource.nodeKey);
-            if (
-              $isMarkdownHeadingNode(previousMarkdownSourceNode) ||
-              $isMarkdownListItemNode(previousMarkdownSourceNode)
-            ) {
-              removeMarkdownSourcePrefix(
-                previousMarkdownSourceNode,
-                activeMarkdownBlockSource.kind,
-              );
-            }
-            activeMarkdownBlockSourceRef.current = null;
-          }
-
-          if (
-            activeSource &&
-            activeMarkdownBlockSourceRef.current?.nodeKey !== activeSource.node.getKey()
-          ) {
-            if (
-              $isMarkdownHeadingNode(activeSource.node) ||
-              $isMarkdownListItemNode(activeSource.node)
-            ) {
-              prependMarkdownSourcePrefix(activeSource.node);
-              activeMarkdownBlockSourceRef.current = {
-                kind: $isMarkdownHeadingNode(activeSource.node) ? "heading" : "list-item",
-                nodeKey: activeSource.node.getKey(),
-              };
-            }
-          }
-
-          if (isSelectionInsideEditableMarkdownSource(editableMarkdownSource)) {
-            activeNodeKeyRef.current = nextNodeKey;
-            return;
-          }
-
-          if (editableMarkdownSource) {
-            const deactivationResult = deactivateEditableMarkdownSource(editableMarkdownSource);
-            editableMarkdownSourceRef.current = null;
-            if (deactivationResult.success) {
-              shouldCommitEditableMarkdownSource = true;
-              restoredEditableMarkdownSourceNodeKey = deactivationResult.restoredNodeKey;
-            }
-          }
-
-          const activeMarkdownSourceNode = getActiveMarkdownSourceNode();
-          if (
-            activeMarkdownSourceNode &&
-            activeMarkdownSourceNode.getKey() !== restoredEditableMarkdownSourceNodeKey
-          ) {
-            editableMarkdownSourceRef.current =
-              activateEditableMarkdownSource(activeMarkdownSourceNode);
-          }
-
-          activeNodeKeyRef.current = nextNodeKey;
-        },
-        {
-          tag: [HISTORY_MERGE_TAG, HISTORIC_TAG],
-        },
-      );
-
-      if (shouldCommitEditableMarkdownSource) {
-        onEditableMarkdownSourceCommitRef.current(exportWysiwygMarkdown(editor.getEditorState()));
-      }
-    };
-
-    syncCurrentEditorState();
-    return mergeRegister(
-      editor.registerNodeTransform(HeadingNode, (node) => {
-        if ($isMarkdownHeadingNode(node)) {
-          return;
-        }
-
-        node.replace(new MarkdownHeadingNode(node.getTag()), true);
-      }),
-      editor.registerNodeTransform(ListItemNode, (node) => {
-        if ($isMarkdownListItemNode(node)) {
-          return;
-        }
-
-        if (node.getChildrenSize() === 0) {
-          return;
-        }
-
-        const replacement = new MarkdownListItemNode(node.getValue(), node.getChecked());
-        replacement.append(...node.getChildren());
-        node.replace(replacement);
-      }),
-      editor.registerCommand(
-        KEY_BACKSPACE_COMMAND,
-        (event) => {
-          const headingNode = getActiveMarkdownHeading();
-          if (headingNode && deleteMarkdownHeadingPrefixCharacter(headingNode)) {
-            event.preventDefault();
-            return true;
-          }
-
-          if (!headingNode || !isSelectionAtStartOfNode(headingNode)) {
-            return false;
-          }
-
-          event.preventDefault();
-          const headingLevel = getHeadingLevel(headingNode);
-          if (headingLevel === 1) {
-            headingNode.replace($createParagraphNode(), true).selectStart();
-            return true;
-          }
-
-          headingNode.setTag(toHeadingTag(headingLevel - 1));
-          headingNode.selectStart();
-          return true;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-      editor.registerCommand(
-        KEY_DOWN_COMMAND,
-        (event) => {
-          if (event.key !== "#") {
-            return false;
-          }
-
-          const headingNode = getActiveMarkdownHeading();
-          if (!headingNode || !isSelectionAtStartOfNode(headingNode)) {
-            return false;
-          }
-
-          event.preventDefault();
-          const headingLevel = getHeadingLevel(headingNode);
-          headingNode.setTag(toHeadingTag(headingLevel + 1));
-          headingNode.selectStart();
-          return true;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-      editor.registerUpdateListener(() => {
-        syncCurrentEditorState();
-      }),
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        () => {
-          syncCurrentEditorState();
-          return false;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-    );
-  }, [editor, editableMarkdownSourceRef]);
-
-  useEffect(() => {
-    return () => {
-      const shouldCommitEditableMarkdownSource = editableMarkdownSourceRef.current !== null;
-      let didDeactivateEditableMarkdownSource = false;
-
-      editor.update(
-        () => {
-          if (activeMarkdownBlockSourceRef.current) {
-            const activeMarkdownSourceNode = $getNodeByKey(
-              activeMarkdownBlockSourceRef.current.nodeKey,
-            );
-            if (
-              $isMarkdownHeadingNode(activeMarkdownSourceNode) ||
-              $isMarkdownListItemNode(activeMarkdownSourceNode)
-            ) {
-              removeMarkdownSourcePrefix(
-                activeMarkdownSourceNode,
-                activeMarkdownBlockSourceRef.current.kind,
-              );
-            }
-            activeMarkdownBlockSourceRef.current = null;
-          }
-          clearMarkdownSourceNode(activeNodeKeyRef.current);
-          const deactivationResult = deactivateEditableMarkdownSource(
-            editableMarkdownSourceRef.current,
-          );
-          didDeactivateEditableMarkdownSource = deactivationResult.success;
-          activeNodeKeyRef.current = null;
-          if (didDeactivateEditableMarkdownSource) {
-            editableMarkdownSourceRef.current = null;
-          }
-        },
-        {
-          tag: [HISTORY_MERGE_TAG, HISTORIC_TAG],
-        },
-      );
-
-      if (shouldCommitEditableMarkdownSource && didDeactivateEditableMarkdownSource) {
-        onEditableMarkdownSourceCommitRef.current(exportWysiwygMarkdown(editor.getEditorState()));
-      }
-    };
-  }, [editor, editableMarkdownSourceRef]);
-
-  return null;
-}
-
-// Retained for the localized P0 rollback path, but intentionally not mounted.
-void CurrentBlockSourcePlugin;
+const styles = stylex.create({
+  editor: {
+    // Not transparent: controls such as the table's insert buttons draw their glyph in this color.
+    "--mde-bg": tokens.canvas,
+    "--mde-fg": tokens.text,
+    "--mde-heading": tokens.textStrong,
+    "--mde-muted": tokens.textMuted,
+    "--mde-border": tokens.border,
+    "--mde-accent": tokens.olive,
+    "--mde-code-bg": tokens.surfaceMuted,
+    "--mde-link": tokens.oliveText,
+    "--mde-wikilink": tokens.oliveText,
+    "--mde-wikilink-missing": tokens.textSoft,
+    // Read by markdownEditor.css, which styles the task checkboxes.
+    "--memora-task-border": tokens.borderStrong,
+    "--memora-task-surface": tokens.surface,
+    "--memora-task-checked": tokens.primaryBackground,
+    "--memora-task-check": tokens.primaryText,
+    "--mde-font": "var(--font-sans)",
+    "--mde-mono": "var(--font-mono)",
+    "--mde-font-size": "var(--document-editor-font-size, 16px)",
+    "--mde-content-width": "none",
+    // Keep the editor's own inline padding (table handles live in it) and pull the editor out by
+    // the same amount, so text lines up with the title.
+    "--mde-padding-inline": "24px",
+    marginInline: "-24px",
+    minHeight: "388px",
+  },
+});
 
 export const WysiwygDocumentEditor = forwardRef<
   WysiwygDocumentEditorHandle,
   WysiwygDocumentEditorProps
 >(function WysiwygDocumentEditor(
-  { text, review = null, onActiveHeadingChange, onSelectionTextChange, onTextChange },
+  {
+    text,
+    review = null,
+    onVisibleLineChange,
+    onSelectionTextChange,
+    onTextChange,
+    onOpenReference,
+    wikiLinks,
+  },
   ref,
 ) {
-  const editorRef = useRef<LexicalEditor | null>(null);
-  const isImportingRef = useRef(false);
-  const latestMarkdownRef = useRef(text);
-  const onActiveHeadingChangeRef = useRef(onActiveHeadingChange);
+  const editorRef = useRef<MarkdownEditorHandle | null>(null);
+  const resolvedTheme = useResolvedTheme();
+  const callbacksRef = useRef({ onVisibleLineChange, onSelectionTextChange, review });
 
   useEffect(() => {
-    onActiveHeadingChangeRef.current = onActiveHeadingChange;
-  }, [onActiveHeadingChange]);
+    callbacksRef.current = { onVisibleLineChange, onSelectionTextChange, review };
+  }, [onVisibleLineChange, onSelectionTextChange, review]);
 
-  const proposedText = review?.proposedText ?? null;
-  // ponytail: a change is cut in at line boundaries, so one inside a code fence or formula block
-  // breaks that block while under review.
-  const reviewHunks = useMemo(
-    () => (proposedText === null ? null : computeDiffHunks(text, proposedText)),
-    [text, proposedText],
+  const listener = useMemo(
+    () =>
+      EditorView.updateListener.of((update) => {
+        const { onVisibleLineChange, onSelectionTextChange, review } = callbacksRef.current;
+        reportSelectionText(update, onSelectionTextChange);
+        reportVisibleLine(update, onVisibleLineChange);
+        reportAcceptedChange(update, review);
+      }),
+    [],
   );
-  const reviewMarkdown = useMemo(() => {
-    if (!reviewHunks) {
-      return null;
-    }
-    let marked = "";
-    let offset = 0;
-    reviewHunks.forEach((hunk, index) => {
-      marked += `${text.slice(offset, hunk.baseFrom)}${DIFF_HUNK_START}\n${index}\n${DIFF_HUNK_END}\n`;
-      offset = hunk.baseTo;
-    });
-    return marked + text.slice(offset);
-  }, [text, reviewHunks]);
-  const onAcceptHunk = review?.onAcceptHunk;
-  const onRejectHunk = review?.onRejectHunk;
-  const reviewValue = useMemo<DiffReviewValue | null>(() => {
-    if (!reviewHunks || proposedText === null || !onAcceptHunk || !onRejectHunk) {
-      return null;
-    }
-    return {
-      hunks: reviewHunks.map((hunk) => ({
-        added: proposedText.slice(hunk.proposedFrom, hunk.proposedTo),
-        removed: text.slice(hunk.baseFrom, hunk.baseTo),
-      })),
-      onAccept: (index) => onAcceptHunk(reviewHunks[index]),
-      onReject: (index) => onRejectHunk(reviewHunks[index]),
-    };
-  }, [text, proposedText, reviewHunks, onAcceptHunk, onRejectHunk]);
-  const isReviewingRef = useRef(false);
-  const wasReviewingRef = useRef(false);
 
-  const commitMarkdown = useCallback(
+  const isReviewing = review !== null;
+  const extensions = useMemo(
+    () => (isReviewing ? [listener, markdownDiff({ original: text })] : [listener]),
+    // ponytail: the original is read once per review; later accepts update it inside the editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isReviewing, listener],
+  );
+
+  const handleChange = useCallback(
     (markdown: string): void => {
-      if (isReviewingRef.current) {
+      const currentReview = callbacksRef.current.review;
+      if (currentReview) {
+        currentReview.onProposalChange(markdown);
         return;
       }
-      latestMarkdownRef.current = markdown;
-      if (isImportingRef.current) {
-        return;
-      }
-
-      if (normalizeMarkdownRoundTripText(markdown) !== normalizeMarkdownRoundTripText(text)) {
-        onTextChange(markdown);
-      }
+      onTextChange(markdown);
     },
-    [onTextChange, text],
+    [onTextChange],
   );
 
-  const initialConfig = useMemo(() => {
-    return {
-      editorState: (editor: LexicalEditor) => {
-        editor.update(() => {
-          importWysiwygMarkdown(prepareMarkdownForWysiwyg(text));
-        });
-      },
-      namespace: "memora-document-editor",
-      nodes: WYSIWYG_NODES,
-      onError: (error: Error) => {
-        throw error;
-      },
-      theme,
-    };
-  }, [text]);
-
-  useImperativeHandle(ref, () => {
-    return {
-      insertTable: () => {
-        const editor = editorRef.current;
-        if (!editor) {
-          return;
-        }
-
-        editor.update(
-          () => {
-            // Without a caret (the editor was never focused) insert at the end of the document.
-            if (!$isRangeSelection($getSelection())) {
-              $getRoot().selectEnd();
-            }
-          },
-          { discrete: true },
-        );
-        editor.dispatchCommand(INSERT_TABLE_COMMAND, {
-          columns: "3",
-          includeHeaders: MARKDOWN_TABLE_HEADERS,
-          rows: "3",
-        });
-        editor.focus();
-      },
-      revealHeading: (headingIndex: number) => {
-        const rootElement = editorRef.current?.getRootElement();
-        const heading =
-          rootElement?.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")[headingIndex];
-        if (!heading) {
-          return;
-        }
-
-        const prefersReducedMotion = window.matchMedia?.(
-          "(prefers-reduced-motion: reduce)",
-        ).matches;
-        heading.scrollIntoView({
-          behavior: prefersReducedMotion ? "auto" : "smooth",
-          block: "start",
-        });
-      },
-    };
+  const scrollToLine = useCallback((lineNumber: number): void => {
+    const view = editorRef.current?.view;
+    if (!view) {
+      return;
+    }
+    const doc = view.state.doc;
+    const line = doc.line(Math.min(Math.max(lineNumber, 1), doc.lines));
+    // Scroll the page rather than move the caret, which would show the heading's Markdown.
+    // ponytail: lines far off screen have estimated heights, so a long jump can land a bit off.
+    const top = view.documentTop + view.lineBlockAt(line.from).top;
+    const scroller = findScrollParent(view.dom);
+    const scrollerTop = scroller ? scroller.getBoundingClientRect().top : 0;
+    (scroller ?? window).scrollBy({
+      top: top - scrollerTop - OUTLINE_SCROLL_TOP_MARGIN_PX,
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
   }, []);
 
+  const handleOpenLink = useCallback(
+    (href: string): void => {
+      if (EXTERNAL_LINK_PATTERN.test(href)) {
+        window.open(href, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (!href.startsWith("#")) {
+        // Markdown link targets spell spaces as %20; workspace paths use the plain names.
+        onOpenReference?.(safeDecodeURIComponent(href));
+        return;
+      }
+      const lineAnchor = parseLineAnchor(href);
+      if (lineAnchor?.startLine) {
+        scrollToLine(lineAnchor.startLine);
+        return;
+      }
+      const slug = headingSlug(safeDecodeURIComponent(href.slice(1)));
+      const heading = parseMarkdownHeadings(editorRef.current?.getValue() ?? "").find(
+        (candidate) => headingSlug(candidate.title) === slug,
+      );
+      if (heading) {
+        scrollToLine(heading.line);
+      }
+    },
+    [onOpenReference, scrollToLine],
+  );
+
+  useImperativeHandle(ref, () => ({ revealLine: scrollToLine }), [scrollToLine]);
+
+  // New options mean the workspace changed, so links resolved before may have appeared or gone.
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) {
-      return;
-    }
-
-    const isReviewing = reviewMarkdown !== null;
-    if (
-      !isReviewing &&
-      !wasReviewingRef.current &&
-      normalizeMarkdownRoundTripText(text) ===
-        normalizeMarkdownRoundTripText(latestMarkdownRef.current)
-    ) {
-      return;
-    }
-
-    isReviewingRef.current = isReviewing;
-    wasReviewingRef.current = isReviewing;
-    editor.setEditable(!isReviewing);
-    isImportingRef.current = true;
-    // Discrete so the change listener runs while isImportingRef is set and does not write the
-    // re-exported Markdown back over the outside change. The scroll tag keeps the page where it is.
-    editor.update(
-      () => {
-        importWysiwygMarkdown(reviewMarkdown ?? prepareMarkdownForWysiwyg(text));
-        // Outside changes append content (an attached image) or come from chat edits, so keep
-        // the caret at the end rather than jumping to the top of the document.
-        if (!isReviewing && $getSelection() !== null) {
-          $getRoot().selectEnd();
-        }
-      },
-      { discrete: true, tag: [SKIP_SCROLL_INTO_VIEW_TAG] },
-    );
-    if (!isReviewing) {
-      latestMarkdownRef.current = text;
-    }
-    isImportingRef.current = false;
-  }, [text, reviewMarkdown]);
-
-  useEffect(() => {
-    if (!onActiveHeadingChangeRef.current) {
-      return;
-    }
-    const rootElement = editorRef.current?.getRootElement();
-    if (!rootElement) {
-      return;
-    }
-    const headings = Array.from(
-      rootElement.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
-    );
-    if (headings.length === 0) {
-      return;
-    }
-    if (!("IntersectionObserver" in window)) {
-      onActiveHeadingChangeRef.current(0);
-      return;
-    }
-
-    const headingIndexes = new Map<HTMLElement, number>();
-    const visibleHeadingIndexes = new Set<number>();
-    headings.forEach((heading, index) => headingIndexes.set(heading, index));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const headingIndex = headingIndexes.get(entry.target as HTMLElement);
-          if (headingIndex === undefined) {
-            continue;
-          }
-          if (entry.isIntersecting) {
-            visibleHeadingIndexes.add(headingIndex);
-          } else {
-            visibleHeadingIndexes.delete(headingIndex);
-          }
-        }
-        if (visibleHeadingIndexes.size === 0) {
-          return;
-        }
-        let activeHeadingIndex = 0;
-        for (const headingIndex of visibleHeadingIndexes) {
-          activeHeadingIndex = Math.max(activeHeadingIndex, headingIndex);
-        }
-        onActiveHeadingChangeRef.current?.(activeHeadingIndex);
-      },
-      {
-        rootMargin: "0px 0px -65% 0px",
-        threshold: 0,
-      },
-    );
-
-    headings.forEach((heading) => observer.observe(heading));
-    return () => {
-      observer.disconnect();
-    };
-  }, [text]);
+    editorRef.current?.refreshWikiLinks();
+  }, [wikiLinks]);
 
   return (
-    <section
-      {...stylex.props(editorStyles.fullWidth)}
-      data-surface="wysiwyg-document-editor"
-      data-testid="wysiwyg-document-editor"
-    >
-      <DiffReviewContext.Provider value={reviewValue}>
-        <LexicalComposer initialConfig={initialConfig}>
-          <EditorRefPlugin editorRef={editorRef} />
-          <HistoryPlugin />
-          <ListPlugin />
-          <CheckListPlugin />
-          <HorizontalRulePlugin />
-          <LinkPlugin />
-          <TablePlugin hasCellMerge={false} />
-          <TableActionsPlugin />
-          {onSelectionTextChange ? (
-            <SelectionTextPlugin onSelectionTextChange={onSelectionTextChange} />
-          ) : null}
-          <CodeShikiPlugin />
-          <CodeFencePlugin />
-          <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} />
-          <MarkdownKeyboardPlugin />
-          <MarkdownPastePlugin />
-          <RawMarkdownPlugin />
-          <SlashCommandPlugin />
-          <WysiwygFormattingToolbar />
-          <MathEditorPopover />
-          <OnChangePlugin
-            ignoreSelectionChange={true}
-            onChange={(editorState) => {
-              const markdown = exportWysiwygMarkdown(editorState);
-              commitMarkdown(markdown);
-            }}
-          />
-          <div {...stylex.props(editorStyles.editorContainer)}>
-            <RichTextPlugin
-              ErrorBoundary={LexicalErrorBoundary}
-              contentEditable={
-                <ContentEditable
-                  aria-label="Document wysiwyg editor"
-                  {...stylex.props(editorStyles.contentEditable)}
-                  data-testid="wysiwyg-contenteditable"
-                  style={{
-                    fontSize: "var(--document-editor-font-size, 16px)",
-                  }}
-                />
-              }
-              placeholder={
-                <div
-                  {...stylex.props(editorStyles.placeholder)}
-                  style={{
-                    fontSize: "var(--document-editor-font-size, 16px)",
-                  }}
-                >
-                  {PLACEHOLDER}
-                </div>
-              }
-            />
-          </div>
-        </LexicalComposer>
-      </DiffReviewContext.Provider>
+    <section data-surface="wysiwyg-document-editor" data-testid="wysiwyg-document-editor">
+      <MarkdownEditor
+        ref={editorRef}
+        value={review?.proposedText ?? text}
+        onChange={handleChange}
+        theme={resolvedTheme}
+        placeholder="Start writing..."
+        onOpenLink={handleOpenLink}
+        wikiLinks={wikiLinks}
+        extensions={extensions}
+        {...stylex.props(styles.editor)}
+      />
     </section>
   );
 });
