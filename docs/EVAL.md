@@ -82,11 +82,12 @@ Neither writes to the user's memory or reads the user's chats. Cases and profile
 
 ### Memory runs
 
-| #   | Date (UTC)       | Evaluation | Scope                      | Conc. | Code                  | Prompt   | Cases    | Passed  | Save TP / FP / FN / TN | Notices passed | Recall passed | Tokens (in / cached / out)   |
-| --- | ---------------- | ---------- | -------------------------- | ----- | --------------------- | -------- | -------- | ------- | ---------------------- | -------------- | ------------- | ---------------------------- |
-| M1  | 2026-09-27 11:15 | 922de5ef   | 4 × 3 (d01, o02, r02, r07) | 6     | e8860c1 + uncommitted | 13fa87f7 | f67ea437 | 11 / 12 | 3 / 0 / 0 / 3          | 3 / 3          | 5 / 6         | 37,979 / 122,751 / 13,597    |
-| M2  | 2026-09-27 12:01 | dc70ba47   | 23 × 3                     | 9     | e8860c1 + uncommitted | 13fa87f7 | 84c23a4d | 68 / 69 | 18 / 0 / 0 / 30        | 18 / 18        | 20 / 21       | 238,475 / 1,173,872 / 82,563 |
-| M3  | 2026-09-27 12:37 | 94d57ea8   | 1 × 3 (r05)                | 3     | e8860c1 + uncommitted | 8f750460 | c103186d | 3 / 3   | —                      | —              | 3 / 3         | 10,530 / 24,960 / 2,250      |
+| #   | Date (UTC)       | Evaluation   | Scope                      | Conc. | Code                  | Prompt   | Cases    | Passed  | Save TP / FP / FN / TN | Notices passed | Recall passed | Tokens (in / cached / out)      |
+| --- | ---------------- | ------------ | -------------------------- | ----- | --------------------- | -------- | -------- | ------- | ---------------------- | -------------- | ------------- | ------------------------------- |
+| M1  | 2026-09-27 11:15 | 922de5ef     | 4 × 3 (d01, o02, r02, r07) | 6     | e8860c1 + uncommitted | 13fa87f7 | f67ea437 | 11 / 12 | 3 / 0 / 0 / 3          | 3 / 3          | 5 / 6         | 37,979 / 122,751 / 13,597       |
+| M2  | 2026-09-27 12:01 | dc70ba47     | 23 × 3                     | 9     | e8860c1 + uncommitted | 13fa87f7 | 84c23a4d | 68 / 69 | 18 / 0 / 0 / 30        | 18 / 18        | 20 / 21       | 238,475 / 1,173,872 / 82,563    |
+| M3  | 2026-09-27 12:37 | 94d57ea8     | 1 × 3 (r05)                | 3     | e8860c1 + uncommitted | 8f750460 | c103186d | 3 / 3   | —                      | —              | 3 / 3         | 10,530 / 24,960 / 2,250         |
+| M4  | 2026-10-19 17:10 | e6c52827 + 4 | 30 × 3 (LongMemEval)       | 2     | 44852c0               | 4aef83af | 80ea0cdf | 57 / 90 | —                      | —              | 57 / 90       | 1,110,403 / 6,370,420 / 175,537 |
 
 ### Run M1: smoke run of the memory evaluation (uncommitted)
 
@@ -106,6 +107,14 @@ Neither writes to the user's memory or reads the user's chats. Cases and profile
 - **Changed**: the system prompt now says that a question about the user themselves (their plans, dates, decisions, or anything they may have told the agent, such as "remind me…") checks `list_chat_sessions` and `read_chat_session` before searching the library. Prompt revision 13fa87f7 → 8f750460.
 - **Showed**: r05 3/3, each attempt starting with `list_chat_sessions`: 2 to 4 tool calls instead of 13 to 19, 4 to 8 s instead of about 160 s (concurrency 3 here, 9 in M2, so latency is only roughly comparable), and 10.5k uncached input tokens for all three instead of 37.0k. Two attempts still ran `search_files` alongside. All answers were in English.
 - **Next**: the rest of the recall cases and the full QA set, to check that lecture questions do not now start in chat history.
+
+### Run M4: LongMemEval subset (44852c0)
+
+- **Setup**: 30 questions from the LongMemEval `oracle` split (MIT, `xiaowu0162/longmemeval-cleaned`), 5 per question type, abstention questions excluded, sampled with seed 7. Each question's evidence sessions become past sessions, so the agent sees all 44 at once; only `list_chat_sessions` and `read_chat_session` reach them. The question carries its date ("Today is …"); the answer rule is one hand-written pattern per question, and a pass also needs a read of an expected session. Model `deepseek-flash`. Cases and the two scripts that build them (`pick.py`, `build.py`) live in `~/memora-eval-data/`; the data is outside the repo. The run is five reports of 6 questions each (e6c52827, 5257b1e3, 7ee051fb, 1368c0b0, dd601799), because a single run of all 30 at concurrency 6 crashed the page (out of memory) and left no result. An earlier attempt failed on every call with a missing API key.
+- **Showed**: 57 of 90 attempts passed. By type: single-session-assistant 15/15, knowledge-update 14/15, multi-session 12/15, temporal-reasoning 9/15, single-session-user 4/15, single-session-preference 3/15. 61 attempts read an expected session; 29 of the 33 failures never opened one, and 7 questions failed all 3 attempts that way.
+- **Agent**: every 0/3 question has its evidence as a passing mention inside a session about something else (an IKEA bookshelf inside a coffee-table chat, yoga classes inside a self-care plan) or has no cue at all (the five preference questions never mention an earlier chat). The agent lists sessions and opens them by title. In the product `grep_files` can search `/chat/` (the access check has a branch for it), but the evaluation's chat stand-in serves its past sessions only to the two session tools, so a grep there finds nothing, and the system prompt does not send the agent to it; the 0/3 questions therefore do not show how the product behaves. The other 4 failures read the right session and answered wrongly (9ea5eabc, e25c3b8d ×2, 71017277); not looked at in detail.
+- **Limits**: not comparable with published LongMemEval scores (oracle split, subset, 44 sessions instead of about 50 per question, one rule per answer). Passes were not audited beyond d6062bb9.
+- **Next**: make the stand-in's past sessions reachable by `grep_files` under `/chat/sessions` and rerun the 7 questions at 0/3, with and without a prompt line that names it; the notice update change does not touch this benchmark, since notices hold only communication preferences, and needs its own cases (a preference that replaces an older one, a request to forget).
 
 ## Learning mode evaluation
 
@@ -212,3 +221,5 @@ Design and findings: [learning-mode-evaluation.md](learning-mode-evaluation.md).
 - The chat UI still undercounts tokens: `toTokenUsage` in ai-core drops prompt-cache hits; only the evaluation and Trace views derive them.
 - The agent cannot see who is speaking; speaker labels exist in the cues but not in the transcript text it reads.
 - k is fixed at 3 (`ATTEMPTS_PER_QUESTION`); make it a run option if variance needs more attempts.
+- Searching past chats by content works only through `grep_files` with `cwd` under `/chat/`, which the prompt never mentions and the memory evaluation's stand-in cannot serve (run M4).
+- A memory run writes nothing until it ends, and 90 attempts at concurrency 6 crashed the tab (out of memory; the cause was not traced). Write partial results, or lower the default concurrency.
