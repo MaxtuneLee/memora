@@ -5,7 +5,6 @@ import { page } from "vitest/browser";
 import { AssistantMessageContent } from "@/components/chat/chatMessage/AssistantMessageContent";
 import type { ChatMessageData } from "@/components/chat/chatMessage/types";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
-import { buildWidgetIframeSrcDoc } from "@/components/chat/chatWidget/constants";
 import { textContrast } from "./colorContrast";
 import { DESKTOP_VIEWPORT, expectScreenshot, loadAppFonts, NARROW_VIEWPORT } from "./visual";
 
@@ -126,18 +125,6 @@ it("retains the rendered message node across a runtime theme change", async () =
 
   // Same DOM node: the theme change restyled it in place instead of remounting the message.
   expect(host?.querySelector("h1")).toBe(heading);
-});
-
-describe("chat widget preview srcDoc", () => {
-  it("bakes the initial theme into the markup so the first paint never mismatches", () => {
-    for (const theme of ["light", "dark"] as const) {
-      const srcDoc = buildWidgetIframeSrcDoc(theme);
-      const htmlStart = srcDoc.indexOf("<html");
-      const htmlOpenTag = srcDoc.slice(htmlStart, srcDoc.indexOf(">", htmlStart) + 1);
-      expect(htmlOpenTag).toContain(`data-theme="${theme}"`);
-      expect(htmlOpenTag).toContain(`color-scheme: ${theme}`);
-    }
-  });
 });
 
 describe.each(["light", "dark"] as const)("chat message references in %s", (theme) => {

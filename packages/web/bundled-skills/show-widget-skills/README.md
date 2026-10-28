@@ -353,12 +353,12 @@ wrong makes saved data look lost. It also covers why browser storage cannot subs
 - The runtime executes scripts only after the full `<script>` block arrives.
 - If your script needs a listener that isn't scoped to an element inside `container` (window resize, keydown, visibilitychange, message, etc.), bind it on `window`, not `document`, and return a cleanup function from the script's top-level call that removes it. The script can re-execute in the same iframe without a page reload, and `window` is never reset between runs — an unremoved listener duplicates on every re-run.
 - In widget scripts, the following bindings are available: `shadowRoot`, `container`, `Chart`, `sendPrompt`, `openLink`, `getData`, `onData`, `writeData`.
-- Chat widgets also get `lesson`, whose `lesson.quiz(...)` builds the questions and result of a lesson widget. See `guidelines/lesson.md`. It does not exist on the Home Grid.
+- `lesson.quiz(...)` builds the questions and result of a lesson widget. See `guidelines/lesson.md`.
 - Use `sendPrompt(text)` to send a follow-up user message back into chat.
 - Use `openLink(url)` to open external links.
 - Use `writeData(name, content)` to persist a file the widget declared with `data_files`; read it back with `data_source: "widgetData"`. See "Persisting the widget's own data" above and, before writing the `onData` handler, `sections/widget_data.md`.
 - If `data_source` was set on `show_widget`, use `onData(callback)` to run `callback` with the resolved payload — immediately if it already arrived, and again on every later update. `getData()` returns the latest payload synchronously (or `undefined` before the first one arrives). Without a `data_source`, these are never called.
-- A widget that binds a `data_source` and is later saved to the Home Grid renders through a
-  separate, sandboxed runtime with no direct object access — `getData`/`onData` there work
-  identically, but `Chart`, `sendPrompt`, and `openLink` route through a stricter, message-based
-  bridge (see ADR 0006). Widgets that only use the bindings above behave the same in both places.
+- Chat and the Home Grid run widgets in the same sandboxed page (see ADR 0011), so a widget that
+  only uses the bindings above behaves the same in both places. The sandbox limits how often a
+  widget can call `sendPrompt`, `openLink` and `writeData`, caps how tall it can grow, and stops a
+  widget that never returns. `openLink` opens only http and https links.

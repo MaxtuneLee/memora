@@ -74,6 +74,9 @@ user could rename, move, or delete; there is no re-protection here. That is an a
 this iteration — a user who empties or removes it loses the widget's persisted state, but nothing
 else, and the widget's script keeps working (an empty `widgetData` read is just `{}`).
 
+> ADR 0011 moved both runtimes onto one message protocol, so Chat's preview calls `writeData`
+> through `postMessage` too, and the host rate-limits it (10 writes in a burst, then 5 a second).
+
 ## Consequences
 
 - `DATA_SOURCE_NAMES` gains `"widgetData"` — a plain literal addition, no LiveStore migration.

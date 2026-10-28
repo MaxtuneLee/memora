@@ -13,6 +13,12 @@ declare const __VENDOR_ASSETS__: {
   vadWeb: string;
 };
 
+interface ImportMetaEnv {
+  // Absolute URL of the widget runner page on a different site (ADR 0011). Unset or unreachable
+  // means widgets run in the runner page served by the app itself.
+  readonly VITE_WIDGET_SANDBOX_URL?: string;
+}
+
 interface WorkerOptions {
   extendedLifetime?: boolean;
 }
