@@ -47,6 +47,17 @@ const OUTLINE_SCROLL_TOP_MARGIN_PX = 16;
 // A scheme (`https:`, `mailto:`) or a protocol-relative URL; anything else is a workspace path.
 const EXTERNAL_LINK_PATTERN = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i;
 
+const OPENABLE_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+
+// The link as an absolute URL when it is a web or mail link, or null for any other scheme.
+const openableUrl = (href: string): string | null => {
+  if (!URL.canParse(href, window.location.href)) {
+    return null;
+  }
+  const url = new URL(href, window.location.href);
+  return OPENABLE_PROTOCOLS.has(url.protocol) ? url.href : null;
+};
+
 // GitHub's heading anchors: lowercase, punctuation dropped, spaces as hyphens.
 const headingSlug = (title: string): string =>
   title
@@ -215,7 +226,11 @@ export const WysiwygDocumentEditor = forwardRef<
   const handleOpenLink = useCallback(
     (href: string): void => {
       if (EXTERNAL_LINK_PATTERN.test(href)) {
-        window.open(href, "_blank", "noopener,noreferrer");
+        const url = openableUrl(href);
+        if (url) {
+          // fallow-ignore-next-line security-sink -- openableUrl allows only http, https and mailto links, opened without an opener.
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
         return;
       }
       if (!href.startsWith("#")) {
