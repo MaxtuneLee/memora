@@ -13,11 +13,6 @@ catalogs:
 overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.9
 
-patchedDependencies:
-  '@lexical/markdown@0.44.0':
-    hash: 4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2
-    path: patches/@lexical__markdown@0.44.0.patch
-
 importers:
 
   .:
@@ -249,7 +244,7 @@ importers:
         version: 19.2.3(@types/react@19.2.8)
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9)
+        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       babel-plugin-react-compiler:
         specifier: ^1.0.0
         version: 1.0.0
@@ -274,6 +269,9 @@ importers:
       '@codemirror/language':
         specifier: ^6.12.4
         version: 6.12.4
+      '@codemirror/merge':
+        specifier: ^6.12.3
+        version: 6.12.3
       '@codemirror/state':
         specifier: ^6.5.2
         version: 6.7.1
@@ -286,27 +284,6 @@ importers:
       '@embedpdf/ai':
         specifier: 0.0.1
         version: 0.0.1(onnxruntime-node@1.30.0)(onnxruntime-web@1.26.0)
-      '@lexical/code':
-        specifier: ^0.44.0
-        version: 0.44.0
-      '@lexical/link':
-        specifier: ^0.44.0
-        version: 0.44.0
-      '@lexical/list':
-        specifier: ^0.44.0
-        version: 0.44.0
-      '@lexical/markdown':
-        specifier: ^0.44.0
-        version: 0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)
-      '@lexical/react':
-        specifier: ^0.44.0
-        version: 0.44.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yjs@13.6.32)
-      '@lexical/rich-text':
-        specifier: ^0.44.0
-        version: 0.44.0
-      '@lexical/table':
-        specifier: ^0.44.0
-        version: 0.44.0
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -409,15 +386,15 @@ importers:
       katex:
         specifier: ^0.16.38
         version: 0.16.38
-      lexical:
-        specifier: ^0.44.0
-        version: 0.44.0
       lucide-react:
         specifier: ^1.33.0
         version: 1.33.0(react@19.2.3)
       mammoth:
         specifier: ^1.12.1
         version: 1.12.1
+      memora-markdown-editor:
+        specifier: 0.1.2
+        version: 0.1.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       motion:
         specifier: ^12.26.2
         version: 12.26.2(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -439,9 +416,6 @@ importers:
       pptx-viewer-core:
         specifier: ^3.0.1
         version: 3.0.1(@xmldom/xmldom@0.8.15)
-      prismjs:
-        specifier: 1.30.0
-        version: 1.30.0
       react:
         specifier: ^19.2.0
         version: 19.2.3
@@ -517,7 +491,7 @@ importers:
         version: 0.1.9(@pnpm/logger@1001.0.1)(@voidzero-dev/vite-plus-core@0.2.9)(aws4fetch@1.0.20)(idb-keyval@6.3.0)(typescript@5.9.3)
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9)
+        version: 5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/browser-playwright':
         specifier: 4.1.10
         version: 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10)
@@ -1335,6 +1309,9 @@ packages:
   '@codemirror/lint@6.9.7':
     resolution: {integrity: sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg==}
 
+  '@codemirror/merge@6.12.3':
+    resolution: {integrity: sha512-Wq9wXrp41cW/nIpi1CQPyNwD+36kg8KIX676ym0Hyfn3Dpr+XQHNAIsZYVNlaivuVB4SAASbreG3V0VXinbqZA==}
+
   '@codemirror/search@6.7.1':
     resolution: {integrity: sha512-uMe5UO6PamJtSHrXhhHOzSX3ReWtiJrva6GnPMwSOrZtiExb5X5eExhr2OUZQVvdxPsKpY3Ro2mFbQadpPWmHA==}
 
@@ -2041,17 +2018,11 @@ packages:
   '@floating-ui/core@1.7.5':
     resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
 
-  '@floating-ui/core@1.8.0':
-    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
-
   '@floating-ui/dom@1.7.4':
     resolution: {integrity: sha512-OOchDgh4F2CchOX94cRVqhvy7b3AFb+/rQXyswmzmGakRfkMgoWVjfnLWkRirfLEfuD4ysVW16eXzwt3jHIzKA==}
 
   '@floating-ui/dom@1.7.6':
     resolution: {integrity: sha512-9gZSAI5XM36880PPMm//9dfiEngYoC6Am2izES1FF406YFsjvyBMmeJ2g4SAju3xWwtuynNRFL2s9hgxpLI5SQ==}
-
-  '@floating-ui/dom@1.8.0':
-    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
 
   '@floating-ui/react-dom@2.1.6':
     resolution: {integrity: sha512-4JX6rEatQEvlmgU80wZyq9RT96HZJa88q8hp0pBd+LrczeDI4o6uA2M+uvxngVHo4Ihr8uibXxH6+70zhAFrVw==}
@@ -2059,26 +2030,11 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@floating-ui/react-dom@2.1.9':
-    resolution: {integrity: sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg==}
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-
-  '@floating-ui/react@0.27.20':
-    resolution: {integrity: sha512-CMqMy7OaXl9W0eq1Uy7L7i2Y/anPvHmFmESd2CEw0t5YvZhcVCeo4MBevAmswRllX7Y2dEidA4ozGPunLSTQpw==}
-    peerDependencies:
-      react: '>=17.0.0'
-      react-dom: '>=17.0.0'
-
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
-
-  '@floating-ui/utils@0.2.12':
-    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
   '@google/genai@2.21.0':
     resolution: {integrity: sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q==}
@@ -2535,87 +2491,6 @@ packages:
 
   '@kurkle/color@0.3.4':
     resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
-
-  '@lexical/clipboard@0.44.0':
-    resolution: {integrity: sha512-nfmNIs7uENqlDI7cm2E4I1Yp8mDJGMhEQIrIV2rNWnL1oeHVXQ7yuYdyoPdcY1zuj/9nvkYBQYUEh0QiGwpETA==}
-
-  '@lexical/code-core@0.44.0':
-    resolution: {integrity: sha512-m57JyXTIvW1tsqw/Vuogk8jqWCZZIeFQbWybRc46ytR8ReDgzPRODpN8+dacIIeRH5yC5UC3lAa743mtdNkxqg==}
-
-  '@lexical/code-prism@0.44.0':
-    resolution: {integrity: sha512-E8hmosuviwDfZqNyFKf2Vym8lV4shRFRHsRgYHzA3UCp88OqsxcSpyIwZk276khvJ2Zd4DupqJht/h+djezO4Q==}
-
-  '@lexical/code@0.44.0':
-    resolution: {integrity: sha512-d2rZUlGC8noGn/XbVrPyPZ86gYKT5a1DdsCSYIWnw/aqAs9G0xaIBcV9ABH+9cUS9fY5GDHaKTllHKIA8VRAxQ==}
-
-  '@lexical/devtools-core@0.44.0':
-    resolution: {integrity: sha512-X3uNG3P1vOsdzmEcy+7m9DxAcIVtVUZnvskmLqqLs6VluVVwH9xy7h1bPsvlDKvj1Nj73tWJ3TW0qXQWDTo5tw==}
-    peerDependencies:
-      react: '>=17.x'
-      react-dom: '>=17.x'
-
-  '@lexical/dragon@0.44.0':
-    resolution: {integrity: sha512-RhlsjVDket9k1+YFEkDE0/7Qyrh2BI0vxBMzrWwPJTXX/4YFanYN9su8RSabkIukBBJ3QiNOOoC8FKK4Lkr4qg==}
-
-  '@lexical/extension@0.44.0':
-    resolution: {integrity: sha512-BsYtoc+0EU0pqcOpf/lIUDU6LQVO6zX2AawZoUWJzT3Wzfov23qsqZWvl2WGM9dnRTN5iISJL3Fl53bQVxiXxw==}
-
-  '@lexical/hashtag@0.44.0':
-    resolution: {integrity: sha512-0WATahDSqYKVTudQv3KpFbLeCpmrCpRptPFbjxOMckAX2MRpYlrExlqKfgfpri5BSQPtG49EPSGeNfSx/Faavw==}
-
-  '@lexical/history@0.44.0':
-    resolution: {integrity: sha512-RGXcbFTgYL1GIWaReBI26mNSsJTfiA9EAtDY4LBeZ14NrIQhYNokKgNiOxq5Bn8xXrl2+mawQEqoMfgpWp/5YA==}
-
-  '@lexical/html@0.44.0':
-    resolution: {integrity: sha512-5X6eGsgwtqPxABsuShUxF7ZfyB/U4GwSEyeonvwH1Vc/5Q2uQVjlB+FAYd+MNwWMHMh4d4+yZ3l70AtIuhr5eg==}
-
-  '@lexical/link@0.44.0':
-    resolution: {integrity: sha512-uvEqEol/mLEzGVQd8Rok9I48RgYPKokM/nsclI9nYcEdccVOM2Nri4ntoRwodhbccFLtjMPl8OBldwXbfc77tQ==}
-
-  '@lexical/list@0.44.0':
-    resolution: {integrity: sha512-ZTCWxDz1okPrC9FBXi1yV3W5fbQQeMUlFIcSVF9HibcVPmCsPa900IxthuiQbGiTycUyXDTOB3IUYRtlJNtpjw==}
-
-  '@lexical/mark@0.44.0':
-    resolution: {integrity: sha512-bWMowllwe6BcgYMAkrsZx6Z+CX/72qCQpFKhlkR4ael92yOWSBkz68xp1wxxkSnQX9zoI1gYTeWBofVsSDKcsQ==}
-
-  '@lexical/markdown@0.44.0':
-    resolution: {integrity: sha512-DwlXdp85pYMo3exDF6W3iz8plpuP+RQ4Me4Iljm7O5aPDp0SSrIoZxyX4zS668mVAoz5HHj1Ka0kQkft8mq26Q==}
-
-  '@lexical/overflow@0.44.0':
-    resolution: {integrity: sha512-5GYaYjSxn27pqHRfU+tQ2STF10wgJvI+MUnwTnUFSzy3dko1b+oV94K/Yx0TuEewPbwDibfoFA8CwqUvOLHAyw==}
-
-  '@lexical/plain-text@0.44.0':
-    resolution: {integrity: sha512-bIV4Lljk0x70zFhkZIwzSPK5q3m9FpDisjGm2/3Q/chb+5BW3Tv8QJmqnpCiSO6S2KXO7gfSy81ZfkQ1dcd4EQ==}
-
-  '@lexical/react@0.44.0':
-    resolution: {integrity: sha512-p/NQd/fMh3pXb1XqegE2ruvWDcUmfB12OidQ9nwtMtj5VfcUjQu2I+trUhgGRIADxSYxMWmw+8PPj5YSf4m5oA==}
-    peerDependencies:
-      react: '>=17.x'
-      react-dom: '>=17.x'
-      yjs: '>=13.5.22'
-    peerDependenciesMeta:
-      yjs:
-        optional: true
-
-  '@lexical/rich-text@0.44.0':
-    resolution: {integrity: sha512-IIdrutK5GY47ITjPlZB7KzUi9dBDwygsyFOwolnrYSL7m6TtGhAqrYiFg/YNOTT/nBzK3KQeCJRbnxpjJAVZtQ==}
-
-  '@lexical/selection@0.44.0':
-    resolution: {integrity: sha512-AEyeZJFFr5YRLeqVR+X0QAW19c4Fk4MFAQu52z2gxAyDGTj9xwVJxjfepVpfUp4P9K+sPtJ/yaqfMXH506ksSQ==}
-
-  '@lexical/table@0.44.0':
-    resolution: {integrity: sha512-5Uq0O/fBCxcZp9y17fXUONY7dU9lVo/mB5JHy23laIiKzBKP5IzzTLMU9ikZTppIXbMNxYXd+R2pmy7PYTLyvw==}
-
-  '@lexical/text@0.44.0':
-    resolution: {integrity: sha512-1XJD8ZbwaXljTl8k4+jjiopdhnYZm26IJw9Gv8+cIThVC0b6B3JZ/WxH97BMDcSloKvWHFkGiPztxRwNwA29Rw==}
-
-  '@lexical/utils@0.44.0':
-    resolution: {integrity: sha512-/D2ptztNevfBJgtkj4uaiYBeRcvSy+1mQj6pNYaCFZIoPJIwl6H5fXwWAvpvr11vcQKP9DEEoXR+V4qkMOA+EA==}
-
-  '@lexical/yjs@0.44.0':
-    resolution: {integrity: sha512-b3QTub9J/3LuwSSdooynb6GbMHBRyBT4xUbXzXqNPbDHgYe6CDrqf/uJIHRihIjAhOnPaHYqo9XUzitl++N1DQ==}
-    peerDependencies:
-      yjs: '>=13.5.22'
 
   '@lezer/common@1.5.2':
     resolution: {integrity: sha512-sxQE460fPZyU3sdc8lafxiPwJHBzZRy/udNFynGQky1SePYBdhkBl1kOagA9uT3pxR8K09bOrmTUqA9wb/PjSQ==}
@@ -3543,9 +3418,6 @@ packages:
 
   '@preact/signals-core@1.12.1':
     resolution: {integrity: sha512-BwbTXpj+9QutoZLQvbttRg5x3l5468qaV2kufh+51yha1c53ep5dY4kTuZR35+3pAZxpfQerGJiQqg34ZNZ6uA==}
-
-  '@preact/signals-core@1.14.4':
-    resolution: {integrity: sha512-HNB6HYeYKhQbJ1aKl+YRjrS4+QWHLKX6qKoUsfS/m0vqzsVaEBiZiaKbG/e+NKk2ch5ALQr/ihWaMHxiCuuWHA==}
 
   '@preact/signals@1.3.2':
     resolution: {integrity: sha512-naxcJgUJ6BTOROJ7C3QML7KvwKwCXQJYTc5L/b0eEsdYgPB6SxwoQ1vDGcS0Q7GVjAenVq/tXrybVdFShHYZWg==}
@@ -5744,9 +5616,6 @@ packages:
     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
     engines: {node: '>=6'}
 
-  lexical@0.44.0:
-    resolution: {integrity: sha512-ReDUjRlFgkGoPWzvdjr7s16PUVpHATN+2NH2NiZs+PLlISTaIFFgKil2P467oP3Vg+XgmpDsUgmWZsFJTztYjg==}
-
   lib0@0.2.117:
     resolution: {integrity: sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw==}
     engines: {node: '>=16'}
@@ -5951,6 +5820,12 @@ packages:
   media-typer@1.1.0:
     resolution: {integrity: sha512-aisnrDP4GNe06UcKFnV5bfMNPBUw4jsLGaWwWfnH3v02GnBuXX2MCVn5RbrWo0j3pczUilYblq7fQ7Nw2t5XKw==}
     engines: {node: '>= 0.8'}
+
+  memora-markdown-editor@0.1.2:
+    resolution: {integrity: sha512-EK8oGH694OlUbTzNRd2GS0HCcV4zxsyshu6NscqEw/KM5g/zwe7WEYuI2O8uHkSN4GVKVzl2T2YiH1RaH4zyqw==}
+    peerDependencies:
+      react: ^19.2.0
+      react-dom: ^19.2.0
 
   merge-descriptors@2.0.0:
     resolution: {integrity: sha512-Snk314V5ayFLhp3fkUREub6WtjBfPdCPY1Ln8/8munuLuiYhsABgBVWsozAG+MWMbVEvcdcpbi9R7ww22l9Q3g==}
@@ -6578,10 +6453,6 @@ packages:
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
-
-  prismjs@1.30.0:
-    resolution: {integrity: sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==}
-    engines: {node: '>=6'}
 
   process-exists@5.0.0:
     resolution: {integrity: sha512-6QPRh5fyHD8MaXr4GYML8K/YY0Sq5dKHGIOrAKS3cYpHQdmygFCcijIu1dVoNKAZ0TWAMoeh8KDK9dF8auBkJA==}
@@ -9015,6 +8886,14 @@ snapshots:
       '@codemirror/view': 6.43.9
       crelt: 1.0.7
 
+  '@codemirror/merge@6.12.3':
+    dependencies:
+      '@codemirror/language': 6.12.4
+      '@codemirror/state': 6.7.1
+      '@codemirror/view': 6.43.9
+      '@lezer/highlight': 1.2.3
+      style-mod: 4.1.3
+
   '@codemirror/search@6.7.1':
     dependencies:
       '@codemirror/state': 6.7.1
@@ -9529,10 +9408,6 @@ snapshots:
     dependencies:
       '@floating-ui/utils': 0.2.11
 
-  '@floating-ui/core@1.8.0':
-    dependencies:
-      '@floating-ui/utils': 0.2.12
-
   '@floating-ui/dom@1.7.4':
     dependencies:
       '@floating-ui/core': 1.7.3
@@ -9543,36 +9418,15 @@ snapshots:
       '@floating-ui/core': 1.7.5
       '@floating-ui/utils': 0.2.11
 
-  '@floating-ui/dom@1.8.0':
-    dependencies:
-      '@floating-ui/core': 1.8.0
-      '@floating-ui/utils': 0.2.12
-
   '@floating-ui/react-dom@2.1.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@floating-ui/dom': 1.7.4
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
 
-  '@floating-ui/react-dom@2.1.9(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
-    dependencies:
-      '@floating-ui/dom': 1.8.0
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-
-  '@floating-ui/react@0.27.20(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
-    dependencies:
-      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@floating-ui/utils': 0.2.12
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-      tabbable: 6.4.0
-
   '@floating-ui/utils@0.2.10': {}
 
   '@floating-ui/utils@0.2.11': {}
-
-  '@floating-ui/utils@0.2.12': {}
 
   '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))':
     dependencies:
@@ -9934,177 +9788,6 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@kurkle/color@0.3.4': {}
-
-  '@lexical/clipboard@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      '@lexical/html': 0.44.0
-      '@lexical/list': 0.44.0
-      '@lexical/selection': 0.44.0
-      '@lexical/utils': 0.44.0
-      '@types/trusted-types': 2.0.7
-      lexical: 0.44.0
-
-  '@lexical/code-core@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/code-prism@0.44.0':
-    dependencies:
-      '@lexical/code-core': 0.44.0
-      '@lexical/extension': 0.44.0
-      lexical: 0.44.0
-      prismjs: 1.30.0
-
-  '@lexical/code@0.44.0':
-    dependencies:
-      '@lexical/code-core': 0.44.0
-      '@lexical/code-prism': 0.44.0
-      '@lexical/extension': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/devtools-core@0.44.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
-    dependencies:
-      '@lexical/html': 0.44.0
-      '@lexical/link': 0.44.0
-      '@lexical/mark': 0.44.0
-      '@lexical/table': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-
-  '@lexical/dragon@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/extension@0.44.0':
-    dependencies:
-      '@lexical/utils': 0.44.0
-      '@preact/signals-core': 1.14.4
-      lexical: 0.44.0
-
-  '@lexical/hashtag@0.44.0':
-    dependencies:
-      '@lexical/text': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/history@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/html@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      '@lexical/selection': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/link@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/list@0.44.0':
-    dependencies:
-      '@lexical/extension': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/mark@0.44.0':
-    dependencies:
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/markdown@0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)':
-    dependencies:
-      '@lexical/code-core': 0.44.0
-      '@lexical/link': 0.44.0
-      '@lexical/list': 0.44.0
-      '@lexical/rich-text': 0.44.0
-      '@lexical/text': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/overflow@0.44.0':
-    dependencies:
-      lexical: 0.44.0
-
-  '@lexical/plain-text@0.44.0':
-    dependencies:
-      '@lexical/clipboard': 0.44.0
-      '@lexical/dragon': 0.44.0
-      '@lexical/selection': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/react@0.44.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yjs@13.6.32)':
-    dependencies:
-      '@floating-ui/react': 0.27.20(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@lexical/devtools-core': 0.44.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@lexical/dragon': 0.44.0
-      '@lexical/extension': 0.44.0
-      '@lexical/hashtag': 0.44.0
-      '@lexical/history': 0.44.0
-      '@lexical/link': 0.44.0
-      '@lexical/list': 0.44.0
-      '@lexical/mark': 0.44.0
-      '@lexical/markdown': 0.44.0(patch_hash=4ae718e2fce7739b878eea25b5299b4b7bbd5e1a1b1357dca3ba3af33af42ec2)
-      '@lexical/overflow': 0.44.0
-      '@lexical/plain-text': 0.44.0
-      '@lexical/rich-text': 0.44.0
-      '@lexical/table': 0.44.0
-      '@lexical/text': 0.44.0
-      '@lexical/utils': 0.44.0
-      '@lexical/yjs': 0.44.0(yjs@13.6.32)
-      lexical: 0.44.0
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-      react-error-boundary: 6.1.6(@types/react@19.2.8)(react@19.2.3)
-    optionalDependencies:
-      yjs: 13.6.32
-    transitivePeerDependencies:
-      - '@types/react'
-
-  '@lexical/rich-text@0.44.0':
-    dependencies:
-      '@lexical/clipboard': 0.44.0
-      '@lexical/dragon': 0.44.0
-      '@lexical/selection': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/selection@0.44.0':
-    dependencies:
-      lexical: 0.44.0
-
-  '@lexical/table@0.44.0':
-    dependencies:
-      '@lexical/clipboard': 0.44.0
-      '@lexical/extension': 0.44.0
-      '@lexical/utils': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/text@0.44.0':
-    dependencies:
-      lexical: 0.44.0
-
-  '@lexical/utils@0.44.0':
-    dependencies:
-      '@lexical/selection': 0.44.0
-      lexical: 0.44.0
-
-  '@lexical/yjs@0.44.0(yjs@13.6.32)':
-    dependencies:
-      '@lexical/selection': 0.44.0
-      lexical: 0.44.0
-      yjs: 13.6.32
 
   '@lezer/common@1.5.2': {}
 
@@ -10952,8 +10635,6 @@ snapshots:
 
   '@preact/signals-core@1.12.1': {}
 
-  '@preact/signals-core@1.14.4': {}
-
   '@preact/signals@1.3.2(preact@10.28.2)':
     dependencies:
       '@preact/signals-core': 1.12.1
@@ -11508,7 +11189,7 @@ snapshots:
       - uploadthing
       - utf-8-validate
 
-  '@vitejs/plugin-react@5.1.2(@voidzero-dev/vite-plus-core@0.2.9)':
+  '@vitejs/plugin-react@5.1.2(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))':
     dependencies:
       '@babel/core': 7.28.6
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.6)
@@ -11523,7 +11204,7 @@ snapshots:
   '@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10)':
     dependencies:
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(vitest@4.1.10)
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       playwright: 1.57.0
       tinyrainbow: 3.1.1
       vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jsdom@25.0.1)
@@ -11536,7 +11217,7 @@ snapshots:
   '@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10)':
     dependencies:
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(vitest@4.1.10)
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       playwright: 1.57.0
       tinyrainbow: 3.1.1
       vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9)(jsdom@25.0.1)
@@ -11573,7 +11254,7 @@ snapshots:
   '@vitest/browser@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(vitest@4.1.10)':
     dependencies:
       '@blazediff/core': 1.9.1
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/utils': 4.1.10
       magic-string: 0.30.21
       pngjs: 7.0.0
@@ -11590,7 +11271,7 @@ snapshots:
   '@vitest/browser@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(vitest@4.1.10)':
     dependencies:
       '@blazediff/core': 1.9.1
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/utils': 4.1.10
       magic-string: 0.30.21
       pngjs: 7.0.0
@@ -11613,7 +11294,7 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)':
+  '@vitest/mocker@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))':
     dependencies:
       '@vitest/spy': 4.1.10
       estree-walker: 3.0.3
@@ -13384,7 +13065,8 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  isomorphic.js@0.2.5: {}
+  isomorphic.js@0.2.5:
+    optional: true
 
   jackspeak@4.2.3:
     dependencies:
@@ -13513,11 +13195,10 @@ snapshots:
 
   leven@3.1.0: {}
 
-  lexical@0.44.0: {}
-
   lib0@0.2.117:
     dependencies:
       isomorphic.js: 0.2.5
+    optional: true
 
   lie@3.3.0:
     dependencies:
@@ -13810,6 +13491,24 @@ snapshots:
       '@types/mdast': 4.0.4
 
   media-typer@1.1.0: {}
+
+  memora-markdown-editor@0.1.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/commands': 6.11.0
+      '@codemirror/lang-markdown': 6.5.2
+      '@codemirror/language': 6.12.4
+      '@codemirror/merge': 6.12.3
+      '@codemirror/search': 6.7.1
+      '@codemirror/state': 6.7.1
+      '@codemirror/view': 6.43.9
+      '@lezer/common': 1.5.2
+      '@lezer/markdown': 1.7.2
+      katex: 0.16.38
+      pele: 1.6.0
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      shiki: 3.23.0
 
   merge-descriptors@2.0.0: {}
 
@@ -14606,8 +14305,6 @@ snapshots:
       ansi-regex: 5.0.1
       ansi-styles: 5.2.0
       react-is: 17.0.2
-
-  prismjs@1.30.0: {}
 
   process-exists@5.0.0:
     dependencies:
@@ -15825,7 +15522,7 @@ snapshots:
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(vitest@4.1.10)
       '@vitest/browser-preview': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(vitest@4.1.10)
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -15884,7 +15581,7 @@ snapshots:
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(vitest@4.1.10)
       '@vitest/browser-preview': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(vitest@4.1.10)
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -15939,7 +15636,7 @@ snapshots:
   vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -15970,7 +15667,7 @@ snapshots:
   vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.7)(@vitest/browser-playwright@4.1.10(@voidzero-dev/vite-plus-core@0.2.9)(playwright@1.57.0)(vitest@4.1.10))(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9)
+      '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.10.7)(esbuild@0.28.2)(jiti@2.6.1)(publint@0.3.18)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -16309,6 +16006,7 @@ snapshots:
   yjs@13.6.32:
     dependencies:
       lib0: 0.2.117
+    optional: true
 
   yocto-queue@1.2.2: {}
 

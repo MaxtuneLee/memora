@@ -57,7 +57,6 @@ The broad `packages/*/*` pattern in `pnpm-workspace.yaml` also matches source an
 Keep exceptions tied to a runtime contract or a located caller. The project uses these mechanisms:
 
 - `ignoreExports` exempts only the router's `Component` export under `pages/`, the development playground's lazy route `Component`, and the generated route map's `default` export. Other exports in those files remain checked.
-- `usedClassMembers` allows Lexical lifecycle and serialization methods only on subclasses of the named Lexical base types. It also preserves `setMarkdownSourcePrefix` on heading and list-item nodes because `WysiwygDocumentEditor` calls it after node type guards. Other getters, setters, and registry methods remain checked.
 - `ignoreDependencies` lists the exact names `@livestore/peer-deps`, `@stylexjs/stylex`, `@types/audioworklet`, and `@webgpu/types` for their peer, source-compilation, and ambient-type roles. Fallow applies this list repository-wide and excludes both unused and unlisted dependency findings for those names; recheck package placement manually when adding their consumers. `@types/dom-webcodecs` remains reportable pending separate verification.
 - A `fallow-ignore-next-line unused-class-member -- <reason>` comment covers a verified call through a type guard, object property, selected BEIR pool, or the Transformers custom-cache contract. The reason identifies the caller or contract. Keep these exceptions on individual methods.
 

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import type { WikiLinkOptions } from "memora-markdown-editor";
 import { ArrowLeftIcon, ChatCircleIcon, CodeIcon, PenIcon } from "@phosphor-icons/react";
 
 import { SourceDocumentEditor } from "@/components/editor/SourceDocumentEditor";
@@ -27,7 +28,6 @@ import {
 import type { TextDocumentFileLike } from "@/lib/editor/documentPersistence";
 import { measureTextLength } from "@/lib/editor/wordCount";
 import { getFileExtension } from "@/lib/editor/editableTextDocument";
-import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 import { tokens } from "../../styles/stylex.stylex";
 
 type EditorMode = "source" | "wysiwyg";
@@ -156,8 +156,10 @@ const styles = stylex.create({
     fontSize: "2.25rem",
     fontWeight: 600,
     letterSpacing: "-0.03em",
-    lineHeight: "2.5rem",
-    marginBottom: "1rem",
+    // An input clips its text to its own box, and Noto Sans needs about 1.36em for ascenders
+    // and descenders, so a tighter line height cuts off letters like "y".
+    lineHeight: 1.4,
+    marginBottom: "0.5rem",
     minWidth: 0,
     outline: "none",
     transition: "color 200ms",
@@ -226,8 +228,6 @@ interface MarkdownDocumentEditorProps {
   saveState: "idle" | "dirty" | "saving" | "error";
   saveError?: string | null;
   referenceNotice?: string | null;
-  wysiwygSafetyNotice?: string | null;
-  wysiwygSafetyDiagnostics?: readonly MarkdownSafetyDiagnostic[];
   focusedLineStart?: number | null;
   focusedLineEnd?: number | null;
   txtUpgradeDialogOpen: boolean;
@@ -240,6 +240,8 @@ interface MarkdownDocumentEditorProps {
   // The same suggestions in Preview, which marks them in the note instead of replacing the editor.
   wysiwygReview?: WysiwygDocumentReview | null;
   onSelectionTextChange?: (text: string | null) => void;
+  onOpenReference?: (href: string) => void;
+  wikiLinks?: WikiLinkOptions;
 }
 
 const DOCUMENT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
@@ -289,8 +291,6 @@ export function MarkdownDocumentEditor({
   saveState,
   saveError,
   referenceNotice,
-  wysiwygSafetyNotice,
-  wysiwygSafetyDiagnostics = [],
   focusedLineStart = null,
   focusedLineEnd = null,
   txtUpgradeDialogOpen,
@@ -301,6 +301,8 @@ export function MarkdownDocumentEditor({
   changeReview = null,
   wysiwygReview = null,
   onSelectionTextChange,
+  onOpenReference,
+  wikiLinks,
 }: MarkdownDocumentEditorProps) {
   const sourceRef = useRef<ComponentRef<typeof SourceDocumentEditor> | null>(null);
   const wysiwygRef = useRef<WysiwygDocumentEditorHandle | null>(null);
@@ -361,7 +363,7 @@ export function MarkdownDocumentEditor({
         sourceRef.current?.revealLine(heading.line);
         return;
       }
-      wysiwygRef.current?.revealHeading(heading.index);
+      wysiwygRef.current?.revealLine(heading.line);
     },
     [isSourceMode],
   );
@@ -381,12 +383,6 @@ export function MarkdownDocumentEditor({
     },
     [headings],
   );
-
-  const handleActiveHeadingChange = useCallback((headingIndex: number): void => {
-    setActiveHeadingIndex((currentHeadingIndex) => {
-      return currentHeadingIndex === headingIndex ? currentHeadingIndex : headingIndex;
-    });
-  }, []);
 
   const commitTitle = async () => {
     const nextTitle = titleValue.trim();
@@ -515,17 +511,6 @@ export function MarkdownDocumentEditor({
 
       {referenceNotice ? <div {...stylex.props(styles.notice)}>{referenceNotice}</div> : null}
 
-      {wysiwygSafetyNotice ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className={stylex.props(styles.notice).className}
-          data-testid="wysiwyg-safety-notice"
-        >
-          {wysiwygSafetyNotice}
-        </div>
-      ) : null}
-
       <div {...stylex.props(styles.editorLayout)}>
         <div ref={editorBoxRef} {...stylex.props(styles.editor)}>
           {isSourceMode && changeReview ? (
@@ -539,16 +524,17 @@ export function MarkdownDocumentEditor({
               onSelectionTextChange={onSelectionTextChange}
               focusedLineStart={focusedLineStart}
               focusedLineEnd={focusedLineEnd}
-              diagnostics={wysiwygSafetyDiagnostics}
             />
           ) : (
             <WysiwygDocumentEditor
               ref={wysiwygRef}
               text={text}
               review={wysiwygReview}
-              onActiveHeadingChange={handleActiveHeadingChange}
+              onVisibleLineChange={setActiveHeadingFromLine}
               onSelectionTextChange={onSelectionTextChange}
               onTextChange={onTextChange}
+              onOpenReference={onOpenReference}
+              wikiLinks={wikiLinks}
             />
           )}
         </div>

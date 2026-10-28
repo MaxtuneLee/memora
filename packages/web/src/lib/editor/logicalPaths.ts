@@ -380,3 +380,38 @@ export const resolveRelativeWorkspacePath = <
 
   return resolvedFile;
 };
+
+const stripFileExtension = (name: string): string => {
+  const extension = getFileExtension(name);
+  return extension ? name.slice(0, -extension.length) : name;
+};
+
+/**
+ * The file a `[[wiki link]]` points at: a relative path, with or without its extension, or else
+ * the only file anywhere with that name. Returns null when nothing or more than one file matches.
+ */
+export const resolveWikiLinkTarget = <
+  TFile extends WorkspaceFileLike,
+  TFolder extends WorkspaceFolderLike,
+>(
+  target: string,
+  scope: ResolveRelativeWorkspacePathInput<TFile, TFolder>,
+): TFile | null => {
+  const path = stripPathSuffix(target);
+  if (!path) {
+    return null;
+  }
+  for (const candidate of [path, `${path}.md`]) {
+    try {
+      return resolveRelativeWorkspacePath(candidate, scope);
+    } catch {
+      // Try the next spelling, then a match by name anywhere.
+    }
+  }
+  const name = path.split("/").pop()?.toLowerCase() ?? "";
+  const matches = scope.files.filter(
+    (file) =>
+      file.name.toLowerCase() === name || stripFileExtension(file.name).toLowerCase() === name,
+  );
+  return matches.length === 1 ? (matches[0] ?? null) : null;
+};

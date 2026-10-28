@@ -7,9 +7,8 @@ import { EditorView } from "@codemirror/view";
 
 import { SourceDocumentEditor } from "@/components/editor/SourceDocumentEditor";
 import { WysiwygDocumentEditor } from "@/components/editor/WysiwygDocumentEditor";
-import type { MarkdownSafetyDiagnostic } from "@/lib/editor/markdownRoundTripGuard";
 import { applyDocumentTheme, type ResolvedTheme } from "@/lib/theme/documentTheme";
-import { contrast, textContrast } from "./colorContrast";
+import { textContrast } from "./colorContrast";
 import { DESKTOP_VIEWPORT, expectScreenshot, loadAppFonts, NARROW_VIEWPORT } from "./visual";
 
 // Computed-style checks only: no assertions on generated StyleX class names.
@@ -60,28 +59,6 @@ describe.each(["light", "dark"] as const)("SourceDocumentEditor in %s", (theme) 
     expect(selectionBackground).not.toBe(getComputedStyle(gutters).backgroundColor);
   });
 
-  it("keeps markdown safety diagnostics legible", async () => {
-    const diagnostic: MarkdownSafetyDiagnostic = {
-      column: 1,
-      from: 0,
-      line: 1,
-      message: 'Line 1: "[]" would become "[ ]".',
-      replacementText: "[ ]",
-      sourceText: "[]",
-      to: 2,
-    };
-    await mount(
-      theme,
-      <SourceDocumentEditor text="[] item" onTextChange={() => {}} diagnostics={[diagnostic]} />,
-    );
-
-    const diagnosticButton = [...(host?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === diagnostic.message,
-    );
-    if (!diagnosticButton) throw new Error("Missing diagnostic button");
-    expect(textContrast(diagnosticButton)).toBeGreaterThanOrEqual(4.5);
-  });
-
   it("colors markdown syntax with readable theme colors", async () => {
     await mount(
       theme,
@@ -118,10 +95,11 @@ describe.each(["light", "dark"] as const)("WysiwygDocumentEditor in %s", (theme)
     ].join("\n");
     await mount(theme, <WysiwygDocumentEditor text={markdown} onTextChange={() => {}} />);
 
-    const heading = host?.querySelector("h1");
-    const link = host?.querySelector("a");
-    const inlineCode = host?.querySelector("code");
-    const paragraph = [...(host?.querySelectorAll("p") ?? [])].find((node) =>
+    await expect.poll(() => host?.querySelector(".cm-md-h1")).not.toBeNull();
+    const heading = host?.querySelector(".cm-md-h1");
+    const link = host?.querySelector(".cm-md-link");
+    const inlineCode = host?.querySelector(".cm-md-inline-code");
+    const paragraph = [...(host?.querySelectorAll(".cm-line") ?? [])].find((node) =>
       node.textContent?.includes("A paragraph"),
     );
     for (const [label, element] of [
@@ -136,15 +114,6 @@ describe.each(["light", "dark"] as const)("WysiwygDocumentEditor in %s", (theme)
     expect(getComputedStyle(link as Element).color).not.toBe(
       getComputedStyle(paragraph as Element).color,
     );
-
-    const checkedBox = host?.querySelector("li[aria-checked='true']");
-    const uncheckedBox = host?.querySelector("li[aria-checked='false']");
-    if (!checkedBox || !uncheckedBox) throw new Error("Missing checklist items");
-    const checkedFill = getComputedStyle(checkedBox, "::before").backgroundColor;
-    const pageBackground = getComputedStyle(document.body).backgroundColor;
-    // The checked box must stay visible against the page surface in both themes - this is the
-    // exact case that broke before (a hardcoded near-black fill on a near-black dark surface).
-    expect(contrast(checkedFill, pageBackground)).toBeGreaterThanOrEqual(1.5);
   });
 });
 
@@ -193,7 +162,7 @@ it("reconfigures CodeMirror on a runtime theme change without recreating the vie
   await expect.poll(() => latestText).toBe("alpha");
 });
 
-it("keeps Lexical content, selection, and focus across a runtime theme change", async () => {
+it("keeps editor content and focus across a runtime theme change", async () => {
   let latestMarkdown = "Hello world";
   const Harness = () => {
     const [value, setValue] = useState(latestMarkdown);
@@ -209,23 +178,22 @@ it("keeps Lexical content, selection, and focus across a runtime theme change", 
   };
 
   await mount("light", <Harness />);
-  const contentEditable = host?.querySelector(
-    '[data-testid="wysiwyg-contenteditable"]',
-  ) as HTMLElement;
-  if (!contentEditable) throw new Error("Missing Lexical contenteditable");
+  const content = host?.querySelector(".cm-content") as HTMLElement;
+  if (!content) throw new Error("Missing editor content");
 
-  await userEvent.click(contentEditable);
-  await userEvent.type(contentEditable, "!");
+  const view = EditorView.findFromDOM(content);
+  view?.focus();
+  view?.dispatch({ selection: { anchor: view.state.doc.length } });
+  await userEvent.keyboard("!");
   await expect.poll(() => latestMarkdown).toBe("Hello world!");
-  const colorBefore = getComputedStyle(contentEditable).color;
+  const colorBefore = getComputedStyle(content).color;
 
   applyDocumentTheme("dark");
-  await expect.poll(() => getComputedStyle(contentEditable).color).not.toBe(colorBefore);
+  await expect.poll(() => getComputedStyle(content).color).not.toBe(colorBefore);
 
-  // Same node, not remounted; content and focus both survive the reconfigure.
-  expect(host?.querySelector('[data-testid="wysiwyg-contenteditable"]')).toBe(contentEditable);
-  expect(contentEditable.textContent).toBe("Hello world!");
-  expect(document.activeElement).toBe(contentEditable);
+  expect(host?.querySelector(".cm-content")).toBe(content);
+  expect(content.textContent).toBe("Hello world!");
+  expect(content.contains(document.activeElement)).toBe(true);
 });
 
 const REFERENCE_MARKDOWN = [
